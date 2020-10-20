@@ -12,8 +12,8 @@ index = {"normalize_withincond": "01_normalization.ipynb",
 
 modules = ["normalization.py"]
 
-doc_url = "https://ammarcsj.github.io/nbdev_template/"
+doc_url = "https://ammarcsj.github.io/ms_empire/"
 
-git_url = "https://github.com/ammarcsj/nbdev_template/tree/master/"
+git_url = "https://github.com/ammarcsj/ms_empire/tree/master/"
 
 def custom_doc_links(name): return None

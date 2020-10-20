@@ -66,7 +66,7 @@ sidebars:
 - home_sidebar
 
 theme: jekyll-theme-cayman
-baseurl: /nbdev_template/
+baseurl: /ms_empire/
 repo_name = ms_empire_python
 company_name = mpi_biochemistry/
 repo_name = ms_empire_python
