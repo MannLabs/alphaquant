@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 def normalize_withincond(samples):
 
-    "finds optimal scaling factors for samples measured in the same condition and corrects the samples by these scaling factors"
+    "finds optimal scaling factors for samples measured in the same condition and corrects the samples by these scaling factors. Takes a 2d numpy array as input  "
 
     num_samples = samples.shape[0]
     mergedsamples = samples #the virtual "merged" samples will be stored in this array
@@ -57,7 +57,6 @@ def get_bestmatch_pair(samples, exclusion_set, sample2counts):
                 i_min = i
                 j_min = j
                 min_distance = distance
-
 
     return determine_anchor_and_shift_sample(sample2counts, i_min, j_min, min_distance)
 
