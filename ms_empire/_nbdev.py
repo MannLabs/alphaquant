@@ -2,15 +2,26 @@
 
 __all__ = ["index", "modules", "custom_doc_links", "git_url"]
 
-index = {"normalize_withincond": "01_normalization.ipynb",
-         "get_bestmatch_pair": "01_normalization.ipynb",
-         "get_fcdistrib": "01_normalization.ipynb",
-         "determine_anchor_and_shift_sample": "01_normalization.ipynb",
-         "shift_samples": "01_normalization.ipynb",
-         "get_total_shift": "01_normalization.ipynb",
-         "merge_distribs": "01_normalization.ipynb"}
+index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
+         "normalize_withincond": "02_normalization.ipynb",
+         "get_bestmatch_pair": "02_normalization.ipynb",
+         "get_fcdistrib": "02_normalization.ipynb",
+         "determine_anchor_and_shift_sample": "02_normalization.ipynb",
+         "shift_samples": "02_normalization.ipynb",
+         "get_total_shift": "02_normalization.ipynb",
+         "merge_distribs": "02_normalization.ipynb",
+         "ConditionBackgrounds": "03_background_distributions.ipynb",
+         "BackGroundDistribution": "03_background_distributions.ipynb",
+         "SubtractedBackgrounds": "03_background_distributions.ipynb",
+         "get_subtracted_bg": "03_background_distributions.ipynb",
+         "get_normed_freqs": "03_background_distributions.ipynb",
+         "get_freq_from_cumul": "03_background_distributions.ipynb",
+         "transform_cumulative_into_fc2count": "03_background_distributions.ipynb",
+         "get_cumul_from_freq": "03_background_distributions.ipynb"}
 
-modules = ["normalization.py"]
+modules = ["diff_analysis_manager.py",
+           "normalization.py",
+           "background_distributions.py"]
 
 doc_url = "https://ammarcsj.github.io/ms_empire/"
 

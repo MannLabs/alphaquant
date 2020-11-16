@@ -1,0 +1,168 @@
+# To add a new cell, type '# %%'
+# To add a new markdown cell, type '# %% [markdown]'
+# %%
+# default_exp background_distributions
+
+
+# %%
+class ConditionBackgrounds():
+
+    def __init__(self, normed_condition_df):
+        self.backgrounds = []
+        self.normed_condition_df = normed_condition_df
+        self.ion2background = {}
+        self.ion2nonNanvals = {}
+        self.init_ion2nonNanvals(self.normed_condition_df)
+        self.select_intensity_ranges()
+
+    def init_ion2nonNanvals(self, normed_condition_df):
+        for peptide, vals in normed_condition_df.iterrows():
+            self.ion2nonNanvals[peptide] = vals[vals.notna()].values
+
+
+    def select_intensity_ranges(self):
+        total_available_comparisons =0
+        num_contexts = 100
+        cumulative_counts = np.zeros(self.normed_condition_df.shape[0])
+
+
+        for idx ,count in enumerate(self.normed_condition_df.count()):
+            total_available_comparisons+=count-1
+            cumulative_counts[idx] = int(total_available_comparisons/2)
+        
+
+        #assign the context sizes
+        context_size = np.max([1000, int(total_available_comparisons/(1+num_contexts/2))])
+        halfcontext_size = int(context_size/2)
+        context_boundaries = np.zeros(3)
+        print(f"cumulative counts {cumulative_counts}")
+        middle_idx = np.searchsorted(cumulative_counts, halfcontext_size)
+        end_idx = np.searchsorted(cumulative_counts, context_size)
+        print(f"middle idx {middle_idx} \n end idx {end_idx}")
+
+        context_boundaries[0] = 0
+        context_boundaries[1] = middle_idx
+        context_boundaries[2] = end_idx
+
+        while context_boundaries[2] < total_available_comparisons:
+            self.backgrounds.append(BackGroundDistribution(context_boundaries[0], context_boundaries[2], self.ion2nonNanvals))
+            context_boundaries[0] = context_boundaries[1]
+            context_boundaries[1] = context_boundaries[2]
+            end_idx = np.searchsorted(cumulative_counts, context_size + cumulative_counts[context_boundaries[0]])
+            print(f"endidx searchsort {end_idx}")
+            context_boundaries[2] = end_idx
+
+
+
+
+# %%
+import numpy as np
+from random import shuffle
+import pandas as pd
+
+class BackGroundDistribution:
+
+    fc_resolution_factor = 100
+    fc_conversion_factor = 1/fc_resolution_factor
+
+    def __init__(self, start_idx, end_idx, ion2noNanvals):
+        
+        self.fc2counts = {} #binned Fold change Distribution
+        self.cumulative = np.array([])
+        self.min_fc =0
+        self.max_fc = 0
+        self.start_idx = int(start_idx)
+        self.end_idx = int(end_idx)
+
+        anchor_fcs = self.generate_anchorfcs_from_intensity_range(ion2noNanvals)
+        shuffle(anchor_fcs)
+        self.generate_fc2counts_from_anchor_fcs(anchor_fcs)
+        self.transform_fc2counts_into_cumulative()
+
+    def generate_anchorfcs_from_intensity_range(self,ion2noNanvals):
+
+        anchor_fcs = []
+        for idx in range(self.start_idx, self.end_idx):
+            vals = ion2noNanvals[idx]
+            if vals.size < 2:
+                continue
+            anchor_idx =  np.random.randint(0, len(vals))
+            anchor_val = vals[anchor_idx]
+            vals = np.delete(vals, anchor_idx)
+            anchor_fcs.append(vals-anchor_val)
+        return anchor_fcs
+
+
+    def generate_fc2counts_from_anchor_fcs(self,anchor_fcs):
+        
+        anchor_fcs = np.array(anchor_fcs)
+        for idx in range(1, anchor_fcs.shape[0]):
+            fc_binned = np.rint(self.fc_resolution_factor*(anchor_fcs[idx-1] - anchor_fcs[idx])).astype(np.long)
+            for fc in fc_binned:
+                self.fc2counts[fc] = self.fc2counts.setdefault(fc, 0) + 1
+
+        self.min_fc = min(self.fc2counts.keys())
+        self.max_fc = max(self.fc2counts.keys())
+
+    
+    def transform_fc2counts_into_cumulative(self):
+        
+        cumulative = np.zeros(self.max_fc - self.min_fc +1)
+
+        for entry in self.fc2counts.items():
+            cumulative[int(entry[0]-self.min_fc)] +=entry[1]
+        for idx in range(1,cumulative.shape[0]):
+            cumulative[idx] +=cumulative[idx-1]
+
+
+# %%
+rand1 = np.random.normal(loc=0, size=1000)
+rand2 = np.random.normal(loc=0, size=1000)
+rand3 = np.random.normal(loc=0, size=1000)
+rand4 = np.random.normal(loc=0, size=1000)
+rand5 = np.random.normal(loc=0, size=1000)
+
+randarray = pd.DataFrame({1:rand1, 2:rand2, 3:rand3, 4:rand4, 5:rand5})
+
+ConditionBackgrounds(randarray)
+
+
+# %%
+from random import shuffle
+arr = [1,1,1,1,2,2]
+dict = {}
+
+for elem in arr:
+    dict[elem] = dict.setdefault(elem, 0)+1
+
+print(dict)
+
+
+# %%
+import pandas as pd
+df = pd.DataFrame([(12, 50, 389.0),                (20, 64.0, 24.0),
+               (np.nan, 55, 80.2),
+                (17, 51, 385.0),
+                   (15, 68, 370.0)],
+                  index=['falcon', 'parrot', 'lion', 'monkey', 'leopard'],
+                columns=('r1', 'r2', 'r3'))
+display(df)
+
+
+# %%
+for label, content in df.iterrows():
+    print(label)
+    print(content[content.notna()].values)
+
+
+# %%
+arr = np.zeros(5)
+for idx in range(1,arr.shape[0]):
+    arr[idx]+=arr[idx-1]+1
+print(arr)
+
+
+# %%
+
+
+
