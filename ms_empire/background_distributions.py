@@ -48,7 +48,7 @@ class ConditionBackgrounds():
         context_boundaries[0] = 0
         context_boundaries[1] = middle_idx
         context_boundaries[2] = end_idx
-        while context_boundaries[1] < len(cumulative_counts)-1:
+        while context_boundaries[1] < len(cumulative_counts):
             bgdist = BackGroundDistribution(context_boundaries[0], context_boundaries[2], self.ion2nonNanvals, self.idx2ion)
             self.assign_ions2bgdists(context_boundaries[0], context_boundaries[2], bgdist)
             self.backgrounds.append(bgdist)
@@ -56,11 +56,13 @@ class ConditionBackgrounds():
             context_boundaries[1] = context_boundaries[2]
             end_idx = np.searchsorted(cumulative_counts, context_size + cumulative_counts[context_boundaries[0]])
             if end_idx > len(cumulative_counts)-(context_boundaries[1]-context_boundaries[0])/1.5:
-                end_idx = len(cumulative_counts)-1
+                end_idx = len(cumulative_counts)
             context_boundaries[2] = end_idx
 
-    def assign_ions2bgdists(self, boundaries1, boundaries2,bgdist):
-        ion2bg_local = dict(map(lambda _idx : (self.normed_condition_df.index.values[_idx], bgdist), range(boundaries1, boundaries2)))
+    def assign_ions2bgdists(self, boundaries1, boundaries2, bgdist):
+        ion2bg_local = {} #dict(map(lambda _idx : (self.normed_condition_df.index.values[_idx], bgdist), range(boundaries1, boundaries2)))
+        for idx in range(boundaries1, boundaries2):
+            ion2bg_local.update({self.idx2ion.get(idx) : bgdist})
         self.ion2background.update(ion2bg_local)
 
 
@@ -96,7 +98,7 @@ class BackGroundDistribution:
         self.calc_SD(0, self.cumulative)
         self.zscores = self.transform_cumulative_into_z_values()
 
-    def generate_anchorfcs_from_intensity_range(self,ion2noNanvals, idx2ion):
+    def generate_anchorfcs_from_intensity_range(self, ion2noNanvals, idx2ion):
         anchor_fcs = []
         for idx in range(self.start_idx, self.end_idx):
             vals = ion2noNanvals[idx2ion.get(idx)]
@@ -166,7 +168,6 @@ class BackGroundDistribution:
             return -self.max_z
         if rank >=len(self.cumulative):
             return self.max_z
-        print(rank)
         return self.zscores[rank]
 
 

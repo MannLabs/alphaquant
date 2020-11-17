@@ -17,11 +17,15 @@ index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
          "get_normed_freqs": "03_background_distributions.ipynb",
          "get_freq_from_cumul": "03_background_distributions.ipynb",
          "transform_cumulative_into_fc2count": "03_background_distributions.ipynb",
-         "get_cumul_from_freq": "03_background_distributions.ipynb"}
+         "get_cumul_from_freq": "03_background_distributions.ipynb",
+         "DifferentialIon": "04_diff_analysis.ipynb",
+         "calc_diffreg_peptide": "04_diff_analysis.ipynb",
+         "calc_outlier_scaling_factor": "04_diff_analysis.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
-           "background_distributions.py"]
+           "background_distributions.py",
+           "diff_analysis.py"]
 
 doc_url = "https://ammarcsj.github.io/ms_empire/"
 
