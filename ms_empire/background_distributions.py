@@ -60,7 +60,7 @@ class ConditionBackgrounds():
             context_boundaries[2] = end_idx
 
     def assign_ions2bgdists(self, boundaries1, boundaries2,bgdist):
-        ion2bg_local = dict(map(lambda _idx : (self.normed_condition_df.iloc[_idx, 0], bgdist), range(boundaries1, boundaries2)))
+        ion2bg_local = dict(map(lambda _idx : (self.normed_condition_df.index.values[_idx], bgdist), range(boundaries1, boundaries2)))
         self.ion2background.update(ion2bg_local)
 
 
@@ -229,11 +229,18 @@ class SubtractedBackgrounds(BackGroundDistribution):
 
 
 # Cell
-def get_subtracted_bg(ion2diffDist, bg1, bg2, ion):
+def get_subtracted_bg(ion2diffDist, condbg1, condbg2, ion):
     if ion in ion2diffDist.keys():
         return ion2diffDist.get(ion)
+    bg1 = condbg1.ion2background.get(ion)
+    bg2 = condbg2.ion2background.get(ion)
+    ions_bg1 = set(map(lambda _idx : condbg1.idx2ion.get(_idx), range(bg1.start_idx, bg1.end_idx)))
+    ions_bg2 = set(map(lambda _idx : condbg2.idx2ion.get(_idx), range(bg2.start_idx, bg2.end_idx)))
+    common_ions = ions_bg1.intersection(ions_bg2)
     subtr_bg = SubtractedBackgrounds(bg1, bg2)
-    ion2diffDist.update({ion : subtr_bg})
+    for intersect_ion in common_ions:
+        ion2diffDist.update({intersect_ion : subtr_bg})
+    return subtr_bg
 
 # Cell
 #get normalized freqs from cumulative
