@@ -2,7 +2,9 @@
 
 __all__ = ["index", "modules", "custom_doc_links", "git_url"]
 
-index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
+index = {"read_tables": "01_diff_analysis_manager.ipynb",
+         "run_pipeline": "01_diff_analysis_manager.ipynb",
+         "benchmark_proteomics": "01_diff_analysis_manager.ipynb",
          "normalize_withincond": "02_normalization.ipynb",
          "get_bestmatch_pair": "02_normalization.ipynb",
          "get_fcdistrib": "02_normalization.ipynb",
@@ -10,22 +12,42 @@ index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
          "shift_samples": "02_normalization.ipynb",
          "get_total_shift": "02_normalization.ipynb",
          "merge_distribs": "02_normalization.ipynb",
+         "get_betweencond_shift": "02_normalization.ipynb",
          "ConditionBackgrounds": "03_background_distributions.ipynb",
          "BackGroundDistribution": "03_background_distributions.ipynb",
          "SubtractedBackgrounds": "03_background_distributions.ipynb",
+         "subtract_distribs": "03_background_distributions.ipynb",
+         "get_joined": "03_background_distributions.ipynb",
          "get_subtracted_bg": "03_background_distributions.ipynb",
+         "get_z_from_p_empirical": "03_background_distributions.ipynb",
          "get_normed_freqs": "03_background_distributions.ipynb",
          "get_freq_from_cumul": "03_background_distributions.ipynb",
          "transform_cumulative_into_fc2count": "03_background_distributions.ipynb",
          "get_cumul_from_freq": "03_background_distributions.ipynb",
          "DifferentialIon": "04_diff_analysis.ipynb",
          "calc_diffreg_peptide": "04_diff_analysis.ipynb",
-         "calc_outlier_scaling_factor": "04_diff_analysis.ipynb"}
+         "calc_outlier_scaling_factor": "04_diff_analysis.ipynb",
+         "DifferentialProtein": "04_diff_analysis.ipynb",
+         "plot_pvals": "05_visualizations.ipynb",
+         "plot_bgdist": "05_visualizations.ipynb",
+         "tranform_fc2count_to_fc_space": "05_visualizations.ipynb",
+         "plot_betweencond_fcs": "05_visualizations.ipynb",
+         "scatter_df_columns": "05_visualizations.ipynb",
+         "compare_peptid_protein_overlaps": "05_visualizations.ipynb",
+         "get_tps_fps": "06_benchmarking.ipynb",
+         "annotate_dataframe": "06_benchmarking.ipynb",
+         "compare_to_reference": "06_benchmarking.ipynb",
+         "compare_normalization": "06_benchmarking.ipynb",
+         "print_nonref_hits": "06_benchmarking.ipynb",
+         "get_condpairname": "07_diffquant_utils.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
            "background_distributions.py",
-           "diff_analysis.py"]
+           "diff_analysis.py",
+           "visualizations.py",
+           "benchmarking.py",
+           "diffquant_utils.py"]
 
 doc_url = "https://ammarcsj.github.io/ms_empire/"
 
