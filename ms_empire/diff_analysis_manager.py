@@ -61,25 +61,13 @@ def run_pipeline(unnormed_df, labelmap_df, minrep):
         print(f"start processeing condpair {condpair}")
         prot2diffions = {}
         cond_pvals = []
-        c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
-        c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
-        df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
-        df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
-        idx_intersect = df_c1.index.intersection(df_c2.index)
-        display(c1_samples)
-        df_c1_normed = pd.DataFrame(normalize_withincond(df_c1.to_numpy().T).T, index = df_c1.index, columns = c1_samples["sample"]).loc[idx_intersect]
-        df_c2_normed = pd.DataFrame(normalize_withincond(df_c2.to_numpy().T).T, index = df_c2.index, columns = c2_samples["sample"]).loc[idx_intersect]
-        #plot_betweencond_fcs(df_c1, df_c2, False)
-        print(f"normalized within conditions")
-        shift_between_cond = get_betweencond_shift(df_c1_normed, df_c2_normed)
-        print(f"shift cond 2 by {shift_between_cond}")
-        df_c2_normed = df_c2_normed-shift_between_cond
-        #compare_normalization("./test_data/normed_intensities.tsv", df_c1_normed, df_c2_normed)
-        #plot_betweencond_fcs(df_c1_normed, df_c2_normed, False)
-        #plot_betweencond_fcs(df_c1_normed, df_c2_normed, True)
+        df_c1_normed, df_c2_normed = get_normalized_dfs(labelmap_df, unnormed_df, condpair, minrep, "./test_data/normed_intensities.tsv")
         t_normalized = time()
         normed_c1 = ConditionBackgrounds(df_c1_normed, p2z)
+        write_out_ion2nonan_ion2idx(normed_c1, "./test_data/", "c1")
         normed_c2 = ConditionBackgrounds(df_c2_normed, p2z)
+        compare_context_boundaries_against_ref("./test_data/reference_context_boundaries_c2.tsv",normed_c2)
+        write_out_ion2nonan_ion2idx(normed_c2, "./test_data/", "c2")
         t_bgdist_fin = time()
         print(f"t_normalized {t_normalized-t_zero} t_bg_fin {t_bgdist_fin- t_normalized}")
         ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
@@ -108,12 +96,11 @@ def run_pipeline(unnormed_df, labelmap_df, minrep):
 
             if count_ions%1000==0:
                 print(f"checked {count_ions} of {len(ions_to_check)}")
-                break
+
             count_ions+=1
+
             t_iterfin = time()
             #print(f"t_init {t_subtract_start-t_ion} t_diffdist {t_subtract_end -t_subtract_start} t_diffion {t_iterfin - t_ion}")
-
-
 
         for prot in prot2diffions.keys():
             diffprot = DifferentialProtein(prot,prot2diffions.get(prot))
@@ -128,7 +115,7 @@ def run_pipeline(unnormed_df, labelmap_df, minrep):
         pvals.extend(cond_pvals)
         fdrs.extend(mt.multipletests(cond_pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1])
         break
-    display(peps_included)
+
     res_df = pd.DataFrame({'condpair' : condpairs,'protein' : prots, 'fdr' : fdrs, 'pval':pvals, 'fc' : fcs, 'num_peptides' : numpeps})
     pep_df = pd.DataFrame({'peptide' : peps, 'protein' : pep_prots,'peptide_pval' : pep_pvals, 'peptide_fc' : pep_fcs})
     pep_df = pep_df[pep_df["peptide"].isin(peps_included)]

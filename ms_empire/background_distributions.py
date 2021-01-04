@@ -5,7 +5,14 @@ __all__ = ['ConditionBackgrounds', 'BackGroundDistribution', 'SubtractedBackgrou
            'transform_cumulative_into_fc2count', 'get_cumul_from_freq']
 
 # Cell
+import sys
+sys.path.append('/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python')
+from .diffquant_utils import *
+from .visualizations import *
+
+# Cell
 from time import time
+import numpy as np
 class ConditionBackgrounds():
 
     def __init__(self, normed_condition_df, p2z):
@@ -15,28 +22,19 @@ class ConditionBackgrounds():
         self.idx2ion = {}
         self.init_ion2nonNanvals(normed_condition_df)
         t_start = time()
+        self.context_ranges = []
         self.select_intensity_ranges(p2z)
         t_intensity_selection = time()
         print(f't_intensity_selection {t_intensity_selection - t_start}')
 
 
     def init_ion2nonNanvals(self, normed_condition_df):
-        t_start = time()
-        normed_condition_df['mean'] = normed_condition_df.mean(numeric_only=True, axis=1)
-        normed_condition_df = normed_condition_df.sort_values(by='mean').drop('mean', axis=1)
-
+        normed_condition_df['median'] = normed_condition_df.median(numeric_only=True, axis=1)
+        normed_condition_df = normed_condition_df.sort_values(by='median').drop('median', axis=1)
         self.normed_condition_df = normed_condition_df
-        idx =0
-        t_reformat = time()
-        nonan_df = normed_condition_df.apply(lambda x :x[x.notna()].to_numpy(), axis=1)
-        self.ion2nonNanvals = nonan_df.to_dict()
-        t_non_lambda = time()
-        for peptide, vals in normed_condition_df.iterrows():
-            #self.ion2nonNanvals[peptide] = vals[vals.notna()].values
-            self.idx2ion[idx] = peptide
-            idx+=1
-        t_ion2nonan_assign = time()
-        print(f"t_reformat {t_reformat -t_start} t_nonan_lambda {t_non_lambda - t_reformat} t_ion2nonan_assign {t_ion2nonan_assign-t_reformat}")
+        nonan_array = get_nonna_array(normed_condition_df.to_numpy())
+        self.ion2nonNanvals = dict(zip(normed_condition_df.index, nonan_array))
+        self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))
 
 
     def select_intensity_ranges(self, p2z):
@@ -63,6 +61,7 @@ class ConditionBackgrounds():
         context_boundaries[2] = end_idx
         while context_boundaries[1] < len(cumulative_counts):
             bgdist = BackGroundDistribution(context_boundaries[0], context_boundaries[2], self.ion2nonNanvals, self.idx2ion, p2z)
+            self.context_ranges.append([context_boundaries[0], context_boundaries[2]])
             self.assign_ions2bgdists(context_boundaries[0], context_boundaries[2], bgdist)
             self.backgrounds.append(bgdist)
             context_boundaries[0] = context_boundaries[1]
@@ -111,6 +110,7 @@ class BackGroundDistribution:
         self.cumulative = self.transform_fc2counts_into_cumulative()
         self.calc_SD(0, self.cumulative)
         self.zscores = self.transform_cumulative_into_z_values(p2z)
+       # print(f"create dist SD {self.SD}")
 
     def generate_anchorfcs_from_intensity_range(self, ion2noNanvals, idx2ion):
         anchor_fcs = []
@@ -178,7 +178,7 @@ class BackGroundDistribution:
 
 
     def calc_zscore_from_fc(self, fc):
-        if abs(fc)<1e-9:
+        if abs(fc)<self.fc_conversion_factor:
             return 0
         k = int(fc * self.fc_resolution_factor)
         rank = k-self.min_fc

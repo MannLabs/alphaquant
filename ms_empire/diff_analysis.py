@@ -4,6 +4,7 @@ __all__ = ['DifferentialIon', 'calc_diffreg_peptide', 'calc_outlier_scaling_fact
 
 # Cell
 from .background_distributions import *
+from .diffquant_utils import *
 
 # Cell
 from scipy.stats import norm
@@ -16,14 +17,16 @@ class DifferentialIon():
     def __init__(self,noNanvals_from, noNanvals_to, diffDist, name):
         self.usable = False
         self.name = name
-        p_val, fc, z_val = calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist)
+        p_val, fc, z_val = calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name)
         if (p_val!=None):
             self.p_val=p_val
             self.fc=fc
             self.z_val = z_val
             self.usable = True
 
-def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist): #TO Do normalize the input vectors between conds
+def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name): #TO Do normalize the input vectors between conds
+    weird_ions = ["DGSLAWLRPDTK", "EIQSVASETLISIVNAVNPVAIK", "IIGLDYHHPDFEQESK", "LEDLSESIVNDFAYMK","LIGPTSVVGR", "VLENTEIGDSIFDK", "TADMDVGQIGFHR", "YQVTVIDAPGHR", "PSQMEHAMETMMFTFHK"] #DEBUG
+
     nrep_from = len(noNanvals_from)
     nrep_to = len(noNanvals_to)
 
@@ -34,23 +37,34 @@ def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist): #TO Do normali
     var_from = diffDist.var_from
     var_to = diffDist.var_to
 
-    perEvidenceVariance = diffDist.var + (nrep_to-1) * var_from + (nrep_from-1 ) * var_to
+    perEvidenceVariance = diffDist.var + (nrep_to-1) * var_from + (nrep_from-1) * var_to
     totalVariance = perEvidenceVariance*nrep_to * nrep_from
     outlier_scaling_factor = calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist)
 
     fc_sum =0
     z_sum=0
-
+    unscaled_zs = []
+    fcs = []
     for from_intens in noNanvals_from:
         for to_intens in noNanvals_to:
             fc = from_intens - to_intens
+            fcs.append(fc)
             fc_sum+=fc
-            z_sum += diffDist.calc_zscore_from_fc(fc)/outlier_scaling_factor
+            z_unscaled = diffDist.calc_zscore_from_fc(fc)
+            unscaled_zs.append(z_unscaled)
+            z_sum += z_unscaled/outlier_scaling_factor
 
     fc = fc_sum/(nrep_from * nrep_to)
     scaled_SD =  math.sqrt(totalVariance/diffDist.var)*outlier_scaling_factor
     p_val = 2.0 * (1.0 -  norm(loc=0, scale= scaled_SD).cdf(abs(z_sum)))
     z_val = z_sum/scaled_SD
+    if name in weird_ions:
+        fcs.sort()
+        unscaled_zs.sort()
+        print(name)
+        print(f"fcs {fcs}")
+        print(f"zvals {unscaled_zs}")
+        print(f"BG SD {diffDist.var} pval {p_val} zval {z_val} total var {totalVariance} scaling factor {outlier_scaling_factor} scaled SD {scaled_SD} zsum {z_sum}")
     return p_val, fc, z_val
 
   #self.var_from = from_dist.var
@@ -71,8 +85,6 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
 
     scaling_factor = max(1.0, highest_SD_combined/diffDist.SD)
     return scaling_factor
-
-
 
 
 # Cell
@@ -101,20 +113,20 @@ class DifferentialProtein():
         fcs = list(map(lambda _dr : _dr.fc,ion_diffresults))
         median_fc = np.median(fcs)
 
-        ion_diffresults, median_fc = self.select_robust_if_many_ions(fcs, median_fc,ion_diffresults)
+
+        ion_diffresults, median_offset_fc = self.select_robust_if_many_ions(fcs, median_fc,ion_diffresults)
 
 
         z_sum = sum(map(lambda _dr: _dr.z_val, ion_diffresults))
         p_val = 2.0 * (1.0 - norm(0, math.sqrt(len(ion_diffresults))).cdf(abs(z_sum)))
         ions = list(map(lambda _dr : _dr.name, ion_diffresults))
-        return median_fc, p_val, ions
+        return median_offset_fc, p_val, ions
 
 
     def select_robust_if_many_ions(self, fcs, median_fc,ion_diffresults):
         ninety_perc_cutoff = math.ceil(0.9*len(ion_diffresults)) #the ceil function ensures that ions are only excluded if there are more than 10 available
-
+        ion_diffresults = sorted(ion_diffresults, key = lambda _dr : abs(_dr.fc - median_fc))
         if ninety_perc_cutoff >0:
-            ion_diffresults = sorted(ion_diffresults, key = lambda _dr : abs(_dr.fc - median_fc))
             ion_diffresults = ion_diffresults[:ninety_perc_cutoff]
-            median_fc = np.median(list(map(lambda _dr : _dr.fc,ion_diffresults)))
-        return ion_diffresults, median_fc
+        median_offset_fc = get_middle_elem(list(map(lambda _dr : _dr.fc,ion_diffresults)))
+        return ion_diffresults, median_offset_fc

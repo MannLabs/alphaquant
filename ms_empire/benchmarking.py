@@ -81,6 +81,7 @@ def compare_normalization(ref_normalization_file, norm1_df, norm2_df):
 
 # Cell
 import pandas as pd
+import numpy as np
 
 def compare_to_reference(peptide_detail_file, result_df, peptide_df, outdir):
     protein_ref = pd.read_csv(peptide_detail_file, sep="\t", usecols=["protein", "protein_pval", "protein_fc"]).drop_duplicates().rename(columns = {"protein_pval" : "pval_ref", "protein_fc": "fc_ref"})
@@ -90,20 +91,28 @@ def compare_to_reference(peptide_detail_file, result_df, peptide_df, outdir):
     compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df)
     print_nonref_hits(protein_ref, result_df, peptide_ref, peptide_df, outdir)
     prots_merged = pd.merge(protein_ref, result_df, on = "protein", how='inner')
+    peps_per_prot_ref = pd.DataFrame(peptide_ref.groupby(by=["protein"])['peptide'].count()).rename(columns = {"peptide":"num_peptides_ref"}).reset_index()
+    display(prots_merged)
+    prots_merged = pd.merge(prots_merged, peps_per_prot_ref, on = "protein", how='inner')
+    display(prots_merged)
+
     peptides_merged = pd.merge(peptide_ref, peptide_df, on = "peptide", how='inner')
+    peptides_merged["peptide_pval_diff"] = ( np.log(peptides_merged["peptide_pval"]) - np.log(peptides_merged["peptide_pval_ref"])).abs()
+    peptides_merged = peptides_merged.sort_values(by=['peptide_pval_diff'], ascending = False)
+    display(peptides_merged.head(10))
+
     scatter_df_columns(prots_merged)
     scatter_df_columns(peptides_merged)
-    display(prots_merged)
+
+    prots_merged["fcdiff"] = (prots_merged["fc"] - prots_merged["fc_ref"]).abs()
+    prots_merged = prots_merged.sort_values(by=['fcdiff'], ascending = False)
+    display(prots_merged.head(10))
     display(peptides_merged)
-    peps_per_prot_ref = pd.DataFrame(peptide_ref.groupby(by=["protein"])['peptide'].count()).rename(columns = {"peptide":"num_peptides_ref"})
-    peps_per_prot_comp = result_df.set_index("protein")[["num_peptides"]]
-    display(peps_per_prot_ref)
-    display(peps_per_prot_comp)
-    peps_per_prot_merged = pd.merge(peps_per_prot_ref, peps_per_prot_comp, left_index=True, right_index=True)
-    peps_per_prot_merged["numpep_diff"] = (peps_per_prot_merged["num_peptides"] - peps_per_prot_merged["num_peptides_ref"]).abs()
-    peps_per_prot_merged = peps_per_prot_merged.sort_values(by=['numpep_diff'], ascending = False)
-    display(peps_per_prot_merged.head(10))
-    scatter_df_columns(peps_per_prot_merged)
+
+
+    prots_merged["numpep_diff"] = (prots_merged["num_peptides"] - prots_merged["num_peptides_ref"]).abs()
+    prots_merged = prots_merged.sort_values(by=['numpep_diff'], ascending = False)
+    display(prots_merged.head(10))
 
 
 # Cell
