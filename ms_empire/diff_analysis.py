@@ -14,18 +14,18 @@ import statistics
 
 class DifferentialIon():
 
-    def __init__(self,noNanvals_from, noNanvals_to, diffDist, name):
+    def __init__(self,noNanvals_from, noNanvals_to, diffDist, name, outlier_correction = True):
         self.usable = False
         self.name = name
-        p_val, fc, z_val = calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name)
+        p_val, fc, z_val = calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_correction)
         if (p_val!=None):
             self.p_val=p_val
             self.fc=fc
             self.z_val = z_val
             self.usable = True
 
-def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name): #TO Do normalize the input vectors between conds
-    weird_ions = ["DGSLAWLRPDTK", "EIQSVASETLISIVNAVNPVAIK", "IIGLDYHHPDFEQESK", "LEDLSESIVNDFAYMK","LIGPTSVVGR", "VLENTEIGDSIFDK", "TADMDVGQIGFHR", "YQVTVIDAPGHR", "PSQMEHAMETMMFTFHK"] #DEBUG
+def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_correction): #TO Do normalize the input vectors between conds
+    weird_ions = ["FPEDLENDIR", "TMPGGNDHEIFTDPR", "TVVVVGTVTDDAR"] #DEBUG
 
     nrep_from = len(noNanvals_from)
     nrep_to = len(noNanvals_to)
@@ -39,7 +39,9 @@ def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name): #TO Do n
 
     perEvidenceVariance = diffDist.var + (nrep_to-1) * var_from + (nrep_from-1) * var_to
     totalVariance = perEvidenceVariance*nrep_to * nrep_from
-    outlier_scaling_factor = calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist)
+    outlier_scaling_factor = 1.0
+    if outlier_correction:
+        outlier_scaling_factor = calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist)
 
     fc_sum =0
     z_sum=0
@@ -64,7 +66,7 @@ def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name): #TO Do n
         print(name)
         print(f"fcs {fcs}")
         print(f"zvals {unscaled_zs}")
-        print(f"BG SD {diffDist.var} pval {p_val} zval {z_val} total var {totalVariance} scaling factor {outlier_scaling_factor} scaled SD {scaled_SD} zsum {z_sum}")
+        print(f"BG SD {math.sqrt(diffDist.var)} pval {p_val} zval {z_val} total var {totalVariance} scaling factor {outlier_scaling_factor} scaled SD {scaled_SD} zsum {z_sum}")
     return p_val, fc, z_val
 
   #self.var_from = from_dist.var
@@ -77,7 +79,7 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
     median_to = statistics.median(noNanvals_to)
 
     between_rep_SD_from = math.sqrt(sum(np.square(noNanvals_from-median_from))/len(noNanvals_from)) if len(noNanvals_from)>1 else sd_from
-    between_rep_SD_to = math.sqrt(sum(np.square(noNanvals_to-median_to))/len(noNanvals_from)) if len(noNanvals_to)>1 else sd_to
+    between_rep_SD_to = math.sqrt(sum(np.square(noNanvals_to-median_to))/len(noNanvals_to)) if len(noNanvals_to)>1 else sd_to
 
     highest_SD_from = max(between_rep_SD_from, sd_from)
     highest_SD_to = max(between_rep_SD_to, sd_to)

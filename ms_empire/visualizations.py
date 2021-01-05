@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_pvals(result_df):
-    pvals = result_df["pval"].to_list()
+    pvals = result_df["peptide_pval"].to_list()
     plt.hist(pvals,99,cumulative=True,density=True, histtype='step')
     x = np.linspace(0,1,100)
     plt.plot(x, x)
@@ -60,8 +60,8 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, get_median):
 
 # Cell
 import matplotlib.pyplot as plt
-def scatter_df_columns(merged_df):
-    col = (0.2, 0.4, 0.6, 0.4)
+def scatter_df_columns(merged_df, log_axes = False):
+    col = (0.2, 0.4, 0.6, 0.1)
     ref_columns = list(filter(lambda x : "_ref" in x, merged_df.columns.to_list())) #filter the reference columns from the merged df
 
     for ref in ref_columns:
@@ -71,6 +71,9 @@ def scatter_df_columns(merged_df):
         plt.title(f"{ref} vs. {compare} corr {corr}")
         x = np.linspace(0,merged_df[ref].max(),100)
         plt.plot(x, x)
+        if log_axes:
+            plt.xscale('log')
+            plt.yscale('log')
         plt.show()
 
 # Cell

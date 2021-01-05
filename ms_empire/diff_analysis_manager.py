@@ -4,7 +4,7 @@ __all__ = ['read_tables', 'run_pipeline', 'benchmark_proteomics']
 
 # Cell
 import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python')
+sys.path.append('/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python/')
 from .background_distributions import *
 from .normalization import *
 from .diff_analysis import *
@@ -41,7 +41,7 @@ import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
 
-def run_pipeline(unnormed_df, labelmap_df, minrep):
+def run_pipeline(unnormed_df, labelmap_df, minrep, outlier_correction = True):
     conds = labelmap_df["condition"].unique()
     pep2prot = dict(zip(unnormed_df.index, unnormed_df['protein']))
     p2z = {}
@@ -61,13 +61,13 @@ def run_pipeline(unnormed_df, labelmap_df, minrep):
         print(f"start processeing condpair {condpair}")
         prot2diffions = {}
         cond_pvals = []
-        df_c1_normed, df_c2_normed = get_normalized_dfs(labelmap_df, unnormed_df, condpair, minrep, "./test_data/normed_intensities.tsv")
+        df_c1_normed, df_c2_normed = get_normalized_dfs(labelmap_df, unnormed_df, condpair, minrep)#, "./test_data/normed_intensities.tsv")
         t_normalized = time()
         normed_c1 = ConditionBackgrounds(df_c1_normed, p2z)
-        write_out_ion2nonan_ion2idx(normed_c1, "./test_data/", "c1")
+        #write_out_ion2nonan_ion2idx(normed_c1, "./test_data/", "c1")
         normed_c2 = ConditionBackgrounds(df_c2_normed, p2z)
-        compare_context_boundaries_against_ref("./test_data/reference_context_boundaries_c2.tsv",normed_c2)
-        write_out_ion2nonan_ion2idx(normed_c2, "./test_data/", "c2")
+        #compare_context_boundaries_against_ref("./test_data/reference_context_boundaries_c2.tsv",normed_c2)
+        #write_out_ion2nonan_ion2idx(normed_c2, "./test_data/", "c2")
         t_bgdist_fin = time()
         print(f"t_normalized {t_normalized-t_zero} t_bg_fin {t_bgdist_fin- t_normalized}")
         ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
@@ -83,7 +83,7 @@ def run_pipeline(unnormed_df, labelmap_df, minrep):
             t_subtract_start = time()
             diffDist = get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
             t_subtract_end = time()
-            diffIon = DifferentialIon(vals1, vals2, diffDist, ion)
+            diffIon = DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction)
             t_diffion = time()
             protein = pep2prot.get(ion)
             prot_ions = prot2diffions.get(protein, set())
@@ -114,7 +114,7 @@ def run_pipeline(unnormed_df, labelmap_df, minrep):
 
         pvals.extend(cond_pvals)
         fdrs.extend(mt.multipletests(cond_pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1])
-        break
+        #break
 
     res_df = pd.DataFrame({'condpair' : condpairs,'protein' : prots, 'fdr' : fdrs, 'pval':pvals, 'fc' : fcs, 'num_peptides' : numpeps})
     pep_df = pd.DataFrame({'peptide' : peps, 'protein' : pep_prots,'peptide_pval' : pep_pvals, 'peptide_fc' : pep_fcs})
@@ -142,14 +142,3 @@ os.chdir("/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python/")
 protein_df, peptide_df = benchmark_proteomics("./test_data/peptides.txt", "./test_data/samples.map", "./test_data/prot2organism.tsv")
 protein_df.to_csv("./test_data/AP_protein_out.tsv", sep = "\t", index= False)
 peptide_df.to_csv("./test_data/AP_peptide_out.tsv", sep = "\t", index= False)
-
-
-# Cell
-import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python')
-from .background_distributions import *
-from .normalization import *
-from .diff_analysis import *
-from .visualizations import *
-from .benchmarking import *
-from .diffquant_utils import *

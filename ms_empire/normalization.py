@@ -4,6 +4,10 @@ __all__ = ['normalize_withincond', 'get_bestmatch_pair', 'get_fcdistrib', 'deter
            'shift_samples', 'get_total_shift', 'merge_distribs', 'get_betweencond_shift', 'get_normalized_dfs']
 
 # Cell
+from .visualizations import *
+from .benchmarking import *
+
+# Cell
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -132,22 +136,26 @@ def get_normalized_dfs(labelmap_df, unnormed_df,condpair, minrep, prenormed_file
     c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
     df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
     df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
+    df_c1_normed = None
+    df_c2_normed = None
 
     if prenormed_file is not None:
-        print("using pre-normalized data - sskipping normalization")
+        print("using pre-normalized data - skipping normalization")
         df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = "peptide")
         df_c1_normed = df_prenormed[c1_samples["sample"]].dropna(thresh=minrep, axis=0)
         df_c2_normed = df_prenormed[c2_samples["sample"]].dropna(thresh=minrep, axis=0)
-        return df_c1_normed, df_c2_normed
+    else:
+        df_c1_normed = pd.DataFrame(normalize_withincond(df_c1.to_numpy().T).T, index = df_c1.index, columns = c1_samples["sample"])
+        df_c2_normed = pd.DataFrame(normalize_withincond(df_c2.to_numpy().T).T, index = df_c2.index, columns = c2_samples["sample"])
+
     display(c1_samples)
-    df_c1_normed = pd.DataFrame(normalize_withincond(df_c1.to_numpy().T).T, index = df_c1.index, columns = c1_samples["sample"])
-    df_c2_normed = pd.DataFrame(normalize_withincond(df_c2.to_numpy().T).T, index = df_c2.index, columns = c2_samples["sample"])
+
     #plot_betweencond_fcs(df_c1, df_c2, False)
     print(f"normalized within conditions")
     shift_between_cond = get_betweencond_shift(df_c1_normed, df_c2_normed)
     print(f"shift cond 2 by {shift_between_cond}")
     df_c2_normed = df_c2_normed-shift_between_cond
     #compare_normalization("./test_data/normed_intensities.tsv", df_c1_normed, df_c2_normed)
-    #plot_betweencond_fcs(df_c1_normed, df_c2_normed, False)
-    #plot_betweencond_fcs(df_c1_normed, df_c2_normed, True)
+    plot_betweencond_fcs(df_c1_normed, df_c2_normed, False)
+    plot_betweencond_fcs(df_c1_normed, df_c2_normed, True)
     return df_c1_normed, df_c2_normed

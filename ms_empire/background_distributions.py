@@ -161,17 +161,23 @@ class BackGroundDistribution:
         for i in range(len(self.cumulative)):
             t_start = time()
             num_more_extreme = 0
-            if i == zero_pos:
+            normfact = 0
+            if i == zero_pos or i==len(self.cumulative)-1:
                 zscores[i] = 0
                 continue
-            if i!=zero_pos and i<len(self.cumulative)-1:
-                num_more_extreme = self.cumulative[i] if i<zero_pos else  self.cumulative[-1] - self.cumulative[i+1]
 
-            normfact = normfact_negvals if i<zero_pos else normfact_posvals
+            if i < zero_pos:
+                num_more_extreme = self.cumulative[i]
+                normfact = normfact_negvals
+            else:
+                num_more_extreme = self.cumulative[-1] - self.cumulative[i+1]
+                normfact = normfact_posvals
+
             p_val = 0.5*max(1e-9, (num_more_extreme+1)*normfact)
             sign = -1 if i<zero_pos else 1
             t_empirical = time()
-            zscores[i] = sign*get_z_from_p_empirical(p_val, p2z) ##ppf is the inverese cumulative distribution function
+            zscore = sign*abs(get_z_from_p_empirical(p_val, p2z))
+            zscores[i] =  zscore
             t_nd_lookup = time()
             #print(f"t_empirical {t_empirical - t_start} t_zcacl {t_nd_lookup - t_empirical}")
         return zscores
@@ -270,10 +276,15 @@ def get_subtracted_bg(ion2diffDist, condbg1, condbg2, ion, p2z):
         return ion2diffDist.get(ion)
     bg1 = condbg1.ion2background.get(ion)
     bg2 = condbg2.ion2background.get(ion)
+
     ions_bg1 = set(map(lambda _idx : condbg1.idx2ion.get(_idx), range(bg1.start_idx, bg1.end_idx)))
     ions_bg2 = set(map(lambda _idx : condbg2.idx2ion.get(_idx), range(bg2.start_idx, bg2.end_idx)))
     common_ions = ions_bg1.intersection(ions_bg2)
     subtr_bg = SubtractedBackgrounds(bg1, bg2, p2z)
+    if ion == "DGSLAWLRPDTK":
+        print(f"bg1 {bg1.start_idx} {bg1.end_idx}")
+        print(f"bg2 {bg2.start_idx} {bg2.end_idx}")
+        print(f"subtr bg SD {subtr_bg.SD}")
     for intersect_ion in common_ions:
         ion2diffDist.update({intersect_ion : subtr_bg})
     return subtr_bg
@@ -293,7 +304,7 @@ def get_z_from_p_empirical(p_emp,p2z):
 #get normalized freqs from cumulative
 
 def get_normed_freqs(cumulative):
-    normfact = 1e5 /cumulative[-1]
+    normfact = 2**30 /cumulative[-1]
     freqs =get_freq_from_cumul(cumulative)
     for i in range(len(freqs)):
         freqs[i] *= normfact
