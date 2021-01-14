@@ -32,9 +32,13 @@ class ConditionBackgrounds():
         normed_condition_df['median'] = normed_condition_df.median(numeric_only=True, axis=1)
         normed_condition_df = normed_condition_df.sort_values(by='median').drop('median', axis=1)
         self.normed_condition_df = normed_condition_df
-        nonan_array = get_nonna_array(normed_condition_df.to_numpy())
-        self.ion2nonNanvals = dict(zip(normed_condition_df.index, nonan_array))
-        self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))
+        #nonan_array = get_nonna_array(normed_condition_df.to_numpy())
+        #self.ion2nonNanvals = dict(zip(normed_condition_df.index, nonan_array))
+        t_start = time()
+        self.ion2nonNanvals = get_non_nas_from_pd_df(normed_condition_df)
+        t_end = time()
+        print(f't_ion2nonan_sw {t_end - t_start}')
+        self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))#TODO: list instead of dict!
 
 
     def select_intensity_ranges(self, p2z):
@@ -281,10 +285,6 @@ def get_subtracted_bg(ion2diffDist, condbg1, condbg2, ion, p2z):
     ions_bg2 = set(map(lambda _idx : condbg2.idx2ion.get(_idx), range(bg2.start_idx, bg2.end_idx)))
     common_ions = ions_bg1.intersection(ions_bg2)
     subtr_bg = SubtractedBackgrounds(bg1, bg2, p2z)
-    if ion == "DGSLAWLRPDTK":
-        print(f"bg1 {bg1.start_idx} {bg1.end_idx}")
-        print(f"bg2 {bg2.start_idx} {bg2.end_idx}")
-        print(f"subtr bg SD {subtr_bg.SD}")
     for intersect_ion in common_ions:
         ion2diffDist.update({intersect_ion : subtr_bg})
     return subtr_bg
