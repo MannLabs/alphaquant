@@ -4,7 +4,7 @@ __all__ = ['run_pipeline', 'read_tables', 'benchmark_proteomics']
 
 # Cell
 import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python/')
+sys.path.append('/Users/constantin/workspace/MS-EmpiRe_Python/')
 from .background_distributions import *
 from .normalization import *
 from .diff_analysis import *
@@ -45,6 +45,7 @@ def run_pipeline(peptides_tsv, samplemap_tsv, pepheader = None, protheader = Non
         cond_fcs = []
         cond_prots = []
         df_c1_normed, df_c2_normed = get_normalized_dfs(labelmap_df, unnormed_df, condpair, minrep, pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
+        write_out_normed_df(df_c1_normed, df_c2_normed, pep2prot)
         t_normalized = time()
         normed_c1 = ConditionBackgrounds(df_c1_normed, p2z)
         #write_out_ion2nonan_ion2idx(normed_c1, "./test_data/", "c1")
@@ -144,11 +145,3 @@ def benchmark_proteomics(peptides_tsv, samplemap_tsv, prot2org):
     #get_tps_fps(protein_df, prot2org)
     return protein_df, peptide_df
 
-
-
-# Cell
-import os
-os.chdir("/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python/")
-protein_df, peptide_df = benchmark_proteomics("./test_data/peptides.txt", "./test_data/samples.map", "./test_data/prot2organism.tsv")
-protein_df.to_csv("./test_data/AP_protein_out.tsv", sep = "\t", index= False)
-peptide_df.to_csv("./test_data/AP_peptide_out.tsv", sep = "\t", index= False)

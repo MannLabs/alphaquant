@@ -45,10 +45,10 @@ index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
          "compare_normalization": "06_benchmarking.ipynb",
          "compare_significant_proteins": "06_benchmarking.ipynb",
          "print_nonref_hits": "06_benchmarking.ipynb",
-         "get_condpairname": "07_diffquant_utils.ipynb",
-         "get_middle_elem": "07_diffquant_utils.ipynb",
-         "get_nonna_array": "07_diffquant_utils.ipynb",
-         "get_non_nas_from_pd_df": "07_diffquant_utils.ipynb"}
+         "get_condpairname": "08_diffquant_utils.ipynb",
+         "get_middle_elem": "08_diffquant_utils.ipynb",
+         "get_nonna_array": "08_diffquant_utils.ipynb",
+         "get_non_nas_from_pd_df": "08_diffquant_utils.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",

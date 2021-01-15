@@ -5,17 +5,19 @@ __all__ = ['normalize_withincond', 'get_bestmatch_pair', 'get_fcdistrib', 'deter
            'get_normalized_dfs']
 
 # Cell
+import sys
+sys.path.append('/Users/constantin/workspace/MS-EmpiRe_Python/')
 from .visualizations import *
 from .benchmarking import *
 
 # Cell
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def normalize_withincond(samples):
 
     "finds optimal scaling factors for samples measured in the same condition and corrects the samples by these scaling factors. Takes a 2d numpy array as input  "
-
     num_samples = samples.shape[0]
     mergedsamples = samples #the virtual "merged" samples will be stored in this array
     sampleidx2shift = dict(zip(range(num_samples), np.zeros(num_samples))) #the scaling factors applied to the samples are stored here
@@ -24,23 +26,24 @@ def normalize_withincond(samples):
     exclusion_set = set() #already clustered samples are stored here
 
     for rep in range(num_samples-1):
-
         anchor_idx, shift_idx, min_distance = get_bestmatch_pair(mergedsamples, exclusion_set, sampleidx2counts) #determine the closest pair of samples (one "shift" sample to be shifted and one "anchor sample which stays the same") and the distance between this pair
         #update the sets
+        if(anchor_idx == None):
+            break
         sampleidx2anchoridx.update({shift_idx : anchor_idx})
         sampleidx2shift.update({shift_idx : min_distance })
         exclusion_set.add(shift_idx)
 
         anchor_sample = samples[anchor_idx]
         shift_sample = samples[shift_idx]
-        shifted_sample = shift_sample - min_distance
+        shifted_sample = shift_sample + min_distance
         merged_sample = merge_distribs(anchor_sample, shifted_sample, sampleidx2counts[anchor_idx], sampleidx2counts[shift_idx])
+        mergedsamples[anchor_idx] = merged_sample
         sampleidx2counts[anchor_idx]+=1
 
     for i in range(num_samples):
         shift = get_total_shift(sampleidx2anchoridx, sampleidx2shift, i)
         samples[i] = samples[i]+shift
-
     return samples
 
 
@@ -62,7 +65,8 @@ def get_bestmatch_pair(samples, exclusion_set, sample2counts):
                 i_min = i
                 j_min = j
                 min_distance = distance
-
+    if(j_min == None):
+        return None, None, None
     return determine_anchor_and_shift_sample(sample2counts, i_min, j_min, min_distance)
 
 # Cell
@@ -107,7 +111,22 @@ def get_total_shift(sampleidx2anchoridx, sample2shift,sample_idx):
 # Cell
 def merge_distribs(anchor_distrib, shifted_distrib,counts_anchor_distrib, counts_shifted_distrib):
     "Calculate the average peptide intensities to merge two peptide distributions"
-    return (anchor_distrib *counts_anchor_distrib + shifted_distrib*counts_shifted_distrib)/(counts_anchor_distrib+counts_shifted_distrib)
+    res = []
+    for i in range(len(anchor_distrib)):
+        anchor = anchor_distrib[i]
+        shift = shifted_distrib[i]
+        shift_arr = np.array([anchor, shift])
+        nan_arr = np.isnan(shift_arr)
+
+        if(sum(nan_arr) == 2):
+             res.append(np.nan)
+        if(sum(nan_arr)==1):
+            res.append(shift_arr[~nan_arr][0])
+        if(sum(nan_arr)==0):
+            merge_int = (anchor *counts_anchor_distrib + shift*counts_shifted_distrib)/(counts_anchor_distrib+counts_shifted_distrib)
+            res.append(merge_int)
+
+    return np.array(res)
 
 # Cell
 import numpy as np
@@ -188,7 +207,6 @@ def get_normalized_dfs(labelmap_df, unnormed_df,condpair, minrep, prenormed_file
         df_c1_normed = pd.DataFrame(normalize_withincond(df_c1.to_numpy().T).T, index = df_c1.index, columns = c1_samples["sample"])
         df_c2_normed = pd.DataFrame(normalize_withincond(df_c2.to_numpy().T).T, index = df_c2.index, columns = c2_samples["sample"])
 
-    display(c1_samples)
 
     #plot_betweencond_fcs(df_c1, df_c2, False)
     print(f"normalized within conditions")
