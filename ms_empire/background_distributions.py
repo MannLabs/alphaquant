@@ -81,7 +81,6 @@ class ConditionBackgrounds():
             ion2bg_local.update({self.idx2ion.get(idx) : bgdist})
         self.ion2background.update(ion2bg_local)
 
-
 # Cell
 import numpy as np
 from random import shuffle
@@ -211,8 +210,6 @@ class BackGroundDistribution:
         self.var = var
         self.SD = math.sqrt(var)
 
-
-
 # Cell
 from scipy.stats import norm
 from numba import jit
@@ -310,8 +307,6 @@ def get_normed_freqs(cumulative):
         freqs[i] *= normfact
     return freqs
 
-
-
 # Cell
 #transform cumulative into frequency
 
@@ -323,7 +318,6 @@ def get_freq_from_cumul(cumulative):
 
     return res
 
-
 # Cell
 def transform_cumulative_into_fc2count(cumulative, min_fc):
     res = {}
@@ -331,7 +325,6 @@ def transform_cumulative_into_fc2count(cumulative, min_fc):
         fc = idx + min_fc
         res[fc] = cumulative[idx] - cumulative[idx-1]
     return res
-
 
 # Cell
 def get_cumul_from_freq(freq):

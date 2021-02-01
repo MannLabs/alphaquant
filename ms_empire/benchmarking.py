@@ -60,7 +60,6 @@ def compare_to_reference(result_df, reference_file, condpair):#put in condpair a
     ax_fdr = merged.plot.scatter(x='fdr_ref',y='fdr')
     plt.show()
 
-
 # Cell
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -77,7 +76,6 @@ def compare_normalization(ref_normalization_file, norm1_df, norm2_df):
         sample2 = sample1+"_ref"
         ax_p = merged.plot.scatter(x=sample1,y=sample2)
         plt.show()
-
 
 # Cell
 import pandas as pd
@@ -114,7 +112,6 @@ def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_fil
     prots_merged = prots_merged.sort_values(by=['numpep_diff'], ascending = False)
     display(prots_merged.head(10))
 
-
 # Cell
 from matplotlib_venn import venn2
 from matplotlib import pyplot as plt
@@ -129,8 +126,6 @@ def compare_significant_proteins(result_df, protref_file):
     print(f"in AP only {prots-prots_ref}")
     venn2([prots_ref, prots], ('sigprots_ref', 'sigprots'))
     plt.show()
-
-
 
 # Cell
 def print_nonref_hits(protein_ref, protein_df, peptide_ref, peptide_df, outdir):

@@ -4,7 +4,7 @@ __all__ = ['run_pipeline', 'read_tables', 'benchmark_proteomics']
 
 # Cell
 import sys
-sys.path.append('/Users/constantin/workspace/MS-EmpiRe_Python/')
+sys.path.append('/Users/constantin/workspace/EmpiRe/MS-EmpiRe_Python/')
 from .background_distributions import *
 from .normalization import *
 from .diff_analysis import *
@@ -62,9 +62,6 @@ def run_pipeline(peptides_tsv, samplemap_tsv, pepheader = None, protheader = Non
             t_ion = time()
             vals1 = normed_c1.ion2nonNanvals.get(ion)
             vals2 = normed_c2.ion2nonNanvals.get(ion)
-            bgdist1 = normed_c1.ion2background.get(ion)
-            bgdist2 = normed_c2.ion2background.get(ion)
-            t_subtract_start = time()
             diffDist = get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
             t_subtract_end = time()
             diffIon = DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction)
@@ -131,7 +128,6 @@ def read_tables(peptides_tsv, samplemap_tsv, pepheader = None, protheader = None
         peps[sample] = np.log2(peps[sample].replace(0, np.nan))#*10000
     return peps[headers], samplemap
 
-
 # Cell
 import pandas as pd
 import numpy as np
@@ -144,4 +140,3 @@ def benchmark_proteomics(peptides_tsv, samplemap_tsv, prot2org):
     #plot_pvals(protein_df)
     #get_tps_fps(protein_df, prot2org)
     return protein_df, peptide_df
-

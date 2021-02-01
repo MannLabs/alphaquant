@@ -35,8 +35,6 @@ def tranform_fc2count_to_fc_space(fc2counts, num_fcs, rescale_factor):
 
     return fc2counts_fcscales
 
-
-
 # Cell
 import matplotlib.pyplot as plt
 from scipy import stats
@@ -102,10 +100,6 @@ def compare_peptid_protein_overlaps(protein_ref, protein_comp, peptide_ref, pept
     pepIDs_comp = set(peptide_comp["peptide"].to_list())
     venn2([pepIDs_ref, pepIDs_comp], ('pepIDs_ref', 'pepIDs_comp'))
     plt.show()
-
-
-
-
 
 # Cell
 import matplotlib.pyplot as plt

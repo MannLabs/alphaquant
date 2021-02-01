@@ -89,7 +89,6 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
     scaling_factor = max(1.0, highest_SD_combined/diffDist.SD)
     return scaling_factor
 
-
 # Cell
 import math
 import statistics
@@ -136,7 +135,6 @@ class DifferentialProtein():
         median_offset_fc = get_middle_elem(list(map(lambda _dr : _dr.fc,ion_diffresults)))
         return ion_diffresults, median_offset_fc
 
-
 # Cell
 import numpy as np
 
@@ -156,7 +154,3 @@ def calc_pseudo_intensities(normed_df_c2, pep2prot, cond_prots, cond_fcs,condpai
     pseudoint1 = list(map(lambda x : prot2int.get(x),cond_prots))*np.exp2(cond_fcs)
     pseudoint2 = list(map(lambda x : prot2int.get(x),cond_prots))
     return pseudoint1, pseudoint2
-
-
-
-
