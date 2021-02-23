@@ -127,7 +127,6 @@ class BackGroundDistribution:
             anchor_fcs.extend(vals-anchor_val)
         return anchor_fcs
 
-
     def generate_fc2counts_from_anchor_fcs(self,anchor_fcs):
 
         anchor_fcs = np.array(anchor_fcs)

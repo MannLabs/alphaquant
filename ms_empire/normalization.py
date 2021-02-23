@@ -266,7 +266,7 @@ def get_normalized_dfs(labelmap_df, unnormed_df,condpair, minrep, prenormed_file
         df_c2_normed = pd.DataFrame(normalize_withincond(df_c2.to_numpy().T).T, index = df_c2.index, columns = c2_samples["sample"])
 
 
-    plot_betweencond_fcs(df_c1, df_c2, False)
+    plot_betweencond_fcs(df_c1, df_c2, True)
     print(f"normalized within conditions")
     shift_between_cond = get_betweencond_shift(df_c1_normed, df_c2_normed)
     if(prenormed_file is not None):
