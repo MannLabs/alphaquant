@@ -4,6 +4,7 @@ __all__ = ["index", "modules", "custom_doc_links", "git_url"]
 
 index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
          "median_offset": "01_diff_analysis_manager.ipynb",
+         "analyze_condpair": "01_diff_analysis_manager.ipynb",
          "write_out_normed_df": "01_diff_analysis_manager.ipynb",
          "read_tables": "01_diff_analysis_manager.ipynb",
          "benchmark_proteomics": "01_diff_analysis_manager.ipynb",

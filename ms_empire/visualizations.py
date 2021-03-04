@@ -155,17 +155,21 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-def volcano_plot(result_df, fc_header = "fc", fdr_header = "fdr", significance_cutoff = 0.05, log2fc_cutoff = 0.5):
+def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significance_cutoff = 0.05, log2fc_cutoff = 0.5):
     result_df[fdr_header] = result_df[fdr_header].replace(0, np.min(result_df[fdr_header].replace(0, 1.0)))
     fdrs = result_df[fdr_header].to_numpy()
     fcs = result_df[fc_header].to_numpy()
-    sighits_down = sum((fdrs<significance_cutoff) & (fcs < -log2fc_cutoff))
-    sighits_up = sum((fdrs<significance_cutoff) & (fcs > log2fc_cutoff))
+    sighits_down = sum((fdrs<significance_cutoff) & (fcs <= -log2fc_cutoff))
+    sighits_up = sum((fdrs<significance_cutoff) & (fcs >= log2fc_cutoff))
     plt.title(f"{sighits_up} up, {sighits_down} down of {len(fcs)}")
     plt.scatter(result_df[fc_header],-np.log10(result_df[fdr_header]),s=10, c='grey', alpha = 0.1)
     plt.xlabel('log2 FC',fontsize = 14)
     plt.ylabel('-log10 FDR',fontsize = 14)
     plt.ylim(0,max(-np.log10(result_df[fdr_header]))+0.5)
+    if significance_cutoff>0:
+        plt.axhline(y=-np.log10(significance_cutoff), color='g', linestyle='-')
+    if log2fc_cutoff >0:
+        plt.axvline(x=log2fc_cutoff, color='g', linestyle='-')
     maxfc = max(abs(result_df[fc_header]))+0.5
     plt.xlim(-maxfc,maxfc)
     plt.show()
