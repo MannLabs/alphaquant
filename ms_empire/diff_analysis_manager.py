@@ -20,20 +20,28 @@ import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
 def run_pipeline(peptides_tsv, samplemap_tsv, outdir = None,pepheader = None, protheader = None, minrep = 2, outlier_correction = True,
-median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5):
+median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, condpair_combinations = None):
+
     unnormed_df, labelmap_df = read_tables(peptides_tsv, samplemap_tsv, pepheader, protheader)
     conds = labelmap_df["condition"].unique()
     res_dfs = []
     pep_dfs = []
     pep2prot = dict(zip(unnormed_df.index, unnormed_df['protein']))
 
-    for condpair in combinations(conds, 2):
+    if condpair_combinations != None:
+        condcombs = [(x["c1"], x["c2"]) for idx, x in pd.read_csv(condpair_combinations, sep = "\t").iterrows()]
+    else:
+        condcombs = combinations(conds, 2)
+
+    for condpair in condcombs:
+        print(condpair)
         res, peps = analyze_condpair(labelmap_df, unnormed_df, pep2prot,outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, volcano_fdr, volcano_fcthresh)
         res_dfs.append(res)
         pep_dfs.append(peps)
 
     res_df = pd.concat(res_dfs)
     pep_df = pd.concat(pep_dfs)
+
     return res_df, pep_df
 
 
@@ -83,8 +91,8 @@ def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep
         diffIon = DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction)
         t_diffion = time()
         protein = pep2prot.get(ion)
-        prot_ions = prot2diffions.get(protein, set())
-        prot_ions.add(diffIon)
+        prot_ions = prot2diffions.get(protein, list())
+        prot_ions.append(diffIon)
         prot2diffions[protein] = prot_ions
         peps.append(ion)
         pep_pvals.append(diffIon.p_val)
@@ -116,13 +124,17 @@ def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep
     pep_fdrs = mt.multipletests(pep_pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
 
     res_df = pd.DataFrame({'condpair' : condpairs,'protein' : prots, 'fdr' : fdrs, 'pval':pvals, 'log2fc' : fcs, 'num_peptides' : numpeps, 'pseudoint1' :  pseudoint1, 'pseudoint2' : pseudoint2})
-    pep_df = pd.DataFrame({'peptide' : peps, 'protein' : pep_prots,'pval' : pep_pvals, 'log2fc' : pep_fcs})
+    pep_df = pd.DataFrame({'condpair' : [get_condpairname(condpair) for x in range(len(peps))], 'ion' : peps, 'protein' : pep_prots,'pval' : pep_pvals, 'log2fc' : pep_fcs})
     pep_df["fdr"] = pep_fdrs
-    pep_df = pep_df[pep_df["peptide"].isin(peps_included)]
+    pep_df = pep_df[pep_df["ion"].isin(peps_included)]
 
 
     volcano_plot(res_df, significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
     volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
+
+    if outdir!=None:
+        res_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
+        pep_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
 
     return res_df, pep_df
 
@@ -132,12 +144,15 @@ def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep
 
 # Cell
 import numpy as np
+import os
 def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, outdir, condpair):
     merged_df = normed_df_1.merge(normed_df_2, left_index = True, right_index = True)
     merged_df = 2**merged_df
     merged_df = merged_df.replace(np.nan, 0)
     merged_df["protein"] = list(map(lambda x : pep2prot.get(x),merged_df.index))
-    merged_df.to_csv(f"{outdir}/{get_condpairname(condpair)}_normed_peps.tsv", sep = "\t")
+    if not os.path.exists(f"{outdir}/diffresults/"):
+        os.mkdir(f"{outdir}/diffresults/")
+    merged_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 # Cell
 import pandas as pd
@@ -149,10 +164,10 @@ def read_tables(peptides_tsv, samplemap_tsv, pepheader = None, protheader = None
     peps = pd.read_csv(peptides_tsv,sep="\t")
 
     if pepheader != None:
-        peps = peps.rename(columns = {pepheader : "peptide"})
+        peps = peps.rename(columns = {pepheader : "ion"})
     if protheader != None:
         peps = peps.rename(columns = {protheader: "protein"})
-    peps = peps.set_index("peptide")
+    peps = peps.set_index("ion")
     headers = ['protein'] + samplemap["sample"].to_list()
 
     for sample in samplemap["sample"]:

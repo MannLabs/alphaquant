@@ -2,7 +2,12 @@
 
 __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_betweencond_fcs', 'plot_withincond_fcs',
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
-           'volcano_plot']
+           'volcano_plot', 'beeswarm_ion_plot', 'initialize_result_dataframes_per_condpair', 'initialize_sample2cond']
+
+# Cell
+import sys
+sys.path.append('/Users/constantin/workspace/EmpiRe/MS-EmpiRe_Python/')
+from .diffquant_utils import *
 
 # Cell
 import matplotlib.pyplot as plt
@@ -41,20 +46,21 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 def plot_betweencond_fcs(df_c1_normed, df_c2_normed, get_median):
+    if get_median:
+        df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
+        df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
     both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
     df1 = df_c1_normed.loc[both_idx]
     df2 = df_c2_normed.loc[both_idx]
-    if get_median:
-        df1 = df1.median(axis = 1, skipna = True).to_frame()
-        df2 = df2.median(axis = 1, skipna = True).to_frame()
+
     for col1 in df1.columns:
         for col2 in df2.columns:
             diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy()
-            mode = stats.mode(diff_fcs, nan_policy='omit')[0][0]
             median = np.nanmedian(diff_fcs)
             #plt.axvline(mode, color = 'blue')
             plt.axvline(median, color = 'red')
-            plt.hist(diff_fcs,99,density=True, histtype='step')
+            plt.hist(diff_fcs,99,density=True, histtype='step', range=(-3.5,3.5))
+    plt.xlabel("log2(fc)")
     plt.show()
 
 # Cell
@@ -72,7 +78,7 @@ def plot_withincond_fcs(df, xlim = None):
         median = np.nanmedian(diff_fcs)
         #plt.axvline(mode, color = 'blue')
         #plt.axvline(median, color = 'red')
-        plt.hist(diff_fcs,99,density=True, histtype='step')
+        plt.hist(diff_fcs,99,density=True, histtype='step',range=(-2,2))
         plt.xlabel("log2 peptide fcs")
 
     if xlim is not None:
@@ -119,8 +125,8 @@ def compare_peptid_protein_overlaps(protein_ref, protein_comp, peptide_ref, pept
     protIDs_comp = set(protein_comp["protein"].to_list())
     venn2([protIDs_ref, protIDs_comp], ('protIDs_ref', 'protIDs_comp'))
     plt.show()
-    pepIDs_ref = set(peptide_ref["peptide"].to_list())
-    pepIDs_comp = set(peptide_comp["peptide"].to_list())
+    pepIDs_ref = set(peptide_ref["ion"].to_list())
+    pepIDs_comp = set(peptide_comp["ion"].to_list())
     venn2([pepIDs_ref, pepIDs_comp], ('pepIDs_ref', 'pepIDs_comp'))
     plt.show()
 
@@ -155,7 +161,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significance_cutoff = 0.05, log2fc_cutoff = 0.5):
+def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significance_cutoff = 0.05, log2fc_cutoff = 0.5,ybound = None, xbound =None):
     result_df[fdr_header] = result_df[fdr_header].replace(0, np.min(result_df[fdr_header].replace(0, 1.0)))
     fdrs = result_df[fdr_header].to_numpy()
     fcs = result_df[fc_header].to_numpy()
@@ -165,11 +171,76 @@ def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significan
     plt.scatter(result_df[fc_header],-np.log10(result_df[fdr_header]),s=10, c='grey', alpha = 0.1)
     plt.xlabel('log2 FC',fontsize = 14)
     plt.ylabel('-log10 FDR',fontsize = 14)
-    plt.ylim(0,max(-np.log10(result_df[fdr_header]))+0.5)
+
+    if ybound==None:
+        plt.ylim(0,max(-np.log10(result_df[fdr_header]))+0.5)
+    else:
+        plt.ylim(ybound)
     if significance_cutoff>0:
         plt.axhline(y=-np.log10(significance_cutoff), color='g', linestyle='-')
     if log2fc_cutoff >0:
         plt.axvline(x=log2fc_cutoff, color='g', linestyle='-')
+        plt.axvline(x=-log2fc_cutoff, color='g', linestyle='-')
     maxfc = max(abs(result_df[fc_header]))+0.5
-    plt.xlim(-maxfc,maxfc)
+    if xbound==None:
+        plt.xlim(-maxfc,maxfc)
+    else:
+        plt.xlim(xbound)
     plt.show()
+
+
+# Cell
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def beeswarm_ion_plot(protein,diffresults_df,normed_df, sample2cond,saveloc = None,ion_header = 'ion'):
+    diffresults_line = diffresults_df.loc[protein]
+    fdr = diffresults_line["fdr"]
+    value_vars = set.intersection(set(normed_df.columns), set(sample2cond.keys()))
+    protein_df = normed_df.loc[[protein]]
+    df_melted = pd.melt(protein_df, value_vars= value_vars, id_vars=[ion_header], value_name="intensity", var_name="sample")
+    df_melted["condition"] = [sample2cond.get(x) for x in df_melted["sample"]]
+    pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
+    ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette=pal2)
+    ax = sns.swarmplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)
+    handles, labels = ax.get_legend_handles_labels()
+
+    l = plt.legend(handles[2:4], labels[2:4])
+
+    plt.xticks(rotation=90)
+    if "gene" in diffresults_df.columns:
+        gene = diffresults_line["gene"].values[0]
+        plt.title(f"{gene} ({protein}) FDR: {fdr:e.1}")
+    else:
+        plt.title(f"{protein} FDR: {fdr:e}")
+    if saveloc is not None:
+        plt.savefig(saveloc)
+
+    plt.show()
+
+# Cell
+import pandas as pd
+
+def initialize_result_dataframes_per_condpair(cond1, cond2, result_folder, diffresults = "default", samplemap = "samples.map"):
+    'reads the standard AQ output tables for a given pair of conditions and initializes diffprots_df, normed_peptides_df, and sample2cond_dict'
+    condpair = get_condpairname([cond1, cond2])
+    if diffresults == "default":
+        diffresults = f"{result_folder}/diffresults/{condpair}.results.tsv"
+    diffprots = pd.read_csv(diffresults, sep = "\t")
+    diffprots = diffprots[(diffprots["condpair"] == condpair)]
+    samplemap_df, sample2cond = initialize_sample2cond(samplemap)
+    normed_peptides = pd.read_csv(f"{result_folder}/diffresults/{condpair}.normed.tsv", sep = "\t")
+    normed_peptides[samplemap_df["sample"].values] = np.log2(normed_peptides[samplemap_df["sample"].values].replace(0, np.nan))
+    diffprots["-log10fdr"] = -np.log10(diffprots["fdr"])
+    diffprots = diffprots.set_index("protein")
+    normed_peptides = normed_peptides.set_index("protein")
+    return diffprots, normed_peptides, sample2cond
+
+
+# Cell
+import pandas as pd
+
+def initialize_sample2cond(samplemap = "samples.map"):
+    samplemap_df = pd.read_csv(samplemap, sep = "\t")
+    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
+    return samplemap_df, sample2cond

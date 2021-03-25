@@ -255,10 +255,11 @@ def get_normalized_dfs(labelmap_df, unnormed_df,condpair, minrep, prenormed_file
     df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
     df_c1_normed = None
     df_c2_normed = None
-
+    display(df_c1)
+    display(df_c2)
     if prenormed_file is not None:
         print("using pre-normalized data - skipping normalization")
-        df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = "peptide")
+        df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = "ion")
         df_c1_normed = df_prenormed[c1_samples["sample"]].dropna(thresh=minrep, axis=0)
         df_c2_normed = df_prenormed[c2_samples["sample"]].dropna(thresh=minrep, axis=0)
     else:

@@ -145,7 +145,7 @@ def calc_pseudo_intensities(normed_df_c2, pep2prot, cond_prots, cond_fcs,condpai
     summed_df = summed_df[["summed_int"]]
     summed_df["protein"] = list(map(lambda x: pep2prot.get(x),summed_df.index))
     summed_df = summed_df.reset_index()
-    summed_df = summed_df.set_index(['protein', 'peptide'])
+    summed_df = summed_df.set_index(['protein', 'ion'])
     summed_df = summed_df.sum(level='protein')
     prot2int = dict(zip(summed_df.index, summed_df["summed_int"]))
     pseudoint1 = list(map(lambda x : prot2int.get(x),cond_prots))*np.exp2(cond_fcs)
@@ -178,12 +178,18 @@ def select_representative_DIA_fragions(diffions):
 
 
 def group_ions_by_precursor(diffions):
-    pattern = "(.*\.\d{0,1}_)(.*)"
+    pattern_specnaut = "(.*\.\d{0,1}_)(.*)"
+    pattern_diann = "(.*_)(fion.*)"
+    if (re.match(pattern_specnaut, diffions[0].name)):
+        pattern = pattern_specnaut
+    if (re.match(pattern_diann, diffions[0].name)):
+        pattern = pattern_diann
+    if pattern == None:
+        raise Exception("fragment ion not recognized!")
+
     precursor2ions = {}
     for ion in diffions:
         m = re.match(pattern, ion.name)
-        if not m:
-            raise Exception("fragment ion not recognized!")
         precursor = m.group(1)
         if precursor not in precursor2ions.keys():
             precursor2ions[precursor] = list()
