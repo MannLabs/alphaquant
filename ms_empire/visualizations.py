@@ -226,11 +226,16 @@ def initialize_result_dataframes_per_condpair(cond1, cond2, result_folder, diffr
     condpair = get_condpairname([cond1, cond2])
     if diffresults == "default":
         diffresults = f"{result_folder}/diffresults/{condpair}.results.tsv"
-    diffprots = pd.read_csv(diffresults, sep = "\t")
+    try:
+        diffprots = pd.read_csv(diffresults, sep = "\t")
+    except:
+        print(f"no quantfiles found for {condpair}!")
+        return None
     diffprots = diffprots[(diffprots["condpair"] == condpair)]
     samplemap_df, sample2cond = initialize_sample2cond(samplemap)
     normed_peptides = pd.read_csv(f"{result_folder}/diffresults/{condpair}.normed.tsv", sep = "\t")
-    normed_peptides[samplemap_df["sample"].values] = np.log2(normed_peptides[samplemap_df["sample"].values].replace(0, np.nan))
+    available_vals = list(set(samplemap_df["sample"].values).intersection(set(normed_peptides.columns)))
+    normed_peptides[available_vals] = np.log2(normed_peptides[available_vals].replace(0, np.nan))
     diffprots["-log10fdr"] = -np.log10(diffprots["fdr"])
     diffprots = diffprots.set_index("protein")
     normed_peptides = normed_peptides.set_index("protein")

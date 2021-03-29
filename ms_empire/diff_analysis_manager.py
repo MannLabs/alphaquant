@@ -20,7 +20,7 @@ import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
 def run_pipeline(peptides_tsv, samplemap_tsv, outdir = None,pepheader = None, protheader = None, minrep = 2, outlier_correction = True,
-median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, condpair_combinations = None):
+median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, condpair_combinations = None, annotation_file = None):
 
     unnormed_df, labelmap_df = read_tables(peptides_tsv, samplemap_tsv, pepheader, protheader)
     conds = labelmap_df["condition"].unique()
@@ -35,7 +35,18 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
 
     for condpair in condcombs:
         print(condpair)
-        res, peps = analyze_condpair(labelmap_df, unnormed_df, pep2prot,outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, volcano_fdr, volcano_fcthresh)
+        c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
+        c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
+        if (len(c1_samples.index)<2) | len(c2_samples.index)<2:
+            print(f"condpair has not enough samples c1:{len(c1_samples)} c2: {len(c2_samples)}, skipping")
+            continue
+        df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
+        df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
+        if (len(df_c1.index)<5) | (len(df_c2.index)<5):
+            print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}")
+            continue
+        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection,
+        volcano_fdr, volcano_fcthresh, annotation_file)
         res_dfs.append(res)
         pep_dfs.append(peps)
 
@@ -47,7 +58,7 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
 
 
 # Cell
-def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, volcano_fdr, volcano_fcthresh):
+def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, volcano_fdr, volcano_fcthresh, annotation_file):
     t_zero = time()
     print(f"start processeing condpair {condpair}")
     prot2diffions = {}
@@ -67,8 +78,7 @@ def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep
     pseudoint2 = []
     condpairs = []
 
-
-    df_c1_normed, df_c2_normed = get_normalized_dfs(labelmap_df, unnormed_df, condpair, minrep, pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
+    df_c1_normed, df_c2_normed = get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples,minrep, pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
     if outdir != None:
         write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, outdir, condpair)
     t_normalized = time()
@@ -116,14 +126,14 @@ def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep
         condpairs.append(get_condpairname(condpair))
         peps_included.extend(diffprot.ions)
 
-    pseudoint1_cond, pseudoint2_cond = calc_pseudo_intensities(df_c2_normed, pep2prot, prots, fcs,condpair)
-    pseudoint1.extend(pseudoint1_cond)
-    pseudoint2.extend(pseudoint2_cond)
+    # pseudoint1_cond, pseudoint2_cond = calc_pseudo_intensities(df_c2_normed, pep2prot, prots, fcs,condpair)
+    # pseudoint1.extend(pseudoint1_cond)
+    # pseudoint2.extend(pseudoint2_cond)
 
     fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
     pep_fdrs = mt.multipletests(pep_pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
 
-    res_df = pd.DataFrame({'condpair' : condpairs,'protein' : prots, 'fdr' : fdrs, 'pval':pvals, 'log2fc' : fcs, 'num_peptides' : numpeps, 'pseudoint1' :  pseudoint1, 'pseudoint2' : pseudoint2})
+    res_df = pd.DataFrame({'condpair' : condpairs,'protein' : prots, 'fdr' : fdrs, 'pval':pvals, 'log2fc' : fcs, 'num_peptides' : numpeps})#, 'pseudoint1' :  pseudoint1, 'pseudoint2' : pseudoint2})
     pep_df = pd.DataFrame({'condpair' : [get_condpairname(condpair) for x in range(len(peps))], 'ion' : peps, 'protein' : pep_prots,'pval' : pep_pvals, 'log2fc' : pep_fcs})
     pep_df["fdr"] = pep_fdrs
     pep_df = pep_df[pep_df["ion"].isin(peps_included)]
@@ -133,8 +143,18 @@ def analyze_condpair(labelmap_df, unnormed_df, pep2prot, outdir,condpair, minrep
     volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
 
     if outdir!=None:
+        if annotation_file != None:
+            annot_df = pd.read_csv(annotation_file, sep = "\t")
+            intersect_columns = annot_df.columns.intersection(pep_df.columns)
+            if(len(intersect_columns)>0):
+                print(list(intersect_columns))
+                res_df = res_df.merge(annot_df, on=list(intersect_columns), how= 'left')
+                pep_df = pep_df.merge(annot_df, on= list(intersect_columns), how = 'left')
+
         res_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
         pep_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
+
+
 
     return res_df, pep_df
 

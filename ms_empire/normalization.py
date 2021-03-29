@@ -247,16 +247,15 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 
 # Cell
 import pandas as pd
-def get_normalized_dfs(labelmap_df, unnormed_df,condpair, minrep, prenormed_file = None):
+def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
-    c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
-    c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
-    df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
-    df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
+    #c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
+    #c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
+    # df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
+    # df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
     df_c1_normed = None
     df_c2_normed = None
-    display(df_c1)
-    display(df_c2)
+
     if prenormed_file is not None:
         print("using pre-normalized data - skipping normalization")
         df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = "ion")
