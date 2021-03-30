@@ -2,7 +2,9 @@
 
 __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_betweencond_fcs', 'plot_withincond_fcs',
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
-           'volcano_plot', 'beeswarm_ion_plot', 'initialize_result_dataframes_per_condpair', 'initialize_sample2cond']
+           'volcano_plot', 'beeswarm_ion_plot', 'compare_direction', 'compare_correlation',
+           'clustersort_numerical_arrays', 'get_clustered_dataframe', 'get_heatmap', 'get_sample_overview_dataframe',
+           'initialize_result_dataframe', 'initialize_normed_peptides', 'initialize_sample2cond']
 
 # Cell
 import sys
@@ -219,33 +221,166 @@ def beeswarm_ion_plot(protein,diffresults_df,normed_df, sample2cond,saveloc = No
     plt.show()
 
 # Cell
-import pandas as pd
+import numpy as np
+def compare_direction(array1, array2):
+    identical_elements  = array1 == array2
+    num_same_direction = np.sum(identical_elements)
+    return num_same_direction
 
-def initialize_result_dataframes_per_condpair(cond1, cond2, result_folder, diffresults = "default", samplemap = "samples.map"):
-    'reads the standard AQ output tables for a given pair of conditions and initializes diffprots_df, normed_peptides_df, and sample2cond_dict'
+
+# Cell
+import numpy.ma as ma
+def compare_correlation(array1, array2):
+    corr = ma.corrcoef(ma.masked_invalid(array1), ma.masked_invalid(array2))[0][1]
+    return corr
+
+# Cell
+
+import scipy.cluster.hierarchy as hierarchy
+import scipy.spatial.distance as dist
+def clustersort_numerical_arrays(arrays, names , cluster_method ='average',compare_function = compare_direction):
+    #condensed_distance_matrix = get_condensed_distance_matrix(arrays, compare_function)
+    condensed_distance_matrix = dist.pdist(arrays, lambda u, v: 1/(compare_function(u,v)+1))
+    linkage_matrix = hierarchy.linkage(condensed_distance_matrix, method = cluster_method)
+    sorted_array_idxs = hierarchy.leaves_list(linkage_matrix)
+
+    sorted_array = np.array([arrays[x] for x in sorted_array_idxs])
+    sorted_names = np.array([names[x] for x in sorted_array_idxs])
+    return sorted_array, sorted_names, linkage_matrix
+
+
+# Cell
+
+import pandas as pd
+import numpy as np
+import os
+def get_clustered_dataframe(overview_df, cluster_method ='average',compare_function = compare_direction, clust_rows = True, clust_columns = True):
+
+    df_numbered = overview_df.select_dtypes(include=np.number)
+    contains_floats = ['float' in str(x) for x in df_numbered.dtypes]
+    type = 'float' if True in contains_floats else 'int'
+    df_numbered = df_numbered.astype(type) #ensure that the df has no mixed types
+
+    rows = df_numbered.to_numpy()
+    rownames = list(df_numbered.index)
+    colnames = list(df_numbered.columns)
+
+    if clust_rows:
+        if(len(rownames)>10000):
+            print(f"large number of rows, skipping cluster step of rows to avoid long runtime.")
+        else:
+            print(f"clustering on {len(rownames)} rows")
+            rows, rownames, _ = clustersort_numerical_arrays(rows, rownames, cluster_method, compare_function)
+    if clust_columns:
+        if(len(colnames)>10000):
+            print(f"large number of columns, skipping cluster step of columns to avoid long runtime")
+        else:
+            print(f"clustering on {len(colnames)} columns")
+            columns, colnames,_ = clustersort_numerical_arrays(rows.T, colnames, cluster_method, compare_function)
+            rows = columns.T
+    print("finished clustering")
+    df_clustered = pd.DataFrame(rows, index= rownames, columns= colnames ).reset_index()
+    return df_clustered
+
+
+# Cell
+
+import holoviews as hv
+import pandas as pd
+hv.extension('bokeh')
+
+def get_heatmap(overview_df, diffresults_folder = os.path.join(".", "diffresults")):
+    clustered_df = get_clustered_dataframe(overview_df)
+    if diffresults_folder != None:
+        clustered_df.to_csv(os.path.join(diffresults_folder, "regulation_overview.tsv"), sep = "\t", index = None)
+    plot_df = pd.melt(clustered_df, id_vars='index')
+    heatmap = hv.HeatMap(plot_df, label='Regulation overview')
+    return heatmap
+
+
+
+# Cell
+import re
+import os
+def get_sample_overview_dataframe(diffresults_folder = os.path.join(".", "diffresults"), condpairs_to_compare = []):
+    'goes through the results folder and extracts up- and downregulated genes for each (specified) condition comparison'
+
+    if len(condpairs_to_compare) == 0:
+        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(diffresults_folder) if re.match(r'.*results.tsv', f)]
+
+    dfs = []
+    count = 0
+    for row in condpairs_to_compare:
+        c1 = row[0]
+        c2 = row[1]
+        results = initialize_result_dataframe(c1, c2, diffresults_folder)
+        if(type(results) == type(None)):
+            continue
+        site_df = results
+        positive_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]>0.5)]["site_id"]))
+        negative_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]<-0.5)]["site_id"]))
+        df_loc = pd.DataFrame([[1 for x in range(len(positive_sites))]+[-1 for x in range(len(negative_sites))]],columns=positive_sites+negative_sites)
+        df_loc["condpair"] = get_condpairname([c1, c2])
+        #df_loc["num_regulated"] = len(positive_sites) + len(negative_sites)
+        dfs.append(df_loc)
+        #print(count)
+        count+=1
+
+    result_df = pd.concat(dfs)
+    result_df = result_df.replace(np.nan, 0).set_index("condpair")
+
+    return result_df
+
+
+# Cell
+import pandas as pd
+import os
+import numpy as np
+
+def initialize_result_dataframe(cond1, cond2, diffresults_folder = os.path.join(".", "diffresults")):
+    """
+    reads the results dataframe for a given condpair
+    """
     condpair = get_condpairname([cond1, cond2])
-    if diffresults == "default":
-        diffresults = f"{result_folder}/diffresults/{condpair}.results.tsv"
+    diffresults = os.path.join(diffresults_folder, f"{condpair}.results.tsv")
+
     try:
         diffprots = pd.read_csv(diffresults, sep = "\t")
     except:
         print(f"no quantfiles found for {condpair}!")
         return None
     diffprots = diffprots[(diffprots["condpair"] == condpair)]
-    samplemap_df, sample2cond = initialize_sample2cond(samplemap)
-    normed_peptides = pd.read_csv(f"{result_folder}/diffresults/{condpair}.normed.tsv", sep = "\t")
-    available_vals = list(set(samplemap_df["sample"].values).intersection(set(normed_peptides.columns)))
-    normed_peptides[available_vals] = np.log2(normed_peptides[available_vals].replace(0, np.nan))
+
     diffprots["-log10fdr"] = -np.log10(diffprots["fdr"])
     diffprots = diffprots.set_index("protein")
+
+    return diffprots
+
+# Cell
+import pandas as pd
+import os
+import numpy as np
+
+def initialize_normed_peptides(cond1, cond2, diffresults_folder = os.path.join(".", "diffresults")):
+    condpair = get_condpairname([cond1, cond2])
+    normed_peptides_tsv = os.path.join(diffresults_folder, f"{condpair}.normed.tsv")
+    try:
+        normed_peptides = pd.read_csv(normed_peptides_tsv, sep = "\t")
+    except:
+        print(f"no normed peptides found for {condpair}!")
+        return None
+
+    numeric_cols = list(normed_peptides.select_dtypes(include=np.number).columns)
+    #available_vals = list(set(samplemap_df["sample"].values).intersection(set(normed_peptides.columns)))
+    normed_peptides[numeric_cols] = np.log2(normed_peptides[numeric_cols].replace(0, np.nan))
     normed_peptides = normed_peptides.set_index("protein")
-    return diffprots, normed_peptides, sample2cond
+    return normed_peptides
 
 
 # Cell
 import pandas as pd
 
-def initialize_sample2cond(samplemap = "samples.map"):
+def initialize_sample2cond(samplemap):
     samplemap_df = pd.read_csv(samplemap, sep = "\t")
     sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
     return samplemap_df, sample2cond
