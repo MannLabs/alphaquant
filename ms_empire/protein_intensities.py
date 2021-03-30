@@ -23,8 +23,6 @@ def run_protein_normalization(input_file, protein_header, ion_header):
     input_df = np.log2(input_df)
     betweencond_normed = pd.DataFrame(normalize_withincond(input_df.to_numpy().T).T, index = input_df.index, columns= input_df.columns)
     protnormed_df, ionnormed_df = estimate_protein_intensities(betweencond_normed)
-    display(protnormed_df)
-    display(ionnormed_df)
     protnormed_df.to_csv(f"{input_file}.proteins.out", sep = "\t")
     ionnormed_df.to_csv(f"{input_file}.ions.out", sep = "\t")
 
@@ -44,13 +42,9 @@ def estimate_protein_intensities(normed_df):
         count_prots+=1
 
         protvals_df = pd.DataFrame(normed_df.loc[protein])
-        #display(protvals_df.describe())
-        #protvals_df = protvals_df.dropna(thresh=1, axis=1)
 
         protvals = protvals_df.to_numpy().copy()
         summed_pepints = np.nansum(2**protvals)
-        #print(f'summed pepints {summed_pepints}')
-        #normed_protvals = normalize_withincond(protvals)
         if(protvals.shape[1]<2):
             normed_protvals = protvals
         else:
@@ -68,11 +62,8 @@ def estimate_protein_intensities(normed_df):
                 intens_vec.append(np.nan)
 
         intens_vec = np.array(intens_vec)
-        #print(intens_vec)
-        #print(f"intens vec sum {np.nansum(2**intens_vec)}")
         intens_conversion_factor = summed_pepints/np.nansum(2**intens_vec)
         scaled_vec = intens_vec+np.log2(intens_conversion_factor)
-        #print(f"conv factor {intens_conversion_factor}\n vec before {intens_vec}\nvec after {scaled_vec}")
         prot_ints.append(scaled_vec)
         ion_ints.extend(normed_protvals)
 
@@ -99,9 +90,6 @@ def plot_lines(protvals, log = True):
     plt.plot(median_row, c = 'black',linewidth =3 )
     plt.show()
 
-# Cell
-import matplotlib.pyplot as plt
-import numpy as np
 def plot_points(protvals, log = True):
     colors = plt.cm.tab20c(np.linspace(0,1,protvals.shape[0]))
     #cmap = plt.get_cmap("tab20c")
