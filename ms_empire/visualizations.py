@@ -9,8 +9,6 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_b
            'initialize_normed_peptides', 'initialize_sample2cond']
 
 # Cell
-import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/MS-EmpiRe_Python/')
 from .diffquant_utils import *
 
 # Cell

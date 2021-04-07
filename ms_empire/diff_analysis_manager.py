@@ -4,8 +4,6 @@ __all__ = ['run_pipeline', 'median_offset', 'analyze_condpair', 'write_out_norme
            'benchmark_proteomics']
 
 # Cell
-#import sys
-#sys.path.append('/Users/constantin/workspace/EmpiRe/MS-EmpiRe_Python/')
 from .background_distributions import *
 from .normalization import *
 from .diff_analysis import *
