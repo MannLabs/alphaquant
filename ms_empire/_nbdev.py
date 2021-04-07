@@ -88,7 +88,8 @@ index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
          "get_site_prob_overview": "09_ptmsite_mapping.ipynb",
          "assign_protein": "09_ptmsite_mapping.ipynb",
          "assign_dataset": "09_ptmsite_mapping.ipynb",
-         "detect_site_occupancy_change": "09_ptmsite_mapping.ipynb"}
+         "detect_site_occupancy_change": "09_ptmsite_mapping.ipynb",
+         "check_site_occupancy_changes_all_diffresults": "09_ptmsite_mapping.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",

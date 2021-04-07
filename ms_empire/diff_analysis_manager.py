@@ -147,8 +147,8 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
                 res_df = res_df.merge(annot_df, on=list(intersect_columns), how= 'left')
                 pep_df = pep_df.merge(annot_df, on= list(intersect_columns), how = 'left')
 
-        res_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
-        pep_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
+        res_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
+        pep_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
 
 
 
@@ -166,9 +166,9 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, outdir, condpair):
     merged_df = 2**merged_df
     merged_df = merged_df.replace(np.nan, 0)
     merged_df["protein"] = list(map(lambda x : pep2prot.get(x),merged_df.index))
-    if not os.path.exists(f"{outdir}/diffresults/"):
-        os.mkdir(f"{outdir}/diffresults/")
-    merged_df.to_csv(f"{outdir}/diffresults/{get_condpairname(condpair)}.normed.tsv", sep = "\t")
+    if not os.path.exists(f"{outdir}/results/"):
+        os.mkdir(f"{outdir}/results/")
+    merged_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 # Cell
 import pandas as pd

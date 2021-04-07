@@ -3,10 +3,12 @@
 __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_protein', 'get_num_sites',
            'group_by_nummods_posv', 'condense_ions', 'encode_probabilities', 'cluster_ions', 'cluster_ions_pairwise',
            'compare_ion_similarities', 'get_condensed_matrix', 'get_idmap_column', 'get_site_prob_overview',
-           'assign_protein', 'assign_dataset', 'detect_site_occupancy_change']
+           'assign_protein', 'assign_dataset', 'detect_site_occupancy_change',
+           'check_site_occupancy_changes_all_diffresults']
 
 # Cell
 from .visualizations import *
+import ms_empire.diffquant_utils as utils
 
 
 # Cell
@@ -251,7 +253,7 @@ def assign_protein(modpeps,condid2ionids, refprot):
 
 # Cell
 
-def assign_dataset(ptmprob_file, id_thresh = 0.75, excl_thresh =0.15, samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv', sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t"):
+def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv', sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t"):
 
     """wrapper function reformats inputs tables and iterates through the whole dataset. Output needs to contain """""
     input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
@@ -321,13 +323,13 @@ def assign_dataset(ptmprob_file, id_thresh = 0.75, excl_thresh =0.15, samplemap 
 
     conditions = [sample2cond.get(x) for x in run_ids]
     mapped_df = pd.DataFrame({"R.Label" : run_ids, "conditions" : conditions, "FG.Id" : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,"locprob" : locprobs})
-    mapped_df.to_csv(f"{ptmprob_file}.ptm_ids", sep = "\t", index = None)
+    mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None)
 
     siteprob_df = pd.DataFrame(siteprobs)
     siteprob_df = siteprob_df.astype({"site" : "int"})
     siteprob_df.set_index(["REFPROT", "site"], inplace=True)
     siteprob_df = siteprob_df.sort_index().reset_index()
-    siteprob_df.to_csv(f"{ptmprob_file}.siteprobs", sep = "\t", index = None)
+    siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None)
 
 
 # Cell
@@ -389,6 +391,21 @@ def detect_site_occupancy_change(cond1, cond2, samplemap_file, ptmsite_map, minr
 
     df_occupancy_change = pd.DataFrame(regulated_sites, columns=["REFPROT", "gene", "site", "direction", "c1_meanprob", "c2_meanprob", "c1_nrep", "c2_nrep"])
     return df_occupancy_change
+
+# Cell
+import pandas as pd
+import numpy as np
+
+def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join(".","results"), siteprobs_filename = "siteprobs.tsv",samplemap_file = "samples.map",condpairs_to_compare = [], threshold_prob = 0.05, minrep = 2):
+    samplemap_file = os.path.join(ptmsite_map, siteprobs_filename)
+    if len(condpairs_to_compare) == 0:
+        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(results_folder) if re.match(r'.*results.tsv', f)]
+    for condpair in condpairs_to_compare:
+        cond1 = condpair[0]
+        cond2 = condpair[1]
+        condpairname = utils.utils.get_condpairname(condpair)
+        df_occupancy = detect_site_occupancy_change(cond1, cond2, samplemap_file, ptmsite_map, minrep = minrep, threshold_prob = threshold_prob)
+        df_occupancy.to_csv(os.path.join(results_folder, f"{condpairname}.ptm_occupancy_changes.tsv", sep = "\t", index = None))
 
 
 
