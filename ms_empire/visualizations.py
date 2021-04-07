@@ -228,9 +228,9 @@ from holoviews import opts
 import pandas as pd
 hv.extension('bokeh')
 
-def get_heatmap(overview_df, diffresults_folder = os.path.join(".", "diffresults")):
+def get_heatmap(overview_df, results_folder = os.path.join(".", "results")):
     clustered_df = get_clustered_dataframe(overview_df)
-    clustered_df.to_csv(os.path.join(diffresults_folder, "regulation_overview.tsv"), sep = "\t", index = None)
+    clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
 
     plot_df = pd.melt(clustered_df, id_vars=[0])
     heatmap = hv.HeatMap(plot_df, label='Regulation overview')
@@ -312,18 +312,18 @@ def get_clustered_dataframe(overview_df, cluster_method ='average',compare_funct
 # Cell
 import re
 import os
-def get_sample_overview_dataframe(diffresults_folder = os.path.join(".", "diffresults"), condpairs_to_compare = []):
+def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), condpairs_to_compare = []):
     'goes through the results folder and extracts up- and downregulated genes for each (specified) condition comparison'
 
     if len(condpairs_to_compare) == 0:
-        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(diffresults_folder) if re.match(r'*results.tsv', f)]
+        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(results_folder) if re.match(r'*results.tsv', f)]
 
     dfs = []
     count = 0
     for row in condpairs_to_compare:
         c1 = row[0]
         c2 = row[1]
-        results = initialize_result_dataframes_per_condpair(c1, c2, diffresults_folder)
+        results = initialize_result_dataframes_per_condpair(c1, c2, results_folder)
         if(type(results) == type(None)):
             continue
         site_df = results[0]
@@ -410,10 +410,10 @@ import holoviews as hv
 import pandas as pd
 hv.extension('bokeh')
 
-def get_heatmap(overview_df, diffresults_folder = os.path.join(".", "diffresults")):
+def get_heatmap(overview_df, results_folder = os.path.join(".", "results")):
     clustered_df = get_clustered_dataframe(overview_df)
-    if diffresults_folder != None:
-        clustered_df.to_csv(os.path.join(diffresults_folder, "regulation_overview.tsv"), sep = "\t", index = None)
+    if results_folder != None:
+        clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
     plot_df = pd.melt(clustered_df, id_vars='index')
     heatmap = hv.HeatMap(plot_df, label='Regulation overview')
     return heatmap
@@ -423,20 +423,20 @@ def get_heatmap(overview_df, diffresults_folder = os.path.join(".", "diffresults
 # Cell
 import re
 import os
-def get_sample_overview_dataframe(diffresults_folder = os.path.join(".", "diffresults"), condpairs_to_compare = []):
+def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), condpairs_to_compare = []):
     """
     goes through the results folder and extracts up- and downregulated genes for each (specified) condition comparison
     """
 
     if len(condpairs_to_compare) == 0:
-        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(diffresults_folder) if re.match(r'.*results.tsv', f)]
+        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(results_folder) if re.match(r'.*results.tsv', f)]
 
     dfs = []
     count = 0
     for row in condpairs_to_compare:
         c1 = row[0]
         c2 = row[1]
-        results = initialize_result_dataframe(c1, c2, diffresults_folder)
+        results = initialize_result_dataframe(c1, c2, results_folder)
         if(type(results) == type(None)):
             continue
         site_df = results
@@ -460,12 +460,12 @@ import pandas as pd
 import os
 import numpy as np
 
-def initialize_result_dataframe(cond1, cond2, diffresults_folder = os.path.join(".", "diffresults")):
+def initialize_result_dataframe(cond1, cond2, results_folder = os.path.join(".", "results")):
     """
     reads the results dataframe for a given condpair
     """
     condpair = get_condpairname([cond1, cond2])
-    diffresults = os.path.join(diffresults_folder, f"{condpair}.results.tsv")
+    diffresults = os.path.join(results_folder, f"{condpair}.results.tsv")
 
     try:
         diffprots = pd.read_csv(diffresults, sep = "\t")
@@ -484,9 +484,9 @@ import pandas as pd
 import os
 import numpy as np
 
-def initialize_normed_peptides(cond1, cond2, diffresults_folder = os.path.join(".", "diffresults")):
+def initialize_normed_peptides(cond1, cond2, results_folder = os.path.join(".", "results")):
     condpair = get_condpairname([cond1, cond2])
-    normed_peptides_tsv = os.path.join(diffresults_folder, f"{condpair}.normed.tsv")
+    normed_peptides_tsv = os.path.join(results_folder, f"{condpair}.normed.tsv")
     try:
         normed_peptides = pd.read_csv(normed_peptides_tsv, sep = "\t")
     except:
