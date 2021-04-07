@@ -9,7 +9,7 @@ from .diff_analysis import *
 from .visualizations import *
 from .benchmarking import *
 from .diffquant_utils import *
-from .diff_analysis_manager import *
+from .diff_analysis_manager import read_tables
 
 # Cell
 import pandas as pd
