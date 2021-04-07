@@ -122,13 +122,13 @@ def plot_cumhist_dfcols(merged_df):
 # Cell
 from matplotlib_venn import venn2
 from matplotlib import pyplot as plt
-def compare_peptid_protein_overlaps(protein_ref, protein_comp, peptide_ref, peptide_comp):
+def compare_peptid_protein_overlaps(protein_ref, protein_comp,peptide_ref, peptide_comp, peptide_name = "ion"):
     protIDs_ref = set(protein_ref["protein"].to_list())
     protIDs_comp = set(protein_comp["protein"].to_list())
     venn2([protIDs_ref, protIDs_comp], ('protIDs_ref', 'protIDs_comp'))
     plt.show()
-    pepIDs_ref = set(peptide_ref["ion"].to_list())
-    pepIDs_comp = set(peptide_comp["ion"].to_list())
+    pepIDs_ref = set(peptide_ref[peptide_name].to_list())
+    pepIDs_comp = set(peptide_comp[peptide_name].to_list())
     venn2([pepIDs_ref, pepIDs_comp], ('pepIDs_ref', 'pepIDs_comp'))
     plt.show()
 

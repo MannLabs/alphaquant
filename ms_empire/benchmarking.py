@@ -5,7 +5,7 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
 
 # Cell
 from .visualizations import *
-from .diff_analysis_manager import *
+from .diff_analysis_manager import run_pipeline
 
 # Cell
 import pandas as pd
@@ -82,7 +82,7 @@ import numpy as np
 def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_file, outdir):
     protein_ref = pd.read_csv(peptide_detail_file, sep="\t", usecols=["protein", "protein_pval", "protein_fc"]).drop_duplicates().rename(columns = {"protein_pval" : "pval_ref", "protein_fc": "fc_ref"})
     peptide_ref = pd.read_csv(peptide_detail_file, sep='\t', usecols = ["peptide", "protein", "peptide_pval","peptide_fc"]).rename(columns = {"peptide_pval" :"peptide_pval_ref", "peptide_fc" : "peptide_fc_ref"})
-    compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df)
+    compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df, peptide_name = "peptide")
     compare_significant_proteins(result_df, protref_file)
 
     print_nonref_hits(protein_ref, result_df, peptide_ref, peptide_df, outdir)
