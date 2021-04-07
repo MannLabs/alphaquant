@@ -6,7 +6,6 @@ __all__ = ['normalize_withincond', 'get_bestmatch_pair', 'create_distance_matrix
 
 # Cell
 from .visualizations import *
-from .benchmarking import *
 
 # Cell
 import numpy as np

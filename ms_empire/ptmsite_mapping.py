@@ -6,6 +6,10 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
            'assign_protein', 'assign_dataset', 'detect_site_occupancy_change']
 
 # Cell
+from .visualizations import *
+
+
+# Cell
 import numpy as np
 class ModifiedPeptide():
     """
@@ -277,22 +281,26 @@ def assign_dataset(ptmprob_file, id_thresh = 0.75, excl_thresh =0.15, samplemap 
     siteprobs = []
 
     count_peps = 0
+    fraction_count = 0
     one_fraction = int(len(input_df.index)/100)
     for prot in input_df.index.unique():#input_df["REFPROT"].unique():
 
-        if count_peps%one_fraction==0:
+        if int(count_peps/one_fraction)>fraction_count:
             print(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index)}")
+            fraction_count = int(count_peps/one_fraction) +1
 
         #filtvec = [prot in x for x in input_df["REFPROT"]]
 
         protein_df = input_df.loc[[prot]].copy()#input_df[filtvec].copy()
         protein_df = protein_df.reset_index()
 
+        count_peps+= len(protein_df)
+
         sequence = sequence_map.get(prot)
         if sequence == None:
             continue
         gene = refgene_map.get(prot)
-        count_peps+= len(protein_df)
+
 
         modpeps_per_sample = [ModifiedPeptide(protein_df.loc[x], sequence, id_thresh, excl_thresh) for x in protein_df.index]
         merged_siteprobs = get_site_prob_overview(modpeps_per_sample, prot, gene)
@@ -360,7 +368,6 @@ def detect_site_occupancy_change(cond1, cond2, samplemap_file, ptmsite_map, minr
 
         cond1_prob = np.mean(cond1_vals)
         cond2_prob = np.mean(cond2_vals)
-
 
         unlikely_c1 = cond1_prob<threshold_prob
         unlikely_c2 = cond2_prob<threshold_prob
