@@ -5,10 +5,7 @@ __all__ = ['normalize_withincond', 'get_bestmatch_pair', 'create_distance_matrix
            'get_total_shift', 'merge_distribs', 'mode_normalization', 'get_betweencond_shift', 'get_normalized_dfs']
 
 # Cell
-import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/MS-EmpiRe_Python/')
 from .visualizations import *
-from .benchmarking import *
 
 # Cell
 import numpy as np

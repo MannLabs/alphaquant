@@ -5,8 +5,6 @@ __all__ = ['ConditionBackgrounds', 'BackGroundDistribution', 'SubtractedBackgrou
            'transform_cumulative_into_fc2count', 'get_cumul_from_freq']
 
 # Cell
-import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/nbdev/MS-EmpiRe_Python')
 from .diffquant_utils import *
 from .visualizations import *
 

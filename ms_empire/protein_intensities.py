@@ -3,15 +3,13 @@
 __all__ = ['run_protein_normalization', 'estimate_protein_intensities', 'plot_lines', 'plot_points']
 
 # Cell
-import sys
-sys.path.append('/Users/constantin/workspace/EmpiRe/MS-EmpiRe_Python/')
 from .background_distributions import *
 from .normalization import *
 from .diff_analysis import *
 from .visualizations import *
 from .benchmarking import *
 from .diffquant_utils import *
-from .diff_analysis_manager import *
+from .diff_analysis_manager import read_tables
 
 # Cell
 import pandas as pd

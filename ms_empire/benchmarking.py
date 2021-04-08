@@ -5,12 +5,12 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
 
 # Cell
 from .visualizations import *
+from .diff_analysis_manager import run_pipeline
 
 # Cell
 import pandas as pd
 def get_tps_fps(result_df, prot2org_file, thresh = 0.05, fc_thresh = 0.3):
     annotated = annotate_dataframe(result_df, prot2org_file)
-    display(annotated)
     condpairs = result_df["condpair"].drop_duplicates()
 
 
@@ -52,7 +52,6 @@ def compare_to_reference(result_df, reference_file, condpair):#put in condpair a
 
     ref_df = pd.read_csv(reference_file, sep = "\t")
     merged = pd.merge(result_df, ref_df, how='inner', on = "protein",suffixes = ["", "_ref"])
-    display(merged)
     ax_p = merged.plot.scatter(x='pval_ref',y='pval')
     plt.show()
     ax_fc = merged.plot.scatter(x='log2FC_ref',y='fc')
@@ -65,12 +64,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 def compare_normalization(ref_normalization_file, norm1_df, norm2_df):
     ref_normed = pd.read_csv(ref_normalization_file, sep ="\t").set_index('peptide')
-    display(ref_normed)
 
     merged = pd.merge(norm1_df, norm2_df, how='inner',  left_index = True, right_index = True)
     columns = merged.columns
     merged = pd.merge(ref_normed, merged, how='inner', left_index = True, right_index = True, suffixes = ["_ref", ""])
-    display(merged)
+
     for i in range(len(columns)):
         sample1 = columns[i]
         sample2 = sample1+"_ref"
@@ -84,7 +82,7 @@ import numpy as np
 def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_file, outdir):
     protein_ref = pd.read_csv(peptide_detail_file, sep="\t", usecols=["protein", "protein_pval", "protein_fc"]).drop_duplicates().rename(columns = {"protein_pval" : "pval_ref", "protein_fc": "fc_ref"})
     peptide_ref = pd.read_csv(peptide_detail_file, sep='\t', usecols = ["peptide", "protein", "peptide_pval","peptide_fc"]).rename(columns = {"peptide_pval" :"peptide_pval_ref", "peptide_fc" : "peptide_fc_ref"})
-    compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df)
+    compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df, peptide_name = "peptide")
     compare_significant_proteins(result_df, protref_file)
 
     print_nonref_hits(protein_ref, result_df, peptide_ref, peptide_df, outdir)
@@ -133,4 +131,4 @@ def print_nonref_hits(protein_ref, protein_df, peptide_ref, peptide_df, outdir):
     peps_nonref_df = peptide_df[~(peptide_df["peptide"].isin(peptide_ref["peptide"].to_list()))]
     prots_nonref_df.to_csv(f"{outdir}/nonref_proteins.tsv", sep = "\t", index = False)
     peps_nonref_df.to_csv(f"{outdir}/nonref_peptides.tsv", sep = "\t", index = False)
-    display(peps_nonref_df)
+    #display(peps_nonref_df)
