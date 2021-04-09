@@ -2,11 +2,11 @@
 
 __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_betweencond_fcs', 'plot_withincond_fcs',
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
-           'volcano_plot', 'beeswarm_ion_plot', 'get_heatmap', 'compare_direction', 'compare_correlation',
-           'get_condensed_distance_matrix', 'clustersort_numerical_arrays', 'get_clustered_dataframe',
-           'get_sample_overview_dataframe', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
-           'get_clustered_dataframe', 'get_heatmap', 'get_sample_overview_dataframe', 'initialize_result_dataframe',
-           'initialize_normed_peptides', 'initialize_sample2cond']
+           'volcano_plot', 'beeswarm_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
+           'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix', 'clustersort_numerical_arrays',
+           'get_clustered_dataframe', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
+           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
+           'subset_normed_peptides_df_to_conditions', 'get_normed_peptides_dataframe', 'initialize_sample2cond']
 
 # Cell
 from .diffquant_utils import *
@@ -225,20 +225,48 @@ def beeswarm_ion_plot(protein,diffresults_df,normed_df, sample2cond,saveloc = No
     plt.show()
 
 # Cell
-import os
+import itertools
+import pandas as pd
 import numpy as np
 import holoviews as hv
-from holoviews import opts
+hv.extension('bokeh')
+
+
+def get_normalization_overview_heatmap(normed_peptides_df):
+    """Compares the normed intensities of the samples pairwise and clusters by sample similarity.
+    The sample similarity matrix is then visualized as a heatmap"""
+    samples = list(normed_peptides_df.columns)
+    result_2dnp = np.zeros((len(samples), len(samples)))
+
+    for idxpair in itertools.combinations(range(len(samples)), 2):
+        col1 = samples[idxpair[0]]
+        col2 = samples[idxpair[1]]
+        difference_distrib = normed_peptides_df[col1].to_numpy() - normed_peptides_df[col2].to_numpy()
+        distance = np.nanvar(difference_distrib)
+        result_2dnp[idxpair[0]][idxpair[1]] = distance
+        result_2dnp[idxpair[1]][idxpair[0]] = distance
+
+    res_df = pd.DataFrame(result_2dnp, index=samples, columns=samples)
+    clust_df = get_clustered_dataframe(res_df)
+    heatmap = hv.HeatMap(clust_df, label='Sample similarities')
+    #heatmap.opts(opts.HeatMap(tools=['hover'], colorbar=True, width=325, toolbar='above', clim=(-2, 2)))
+
+    return heatmap
+
+# Cell
+import os
+import holoviews as hv
 import pandas as pd
 hv.extension('bokeh')
 
-def get_heatmap(overview_df, results_folder = os.path.join(".", "results")):
+def get_protein_regulation_heatmap(overview_df, results_folder = os.path.join(".", "results")):
     clustered_df = get_clustered_dataframe(overview_df)
-    clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
-
-    plot_df = pd.melt(clustered_df, id_vars=[0])
+    if results_folder != None:
+        clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
+    plot_df = pd.melt(clustered_df, id_vars='index')
     heatmap = hv.HeatMap(plot_df, label='Regulation overview')
-    heatmap.opts(opts.HeatMap(tools=['hover'], colorbar=True, width=325, toolbar='above', clim=(-2, 2)))
+    #heatmap.opts(opts.HeatMap(tools=['hover'], colorbar=True, width=325, toolbar='above', clim=(-2, 2)))
+    return heatmap
 
 # Cell
 import numpy.ma as ma
@@ -314,38 +342,6 @@ def get_clustered_dataframe(overview_df, cluster_method ='average',compare_funct
 
 
 # Cell
-import re
-import os
-def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), condpairs_to_compare = []):
-    'goes through the results folder and extracts up- and downregulated genes for each (specified) condition comparison'
-
-    if len(condpairs_to_compare) == 0:
-        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(results_folder) if re.match(r'*results.tsv', f)]
-
-    dfs = []
-    count = 0
-    for row in condpairs_to_compare:
-        c1 = row[0]
-        c2 = row[1]
-        results = initialize_result_dataframes_per_condpair(c1, c2, results_folder)
-        if(type(results) == type(None)):
-            continue
-        site_df = results[0]
-        positive_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]>0.5)]["site_id"]))
-        negative_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]<-0.5)]["site_id"]))
-        df_loc = pd.DataFrame([[1 for x in range(len(positive_sites))]+[-1 for x in range(len(negative_sites))]],columns=positive_sites+negative_sites)
-        df_loc["condpair"] = get_condpairname([c1, c2])
-        df_loc["num_regulated"] = len(positive_sites) + len(negative_sites)
-        dfs.append(df_loc)
-        #print(count)
-        count+=1
-
-    result_df = pd.concat(dfs)
-    result_df = result_df.replace(np.nan, 0).set_index("condpair")
-
-    return result_df
-
-# Cell
 import numpy as np
 def compare_direction(array1, array2):
     identical_elements  = array1 == array2
@@ -409,25 +405,9 @@ def get_clustered_dataframe(overview_df, cluster_method ='average',compare_funct
 
 
 # Cell
-
-import holoviews as hv
-import pandas as pd
-hv.extension('bokeh')
-
-def get_heatmap(overview_df, results_folder = os.path.join(".", "results")):
-    clustered_df = get_clustered_dataframe(overview_df)
-    if results_folder != None:
-        clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
-    plot_df = pd.melt(clustered_df, id_vars='index')
-    heatmap = hv.HeatMap(plot_df, label='Regulation overview')
-    return heatmap
-
-
-
-# Cell
 import re
 import os
-def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), condpairs_to_compare = []):
+def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), regulated_object = "protein",condpairs_to_compare = []):
     """
     goes through the results folder and extracts up- and downregulated genes for each (specified) condition comparison
     """
@@ -440,12 +420,12 @@ def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"),
     for row in condpairs_to_compare:
         c1 = row[0]
         c2 = row[1]
-        results = initialize_result_dataframe(c1, c2, results_folder)
+        results = get_diffresult_dataframe(c1, c2, results_folder)
         if(type(results) == type(None)):
             continue
         site_df = results
-        positive_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]>0.5)]["site_id"]))
-        negative_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]<-0.5)]["site_id"]))
+        positive_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]>0.5)][regulated_object]))
+        negative_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]<-0.5)][regulated_object]))
         df_loc = pd.DataFrame([[1 for x in range(len(positive_sites))]+[-1 for x in range(len(negative_sites))]],columns=positive_sites+negative_sites)
         df_loc["condpair"] = get_condpairname([c1, c2])
         #df_loc["num_regulated"] = len(positive_sites) + len(negative_sites)
@@ -464,7 +444,7 @@ import pandas as pd
 import os
 import numpy as np
 
-def initialize_result_dataframe(cond1, cond2, results_folder = os.path.join(".", "results")):
+def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "results")):
     """
     reads the results dataframe for a given condpair
     """
@@ -479,16 +459,26 @@ def initialize_result_dataframe(cond1, cond2, results_folder = os.path.join(".",
     diffprots = diffprots[(diffprots["condpair"] == condpair)]
 
     diffprots["-log10fdr"] = -np.log10(diffprots["fdr"])
-    diffprots = diffprots.set_index("protein")
+    #diffprots = diffprots.set_index("protein")
 
     return diffprots
+
+# Cell
+import pandas as pd
+def subset_normed_peptides_df_to_conditions(cond, sample2cond_df, normed_df):
+    columns_to_keep = set(sample2cond_df[sample2cond_df["condition"]==cond]["sample"]).intersection(set(normed_df.columns))
+    columns_to_drop = set(normed_df.columns) - columns_to_keep
+    subset_df = normed_df.drop(labels = columns_to_drop)
+    return subset_df
+
+
 
 # Cell
 import pandas as pd
 import os
 import numpy as np
 
-def initialize_normed_peptides(cond1, cond2, results_folder = os.path.join(".", "results")):
+def get_normed_peptides_dataframe(cond1, cond2, results_folder = os.path.join(".", "results")):
     condpair = get_condpairname([cond1, cond2])
     normed_peptides_tsv = os.path.join(results_folder, f"{condpair}.normed.tsv")
     try:
@@ -500,7 +490,7 @@ def initialize_normed_peptides(cond1, cond2, results_folder = os.path.join(".", 
     numeric_cols = list(normed_peptides.select_dtypes(include=np.number).columns)
     #available_vals = list(set(samplemap_df["sample"].values).intersection(set(normed_peptides.columns)))
     normed_peptides[numeric_cols] = np.log2(normed_peptides[numeric_cols].replace(0, np.nan))
-    normed_peptides = normed_peptides.set_index("protein")
+    normed_peptides = normed_peptides.set_index(["protein", "ion"])
     return normed_peptides
 
 

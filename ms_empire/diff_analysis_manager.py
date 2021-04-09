@@ -15,7 +15,7 @@ from itertools import combinations
 import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
-def run_pipeline(peptides_tsv, samplemap_tsv, outdir = None,pepheader = None, protheader = None, minrep = 2, outlier_correction = True,
+def run_pipeline(peptides_tsv, samplemap_tsv, outdir = ".",pepheader = None, protheader = None, minrep = 2, outlier_correction = True,
 median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, condpair_combinations = None, annotation_file = None):
 
     unnormed_df, labelmap_df = read_tables(peptides_tsv, samplemap_tsv, pepheader, protheader)

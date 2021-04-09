@@ -257,7 +257,7 @@ def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_fol
 
     """wrapper function reformats inputs tables and iterates through the whole dataset. Output needs to contain """""
     input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
-    _,sample2cond = initialize_sample2cond(samplemap)
+    _,sample2cond = get_sample2cond_dataframe(samplemap)
     len_before = len(input_df.index)
     input_df = input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
     print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
@@ -338,7 +338,7 @@ import numpy as np
 
 def initialize_ptmsite_df(ptmsite_file, samplemap_file):
     """returns ptmsite_df, samplemap_df from files"""
-    samplemap_df, _ = initialize_sample2cond(samplemap_file)
+    samplemap_df, _ = get_sample2cond_dataframe(samplemap_file)
     ptmsite_df = pd.read_csv(ptmsite_file, sep = "\t")
     return ptmsite_df, samplemap_df
 
@@ -412,7 +412,7 @@ import re
 
 def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join(".","results"), siteprobs_filename = "siteprobs.tsv",samplemap_file = "samples.map",condpairs_to_compare = [], threshold_prob = 0.05, minrep = 2):
 
-    samplemap_df, _ = initialize_sample2cond(samplemap_file)
+    samplemap_df, _ = get_sample2cond_dataframe(samplemap_file)
     ptmsite_map = os.path.join(results_folder, siteprobs_filename)
     ptmsite_df = pd.read_csv(ptmsite_map, sep = "\t")
     ptmsite_df["site_id"] = ptmsite_df["REFPROT"] + ptmsite_df["site"].astype("str")
