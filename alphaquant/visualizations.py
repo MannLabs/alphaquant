@@ -5,9 +5,9 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table', 'beeswarm_ion_plot',
            'foldchange_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
            'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix', 'clustersort_numerical_arrays',
-           'get_clustered_dataframe', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
-           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
-           'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe', 'initialize_sample2cond']
+           'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays', 'get_clustered_dataframe',
+           'get_sample_overview_dataframe', 'get_diffresult_dataframe', 'subset_normed_peptides_df_to_condition',
+           'get_normed_peptides_dataframe', 'initialize_sample2cond']
 
 # Cell
 from .diffquant_utils import *
@@ -409,36 +409,6 @@ def clustersort_numerical_arrays(arrays, names , cluster_method ='average',compa
 
 # Cell
 import numpy as np
-import itertools
-def get_clustered_dataframe(overview_df, cluster_method ='average',compare_function = compare_direction, clust_rows = True, clust_columns = True):
-
-    df_numbered = overview_df.select_dtypes(include=np.number)
-    contains_floats = ['float' in str(x) for x in df_numbered.dtypes]
-    type = 'float' if True in contains_floats else 'int'
-    df_numbered = df_numbered.astype(type) #ensure that the df has no mixed types
-
-    rows = df_numbered.to_numpy()
-    rownames = list(df_numbered.index)
-    colnames = list(df_numbered.columns)
-
-    if clust_rows:
-        print(f"clustering on {len(rownames)} rows")
-        rows, rownames, _ = clustersort_numerical_arrays(rows, rownames, cluster_method, compare_function)
-    if clust_columns:
-        print(f"clustering on {len(colnames)} columns")
-        columns, colnames,_ = clustersort_numerical_arrays(rows.T, colnames, cluster_method, compare_function)
-        rows = columns.T
-
-    df_clustered = pd.DataFrame(rows, index= rownames, columns= colnames ).reset_index()
-    return df_clustered
-
-
-
-
-
-
-# Cell
-import numpy as np
 def compare_direction(array1, array2):
     identical_elements  = array1 == array2
     num_same_direction = np.sum(identical_elements)
@@ -496,7 +466,8 @@ def get_clustered_dataframe(overview_df, cluster_method ='average',compare_funct
             columns, colnames,_ = clustersort_numerical_arrays(rows.T, colnames, cluster_method, compare_function)
             rows = columns.T
     print("finished clustering")
-    df_clustered = pd.DataFrame(rows, index= rownames, columns= colnames ).reset_index()
+    df_clustered = pd.DataFrame(rows, index= rownames)
+    df_clustered.columns = colnames
     return df_clustered
 
 

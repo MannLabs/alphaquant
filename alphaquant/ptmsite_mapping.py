@@ -336,9 +336,10 @@ def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_fol
 import pandas as pd
 import numpy as np
 
+
 def initialize_ptmsite_df(ptmsite_file, samplemap_file):
     """returns ptmsite_df, samplemap_df from files"""
-    samplemap_df, _ = get_sample2cond_dataframe(samplemap_file)
+    samplemap_df, _ = initialize_sample2cond(samplemap_file)
     ptmsite_df = pd.read_csv(ptmsite_file, sep = "\t")
     return ptmsite_df, samplemap_df
 
