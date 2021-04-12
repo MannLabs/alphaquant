@@ -107,8 +107,8 @@ modules = ["diff_analysis_manager.py",
            "diffquant_utils.py",
            "ptmsite_mapping.py"]
 
-doc_url = "https://ammarcsj.github.io/ms_empire/"
+doc_url = "https://ammarcsj.github.io/alphaquant/"
 
-git_url = "https://github.com/ammarcsj/ms_empire/tree/master/"
+git_url = "https://github.com/ammarcsj/alphaquant/tree/master/"
 
 def custom_doc_links(name): return None

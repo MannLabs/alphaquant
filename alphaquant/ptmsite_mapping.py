@@ -8,7 +8,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
 
 # Cell
 from .visualizations import *
-import ms_empire.diffquant_utils as utils
+import alphaquant.diffquant_utils as utils
 
 
 # Cell

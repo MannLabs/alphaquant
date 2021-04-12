@@ -1,13 +1,13 @@
 import sys
 sys.path.append('/Users/constantin/workspace/MS-EmpiRe_Python/')
-from ms_empire.background_distributions import *
-from ms_empire.normalization import *
-from ms_empire.diff_analysis import *
-from ms_empire.visualizations import *
-from ms_empire.benchmarking import *
-from ms_empire.diffquant_utils import *
-from ms_empire.diff_analysis_manager import *
-from ms_empire.protein_intensities import *
+from alphaquant.background_distributions import *
+from alphaquant.normalization import *
+from alphaquant.diff_analysis import *
+from alphaquant.visualizations import *
+from alphaquant.benchmarking import *
+from alphaquant.diffquant_utils import *
+from alphaquant.diff_analysis_manager import *
+from alphaquant.protein_intensities import *
 
 import os
 os.chdir("/Users/constantin/workspace/MS-EmpiRe_Python")
