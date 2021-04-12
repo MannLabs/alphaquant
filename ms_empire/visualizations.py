@@ -2,11 +2,12 @@
 
 __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_betweencond_fcs', 'plot_withincond_fcs',
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
-           'volcano_plot', 'beeswarm_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
+           'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table', 'beeswarm_ion_plot',
+           'foldchange_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
            'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix', 'clustersort_numerical_arrays',
            'get_clustered_dataframe', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
            'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
-           'subset_normed_peptides_df_to_conditions', 'get_normed_peptides_dataframe', 'initialize_sample2cond']
+           'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe', 'initialize_sample2cond']
 
 # Cell
 from .diffquant_utils import *
@@ -48,8 +49,8 @@ def tranform_fc2count_to_fc_space(fc2counts, num_fcs, rescale_factor):
 import matplotlib.pyplot as plt
 from scipy import stats
 
-def plot_betweencond_fcs(df_c1_normed, df_c2_normed, get_median):
-    if get_median:
+def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples = True):
+    if merge_samples:
         df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
         df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
     both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
@@ -61,8 +62,11 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, get_median):
             diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy()
             median = np.nanmedian(diff_fcs)
             #plt.axvline(mode, color = 'blue')
-            plt.axvline(median, color = 'red')
-            plt.hist(diff_fcs,99,density=True, histtype='step', range=(-3.5,3.5))
+            #plt.axvline(median, color = 'red', label = "median")
+            plt.axvline(0, color = 'red', linestyle = "dashed")
+            cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975)))
+
+            plt.hist(diff_fcs,80,density=True, histtype='step', range=(-cutoff,cutoff))
     plt.xlabel("log2(fc)")
     plt.show()
 
@@ -82,7 +86,9 @@ def plot_withincond_fcs(df, xlim = None):
         median = np.nanmedian(diff_fcs)
         #plt.axvline(mode, color = 'blue')
         #plt.axvline(median, color = 'red')
-        plt.hist(diff_fcs,99,density=True, histtype='step',range=(-2,2))
+        cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975)))
+
+        plt.hist(diff_fcs,80,density=True, histtype='step',range=(-cutoff,cutoff))
         plt.xlabel("log2 peptide fcs")
 
     if xlim is not None:
@@ -195,30 +201,83 @@ def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significan
 
 
 # Cell
+def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, sample2cond, ion_header = 'ion', protein_header = 'protein'):
+    diffresults_line = diffresults_df.loc[protein]
+    value_vars = set.intersection(set(normed_df.columns), set(sample2cond.keys()))
+    protein_df = normed_df.xs(protein, level = 0)
+    df_melted = pd.melt(protein_df.reset_index(), value_vars= value_vars, id_vars=[ion_header], value_name="intensity", var_name="sample")
+    df_melted["condition"] = [sample2cond.get(x) for x in df_melted["sample"]]
+    return df_melted, diffresults_line
+
+
+# Cell
+
+def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
+    melted_df = melted_df.set_index(["condition"])
+    c1_df = melted_df.loc[c1]
+    c2_df = melted_df.loc[c2]
+    ions = set(c1_df[ion_header]).intersection(set(c2_df[ion_header]))
+    c1_df = c1_df.set_index([ion_header]).sort_index()
+    c2_df = c2_df.set_index([ion_header]).sort_index()
+    result_ions = []
+    result_fcs = []
+    for ion in ions:
+        ions1 = c1_df.loc[[ion]]["intensity"]
+        ions2 = c2_df.loc[[ion]]["intensity"]
+        fcs = [x-y for x,y in itertools.product(ions1, ions2)]
+        result_ions.extend([ion for x in range(len(fcs))])
+        result_fcs.extend(fcs)
+
+    res_df = pd.DataFrame({"ion": result_ions, "log2fc": result_fcs})
+
+    return res_df
+
+# Cell
 #interactive
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-def beeswarm_ion_plot(protein,diffresults_df,normed_df, sample2cond,saveloc = None,ion_header = 'ion'):
-    diffresults_line = diffresults_df.loc[protein]
-    fdr = diffresults_line["fdr"]
-    value_vars = set.intersection(set(normed_df.columns), set(sample2cond.keys()))
-    protein_df = normed_df.loc[[protein]]
-    df_melted = pd.melt(protein_df, value_vars= value_vars, id_vars=[ion_header], value_name="intensity", var_name="sample")
-    df_melted["condition"] = [sample2cond.get(x) for x in df_melted["sample"]]
+def beeswarm_ion_plot(df_melted, diffresults_protein, saveloc = None):
+    fdr = float(diffresults_protein.at["fdr"])
+    protein = diffresults_protein.name
     pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
     ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette=pal2)
-    ax = sns.swarmplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)
+    ax = sns.stripplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
     handles, labels = ax.get_legend_handles_labels()
 
     l = plt.legend(handles[2:4], labels[2:4])
 
     plt.xticks(rotation=90)
-    if "gene" in diffresults_df.columns:
-        gene = diffresults_line["gene"].values[0]
-        plt.title(f"{gene} ({protein}) FDR: {fdr:e.1}")
+    if "gene" in diffresults_protein.index:
+        gene = diffresults_line.at["gene"]
+        plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
     else:
-        plt.title(f"{protein} FDR: {fdr:e}")
+        plt.title(f"{protein} FDR: {fdr:.1e}")
+    if saveloc is not None:
+        plt.savefig(saveloc)
+
+    plt.show()
+
+# Cell
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
+    fdr = float(diffresults_protein.at["fdr"])
+    protein = diffresults_protein.name
+    pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
+    ax = sns.boxplot(x="ion", y="log2fc", data=df_melted, color = "white")
+    ax = sns.stripplot(x="ion", y="log2fc", data=df_melted, color = "grey")
+    handles, labels = ax.get_legend_handles_labels()
+    ax.axhline(y = 0, color='black', linewidth=2, alpha=.7, linestyle = "dashed")
+    l = plt.legend(handles[2:4], labels[2:4])
+
+    plt.xticks(rotation=90)
+    if "gene" in diffresults_protein.index:
+        gene = diffresults_line.at["gene"]
+        plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
+    else:
+        plt.title(f"{protein} FDR: {fdr:.1e}")
     if saveloc is not None:
         plt.savefig(saveloc)
 
@@ -465,10 +524,10 @@ def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "r
 
 # Cell
 import pandas as pd
-def subset_normed_peptides_df_to_conditions(cond, sample2cond_df, normed_df):
+def subset_normed_peptides_df_to_condition(cond, sample2cond_df, normed_df):
     columns_to_keep = set(sample2cond_df[sample2cond_df["condition"]==cond]["sample"]).intersection(set(normed_df.columns))
     columns_to_drop = set(normed_df.columns) - columns_to_keep
-    subset_df = normed_df.drop(labels = columns_to_drop)
+    subset_df = normed_df.drop(columns = columns_to_drop)
     return subset_df
 
 
