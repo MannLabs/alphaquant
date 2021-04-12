@@ -271,7 +271,6 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     handles, labels = ax.get_legend_handles_labels()
     ax.axhline(y = 0, color='black', linewidth=2, alpha=.7, linestyle = "dashed")
     l = plt.legend(handles[2:4], labels[2:4])
-
     plt.xticks(rotation=90)
     if "gene" in diffresults_protein.index:
         gene = diffresults_line.at["gene"]
