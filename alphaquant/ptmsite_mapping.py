@@ -3,7 +3,7 @@
 __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_protein', 'get_num_sites',
            'group_by_nummods_posv', 'condense_ions', 'encode_probabilities', 'cluster_ions', 'cluster_ions_pairwise',
            'compare_ion_similarities', 'get_condensed_matrix', 'get_idmap_column', 'get_site_prob_overview',
-           'assign_protein', 'assign_dataset', 'initialize_ptmsite_df', 'detect_site_occupancy_change',
+           'assign_protein', 'assign_dataset', 'sequence_file', 'initialize_ptmsite_df', 'detect_site_occupancy_change',
            'check_site_occupancy_changes_all_diffresults']
 
 # Cell
@@ -253,11 +253,12 @@ def assign_protein(modpeps,condid2ionids, refprot):
 
 # Cell
 import os
-def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv', sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t"):
+def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
+sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t", label_column = "R.Label", fg_id_column = "FG.Id"):
 
     """wrapper function reformats inputs tables and iterates through the whole dataset. Output needs to contain """""
     input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
-    _,sample2cond = get_sample2cond_dataframe(samplemap)
+    _,sample2cond = initialize_sample2cond(samplemap)
     len_before = len(input_df.index)
     input_df = input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
     print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
@@ -269,7 +270,7 @@ def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_fol
     refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
 
     input_df["REFPROT"] = get_idmap_column(input_df["PG.UniProtIds"],swissprot_ids)
-    input_df["IonID"] = input_df["R.Label"] + input_df['FG.Id']
+    input_df["IonID"] = input_df[label_column] + input_df[fg_id_column]
     input_df = input_df.set_index("REFPROT")
     input_df.sort_index(inplace=True)
     #input_df.to_csv(f"{ptmprob_file}.sorted", sep = "\t")
@@ -315,14 +316,15 @@ def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_fol
         ptmlocs.extend([x for x in protein_df[f"EG.PTMPositions {modification_type}"]])
         locprobs.extend([x for x in protein_df[f"EG.PTMProbabilities {modification_type}"]])
         site_ids.extend(ptm_ids_prot)
-        fg_ids.extend(protein_df["FG.Id"].tolist())
-        run_ids.extend(protein_df["R.Label"].tolist())
+        fg_ids.extend(protein_df[fg_id_column].tolist())
+        run_ids.extend(protein_df[label_column].tolist())
         prot_ids.extend([prot for x in range(len(ptm_ids_prot))])
         gene_ids.extend([gene for x in range(len(ptm_ids_prot))])
 
 
+
     conditions = [sample2cond.get(x) for x in run_ids]
-    mapped_df = pd.DataFrame({"R.Label" : run_ids, "conditions" : conditions, "FG.Id" : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,"locprob" : locprobs})
+    mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,"locprob" : locprobs})
     mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None)
 
     siteprob_df = pd.DataFrame(siteprobs)

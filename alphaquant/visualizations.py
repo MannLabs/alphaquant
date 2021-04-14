@@ -50,7 +50,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 import itertools
 
-def plot_withincond_fcs(normed_intensity_df):
+def plot_withincond_fcs(normed_intensity_df, cut_extremes = True):
     """takes a normalized intensity dataframe and plots the fold change distribution between all samples. Column = sample, row = ion"""
 
     samplecombs = list(itertools.combinations(normed_intensity_df.columns, 2))
@@ -60,9 +60,12 @@ def plot_withincond_fcs(normed_intensity_df):
         s2 = spair[1]
         diff_fcs = normed_intensity_df[s1].to_numpy() - normed_intensity_df[s2].to_numpy() #calculate fold changes by subtracting log2 intensities of both samples
 
-        cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
-
-        plt.hist(diff_fcs,80,density=True, histtype='step',range=(-cutoff,cutoff)) #set the cutoffs to focus the visualization
+        if cut_extremes:
+            cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
+            range = (-cutoff, cutoff)
+        else:
+            range = None
+        plt.hist(diff_fcs,80,density=True, histtype='step',range=range) #set the cutoffs to focus the visualization
         plt.xlabel("log2 peptide fcs")
 
     plt.show()
@@ -356,7 +359,7 @@ hv.extension('bokeh')
 def get_protein_regulation_heatmap(overview_df, results_folder = os.path.join(".", "results")):
     """Takes the overview dataframe, which annotates the proteins regulated for each condition. Index = condpair, column = protein.
     Clusters and visualizes as heatmap."""
-    clustered_df = get_clustered_dataframe(overview_df)
+    clustered_df = get_clustered_dataframe(overview_df).reset_index()
     if results_folder != None:
         clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
     plot_df = pd.melt(clustered_df, id_vars='index')
