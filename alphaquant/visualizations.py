@@ -4,10 +4,10 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
            'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table', 'beeswarm_ion_plot',
            'foldchange_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
-           'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix', 'clustersort_numerical_arrays',
-           'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays', 'get_clustered_dataframe',
-           'get_sample_overview_dataframe', 'get_diffresult_dataframe', 'subset_normed_peptides_df_to_condition',
-           'get_normed_peptides_dataframe', 'initialize_sample2cond']
+           'get_heatmapplot', 'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix',
+           'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
+           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
+           'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe', 'initialize_sample2cond']
 
 # Cell
 from .diffquant_utils import *
@@ -366,6 +366,47 @@ def get_protein_regulation_heatmap(overview_df, results_folder = os.path.join(".
     heatmap = hv.HeatMap(plot_df, label='Regulation overview')
     #heatmap.opts(opts.HeatMap(tools=['hover'], colorbar=True, width=325, toolbar='above', clim=(-2, 2)))
     return heatmap
+
+# Cell
+import dash_core_components as dcc
+import plotly.graph_objs as go
+#interactive
+#ckg_copypaste
+def get_heatmapplot(data, identifier= "Heatmap", args = {'format' :'as_specified', 'title' : 'heatmap'}):
+    """
+    This function plots a simple Heatmap.
+    :param data: is a Pandas DataFrame with the shape of the heatmap where index corresponds to rows \
+                and column names corresponds to columns, values in the heatmap corresponds to the row values.
+    :param str identifier: is the id used to identify the div where the figure will be generated.
+    :param dict args: see below.
+    :Arguments:
+        * **format** (str) -- defines the format of the input dataframe.
+        * **source** (str) -- name of the column containing the source.
+        * **target** (str) -- name of the column containing the target.
+        * **values** (str) -- name of the column containing the values to be plotted.
+        * **title** (str) -- title of the figure.
+    :return: heatmap figure within the <div id="_dash-app-content">.
+    Example::
+        result = get_heatmapplot(data, identifier='heatmap', args={'format':'edgelist', 'source':'node1', 'target':'node2', 'values':'score', 'title':'Heatmap Plot'})
+    """
+    df = data.copy()
+    if args['format'] == "edgelist":
+        df = df.set_index(args['source'])
+        df = df.pivot_table(values=args['values'], index=df.index, columns=args['target'], aggfunc='first')
+        df = df.fillna(0)
+    figure = {}
+    figure["data"] = []
+    figure["layout"] = {"title":args['title'],
+                        "height": 500,
+                        "width": 700,
+                        "annotations" : [dict(xref='paper', yref='paper', showarrow=False, text='')],
+                        "template":'plotly_white'}
+    figure['data'].append(go.Heatmap(z=df.values.tolist(),
+                                    x = list(df.columns),
+                                    y = list(df.index)))
+
+    return dcc.Graph(id = identifier, figure = figure)
+
 
 # Cell
 import numpy.ma as ma
