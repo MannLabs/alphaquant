@@ -2,12 +2,13 @@
 
 __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_withincond_fcs', 'plot_betweencond_fcs',
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
-           'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table', 'beeswarm_ion_plot',
-           'foldchange_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
-           'get_heatmapplot', 'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix',
-           'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
-           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
-           'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe', 'initialize_sample2cond']
+           'get_volcanoplot_ckg', 'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table',
+           'beeswarm_ion_plot', 'foldchange_ion_plot', 'get_normalization_overview_heatmap',
+           'get_protein_regulation_heatmap', 'get_heatmapplot', 'compare_direction', 'compare_correlation',
+           'get_condensed_distance_matrix', 'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation',
+           'clustersort_numerical_arrays', 'get_clustered_dataframe', 'get_sample_overview_dataframe',
+           'get_diffresult_dataframe', 'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition',
+           'get_normed_peptides_dataframe', 'initialize_sample2cond']
 
 # Cell
 from .diffquant_utils import *
@@ -166,6 +167,111 @@ def plot_fold_change(df, key1, key2):
     plt.xlim([-4.5, 6.5])
     #plt.ylim([6,11.5])
     plt.show()
+
+
+# Cell
+
+import dash_core_components as dcc
+import plotly.graph_objs as go
+#interactive
+#ckg_copypaste, defaults added for args argument
+def get_volcanoplot_ckg(results, args = {'x_title':'log2FC', 'y_title':'-log10FDR','colorscale':'Blues', 'showscale':True, 'marker_size':7, 'fc' :0.5}):
+    """
+    This function plots volcano plots for each internal dictionary in a nested dictionary.
+    :param dict[dict] results: nested dictionary with pairwise group comparisons as keys and internal dictionaries containing 'x' (log2FC values), \
+                                'y' (-log10 p-values), 'text', 'color', 'pvalue' and 'annotations' (number of hits to be highlighted).
+    :param dict args: see below.
+    :Arguments:
+        * **fc** (float) -- fold change threshold.
+        * **range_x** (list) -- list with minimum and maximum values for x axis.
+        * **range_y** (list) -- list with minimum and maximum values for y axis.
+        * **x_title** (str) -- plot x axis title.
+        * **y_title** (str) -- plot y axis title.
+        * **colorscale** (str) -- string for predefined plotly colorscales or dict containing one or more of the keys listed in \
+                                    https://plot.ly/python/reference/#layout-colorscale.
+        * **showscale** (bool) -- determines whether or not a colorbar is displayed for a trace.
+        * **marker_size** (int) -- sets the marker size (in px).
+    :return: list of volcano plot figures within the <div id="_dash-app-content">.
+    Example::
+        result = get_volcanoplot(results, args={'fc':2.0, 'range_x':[0, 1], 'range_y':[-1, 1], 'x_title':'x_axis', 'y_title':'y_title', 'colorscale':'Blues', \
+                                'showscale':True, 'marker_size':7})
+    """
+    figures = []
+    for identifier,title in results:
+        result = results[(identifier,title)]
+        figure = {"data":[],"layout":None}
+        if "range_x" not in args:
+            range_x = [-max(abs(result['x']))-0.1, max(abs(result['x']))+0.1]#if symmetric_x else []
+        else:
+            range_x = args["range_x"]
+        if "range_y" not in args:
+            range_y = [0,max(abs(result['y']))+1.]
+        else:
+            range_y = args["range_y"]
+        traces = [go.Scatter(x=result['x'],
+                        y=result['y'],
+                        mode='markers',
+                        text=result['text'],
+                        hoverinfo='text',
+                        marker={'color':result['color'],
+                                'colorscale': args["colorscale"],
+                                'showscale': args['showscale'],
+                                'size': args['marker_size'],
+                                'line': {'color':result['color'], 'width':2}
+                                }
+                        )]
+        shapes = []
+        if ('is_samr' in result and not result['is_samr']) or 'is_samr' not in result:
+            shapes = [{'type': 'line',
+                      'x0': np.log2(args['fc']),
+                      'y0': 0,
+                      'x1': np.log2(args['fc']),
+                      'y1': range_y[1],
+                      'line': {
+                          'color': 'grey',
+                          'width': 2,
+                          'dash':'dashdot'
+                          },
+                      },
+                    {'type': 'line',
+                     'x0': -np.log2(args['fc']),
+                     'y0': 0,
+                     'x1': -np.log2(args['fc']),
+                     'y1': range_y[1],
+                     'line': {
+                         'color': 'grey',
+                         'width': 2,
+                         'dash': 'dashdot'
+                         },
+                     },
+                    {'type': 'line',
+                     'x0': -max(abs(result['x']))-0.1,
+                     'y0': result['pvalue'],
+                     'x1': max(abs(result['x']))+0.1,
+                     'y1': result['pvalue'],
+                     'line': {
+                         'color': 'grey',
+                         'width': 1,
+                         'dash': 'dashdot'
+                         },
+                     }]
+            #traces.append(go.Scattergl(x=result['upfc'][0], y=result['upfc'][1]))
+            #traces.append(go.Scattergl(x=result['downfc'][0], y=result['downfc'][1]))
+
+        figure["data"] = traces
+        figure["layout"] = go.Layout(title=title,
+                                        xaxis={'title': args['x_title'], 'range': range_x},
+                                        yaxis={'title': args['y_title'], 'range': range_y},
+                                        hovermode='closest',
+                                        shapes=shapes,
+                                        width=950,
+                                        height=1050,
+                                        annotations = result['annotations']+[dict(xref='paper', yref='paper', showarrow=False, text='')],
+                                        template='plotly_white',
+                                        showlegend=False)
+
+        figures.append(dcc.Graph(id= identifier, figure = figure))
+    return figures
 
 
 # Cell
@@ -372,7 +478,7 @@ import dash_core_components as dcc
 import plotly.graph_objs as go
 #interactive
 #ckg_copypaste
-def get_heatmapplot(data, identifier= "Heatmap", args = {'format' :'as_specified', 'title' : 'heatmap'}):
+def get_heatmapplot(data, identifier= "Heatmap", args = {'format' :'default', 'title' : 'heatmap'}):
     """
     This function plots a simple Heatmap.
     :param data: is a Pandas DataFrame with the shape of the heatmap where index corresponds to rows \
@@ -573,6 +679,22 @@ def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "r
     #diffprots = diffprots.set_index("protein")
 
     return diffprots
+
+# Cell
+import alphaquant.diffquant_utils as aqutils
+import numpy as np
+
+def get_diffresult_dict_ckg_format(cond1, cond2, results_folder = os.path.join(".", "results")):
+    """
+    ckg wrapper, reads the results dataframe for a given condpair and reformats it to the ckg volcano plot input format
+    """
+    result_df = get_diffresult_dataframe(cond1, cond2, results_folder)
+    log2fcs = result_df["log2fc"].to_numpy()
+    logged_fdrs = result_df["-log10fdr"].to_numpy()
+    min_fdr = np.min(logged_fdrs)
+    result_ckg_dict = {}
+    result_ckg_dict[("volcano", aqutils.get_condpairname([cond1, cond2]))] = {"x": log2fcs, "y" : np.array([1.2,3.3,1,3,4,5,6]), "pvalue" : min_fdr, "text" : "testext", "color" : "grey",'is_samr':False, 'annotations' : []}
+    return result_ckg_dict
 
 # Cell
 import pandas as pd
