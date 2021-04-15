@@ -4,7 +4,7 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
            'get_volcanoplot_ckg', 'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table',
            'beeswarm_ion_plot', 'foldchange_ion_plot', 'get_normalization_overview_heatmap',
-           'get_protein_regulation_heatmap', 'get_heatmapplot', 'compare_direction', 'compare_correlation',
+           'get_protein_regulation_heatmap', 'get_heatmapplot_ckg', 'compare_direction', 'compare_correlation',
            'get_condensed_distance_matrix', 'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation',
            'clustersort_numerical_arrays', 'get_clustered_dataframe', 'get_sample_overview_dataframe',
            'get_diffresult_dataframe', 'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition',
@@ -478,7 +478,7 @@ import dash_core_components as dcc
 import plotly.graph_objs as go
 #interactive
 #ckg_copypaste
-def get_heatmapplot(data, identifier= "Heatmap", args = {'format' :'default', 'title' : 'heatmap'}):
+def get_heatmapplot_ckg(data, identifier= "Heatmap", args = {'format' :'default', 'title' : 'heatmap'}):
     """
     This function plots a simple Heatmap.
     :param data: is a Pandas DataFrame with the shape of the heatmap where index corresponds to rows \
