@@ -243,11 +243,11 @@ def subtract_distribs(from_dist, to_dist):
     min_from = from_dist.min_fc
     min_to = to_dist.min_fc
 
-    joined_init = np.zeros(max_joined-min_joined+1, dtype="long")
+    joined_init = np.zeros(max_joined-min_joined+1, dtype=np.int64)
     t_start = time()
     joined = get_joined(joined_init, n_from,n_to, min_from, min_to, min_joined)
     t_join = time()
-    cumulative = get_cumul_from_freq(joined)
+    cumulative = np.cumsum(dtype = np.int64)
     t_cumul = time()
 
     return max_joined, min_joined, cumulative
