@@ -24,6 +24,8 @@ pn.extension(raw_css=[css])
 SERVER = None
 TAB_COUNTER = 0
 
+project_description = 'AlphaQuant is ...'
+
 
 header = dashboard_parts.HeaderWidget(
     title='AlphaQuant',
@@ -33,12 +35,21 @@ header = dashboard_parts.HeaderWidget(
     ),
     github_url='https://github.com/MannLabs/alphaquant'
 )
+main_widget = dashboard_parts.MainWidget(
+    description=project_description,
+    manual_path=os.path.join(
+        os.path.dirname(__file__),
+        "docs",
+        'Empty_manual.pdf'
+    ),
+)
 
 def run():
     global SERVER
 
     LAYOUT = pn.Column(
         header.create(),
+        main_widget.create(),
         sizing_mode='stretch_width'
     )
 
