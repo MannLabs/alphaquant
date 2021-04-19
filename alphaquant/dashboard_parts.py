@@ -79,3 +79,42 @@ class HeaderWidget(object):
             height=73,
             sizing_mode='stretch_width'
         )
+
+
+class MainWidget(object):
+
+    def __init__(self,
+        description,
+        manual_path
+    ):
+        self.project_description = pn.pane.Markdown(
+            description,
+            margin=(10, 0, 10, 0),
+            css_classes=['main-part'],
+            align='start'
+        )
+        self.manual = pn.widgets.FileDownload(
+            file=manual_path,
+            label='Download Manual',
+            button_type='default',
+            align='center',
+            auto=True,
+            height=31,
+            width=200,
+            margin=(0, 20, 0, 0)
+        )
+
+
+    def create(self):
+        LAYOUT = pn.Row(
+            self.project_description,
+            pn.layout.HSpacer(width=500),
+            self.manual,
+            background='#eaeaea',
+            align='center',
+            sizing_mode='stretch_width',
+            height=190,
+            margin=(10, 8, 10, 8),
+            css_classes=['background']
+        )
+        return LAYOUT
