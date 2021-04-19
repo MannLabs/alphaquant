@@ -143,10 +143,10 @@ class RunAnalysis(object):
             margin=(0,0,0,12)
         )
         self.predefined_exp_to_cond = pn.widgets.FileInput(
-            accept=['.txt', '.csv'],
+            accept='.txt,.csv',
             margin=(-10,0,5,12)
         )
-        # UPLOAD DATA
+        # RUN PIPELINE
         self.run_pipeline = pn.widgets.Button(
             name='Run pipeline',
             button_type='primary',
@@ -169,6 +169,7 @@ class RunAnalysis(object):
             margin=(-20, 10, -5, 16),
         )
         self.updated = pn.widgets.IntInput(value=0)
+
 
     def create(self):
         LAYOUT = pn.Card(
