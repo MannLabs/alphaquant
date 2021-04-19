@@ -127,7 +127,7 @@ class RunAnalysis(object):
         # DATA FILES
         self.path_analysis_file = pn.widgets.TextInput(
             name='Specify an analysis file:',
-            placeholder='Enter the whole path to the MQ/Spectronaut/DIA-NN output file',
+            placeholder='Enter the whole path to the MQ / Spectronaut / DIA-NN output file',
             width=900,
             sizing_mode='stretch_width',
             margin=(5, 15, 0, 15)
@@ -140,15 +140,15 @@ class RunAnalysis(object):
             margin=(15, 15, 0, 15)
         )
         self.predefined_exp_to_cond_title = pn.pane.Markdown(
-            'Load an experiment-to-conditions file:',
+            'Load an experiments-to-conditions file:',
             margin=(0,0,0,12)
         )
         self.predefined_exp_to_cond = pn.widgets.FileInput(
-            accept='.txt,.csv',
+            accept='.tsv,.csv',
             margin=(-10,0,5,12)
         )
         # RUN PIPELINE
-        self.run_pipeline = pn.widgets.Button(
+        self.run_pipeline_button = pn.widgets.Button(
             name='Run pipeline',
             button_type='primary',
             height=31,
@@ -186,7 +186,7 @@ class RunAnalysis(object):
                 pn.Spacer(sizing_mode='stretch_width'),
                 pn.Column(
                     self.run_pipeline_button,
-                    self.run_pipeline_button_progress,
+                    self.run_pipeline_progress,
                     align='center',
                     margin=(100, 40, 0, 0),
                 )
@@ -212,7 +212,6 @@ class RunAnalysis(object):
 
     def run_pipeline(self, *args):
         import alphaquant.diff_analysis_manager as diffmgr
-        global PEPTIDES
 
         self.run_pipeline_progress.active = True
 
@@ -222,7 +221,8 @@ class RunAnalysis(object):
                 str(self.predefined_exp_to_cond.value, "utf-8")
             ),
             pepheader= "peptide",
-            protheader="protein"
+            protheader="protein",
+            outdir=self.path_output_folder.value
         )
 
         self.run_pipeline_progress.active = False
