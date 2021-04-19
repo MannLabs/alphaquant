@@ -1,4 +1,5 @@
 import os
+from io import StringIO
 
 # visualization
 import panel as pn
@@ -200,3 +201,29 @@ class RunAnalysis(object):
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
+
+        self.run_pipeline = pn.depends(
+            self.run_pipeline_button.param.clicks,
+            watch=True
+        )(self.run_pipeline)
+
+        return LAYOUT
+
+
+    def run_pipeline(self, *args):
+        import alphaquant.diff_analysis_manager as diffmgr
+        global PEPTIDES
+
+        self.run_pipeline_progress.active = True
+
+        diffmgr.run_pipeline(
+            peptides_tsv=self.path_analysis_file.value,
+            samplemap_tsv= StringIO(
+                str(self.predefined_exp_to_cond.value, "utf-8")
+            ),
+            pepheader= "peptide",
+            protheader="protein"
+        )
+
+        self.run_pipeline_progress.active = False
+        self.updated.value += 1
