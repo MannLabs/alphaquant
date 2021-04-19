@@ -23,6 +23,7 @@ pn.extension(raw_css=[css])
 # global VARIABLES
 SERVER = None
 TAB_COUNTER = 0
+PEPTIDES = None
 
 project_description = 'AlphaQuant is ...'
 
@@ -43,6 +44,7 @@ main_widget = dashboard_parts.MainWidget(
         'Empty_manual.pdf'
     ),
 )
+analysis = dashboard_parts.RunAnalysis()
 
 def run():
     global SERVER
@@ -50,6 +52,7 @@ def run():
     LAYOUT = pn.Column(
         header.create(),
         main_widget.create(),
+        analysis.create(),
         sizing_mode='stretch_width'
     )
 
