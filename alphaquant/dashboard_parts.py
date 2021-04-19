@@ -118,3 +118,84 @@ class MainWidget(object):
             css_classes=['background']
         )
         return LAYOUT
+
+
+class RunAnalysis(object):
+
+    def __init__(self):
+        # DATA FILES
+        self.path_analysis_file = pn.widgets.TextInput(
+            name='Specify an analysis file:',
+            placeholder='Enter the whole path to the MQ/Spectronaut/DIA-NN output file',
+            width=900,
+            sizing_mode='stretch_width',
+            margin=(5, 15, 0, 15)
+        )
+        self.path_output_folder = pn.widgets.TextInput(
+            name='Specify a path to the output folder:',
+            placeholder='Enter the whole path to the output folder',
+            width=900,
+            sizing_mode='stretch_width',
+            margin=(15, 15, 0, 15)
+        )
+        self.predefined_exp_to_cond_title = pn.pane.Markdown(
+            'Load an experiment-to-conditions file:',
+            margin=(0,0,0,12)
+        )
+        self.predefined_exp_to_cond = pn.widgets.FileInput(
+            accept=['.txt', '.csv'],
+            margin=(-10,0,5,12)
+        )
+        # UPLOAD DATA
+        self.run_pipeline = pn.widgets.Button(
+            name='Run pipeline',
+            button_type='primary',
+            height=31,
+            width=250,
+            align='center',
+            margin=(0, 0, 0, 0)
+        )
+        self.run_pipeline_progress = pn.indicators.Progress(
+            active=False,
+            bar_color='light',
+            width=250,
+            align='center',
+            margin=(-10, 0, 30, 0)
+        )
+        self.run_pipeline_error = pn.pane.Alert(
+            width=600,
+            alert_type="danger",
+            # object='test warning message',
+            margin=(-20, 10, -5, 16),
+        )
+        self.updated = pn.widgets.IntInput(value=0)
+
+    def create(self):
+        LAYOUT = pn.Card(
+            pn.Row(
+                pn.Column(
+                    self.path_analysis_file,
+                    self.run_pipeline_error,
+                    self.path_output_folder,
+                    self.predefined_exp_to_cond_title,
+                    self.predefined_exp_to_cond,
+                    margin=(10, 30, 10, 10),
+                ),
+                pn.Spacer(sizing_mode='stretch_width'),
+                pn.Column(
+                    self.run_pipeline_button,
+                    self.run_pipeline_button_progress,
+                    align='center',
+                    margin=(100, 40, 0, 0),
+                )
+            ),
+            title='Data Import / Run Pipeline',
+            collapsed=False,
+            header_background='#eaeaea',
+            header_color='#333',
+            align='center',
+            sizing_mode='stretch_width',
+            height=225,
+            margin=(5, 8, 10, 8),
+            css_classes=['background']
+        )
