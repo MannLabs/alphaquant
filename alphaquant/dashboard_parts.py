@@ -6,6 +6,8 @@ import pandas as pd
 # visualization
 import panel as pn
 
+pn.widgets.Tabulator.theme = 'site'
+
 class HeaderWidget(object):
     """This class creates a layout for the header of the dashboard with the name of the tool and all links to the MPI website, the MPI Mann Lab page and the GitHub repo.
 
@@ -150,10 +152,12 @@ class RunAnalysis(object):
             margin=(-10,0,5,15)
         )
         self.df_exp_to_cond = pn.widgets.Tabulator(
-            layout='fit_data_table',
+            layout='fit_data_stretch',
             height=300,
             show_index=False,
-            # page_size=5
+            width=570,
+            align='center',
+            # layout='fit_data_table',
             margin=(15, 12, 10, 18)
 
         )
@@ -207,7 +211,7 @@ class RunAnalysis(object):
                             header='Assign experiments to conditions manually',
                             collapsed=True,
                             margin=(20, 0, 20, 0),
-                            width=602,
+                            width=601,
                         )
                     ),
                     margin=(20, 30, 10, 10),

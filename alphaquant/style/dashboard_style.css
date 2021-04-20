@@ -132,3 +132,12 @@ progress.light::-moz-progress-bar {
     color: #045082;
     background-color: white;
 }
+
+.tabulator .tabulator-header .tabulator-col {
+    background-color: #444;
+}
+
+.tabulator .tabulator-header {
+    background-color: #444;
+    border-bottom: 3px solid #045082;
+}
