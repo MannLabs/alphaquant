@@ -332,6 +332,7 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
     siteprob_df.set_index(["REFPROT", "site"], inplace=True)
     siteprob_df = siteprob_df.sort_index().reset_index()
     siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None)
+    return siteprob_df
 
 
 # Cell
