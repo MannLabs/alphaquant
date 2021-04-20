@@ -6,7 +6,6 @@ import pandas as pd
 # visualization
 import panel as pn
 
-pn.widgets.Tabulator.theme = 'site'
 
 class HeaderWidget(object):
     """This class creates a layout for the header of the dashboard with the name of the tool and all links to the MPI website, the MPI Mann Lab page and the GitHub repo.
@@ -152,14 +151,12 @@ class RunAnalysis(object):
             margin=(-10,0,5,15)
         )
         self.df_exp_to_cond = pn.widgets.Tabulator(
-            layout='fit_data_stretch',
+            layout='fit_data_fill',
             height=300,
             show_index=False,
             width=570,
             align='center',
-            # layout='fit_data_table',
             margin=(15, 12, 10, 18)
-
         )
         # RUN PIPELINE
         self.run_pipeline_button = pn.widgets.Button(
@@ -241,6 +238,11 @@ class RunAnalysis(object):
             watch=True
         )(self.activate_after_analysis_file_upload)
 
+        self.update_exp_to_cond_df = pn.depends(
+            self.predefined_exp_to_cond.param.value,
+            watch=True
+        )(self.update_exp_to_cond_df)
+
         self.run_pipeline = pn.depends(
             self.run_pipeline_button.param.clicks,
             watch=True
@@ -260,7 +262,7 @@ class RunAnalysis(object):
             all_columns = f.readline().split('\t')
             sample_names = [col for col in all_columns if 'Intensity' in col]
         self.df_exp_to_cond.value = pd.DataFrame(
-            data={'Sample': self.natural_sort(sample_names), 'Condition': str()}
+            data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )
 
 
@@ -272,6 +274,13 @@ class RunAnalysis(object):
     def activate_after_analysis_file_upload(self, *args):
         self.set_default_output_folder()
         self.extract_sample_names()
+
+
+    def update_exp_to_cond_df(self, *args):
+        self.df_exp_to_cond.value = pd.read_csv(
+            StringIO(str(self.predefined_exp_to_cond.value, "utf-8")),
+            sep='\t'
+        )
 
 
     def run_pipeline(self, *args):
