@@ -149,7 +149,12 @@ class RunAnalysis(object):
             margin=(-10,0,5,12)
         )
         self.df_exp_to_cond = pn.widgets.Tabulator(
-            height=100
+            layout='fit_data_table',
+            height=300,
+            show_index=False,
+            # page_size=5
+            margin=(15, 12, 10, 20)
+
         )
         # RUN PIPELINE
         self.run_pipeline_button = pn.widgets.Button(
@@ -191,9 +196,13 @@ class RunAnalysis(object):
                     self.path_analysis_file,
                     self.run_pipeline_error,
                     self.path_output_folder,
-                    self.predefined_exp_to_cond_title,
-                    self.predefined_exp_to_cond,
-                    self.df_exp_to_cond,
+                    pn.Row(
+                        pn.Column(
+                            self.predefined_exp_to_cond_title,
+                            self.predefined_exp_to_cond
+                        ),
+                        self.df_exp_to_cond,
+                    ),
                     margin=(20, 30, 10, 10),
                 ),
                 pn.Spacer(sizing_mode='stretch_width'),
@@ -211,7 +220,7 @@ class RunAnalysis(object):
             header_color='#333',
             align='center',
             sizing_mode='stretch_width',
-            height=350,
+            height=500,
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
