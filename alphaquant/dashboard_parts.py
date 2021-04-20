@@ -147,6 +147,7 @@ class RunAnalysis(object):
             accept='.tsv,.csv',
             margin=(-10,0,5,12)
         )
+
         # RUN PIPELINE
         self.run_pipeline_button = pn.widgets.Button(
             name='Run pipeline',
@@ -224,6 +225,13 @@ class RunAnalysis(object):
         return LAYOUT
 
 
+    def extract_sample_names(self):
+        with open(self.path_analysis_file.value, 'r') as f:
+            all_columns = f.readline().split('\t')
+            sample_names = [col for col in all_columns if 'Intensity' in col]
+        df = pd.DataFrame(data={'Sample': sample_names, 'Condition': str()})
+
+
     def set_default_output_folder(self, *args):
         if not self.path_output_folder.value:
             self.path_output_folder.value = os.path.dirname(self.path_analysis_file.value)
@@ -245,4 +253,5 @@ class RunAnalysis(object):
         )
 
         self.run_pipeline_progress.active = False
+        self.visualize_data_button.clicks += 1
         self.updated.value += 1
