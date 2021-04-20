@@ -1,5 +1,6 @@
 import os
 from io import StringIO
+import pandas as pd
 
 # visualization
 import panel as pn
@@ -147,7 +148,9 @@ class RunAnalysis(object):
             accept='.tsv,.csv',
             margin=(-10,0,5,12)
         )
-
+        self.df_exp_to_cond = pn.widgets.Tabulator(
+            height=100
+        )
         # RUN PIPELINE
         self.run_pipeline_button = pn.widgets.Button(
             name='Run pipeline',
@@ -190,6 +193,7 @@ class RunAnalysis(object):
                     self.path_output_folder,
                     self.predefined_exp_to_cond_title,
                     self.predefined_exp_to_cond,
+                    self.df_exp_to_cond,
                     margin=(20, 30, 10, 10),
                 ),
                 pn.Spacer(sizing_mode='stretch_width'),
@@ -207,15 +211,15 @@ class RunAnalysis(object):
             header_color='#333',
             align='center',
             sizing_mode='stretch_width',
-            height=250,
+            height=350,
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
 
-        self.set_default_output_folder = pn.depends(
+        self.activate_after_analysis_file_upload = pn.depends(
             self.path_analysis_file.param.value,
             watch=True
-        )(self.set_default_output_folder)
+        )(self.activate_after_analysis_file_upload)
 
         self.run_pipeline = pn.depends(
             self.run_pipeline_button.param.clicks,
@@ -229,12 +233,19 @@ class RunAnalysis(object):
         with open(self.path_analysis_file.value, 'r') as f:
             all_columns = f.readline().split('\t')
             sample_names = [col for col in all_columns if 'Intensity' in col]
-        df = pd.DataFrame(data={'Sample': sample_names, 'Condition': str()})
+        self.df_exp_to_cond.value = pd.DataFrame(
+            data={'Sample': sample_names, 'Condition': str()}
+        )
 
 
-    def set_default_output_folder(self, *args):
+    def set_default_output_folder(self):
         if not self.path_output_folder.value:
             self.path_output_folder.value = os.path.dirname(self.path_analysis_file.value)
+
+
+    def activate_after_analysis_file_upload(self, *args):
+        self.set_default_output_folder()
+        self.extract_sample_names()
 
 
     def run_pipeline(self, *args):
