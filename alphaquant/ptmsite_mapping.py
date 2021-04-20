@@ -226,7 +226,7 @@ def get_site_prob_overview(modpeps, refprot, refgene):
 import pandas as pd
 import numpy as np
 
-def assign_protein(modpeps,condid2ionids, refprot):
+def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
     """go through ions of a given protein, cluster if necessary and map each ion to a ptm_site ID"""
     id2groupid = {}
     id2normedid = {}
@@ -237,12 +237,25 @@ def assign_protein(modpeps,condid2ionids, refprot):
         grouped_ions = cluster_ions(modpeps)
 
     for group in grouped_ions:
-        summed_probs = sum([x.probabilities for x in group])
+        summed_probs = np.sum([x.probabilities for x in group], axis = 0)
+        max_probs = np.max([x.probabilities for x in group], axis = 0)
         num_sites = group[0].num_sites
-        idx_most_likely = np.argpartition(summed_probs, -num_sites)[-num_sites:]
-        positions = np.sort(group[0].positions[idx_most_likely])
-        ptm_group_id = positions#f"{refprot}_{positions}"
-        ptm_group_id_normed = f"{refprot}_{positions-group[0].start_idx}"
+
+        idxs_most_likely = np.argpartition(summed_probs, -num_sites)[-num_sites:] #get the indices of the most likely sites
+        idxs_most_likely = np.sort(idxs_most_likely)
+        idxs_confident = set(np.where(max_probs>=id_thresh)[0]) #check which sites are above the confidence threshold
+
+        positions = list(group[0].positions)
+        positions_final = []
+        for idx in idxs_most_likely:#set those sites that are not confident enough to np.nan
+            if idx in idxs_confident:
+                positions_final.append(positions[idx])
+            else:
+                positions_final.append(np.nan)
+
+        #positions = np.sort(positions)
+        ptm_group_id = positions_final
+        ptm_group_id_normed = f"{refprot}_{np.array(positions_final)-group[0].start_idx}"
         all_ions = sum([condid2ionids.get(x.id) for x in group], [])#the condition-level merged ions are mapped back to the existin ion-level IDs
         id2groupid.update({x:ptm_group_id for x in all_ions})
 
@@ -253,10 +266,14 @@ def assign_protein(modpeps,condid2ionids, refprot):
 
 # Cell
 import os
-def assign_dataset(ptmprob_file,id_thresh = 0.75, excl_thresh =0.15, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
+def assign_dataset(ptmprob_file,id_thresh = 0.6, excl_thresh =0.2, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
 sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t", label_column = "R.Label", fg_id_column = "FG.Id"):
 
     """wrapper function reformats inputs tables and iterates through the whole dataset. Output needs to contain """""
+    if(id_thresh < 0.5):
+        print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
+        id_thresh = 0.51
+
     input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
     _,sample2cond = initialize_sample2cond(samplemap)
     len_before = len(input_df.index)
@@ -309,7 +326,7 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
         merged_siteprobs = get_site_prob_overview(modpeps_per_sample, prot, gene)
         siteprobs.extend(merged_siteprobs)
         modpeps, condid2ionids = merge_samecond_modpeps(modpeps_per_sample, sample2cond, id_thresh, excl_thresh) #all ions coming from the same condition are merged
-        ionid2ptmid,_ = assign_protein(modpeps, condid2ionids, prot)##after clustering, conditions are mapped back to the original run
+        ionid2ptmid,_ = assign_protein(modpeps, condid2ionids, prot,id_thresh)##after clustering, conditions are mapped back to the original run
 
         ptm_ids_prot = [ionid2ptmid.get(x) for x in protein_df["IonID"]]
 
@@ -325,6 +342,7 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
 
     conditions = [sample2cond.get(x) for x in run_ids]
     mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,"locprob" : locprobs})
+    os.makedirs(results_folder, exist_ok=True)
     mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None)
 
     siteprob_df = pd.DataFrame(siteprobs)
