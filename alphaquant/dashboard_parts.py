@@ -127,7 +127,7 @@ class RunAnalysis(object):
         # DATA FILES
         self.path_analysis_file = pn.widgets.TextInput(
             name='Specify an analysis file:',
-            placeholder='Enter the whole path to the MQ / Spectronaut / DIA-NN output file',
+            placeholder='Enter the whole path to the MQ | Spectronaut | DIA-NN output file',
             width=900,
             sizing_mode='stretch_width',
             margin=(5, 15, 0, 15)
@@ -161,7 +161,15 @@ class RunAnalysis(object):
             bar_color='light',
             width=250,
             align='center',
-            margin=(-10, 0, 30, 0)
+            margin=(-10, 0, 20, 0)
+        )
+        self.visualize_data_button = pn.widgets.Button(
+            name='Visualize data',
+            button_type='primary',
+            height=31,
+            width=250,
+            align='center',
+            margin=(40, 0, 0, 0)
         )
         self.run_pipeline_error = pn.pane.Alert(
             width=600,
@@ -181,23 +189,24 @@ class RunAnalysis(object):
                     self.path_output_folder,
                     self.predefined_exp_to_cond_title,
                     self.predefined_exp_to_cond,
-                    margin=(10, 30, 10, 10),
+                    margin=(20, 30, 10, 10),
                 ),
                 pn.Spacer(sizing_mode='stretch_width'),
                 pn.Column(
                     self.run_pipeline_button,
                     self.run_pipeline_progress,
+                    self.visualize_data_button,
                     align='center',
                     margin=(100, 40, 0, 0),
                 )
             ),
-            title='Run Pipeline',
+            title='Run Pipeline | Visualize data',
             collapsed=False,
             header_background='#eaeaea',
             header_color='#333',
             align='center',
             sizing_mode='stretch_width',
-            height=225,
+            height=250,
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
@@ -216,9 +225,7 @@ class RunAnalysis(object):
 
 
     def set_default_output_folder(self, *args):
-        print('inside')
         if not self.path_output_folder.value:
-
             self.path_output_folder.value = os.path.dirname(self.path_analysis_file.value)
 
 
