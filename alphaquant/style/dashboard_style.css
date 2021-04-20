@@ -112,6 +112,8 @@ progress.light::-moz-progress-bar {
     background-color: #eaeaea;
     color: #333 !important;;
     text-align: center;
+    font-size: 1.1em;
+    /* font-weight: bold; */
 }
 
 .bk-root .bk-tabs-header {
