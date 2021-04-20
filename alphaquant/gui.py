@@ -53,7 +53,8 @@ def run():
         header.create(),
         main_widget.create(),
         analysis.create(),
-        sizing_mode='stretch_width'
+        sizing_mode='stretch_width',
+        min_width=1270
     )
 
     original_open = bokeh.server.views.ws.WSHandler.open
