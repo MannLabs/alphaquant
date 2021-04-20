@@ -139,5 +139,10 @@ progress.light::-moz-progress-bar {
 
 .tabulator .tabulator-header {
     background-color: #444;
+    color: white;
     border-bottom: 3px solid #045082;
+}
+
+.tabulator-row.tabulator-selected {
+    background-color: #fff;
 }
