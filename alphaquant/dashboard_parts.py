@@ -191,7 +191,7 @@ class RunAnalysis(object):
                     margin=(100, 40, 0, 0),
                 )
             ),
-            title='Data Import / Run Pipeline',
+            title='Run Pipeline',
             collapsed=False,
             header_background='#eaeaea',
             header_color='#333',
@@ -202,12 +202,24 @@ class RunAnalysis(object):
             css_classes=['background']
         )
 
+        self.set_default_output_folder = pn.depends(
+            self.path_analysis_file.param.value,
+            watch=True
+        )(self.set_default_output_folder)
+
         self.run_pipeline = pn.depends(
             self.run_pipeline_button.param.clicks,
             watch=True
         )(self.run_pipeline)
 
         return LAYOUT
+
+
+    def set_default_output_folder(self, *args):
+        print('inside')
+        if not self.path_output_folder.value:
+
+            self.path_output_folder.value = os.path.dirname(self.path_analysis_file.value)
 
 
     def run_pipeline(self, *args):
@@ -220,9 +232,9 @@ class RunAnalysis(object):
             samplemap_tsv= StringIO(
                 str(self.predefined_exp_to_cond.value, "utf-8")
             ),
+            outdir=self.path_output_folder.value,
             pepheader= "peptide",
-            protheader="protein",
-            outdir=self.path_output_folder.value
+            protheader="protein"
         )
 
         self.run_pipeline_progress.active = False
