@@ -1,4 +1,5 @@
 import os
+import re
 from io import StringIO
 import pandas as pd
 
@@ -207,8 +208,6 @@ class RunAnalysis(object):
                             collapsed=True,
                             margin=(20, 0, 20, 0),
                             width=602,
-                            # header_css_classes=['test'],
-                            # button_css_classes=['test_1']
                         )
                     ),
                     margin=(20, 30, 10, 10),
@@ -246,12 +245,18 @@ class RunAnalysis(object):
         return LAYOUT
 
 
+    def natural_sort(self, l):
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+        return sorted(l, key = alphanum_key)
+
+
     def extract_sample_names(self):
         with open(self.path_analysis_file.value, 'r') as f:
             all_columns = f.readline().split('\t')
             sample_names = [col for col in all_columns if 'Intensity' in col]
         self.df_exp_to_cond.value = pd.DataFrame(
-            data={'Sample': sample_names, 'Condition': str()}
+            data={'Sample': self.natural_sort(sample_names), 'Condition': str()}
         )
 
 
