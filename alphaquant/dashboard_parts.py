@@ -142,18 +142,18 @@ class RunAnalysis(object):
         )
         self.predefined_exp_to_cond_title = pn.pane.Markdown(
             'Load an experiments-to-conditions file:',
-            margin=(0,0,0,12)
+            margin=(10,0,0,15)
         )
         self.predefined_exp_to_cond = pn.widgets.FileInput(
             accept='.tsv,.csv',
-            margin=(-10,0,5,12)
+            margin=(-10,0,5,15)
         )
         self.df_exp_to_cond = pn.widgets.Tabulator(
             layout='fit_data_table',
             height=300,
             show_index=False,
             # page_size=5
-            margin=(15, 12, 10, 20)
+            margin=(15, 12, 10, 18)
 
         )
         # RUN PIPELINE
@@ -201,7 +201,15 @@ class RunAnalysis(object):
                             self.predefined_exp_to_cond_title,
                             self.predefined_exp_to_cond
                         ),
-                        self.df_exp_to_cond,
+                        pn.Card(
+                            self.df_exp_to_cond,
+                            header='Assign experiments to conditions manually',
+                            collapsed=True,
+                            margin=(20, 0, 20, 0),
+                            width=602,
+                            # header_css_classes=['test'],
+                            # button_css_classes=['test_1']
+                        )
                     ),
                     margin=(20, 30, 10, 10),
                 ),
@@ -220,7 +228,7 @@ class RunAnalysis(object):
             header_color='#333',
             align='center',
             sizing_mode='stretch_width',
-            height=500,
+            height=610,
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
