@@ -242,7 +242,7 @@ class RunAnalysis(object):
             header_color='#333',
             align='center',
             sizing_mode='stretch_width',
-            height=610,
+            height=1000,
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
