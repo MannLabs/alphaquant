@@ -1,6 +1,7 @@
 import os
 import re
 from io import StringIO
+from itertools import permutations
 import pandas as pd
 
 # visualization
@@ -158,6 +159,12 @@ class RunAnalysis(object):
             align='center',
             margin=(15, 12, 10, 18)
         )
+        self.assign_cond_pairs = pn.widgets.CrossSelector(
+            width=870,
+            height=300,
+            align='center',
+            margin=(15, 15, 15, 15)
+        )
         # RUN PIPELINE
         self.run_pipeline_button = pn.widgets.Button(
             name='Run pipeline',
@@ -211,6 +218,13 @@ class RunAnalysis(object):
                             width=601,
                         )
                     ),
+                    pn.Card(
+                        self.assign_cond_pairs,
+                        header='Select condition pairs for the analysis',
+                        collapsed=True,
+                        margin=(5, 0, 20, 15),
+                        width=901,
+                    ),
                     margin=(20, 30, 10, 10),
                 ),
                 pn.Spacer(sizing_mode='stretch_width'),
@@ -243,6 +257,11 @@ class RunAnalysis(object):
             watch=True
         )(self.update_exp_to_cond_df)
 
+        self.add_conditions_for_assignment = pn.depends(
+            self.df_exp_to_cond.param.value,
+            watch=True
+        )(self.add_conditions_for_assignment)
+
         self.run_pipeline = pn.depends(
             self.run_pipeline_button.param.clicks,
             watch=True
@@ -264,6 +283,12 @@ class RunAnalysis(object):
         self.df_exp_to_cond.value = pd.DataFrame(
             data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )
+
+
+    def add_conditions_for_assignment(self, *args):
+        unique_condit = self.df_exp_to_cond.value.condition.unique()
+        comb_condit = ['_vs_'.join(comb) for comb in permutations(unique_condit, 2)]
+        self.assign_cond_pairs.options = comb_condit
 
 
     def set_default_output_folder(self):
