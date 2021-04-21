@@ -7,7 +7,6 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
            'check_site_occupancy_changes_all_diffresults']
 
 # Cell
-from .visualizations import *
 import alphaquant.diffquant_utils as utils
 
 

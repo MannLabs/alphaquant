@@ -139,7 +139,7 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
     volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
 
     if outdir!=None:
-        if annotation_file != None:
+        if annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)
             if(len(intersect_columns)>0):
@@ -187,5 +187,5 @@ def read_tables(peptides_tsv, samplemap_tsv, pepheader = None, protheader = None
     headers = ['protein'] + samplemap["sample"].to_list()
 
     for sample in samplemap["sample"]:
-        peps[sample] = np.log2(peps[sample].replace(0, np.nan))#*10000
+        peps[sample] = np.log2(peps[sample].replace(0, np.nan))
     return peps[headers], samplemap
