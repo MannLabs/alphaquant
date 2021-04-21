@@ -279,7 +279,7 @@ class RunAnalysis(object):
     def extract_sample_names(self):
         with open(self.path_analysis_file.value, 'r') as f:
             all_columns = f.readline().split('\t')
-            sample_names = [col for col in all_columns if 'Intensity' in col]
+            sample_names = [col for col in all_columns if ('Intensity' in col) and (col != 'Intensity')]
         self.df_exp_to_cond.value = pd.DataFrame(
             data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )
