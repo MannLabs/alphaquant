@@ -265,7 +265,7 @@ def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
 
 # Cell
 import os
-def assign_dataset(ptmprob_file,id_thresh = 0.6, excl_thresh =0.2, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
+def assign_dataset(input_df,id_thresh = 0.6, excl_thresh =0.2, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
 sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t", label_column = "R.Label", fg_id_column = "FG.Id"):
 
     """wrapper function reformats inputs tables and iterates through the whole dataset. Output needs to contain """""
@@ -273,7 +273,7 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
         print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
         id_thresh = 0.51
 
-    input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
+    #input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
     _,sample2cond = initialize_sample2cond(samplemap)
     len_before = len(input_df.index)
     input_df = input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
