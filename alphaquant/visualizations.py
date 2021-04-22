@@ -11,7 +11,7 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'get_normed_peptides_dataframe', 'initialize_sample2cond']
 
 # Cell
-from .diffquant_utils import *
+import alphaquant.diffquant_utils as utils
 
 # Cell
 import matplotlib.pyplot as plt
@@ -644,7 +644,7 @@ def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"),
         positive_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]>0.5)][regulated_object]))
         negative_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]<-0.5)][regulated_object]))
         df_loc = pd.DataFrame([[1 for x in range(len(positive_sites))]+[-1 for x in range(len(negative_sites))]],columns=positive_sites+negative_sites)
-        df_loc["condpair"] = get_condpairname([c1, c2])
+        df_loc["condpair"] = utils.get_condpairname([c1, c2])
         #df_loc["num_regulated"] = len(positive_sites) + len(negative_sites)
         dfs.append(df_loc)
         #print(count)
@@ -665,7 +665,7 @@ def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "r
     """
     reads the results dataframe for a given condpair
     """
-    condpair = get_condpairname([cond1, cond2])
+    condpair = utils.get_condpairname([cond1, cond2])
     diffresults = os.path.join(results_folder, f"{condpair}.results.tsv")
 
     try:
@@ -712,7 +712,7 @@ import os
 import numpy as np
 
 def get_normed_peptides_dataframe(cond1, cond2, results_folder = os.path.join(".", "results")):
-    condpair = get_condpairname([cond1, cond2])
+    condpair = utils.get_condpairname([cond1, cond2])
     normed_peptides_tsv = os.path.join(results_folder, f"{condpair}.normed.tsv")
     try:
         normed_peptides = pd.read_csv(normed_peptides_tsv, sep = "\t")
