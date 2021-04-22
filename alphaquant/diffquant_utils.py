@@ -3,8 +3,9 @@
 __all__ = ['get_condpairname', 'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'invert_dictionary',
            'get_relevant_columns', 'retrieve_configuration', 'get_config_columns', 'get_type2relevant_cols',
            'filter_input', 'merge_protein_and_ion_cols', 'reformat_longtable_according_to_config',
-           'read_mq_peptides_table', 'prepare_table', 'add_ptmsite_infos_spectronaut',
-           'add_ptm_precursor_names_spectronaut', 'import_data']
+           'read_mq_peptides_table', 'add_ptmsite_infos_spectronaut', 'add_ptm_precursor_names_spectronaut',
+           'check_for_processed_runs_in_results_folder', 'import_data', 'get_samplenames', 'load_samplemap',
+           'prepare_loaded_tables']
 
 # Cell
 def get_condpairname(condpair):
@@ -61,11 +62,11 @@ def invert_dictionary(my_map):
 # Cell
 import yaml
 
-def get_relevant_columns(grouping_cols, sample_ID, quant_ID, filter_dict):
+def get_relevant_columns(protein_cols, ion_cols, sample_ID, quant_ID, filter_dict):
     filtcols = []
     for filtconf in filter_dict.values():
         filtcols.append(filtconf.get('param'))
-    relevant_cols = grouping_cols + [sample_ID] + [quant_ID] + filtcols
+    relevant_cols = protein_cols + ion_cols + [sample_ID] + [quant_ID] + filtcols
     relevant_cols = list(set(relevant_cols)) # to remove possible redudancies
     return relevant_cols
 
@@ -83,8 +84,8 @@ def get_config_columns(config_dict):
     ion_cols = config_dict.get("grouping_cols").get("ion_cols")
     sample_ID = config_dict.get("sample_ID")
     quant_ID = config_dict.get("quant_ID")
-    filter_dict = config_dict.get("filters")
-    relevant_cols = get_relevant_columns(grouping_cols, sample_ID, quant_ID, filter_dict)
+    filter_dict = config_dict.get("filters", {})
+    relevant_cols = get_relevant_columns(protein_cols, ion_cols, sample_ID, quant_ID, filter_dict)
     return relevant_cols, protein_cols, ion_cols, sample_ID, quant_ID, filter_dict
 
 
@@ -94,14 +95,14 @@ def get_type2relevant_cols(config_yaml):
     type2relcols = {}
     for type in config_all.keys():
         config_typedict = config_all.get(type)
-        relevant_cols,_ = get_config_columns(config_typedict)
+        relevant_cols = get_config_columns(config_typedict)[0]
         type2relcols[type] = relevant_cols
     return type2relcols
 
 
 # Cell
 
-def filter_input(filter_dict, input_df):
+def filter_input(filter_dict, input):
     for filtname,filterconf in filter_dict.items():
         param = filterconf.get('param')
         comparator = filterconf.get('comparator')
@@ -140,7 +141,7 @@ def merge_protein_and_ion_cols(input_df, protein_cols, ion_cols):
 
 # Cell
 
-def reformat_longtable_according_to_config(input_file, input_type, results_folder = None, ptmsite_mapping = None, config_file = "longtable_config.yaml", sep = "\t",decimal = "."):
+def reformat_longtable_according_to_config(input_file, input_type, results_folder, ptmsite_mapping = False, config_file = "longtable_config.yaml", sep = "\t",decimal = "."):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
@@ -151,22 +152,24 @@ def reformat_longtable_according_to_config(input_file, input_type, results_folde
     input_df = filter_input(filters, input_df)
     input_df = merge_protein_and_ion_cols(input_df, protein_cols, ion_cols)
 
-    if ptmsite_mapping !=None:
+    if ptmsite_mapping:
         input_df = add_ptmsite_infos_spectronaut(input_df, results_folder)
 
-    input_df = input_df.astype({f'{quant_value}': 'float'})
+    input_df = input_df.astype({f'{quant_ID}': 'float'})
     input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = sample_ID, values = quant_ID, fill_value=0)
     if input_reshaped.iloc[:,0].median() <100: #when values are small, rescale by a constant factor to prevent rounding errors in the subsequent aq analyses
         input_reshaped = input_reshaped *10000
 
-    input_explicit = input_reshaped.reset_index()
-    ion_level = "fragion" if "fragion" in input_file else "precursor"
-    input_explicit.to_csv(f"{input_file}.aq_reformat.{ion_level}.tsv", index = False, sep = "\t")
 
-    return input_explicit
+    input_reshaped = input_reshaped.reset_index()
+    input_reshaped = input_reshaped.set_index("ion")
+    ion_level = "fragion" if "fragion" in input_file else "precursor"
+    input_reshaped.to_csv(f"{input_file}.aq_reformat.{ion_level}.tsv", index = False, sep = "\t")
+
+    return input_reshaped
 
 # Cell
-def read_mq_peptides_table(peptides_tsv, samplemap, pepheader = "Sequence", protheader = "Leading razor protein"):
+def read_mq_peptides_table(peptides_tsv, pepheader = "Sequence", protheader = "Leading razor protein"):
     peps = pd.read_csv(peptides_tsv,sep="\t")
     peps = peps[peps["Reverse"] != "+"]
     peps = peps[peps["Potential contaminant"] != "+"]
@@ -175,20 +178,11 @@ def read_mq_peptides_table(peptides_tsv, samplemap, pepheader = "Sequence", prot
     if protheader != None:
         peps = peps.rename(columns = {protheader: "protein"})
     peps = peps.set_index("ion")
-    headers = ['protein'] + samplemap["sample"].to_list()
+    headers = ['protein'] + list(filter(lambda x: x.startswith("Intensity "), peps.columns))
+    peps = peps[headers]
+    peps = peps.rename(columns = lambda x : x.replace("Intensity ", ""))
 
-    for sample in samplemap["sample"]:
-        peps[sample] = np.log2(peps[sample].replace(0, np.nan))
-    return peps[headers], samplemap
-
-# Cell
-def prepare_table(data_df, samplemap):
-
-    data_df = data_df.set_index("ion")
-    headers = ['protein'] + samplemap["sample"].to_list()
-    for sample in samplemap["sample"]:
-        data_df[sample] = np.log2(data_df[sample].replace(0, np.nan))
-    return data_df[headers], samplemap
+    return peps
 
 # Cell
 import alphaquant.ptmsite_mapping as aqptm
@@ -210,64 +204,107 @@ def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
     return ptm_annotated_input
 
 # Cell
+import os
+def check_for_processed_runs_in_results_folder(results_folder):
+    contained_condpairs = []
+    folder_files = os.listdir(results_folder)
+    result_files = list(filter(lambda x: "results.tsv" in x ,folder_files))
+    for result_file in result_files:
+        res_name = result_file.replace(".results.tsv", "")
+        if ((f"{res_name}.normed.tsv" in folder_files) & (f"{res_name}.results.ions.tsv" in folder_files)):
+            contained_condpairs.append(res_name)
+    return contained_condpairs
+
+
+
+# Cell
 import pandas as pd
 import os
 import pkg_resources
 import pathlib
 
-def import_data(input_file, samplemap_file, output_folder = None, ptmsite_mapping = False,verbose=True, dashboard=False):
+def import_data(input_file, results_folder, verbose=True, dashboard=False):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
-    the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN)
+    the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
+    and returns a generic wide-format dataframe
+    :param file input_file: quantified peptide/ion -level data
+    :param file results_folder: the folder where the AlphaQuant outputs are stored
     """
     config_file = os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "longtable_config.yaml") #the yaml config is located one directory below the python library files
-    samplemap = pd.read_csv(samplemap_file, sep="\t")
     type2relevant_columns = get_type2relevant_cols(config_file)
 
-    if dashboard:
-        file = StringIO(str(file, "utf-8"))
 
-    file_ext = os.path.splitext(file)[-1]
+    file_ext = os.path.splitext(input_file)[-1]
     if file_ext=='.csv':
         sep=','
     if file_ext=='.tsv':
         sep='\t'
     if file_ext=='.txt':
         sep='\t'
-    if file_ext=='.xls':
-        sep='\t'
+
+    if 'sep' not in locals():
+        raise TypeError(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {input_file}! Your filename has to end with one of these extensions. Please modify your file name accordingly.")
 
     if "aq_reformat" in input_file:
         data = pd.read_csv(input_file, sep = "\t")
-        data = prepare_table(data, samplemap)
-        return data, samplemap
+        return data
 
     uploaded_data_columns = set(pd.read_csv(input_file, sep=sep, nrows=1).columns)
-    if (set(["Leading razor protein","Sequence", "Reverse", "Potential contaminant"]).issubset(uploaded_data_columns)) & (list(filter(lambda x : x.startswith("Intensity"), uploaded_data_columns))>4):
+    if (set(["Leading razor protein","Sequence", "Reverse", "Potential contaminant"]).issubset(uploaded_data_columns)) & (len(list(filter(lambda x : x.startswith("Intensity"), uploaded_data_columns)))>4):
         if verbose:
             print("Import MaxQuant peptides table")
-        data = read_mq_peptides_table(input_file, samplemap)
-        return data, samplemap
+        data = read_mq_peptides_table(input_file)
+        return data
 
-    if set(type2relevant_columns.get("spectronaut_fragion")).issubset(uploaded_data_columns):
-        if verbose:
-            print("Spectronaut long format table detected. Importing and re-formating for fragment-level quantification.")
-        data = reformat_longtable_according_to_config(input_file, input_type = "spectronaut_fragion", results_folder=results_folder, sep = sep, ptmsite_mapping=ptmsite_mapping,config_file=config_file)
-        data = prepare_table(data, samplemap)
-        return data, samplemap
+    for input_type in type2relevant_columns.keys():
+        if set(type2relevant_columns.get(input_type)).issubset(uploaded_data_columns):
+            if verbose:
+                print(f"{input_type} headers in table detected. Importing and re-formating.")
+            data = reformat_longtable_according_to_config(input_file, input_type = input_type, results_folder=results_folder, sep = sep, ptmsite_mapping=False ,config_file=config_file)
+            return data
 
-    if set(type2relevant_columns.get("spectronaut_precursor")).issubset(uploaded_data_columns):
-        if verbose:
-            print("Spectronaut long format table detected. Importing and re-formating for precursor-level quantification.")
-        data = reformat_longtable_according_to_config(input_file, input_type = "spectronaut_precursor", results_folder=results_folder, sep = sep, ptmsite_mapping=ptmsite_mapping,config_file=config_file)
-        data = prepare_table(data, samplemap)
-        return data, samplemap
-
-    if set(type2relevant_columns.get("diann_precursor")).issubset(uploaded_data_columns):
-        if verbose:
-            print("DIA-NN long format table detected. Importing and re-formating for precursor-level quantification.")
-        data = reformat_longtable_according_to_config(input_file, input_type = "diann_precursor", results_folder=results_folder, sep = sep, ptmsite_mapping=ptmsite_mapping,config_file=config_file)
-        data = prepare_table(data, samplemap)
-        return data, samplemap
     #if non of the cases match, return error
     raise TypeError(f'Input data format for {file} not known.')
+
+
+# Cell
+import pandas as pd
+
+def get_samplenames(data):
+    """extracts the names of the samples of the AQ input dataframe"""
+    names = list(data.columns)
+    names.remove('protein')
+    return names
+
+
+# Cell
+
+import pandas as pd
+
+def load_samplemap(samplemap_file):
+    file_ext = os.path.splitext(samplemap_file)[-1]
+    if file_ext=='.csv':
+        sep=','
+    if (file_ext=='.tsv') | (file_ext=='.txt'):
+        sep='\t'
+
+    if 'sep' not in locals():
+        raise TypeError(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {samplemap_file}! Your filename has to end with one of these extensions. Please modify your file name accordingly.")
+        sep = "\t"
+
+    return pd.read_csv(samplemap_file, sep = sep)
+
+# Cell
+def prepare_loaded_tables(data_df, samplemap_df):
+    """
+    Integrates information from the peptide/ion data and the samplemap, selects the relevant columns and log2 transforms intensities.
+    """
+    samplemap_df = samplemap_df[samplemap_df["condition"]!=""] #remove rows that have no condition entry
+    filtvec_not_in_data = [(x in data_df.columns) for x in samplemap_df["sample"]] #remove samples that are not in the dataframe
+    samplemap_df = samplemap_df[filtvec_not_in_data]
+    headers = ['protein'] + samplemap_df["sample"].to_list()
+
+    for sample in samplemap_df["sample"]:
+        data_df[sample] = np.log2(data_df[sample].replace(0, np.nan))
+    return data_df[headers], samplemap_df
