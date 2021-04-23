@@ -208,9 +208,9 @@ def read_mq_peptides_table(peptides_tsv, pepheader = "Sequence", protheader = "L
     return peps
 
 # Cell
-import alphaquant.ptmsite_mapping as aqptm
+from .ptmsite_mapping import assign_dataset
 def add_ptmsite_infos_spectronaut(input_df, results_folder):
-    ptm_ids_df = aqptm.assign_dataset(input_df, results_folder= results_folder)
+    ptm_ids_df = assign_dataset(input_df, results_folder= results_folder)
     intersect_columns = input_df.columns.intersection(ptm_ids.columns)
     if(len(intersect_columns)==2):
         print(f"assigning ptms based on columns {intersect_columns}")

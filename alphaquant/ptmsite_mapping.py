@@ -3,8 +3,8 @@
 __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_protein', 'get_num_sites',
            'group_by_nummods_posv', 'condense_ions', 'encode_probabilities', 'cluster_ions', 'cluster_ions_pairwise',
            'compare_ion_similarities', 'get_condensed_matrix', 'get_idmap_column', 'get_site_prob_overview',
-           'assign_protein', 'assign_dataset', 'sequence_file', 'initialize_ptmsite_df', 'detect_site_occupancy_change',
-           'check_site_occupancy_changes_all_diffresults']
+           'add_ptmsite_infos_spectronaut', 'assign_protein', 'assign_dataset', 'sequence_file',
+           'initialize_ptmsite_df', 'detect_site_occupancy_change', 'check_site_occupancy_changes_all_diffresults']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -220,6 +220,18 @@ def get_site_prob_overview(modpeps, refprot, refgene):
         series_collected.append(site_series)
 
     return series_collected
+
+# Cell
+def add_ptmsite_infos_spectronaut(input_df, results_folder):
+    ptm_ids_df = aqptm.assign_dataset(input_df, results_folder= results_folder)
+    intersect_columns = input_df.columns.intersection(ptm_ids.columns)
+    if(len(intersect_columns)==2):
+        print(f"assigning ptms based on columns {intersect_columns}")
+        input_df = input_df.merge(ptm_ids_df, on=list(intersect_columns), how= 'left')
+    else:
+        raise Exception(f"Number of intersecting columns {intersect_columns} not as expected")
+    input_df = add_ptm_precursor_names_spectronaut(input_df)
+    return input_df
 
 # Cell
 import pandas as pd
