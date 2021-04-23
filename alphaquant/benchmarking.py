@@ -4,7 +4,6 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'compare_significant_proteins', 'print_nonref_hits']
 
 # Cell
-from .visualizations import *
 from .diff_analysis_manager import run_pipeline
 
 # Cell
@@ -78,11 +77,12 @@ def compare_normalization(ref_normalization_file, norm1_df, norm2_df):
 # Cell
 import pandas as pd
 import numpy as np
+import alphaquant.visualizations as aqviz
 
 def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_file, outdir):
     protein_ref = pd.read_csv(peptide_detail_file, sep="\t", usecols=["protein", "protein_pval", "protein_fc"]).drop_duplicates().rename(columns = {"protein_pval" : "pval_ref", "protein_fc": "fc_ref"})
     peptide_ref = pd.read_csv(peptide_detail_file, sep='\t', usecols = ["peptide", "protein", "peptide_pval","peptide_fc"]).rename(columns = {"peptide_pval" :"peptide_pval_ref", "peptide_fc" : "peptide_fc_ref"})
-    compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df, peptide_name = "peptide")
+    aqviz.compare_peptid_protein_overlaps(protein_ref, result_df, peptide_ref, peptide_df, peptide_name = "peptide")
     compare_significant_proteins(result_df, protref_file)
 
     print_nonref_hits(protein_ref, result_df, peptide_ref, peptide_df, outdir)
@@ -96,8 +96,8 @@ def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_fil
     peptides_merged = peptides_merged.sort_values(by=['peptide_pval_diff'], ascending = False)
     display(peptides_merged.head(10))
     peptides_merged.to_csv(f"{outdir}/merged_peptides.tsv", sep = "\t", index = False)
-    scatter_df_columns(prots_merged)
-    scatter_df_columns(peptides_merged)
+    aqviz.scatter_df_columns(prots_merged)
+    aqviz.scatter_df_columns(peptides_merged)
 
     prots_merged["pvaldiff"] = (np.log2(prots_merged["pval"]) - np.log2(prots_merged["pval_ref"])).abs()
     prots_merged = prots_merged.sort_values(by=['pvaldiff'], ascending = False)
