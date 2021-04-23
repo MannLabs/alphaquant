@@ -4,7 +4,6 @@ __all__ = ['get_condpairname', 'get_middle_elem', 'get_nonna_array', 'get_non_na
            'get_relevant_columns', 'retrieve_configuration', 'get_config_columns', 'load_config',
            'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
            'reformat_longtable_according_to_config', 'read_wideformat_table', 'read_mq_peptides_table',
-           'add_ptmsite_infos_spectronaut', 'add_ptm_precursor_names_spectronaut',
            'check_for_processed_runs_in_results_folder', 'import_data', 'get_samplenames', 'load_samplemap',
            'prepare_loaded_tables']
 
@@ -204,25 +203,6 @@ def read_mq_peptides_table(peptides_tsv, pepheader = "Sequence", protheader = "L
     peps = peps.rename(columns = lambda x : x.replace("Intensity ", ""))
 
     return peps
-
-# Cell
-from .ptmsite_mapping import assign_dataset
-def add_ptmsite_infos_spectronaut(input_df, results_folder):
-    ptm_ids_df = assign_dataset(input_df, results_folder= results_folder)
-    intersect_columns = input_df.columns.intersection(ptm_ids.columns)
-    if(len(intersect_columns)==2):
-        print(f"assigning ptms based on columns {intersect_columns}")
-        input_df = input_df.merge(ptm_ids_df, on=list(intersect_columns), how= 'left')
-    else:
-        raise Exception(f"Number of intersecting columns {intersect_columns} not as expected")
-    input_df = add_ptm_precursor_names_spectronaut(input_df)
-    return input_df
-
-# Cell
-def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
-    delimiter = pd.Series(["_" in range(len(ptm_annotated_input.index))])
-    ptm_annotated_input["ion"] = ptm_annotated_input["PEP.StrippedSequence"] + delimiter + ptm_annotated_input["FG.PrecMz"] + delimiter + ptm_annotated_input["FG.Charge"] + delimiter + ptm_annotated_input["REFPROT"] + delimiter +ptm_annotated_input["site"]
-    return ptm_annotated_input
 
 # Cell
 import os
