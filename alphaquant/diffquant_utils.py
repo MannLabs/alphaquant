@@ -285,7 +285,7 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
             if verbose:
                 print(f"{input_type} headers in format {format} detected. Importing and re-formating.")
             if format == "longtable":
-                data = reformat_longtable_according_to_config(input_file, input_type = input_type, results_folder=results_folder, sep = sep, ptmsite_mapping=False ,config_file=config_file)
+                data = reformat_longtable_according_to_config(input_file, input_type = input_type, results_folder=results_folder, sep = sep, config_file=config_file)
             elif format == "widetable":
                 data = read_wideformat_table(input_file, config_dict_type)
             else:
