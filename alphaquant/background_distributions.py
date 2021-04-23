@@ -5,12 +5,9 @@ __all__ = ['ConditionBackgrounds', 'BackGroundDistribution', 'SubtractedBackgrou
            'transform_cumulative_into_fc2count', 'get_cumul_from_freq']
 
 # Cell
-from .diffquant_utils import *
-from .visualizations import *
-
-# Cell
 from time import time
 import numpy as np
+import alphaquant.diffquant_utils as aqutils
 class ConditionBackgrounds():
 
     def __init__(self, normed_condition_df, p2z):
@@ -33,7 +30,7 @@ class ConditionBackgrounds():
         #nonan_array = get_nonna_array(normed_condition_df.to_numpy())
         #self.ion2nonNanvals = dict(zip(normed_condition_df.index, nonan_array))
         t_start = time()
-        self.ion2nonNanvals = get_non_nas_from_pd_df(normed_condition_df)
+        self.ion2nonNanvals = aqutils.get_non_nas_from_pd_df(normed_condition_df)
         t_end = time()
         print(f't_ion2nonan_sw {t_end - t_start}')
         self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))#TODO: list instead of dict!

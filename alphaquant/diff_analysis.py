@@ -4,10 +4,6 @@ __all__ = ['DifferentialIon', 'calc_diffreg_peptide', 'calc_outlier_scaling_fact
            'calc_pseudo_intensities', 'select_representative_DIA_fragions', 'group_ions_by_precursor']
 
 # Cell
-from .background_distributions import *
-from .diffquant_utils import *
-
-# Cell
 from scipy.stats import norm
 import numpy as np
 import math
@@ -87,7 +83,7 @@ import math
 import statistics
 from scipy.stats import norm
 import numpy as np
-
+import alphaquant.diffquant_utils as aqutils
 class DifferentialProtein():
 
     def __init__(self, name, ion_diffresults, median_offset, dia_fragment_selection = False):
@@ -129,7 +125,7 @@ class DifferentialProtein():
         ion_diffresults = sorted(ion_diffresults, key = lambda _dr : abs(_dr.fc - median_fc))
         if ninety_perc_cutoff >0:
             ion_diffresults = ion_diffresults[:ninety_perc_cutoff]
-        median_offset_fc = get_middle_elem(list(map(lambda _dr : _dr.fc,ion_diffresults)))
+        median_offset_fc = aqutils.get_middle_elem(list(map(lambda _dr : _dr.fc,ion_diffresults)))
         return ion_diffresults, median_offset_fc
 
 # Cell
