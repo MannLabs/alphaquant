@@ -15,21 +15,22 @@ from itertools import combinations
 import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
-def run_pipeline(peptides_tsv, samplemap_tsv, outdir = ".",pepheader = None, protheader = None, minrep = 2, outlier_correction = True,
-median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, condpair_combinations = None, annotation_file = None):
+def run_pipeline(unnormed_df, labelmap_df, results_dir = "./results",  condpair_combinations = None, minrep = 2, outlier_correction = True,
+median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, annotation_file = None):
+    """Run the differential analyses.
 
-    unnormed_df, labelmap_df = read_tables(peptides_tsv, samplemap_tsv, pepheader, protheader)
-    conds = labelmap_df["condition"].unique()
+    """
+
     res_dfs = []
     pep_dfs = []
     pep2prot = dict(zip(unnormed_df.index, unnormed_df['protein']))
 
-    if condpair_combinations != None:
-        condcombs = [(x["c1"], x["c2"]) for idx, x in pd.read_csv(condpair_combinations, sep = "\t").iterrows()]
-    else:
-        condcombs = combinations(conds, 2)
+    if condpair_combinations == None:
+        conds = labelmap_df["condition"].unique()
+        condpair_combinations = combinations(conds, 2)
 
-    for condpair in condcombs:
+
+    for condpair in condpair_combinations:
         print(condpair)
         c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
         c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
@@ -41,8 +42,9 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
             print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}")
             continue
-        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection,
-        volcano_fdr, volcano_fcthresh, annotation_file)
+
+        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,results_dir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection,
+        runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file)
         res_dfs.append(res)
         pep_dfs.append(peps)
 
@@ -54,7 +56,7 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
 
 
 # Cell
-def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, volcano_fdr, volcano_fcthresh, annotation_file):
+def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file):
     t_zero = time()
     print(f"start processeing condpair {condpair}")
     prot2diffions = {}
@@ -74,9 +76,9 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
     pseudoint2 = []
     condpairs = []
 
-    df_c1_normed, df_c2_normed = get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples,minrep, pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
-    if outdir != None:
-        write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, outdir, condpair)
+    df_c1_normed, df_c2_normed = get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples, minrep, runtime_plots,pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
+    if results_dir != None:
+        write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, results_dir, condpair)
     t_normalized = time()
     normed_c1 = ConditionBackgrounds(df_c1_normed, p2z)
     #write_out_ion2nonan_ion2idx(normed_c1, "./test_data/", "c1")
@@ -134,11 +136,11 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
     pep_df["fdr"] = pep_fdrs
     pep_df = pep_df[pep_df["ion"].isin(peps_included)]
 
+    if runtime_plots:
+        volcano_plot(res_df, significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
+        volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
 
-    volcano_plot(res_df, significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
-    volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
-
-    if outdir!=None:
+    if results_dir!=None:
         if annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)
@@ -147,8 +149,8 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
                 res_df = res_df.merge(annot_df, on=list(intersect_columns), how= 'left')
                 pep_df = pep_df.merge(annot_df, on= list(intersect_columns), how = 'left')
 
-        res_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
-        pep_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
+        res_df.to_csv(f"{results_dir}/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
+        pep_df.to_csv(f"{results_dir}/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
 
 
 
@@ -161,14 +163,14 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
 # Cell
 import numpy as np
 import os
-def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, outdir, condpair):
+def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpair):
     merged_df = normed_df_1.merge(normed_df_2, left_index = True, right_index = True)
     merged_df = 2**merged_df
     merged_df = merged_df.replace(np.nan, 0)
     merged_df["protein"] = list(map(lambda x : pep2prot.get(x),merged_df.index))
-    if not os.path.exists(f"{outdir}/results/"):
-        os.mkdir(f"{outdir}/results/")
-    merged_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.normed.tsv", sep = "\t")
+    if not os.path.exists(f"{results_dir}/"):
+        os.makedirs(f"{results_dir}/")
+    merged_df.to_csv(f"{results_dir}/{get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 # Cell
 import pandas as pd

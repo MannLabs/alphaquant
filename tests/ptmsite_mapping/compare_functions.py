@@ -111,6 +111,11 @@ def get_shortened_aq_input():
     shortened_aq_input = pd.read_csv(df_file, sep = "\t")
     return shortened_aq_input
 
+def get_samplemap():
+    samplemap_file = os.path.join("..", "..","test_data", "ptmsite_mapping", "samples.map")
+    samplemap_df = pd.read_csv(samplemap_file, sep = "\t")
+    return samplemap_df
+
 def get_all_expprecs(shortened_aq_input):
     all_expprecs = {get_exp_precursor_id(exp, prec) for exp, prec in shortened_aq_input[["R.FileName", "FG.Id"]].itertuples(index=False)}
     return all_expprecs

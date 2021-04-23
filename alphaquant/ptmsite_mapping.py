@@ -265,6 +265,7 @@ def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
 
 # Cell
 import os
+import alphaquant.visualizations as aqviz
 def assign_dataset(input_df,id_thresh = 0.6, excl_thresh =0.2, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
 sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t", label_column = "R.Label", fg_id_column = "FG.Id"):
 
@@ -274,7 +275,7 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
         id_thresh = 0.51
 
     #input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
-    _,sample2cond = initialize_sample2cond(samplemap)
+    _,sample2cond = aqviz.initialize_sample2cond(samplemap)
     len_before = len(input_df.index)
     input_df = input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
     print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
