@@ -147,7 +147,7 @@ def merge_protein_and_ion_cols(input_df, protein_cols, ion_cols):
 
 # Cell
 
-def reformat_longtable_according_to_config(input_file, input_type, results_folder, ptmsite_mapping = False, config_file = "longtable_config.yaml", sep = "\t",decimal = "."):
+def reformat_longtable_according_to_config(input_file, input_type, results_folder, config_file = "longtable_config.yaml", sep = "\t",decimal = "."):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
@@ -158,8 +158,6 @@ def reformat_longtable_according_to_config(input_file, input_type, results_folde
     input_df = filter_input(filters, input_df)
     input_df = merge_protein_and_ion_cols(input_df, protein_cols, ion_cols)
 
-    if ptmsite_mapping:
-        input_df = add_ptmsite_infos_spectronaut(input_df, results_folder)
 
     input_df = input_df.astype({f'{quant_ID}': 'float'})
     input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = sample_ID, values = quant_ID, fill_value=0)
