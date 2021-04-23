@@ -5,9 +5,6 @@ __all__ = ['normalize_withincond', 'get_bestmatch_pair', 'create_distance_matrix
            'get_total_shift', 'merge_distribs', 'mode_normalization', 'get_betweencond_shift', 'get_normalized_dfs']
 
 # Cell
-from .visualizations import *
-
-# Cell
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
