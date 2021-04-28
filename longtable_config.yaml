@@ -1,0 +1,103 @@
+---
+#this file determines the parameters used to convert long format tables as e.g. produced by Spectronaut or DIA-NN into a wide table format
+
+maxquant_peptides:
+  format: widetable
+  quant_prefix: "Intensity "
+  protein_cols:
+   - Leading razor protein
+  ion_cols:
+   - Sequence
+  filters:
+    reverse:
+      param: Reverse
+      comparator: "!="
+      value: "+"
+    contaminant:
+      param: Potential contaminant
+      comparator: "!="
+      value: "+"
+
+diann_precursor:
+  format: longtable
+  sample_ID: Run
+  quant_ID: Precursor.Quantity
+  protein_cols:
+   - Protein.Group
+  ion_cols:
+   - Precursor.Id
+  filters:
+    shape_quality:
+      param: Quantity.Quality
+      comparator: ">"
+      value: 0.3
+
+
+spectronaut_fragion:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID: F.PeakArea
+  protein_cols:
+   - PG.ProteinGroups
+  ion_cols:
+   - FG.Id
+   - F.FrgIon
+   - F.FrgLossType
+   - F.Charge
+  filters:
+    decoy_filt:
+      param: EG.IsDecoy
+      comparator: "=="
+      value: False
+    shape_quality: 
+      param: FG.ShapeQualityScore (MS2)
+      comparator: ">"
+      value: 0.4
+    fragion_interference:
+      param: F.PossibleInterference
+      comparator: "=="
+      value: False
+
+spectronaut_precursor_new:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID: FG.MS2RawQuantity
+  protein_cols:
+   - PG.ProteinGroups
+  ion_cols:
+   - FG.Id
+  filters:
+    decoy_filt:
+      param: EG.IsDecoy
+      comparator: "=="
+      value: False
+    shape_quality: 
+      param: FG.ShapeQualityScore (MS2)
+      comparator: ">"
+      value: 0.4
+
+spectronaut_precursor:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID: FG.Quantity
+  protein_cols:
+   - PG.ProteinGroups
+  ion_cols:
+   - FG.Id
+
+spectronaut_precursor_v2:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID: FG.Quantity
+  protein_cols:
+   - PG.ProteinGroups
+  ion_cols:
+   - EG.ModifiedPeptide
+   - FG.Charge
+
+
+
+
+
+
+

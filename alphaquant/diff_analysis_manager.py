@@ -3,33 +3,29 @@
 __all__ = ['run_pipeline', 'median_offset', 'analyze_condpair', 'write_out_normed_df', 'read_tables']
 
 # Cell
-from .background_distributions import *
-from .normalization import *
-from .diff_analysis import *
-from .visualizations import *
-from .diffquant_utils import *
-
-# Cell
 import pandas as pd
 from itertools import combinations
 import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
-def run_pipeline(peptides_tsv, samplemap_tsv, outdir = ".",pepheader = None, protheader = None, minrep = 2, outlier_correction = True,
-median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, condpair_combinations = None, annotation_file = None):
 
-    unnormed_df, labelmap_df = read_tables(peptides_tsv, samplemap_tsv, pepheader, protheader)
-    conds = labelmap_df["condition"].unique()
+
+def run_pipeline(unnormed_df, labelmap_df, results_dir = "./results",  condpair_combinations = None, minrep = 2, outlier_correction = True,
+median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, annotation_file = None):
+    """Run the differential analyses.
+
+    """
+
     res_dfs = []
     pep_dfs = []
     pep2prot = dict(zip(unnormed_df.index, unnormed_df['protein']))
 
-    if condpair_combinations != None:
-        condcombs = [(x["c1"], x["c2"]) for idx, x in pd.read_csv(condpair_combinations, sep = "\t").iterrows()]
-    else:
-        condcombs = combinations(conds, 2)
+    if condpair_combinations == None:
+        conds = labelmap_df["condition"].unique()
+        condpair_combinations = combinations(conds, 2)
 
-    for condpair in condcombs:
+
+    for condpair in condpair_combinations:
         print(condpair)
         c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
         c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
@@ -41,8 +37,9 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
             print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}")
             continue
-        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection,
-        volcano_fdr, volcano_fcthresh, annotation_file)
+
+        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,results_dir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection,
+        runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file)
         res_dfs.append(res)
         pep_dfs.append(peps)
 
@@ -54,7 +51,13 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
 
 
 # Cell
-def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, volcano_fdr, volcano_fcthresh, annotation_file):
+import alphaquant.background_distributions as aqbg
+import alphaquant.diff_analysis as aqdiff
+import alphaquant.normalization as aqnorm
+import alphaquant.visualizations as aqviz
+import alphaquant.diffquant_utils as aqutils
+
+def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file):
     t_zero = time()
     print(f"start processeing condpair {condpair}")
     prot2diffions = {}
@@ -74,13 +77,13 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
     pseudoint2 = []
     condpairs = []
 
-    df_c1_normed, df_c2_normed = get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples,minrep, pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
-    if outdir != None:
-        write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, outdir, condpair)
+    df_c1_normed, df_c2_normed = aqnorm.get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples, minrep, runtime_plots,pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
+    if results_dir != None:
+        write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, results_dir, condpair)
     t_normalized = time()
-    normed_c1 = ConditionBackgrounds(df_c1_normed, p2z)
+    normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
     #write_out_ion2nonan_ion2idx(normed_c1, "./test_data/", "c1")
-    normed_c2 = ConditionBackgrounds(df_c2_normed, p2z)
+    normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
     #compare_context_boundaries_against_ref("./test_data/reference_context_boundaries_c2.tsv",normed_c2)
     #write_out_ion2nonan_ion2idx(normed_c2, "./test_data/", "c2")
     t_bgdist_fin = time()
@@ -92,9 +95,9 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
         t_ion = time()
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
-        diffDist = get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
+        diffDist = aqbg.get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
         t_subtract_end = time()
-        diffIon = DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction)
+        diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction)
         t_diffion = time()
         protein = pep2prot.get(ion)
         prot_ions = prot2diffions.get(protein, list())
@@ -114,12 +117,12 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
         #print(f"t_init {t_subtract_start-t_ion} t_diffdist {t_subtract_end -t_subtract_start} t_diffion {t_iterfin - t_ion}")
 
     for prot in prot2diffions.keys():
-        diffprot = DifferentialProtein(prot,prot2diffions.get(prot), median_offset, dia_fragment_selection)
+        diffprot = aqdiff.DifferentialProtein(prot,prot2diffions.get(prot), median_offset, dia_fragment_selection)
         prots.append(prot)
         pvals.append(diffprot.pval)
         fcs.append(diffprot.fc)
         numpeps.append(diffprot.num_ions)
-        condpairs.append(get_condpairname(condpair))
+        condpairs.append(aqutils.get_condpairname(condpair))
         peps_included.extend(diffprot.ions)
 
     # pseudoint1_cond, pseudoint2_cond = calc_pseudo_intensities(df_c2_normed, pep2prot, prots, fcs,condpair)
@@ -130,16 +133,16 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
     pep_fdrs = mt.multipletests(pep_pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
 
     res_df = pd.DataFrame({'condpair' : condpairs,'protein' : prots, 'fdr' : fdrs, 'pval':pvals, 'log2fc' : fcs, 'num_peptides' : numpeps})#, 'pseudoint1' :  pseudoint1, 'pseudoint2' : pseudoint2})
-    pep_df = pd.DataFrame({'condpair' : [get_condpairname(condpair) for x in range(len(peps))], 'ion' : peps, 'protein' : pep_prots,'pval' : pep_pvals, 'log2fc' : pep_fcs})
+    pep_df = pd.DataFrame({'condpair' : [aqutils.get_condpairname(condpair) for x in range(len(peps))], 'ion' : peps, 'protein' : pep_prots,'pval' : pep_pvals, 'log2fc' : pep_fcs})
     pep_df["fdr"] = pep_fdrs
     pep_df = pep_df[pep_df["ion"].isin(peps_included)]
 
+    if runtime_plots:
+        aqviz.volcano_plot(res_df, significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
+        aqviz.volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
 
-    volcano_plot(res_df, significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
-    volcano_plot(pep_df,significance_cutoff = volcano_fdr, log2fc_cutoff = volcano_fcthresh)
-
-    if outdir!=None:
-        if annotation_file != None:
+    if results_dir!=None:
+        if annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)
             if(len(intersect_columns)>0):
@@ -147,28 +150,25 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, outdir,cond
                 res_df = res_df.merge(annot_df, on=list(intersect_columns), how= 'left')
                 pep_df = pep_df.merge(annot_df, on= list(intersect_columns), how = 'left')
 
-        res_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
-        pep_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
+        res_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
+        pep_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
 
 
 
     return res_df, pep_df
 
 
-
-
-
 # Cell
 import numpy as np
 import os
-def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, outdir, condpair):
+def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpair):
     merged_df = normed_df_1.merge(normed_df_2, left_index = True, right_index = True)
     merged_df = 2**merged_df
     merged_df = merged_df.replace(np.nan, 0)
     merged_df["protein"] = list(map(lambda x : pep2prot.get(x),merged_df.index))
-    if not os.path.exists(f"{outdir}/results/"):
-        os.mkdir(f"{outdir}/results/")
-    merged_df.to_csv(f"{outdir}/results/{get_condpairname(condpair)}.normed.tsv", sep = "\t")
+    if not os.path.exists(f"{results_dir}/"):
+        os.makedirs(f"{results_dir}/")
+    merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 # Cell
 import pandas as pd
@@ -187,5 +187,5 @@ def read_tables(peptides_tsv, samplemap_tsv, pepheader = None, protheader = None
     headers = ['protein'] + samplemap["sample"].to_list()
 
     for sample in samplemap["sample"]:
-        peps[sample] = np.log2(peps[sample].replace(0, np.nan))#*10000
+        peps[sample] = np.log2(peps[sample].replace(0, np.nan))
     return peps[headers], samplemap

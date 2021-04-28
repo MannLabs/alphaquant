@@ -5,9 +5,6 @@ __all__ = ['normalize_withincond', 'get_bestmatch_pair', 'create_distance_matrix
            'get_total_shift', 'merge_distribs', 'mode_normalization', 'get_betweencond_shift', 'get_normalized_dfs']
 
 # Cell
-from .visualizations import *
-
-# Cell
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -244,7 +241,8 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 
 # Cell
 import pandas as pd
-def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, prenormed_file = None): #labelmap_df, unnormed_df,condpair,
+import alphaquant.visualizations as aqviz
+def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, runtime_plots = True,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
     #c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
     #c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
@@ -262,8 +260,8 @@ def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, prenormed_
         df_c1_normed = pd.DataFrame(normalize_withincond(df_c1.to_numpy().T).T, index = df_c1.index, columns = c1_samples["sample"])
         df_c2_normed = pd.DataFrame(normalize_withincond(df_c2.to_numpy().T).T, index = df_c2.index, columns = c2_samples["sample"])
 
-
-    plot_betweencond_fcs(df_c1, df_c2, True)
+    if runtime_plots:
+        aqviz.plot_betweencond_fcs(df_c1, df_c2, True)
     print(f"normalized within conditions")
     shift_between_cond = get_betweencond_shift(df_c1_normed, df_c2_normed)
     if(prenormed_file is not None):
@@ -271,6 +269,7 @@ def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, prenormed_
     print(f"shift cond 2 by {shift_between_cond}")
     df_c2_normed = df_c2_normed-shift_between_cond
     #compare_normalization("./test_data/normed_intensities.tsv", df_c1_normed, df_c2_normed)
-    plot_betweencond_fcs(df_c1_normed, df_c2_normed, False)
-    plot_betweencond_fcs(df_c1_normed, df_c2_normed, True)
+    if runtime_plots:
+        aqviz.plot_betweencond_fcs(df_c1_normed, df_c2_normed, False)
+        aqviz.plot_betweencond_fcs(df_c1_normed, df_c2_normed, True)
     return df_c1_normed, df_c2_normed
