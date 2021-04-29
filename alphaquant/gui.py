@@ -24,6 +24,7 @@ pn.extension(raw_css=[css])
 SERVER = None
 TAB_COUNTER = 0
 PEPTIDES = None
+UPDATED = pn.widgets.IntInput(value=0)
 
 project_description = 'AlphaQuant is ...'
 
@@ -55,7 +56,11 @@ def run():
         main_widget.create(),
         analysis.create(),
         tabs.create(
-            ('Multiple comparison', dashboard_parts.MultipleComparison().create())
+            ('Multiple comparison',
+            dashboard_parts.MultipleComparison(
+                # analysis.path_output_folder.value
+                'D:/alphaquant/test_data/input_table_formats/results'
+            ).create())
         ),
         sizing_mode='stretch_width',
         min_width=1270

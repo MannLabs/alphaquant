@@ -402,16 +402,33 @@ class MultipleComparison(object):
             margin=(15, 15, 15, 15)
         )
         self.output_folder = output_folder
+        self.LAYOUT = None
 
 
     def create(self):
         self.condpairs_to_compare.options = self.extract_conditions_from_folder()
-        # overview_dataframe = aqplot.get_sample_overview_dataframe()
-        LAYOUT = pn.Column(
-            self.condpairs_to_compare
+        self.condpairs_to_compare.param.watch(
+            self.return_clustered_heatmap,
+            'value'
         )
-        return LAYOUT
+        self.LAYOUT = pn.Column(
+            self.condpairs_to_compare,
+        )
+        return self.LAYOUT
 
 
     def extract_conditions_from_folder(self):
         return [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
+
+
+    def return_clustered_heatmap(self):
+
+        if self.condpairs_to_compare.value:
+            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.value]
+        else:
+            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.options]
+
+        overview_dataframe = aqplot.get_sample_overview_dataframe(
+            results_folder=self.output_folder,
+            condpairs_to_compare=cond_combinations
+        )
