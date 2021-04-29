@@ -353,3 +353,32 @@ class RunAnalysis(object):
         self.run_pipeline_progress.active = False
         self.visualize_data_button.clicks += 1
         self.updated.value += 1
+
+
+class Tabs(object):
+
+    def __init__(self):
+        pass
+
+
+    def create(self, *args):
+        LAYOUT = pn.Tabs(
+            pn.Column(
+                *args
+            ),
+            active=0,
+            tabs_location='above',
+            sizing_mode='stretch_width',
+            margin=(5, 8, 10, 8)
+        )
+        return LAYOUT
+
+
+class MultipleComparison(object):
+
+    def __init__(self):
+        pass
+
+
+    def create(self):
+        pass

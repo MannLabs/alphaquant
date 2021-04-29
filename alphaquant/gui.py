@@ -45,6 +45,7 @@ main_widget = dashboard_parts.MainWidget(
     ),
 )
 analysis = dashboard_parts.RunAnalysis()
+tabs = dashboard_parts.Tabs()
 
 def run():
     global SERVER
@@ -53,6 +54,9 @@ def run():
         header.create(),
         main_widget.create(),
         analysis.create(),
+        tabs.create(
+            ('Multiple comparison', dashboard_parts.MultipleComparison().create())
+        ),
         sizing_mode='stretch_width',
         min_width=1270
     )
