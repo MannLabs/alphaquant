@@ -11,6 +11,8 @@ import alphaquant.visualizations as aqplot
 
 # visualization
 import panel as pn
+import plotly.graph_objs as go
+
 UPDATED = pn.widgets.IntInput(value=0)
 
 class HeaderWidget(object):
@@ -432,3 +434,31 @@ class MultipleComparison(object):
             results_folder=self.output_folder,
             condpairs_to_compare=cond_combinations
         )
+
+    def plot_heatmap(df, title, colormap):
+        """
+        This function plots a simple Heatmap.
+        """
+        fig = go.Figure()
+        fig.update_layout(
+            title={
+                'text': title,
+                'y': 0.95,
+                'x': 0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            height=1000,
+            width=700,
+            annotations=[dict(xref='paper', yref='paper', showarrow=False, text='')],
+            template='plotly_white'
+        )
+        fig.add_trace(
+            go.Heatmap(
+                z=df.values.tolist(),
+                x = list(df.columns),
+                y = list(df.index),
+                colorscale=colormap
+            )
+        )
+        return fig
