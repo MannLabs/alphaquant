@@ -7,10 +7,11 @@ import pandas as pd
 # alphaquant important
 import alphaquant.diffquant_utils as aqutils
 import alphaquant.diff_analysis_manager as diffmgr
+import alphaquant.visualizations as aqplot
 
 # visualization
 import panel as pn
-
+UPDATED = pn.widgets.IntInput(value=0)
 
 class HeaderWidget(object):
     """This class creates a layout for the header of the dashboard with the name of the tool and all links to the MPI website, the MPI Mann Lab page and the GitHub repo.
@@ -199,8 +200,9 @@ class RunAnalysis(object):
             # object='test warning message',
             margin=(-20, 10, -5, 16),
         )
-        self.updated = pn.widgets.IntInput(value=0)
+        # self.updated = pn.widgets.IntInput(value=0)
         self.data = None
+
 
 
     def create(self):
@@ -272,6 +274,11 @@ class RunAnalysis(object):
             watch=True
         )(self.run_pipeline)
 
+        self.visualize_data = pn.depends(
+            self.visualize_data_button.param.clicks,
+            watch=True
+        )(self.visualize_data)
+
         return LAYOUT
 
 
@@ -330,7 +337,7 @@ class RunAnalysis(object):
 
 
     def run_pipeline(self, *args):
-
+        global UPDATED
         self.run_pipeline_progress.active = True
 
         data_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(
@@ -351,34 +358,60 @@ class RunAnalysis(object):
         )
 
         self.run_pipeline_progress.active = False
-        self.visualize_data_button.clicks += 1
-        self.updated.value += 1
+        UPDATED.value += 1
+
+
+    def visualize_data(self, *args):
+        global UPDATED
+        print(UPDATED)
+        UPDATED.value += 1
 
 
 class Tabs(object):
 
     def __init__(self):
-        pass
+        self.LAYOUT = None
 
 
     def create(self, *args):
-        LAYOUT = pn.Tabs(
-            pn.Column(
-                *args
-            ),
+        UPDATED.param.watch(
+            self.fill_layout(*args),
+            'value'
+        )
+        return self.LAYOUT
+
+
+    def fill_layout(self, *args):
+        self.LAYOUT = pn.Tabs(
+            *args,
             active=0,
             tabs_location='above',
             sizing_mode='stretch_width',
             margin=(5, 8, 10, 8)
         )
-        return LAYOUT
 
 
 class MultipleComparison(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, output_folder):
+        self.condpairs_to_compare = pn.widgets.CrossSelector(
+            options=['c2_vs_c12', 'c12_vs_c2'],
+            width=870,
+            height=300,
+            align='center',
+            margin=(15, 15, 15, 15)
+        )
+        self.output_folder = output_folder
 
 
     def create(self):
-        pass
+        self.condpairs_to_compare.options = self.extract_conditions_from_folder()
+        # overview_dataframe = aqplot.get_sample_overview_dataframe()
+        LAYOUT = pn.Column(
+            self.condpairs_to_compare
+        )
+        return LAYOUT
+
+
+    def extract_conditions_from_folder(self):
+        return [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
