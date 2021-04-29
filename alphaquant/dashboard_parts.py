@@ -333,16 +333,21 @@ class RunAnalysis(object):
 
         self.run_pipeline_progress.active = True
 
-        data_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(input_data, samplemap_df)
+        data_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(
+            self.data,
+            self.samplemap_table.value
+        )
+
+        if self.assign_cond_pairs.options:
+            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.assign_cond_pairs.value]
+        else:
+            cond_combinations = None
 
         diffmgr.run_pipeline(
-            peptides_tsv=self.path_analysis_file.value,
-            samplemap_tsv= StringIO(
-                str(self.samplemap.value, "utf-8")
-            ),
-            outdir=self.path_output_folder.value,
-            pepheader= "peptide",
-            protheader="protein"
+            unnormed_df=data_processed,
+            labelmap_df=samplemap_df_processed,
+            results_dir=self.path_output_folder.value,
+            condpair_combinations=cond_combinations
         )
 
         self.run_pipeline_progress.active = False
