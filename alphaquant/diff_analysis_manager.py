@@ -45,7 +45,7 @@ median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection 
         df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
         df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
-            print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}")
+            print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
             continue
 
         res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,results_dir,condpair, minrep, outlier_correction, median_offset, pre_normed_intensity_file , dia_fragment_selection,

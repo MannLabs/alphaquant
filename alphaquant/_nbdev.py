@@ -75,6 +75,9 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "compare_normalization": "06_benchmarking.ipynb",
          "compare_significant_proteins": "06_benchmarking.ipynb",
          "print_nonref_hits": "06_benchmarking.ipynb",
+         "test_run_pipeline": "06_benchmarking.ipynb",
+         "generate_random_input": "06_benchmarking.ipynb",
+         "generate_protein_list": "06_benchmarking.ipynb",
          "run_protein_normalization": "07_protein_intensities.ipynb",
          "estimate_protein_intensities": "07_protein_intensities.ipynb",
          "plot_lines": "07_protein_intensities.ipynb",
@@ -120,7 +123,11 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "sequence_file": "09_ptmsite_mapping.ipynb",
          "initialize_ptmsite_df": "09_ptmsite_mapping.ipynb",
          "detect_site_occupancy_change": "09_ptmsite_mapping.ipynb",
-         "check_site_occupancy_changes_all_diffresults": "09_ptmsite_mapping.ipynb"}
+         "check_site_occupancy_changes_all_diffresults": "09_ptmsite_mapping.ipynb",
+         "calc_per_peppair_z_and_fcfc": "10_doublediff_analysis.ipynb",
+         "calculate_pairpair_overlap_factor": "10_doublediff_analysis.ipynb",
+         "calculate_scaled_pval": "10_doublediff_analysis.ipynb",
+         "calc_doublediff_score": "10_doublediff_analysis.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -130,7 +137,8 @@ modules = ["diff_analysis_manager.py",
            "benchmarking.py",
            "protein_intensities.py",
            "diffquant_utils.py",
-           "ptmsite_mapping.py"]
+           "ptmsite_mapping.py",
+           "doublediff_analysis.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 
