@@ -200,6 +200,7 @@ class RunAnalysis(object):
             margin=(-20, 10, -5, 16),
         )
         self.updated = pn.widgets.IntInput(value=0)
+        self.data = None
 
 
     def create(self):
@@ -274,25 +275,16 @@ class RunAnalysis(object):
         return LAYOUT
 
 
+    def activate_after_analysis_file_upload(self, *args):
+        self.set_default_output_folder()
+        self.import_exp_data()
+        self.extract_sample_names()
+
+
     def natural_sort(self, l):
         convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
+        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
         return sorted(l, key = alphanum_key)
-
-
-    def extract_sample_names(self):
-        with open(self.path_analysis_file.value, 'r') as f:
-            all_columns = f.readline().split('\t')
-            sample_names = [col for col in all_columns if ('Intensity' in col) and (col != 'Intensity')]
-        self.df_exp_to_cond.value = pd.DataFrame(
-            data={'sample': self.natural_sort(sample_names), 'condition': str()}
-        )
-
-
-    def add_conditions_for_assignment(self, *args):
-        unique_condit = self.df_exp_to_cond.value.condition.unique()
-        comb_condit = ['_vs_'.join(comb) for comb in permutations(unique_condit, 2)]
-        self.assign_cond_pairs.options = comb_condit
 
 
     def set_default_output_folder(self):
@@ -303,10 +295,18 @@ class RunAnalysis(object):
             )
 
 
-    def activate_after_analysis_file_upload(self, *args):
-        self.set_default_output_folder()
-        # self.import_
-        self.extract_sample_names()
+    def import_exp_data(self):
+        self.data = aqutils.import_data(
+            input_file=self.path_analysis_file.value,
+            results_folder=self.path_output_folder.value
+        )
+
+
+    def extract_sample_names(self):
+        sample_names = aqutils.get_samplenames(self.data)
+        self.df_exp_to_cond.value = pd.DataFrame(
+            data={'sample': self.natural_sort(sample_names), 'condition': str()}
+        )
 
 
     def update_exp_to_cond_df(self, *args):
@@ -314,6 +314,12 @@ class RunAnalysis(object):
             StringIO(str(self.predefined_exp_to_cond.value, "utf-8")),
             sep='\t'
         )
+
+
+    def add_conditions_for_assignment(self, *args):
+        unique_condit = self.df_exp_to_cond.value.condition.unique()
+        comb_condit = ['_vs_'.join(comb) for comb in permutations(unique_condit, 2)]
+        self.assign_cond_pairs.options = comb_condit
 
 
     def run_pipeline(self, *args):
