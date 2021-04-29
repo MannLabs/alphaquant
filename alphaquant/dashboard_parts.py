@@ -147,15 +147,15 @@ class RunAnalysis(object):
             sizing_mode='stretch_width',
             margin=(15, 15, 0, 15)
         )
-        self.predefined_exp_to_cond_title = pn.pane.Markdown(
+        self.samplemap_title = pn.pane.Markdown(
             'Load an experiments-to-conditions file:',
             margin=(10,0,0,15)
         )
-        self.predefined_exp_to_cond = pn.widgets.FileInput(
-            accept='.tsv,.csv',
+        self.samplemap = pn.widgets.FileInput(
+            accept='.tsv,.csv,.txt',
             margin=(-10,0,5,15)
         )
-        self.df_exp_to_cond = pn.widgets.Tabulator(
+        self.samplemap_table = pn.widgets.Tabulator(
             layout='fit_data_fill',
             height=300,
             show_index=False,
@@ -212,11 +212,11 @@ class RunAnalysis(object):
                     self.path_output_folder,
                     pn.Row(
                         pn.Column(
-                            self.predefined_exp_to_cond_title,
-                            self.predefined_exp_to_cond
+                            self.samplemap_title,
+                            self.samplemap
                         ),
                         pn.Card(
-                            self.df_exp_to_cond,
+                            self.samplemap_table,
                             header='Assign experiments to conditions manually',
                             collapsed=True,
                             margin=(20, 0, 20, 0),
@@ -257,13 +257,13 @@ class RunAnalysis(object):
             watch=True
         )(self.activate_after_analysis_file_upload)
 
-        self.update_exp_to_cond_df = pn.depends(
-            self.predefined_exp_to_cond.param.value,
+        self.update_samplemap = pn.depends(
+            self.samplemap.param.value,
             watch=True
-        )(self.update_exp_to_cond_df)
+        )(self.update_samplemap)
 
         self.add_conditions_for_assignment = pn.depends(
-            self.df_exp_to_cond.param.value,
+            self.samplemap_table.param.value,
             watch=True
         )(self.add_conditions_for_assignment)
 
@@ -304,33 +304,41 @@ class RunAnalysis(object):
 
     def extract_sample_names(self):
         sample_names = aqutils.get_samplenames(self.data)
-        self.df_exp_to_cond.value = pd.DataFrame(
+        self.samplemap_table.value = pd.DataFrame(
             data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )
 
 
-    def update_exp_to_cond_df(self, *args):
-        self.df_exp_to_cond.value = pd.read_csv(
-            StringIO(str(self.predefined_exp_to_cond.value, "utf-8")),
+    def update_samplemap(self, *args):
+        file_ext = os.path.splitext(self.samplemap.filename)[-1]
+
+        if file_ext=='.csv':
+            sep=','
+        else:
             sep='\t'
+
+        self.samplemap_table.value = pd.read_csv(
+            StringIO(str(self.samplemap.value, "utf-8")),
+            sep=sep
         )
 
 
     def add_conditions_for_assignment(self, *args):
-        unique_condit = self.df_exp_to_cond.value.condition.unique()
+        unique_condit = self.samplemap_table.value.condition.unique()
         comb_condit = ['_vs_'.join(comb) for comb in permutations(unique_condit, 2)]
         self.assign_cond_pairs.options = comb_condit
 
 
     def run_pipeline(self, *args):
-        import alphaquant.diff_analysis_manager as diffmgr
 
         self.run_pipeline_progress.active = True
+
+        data_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(input_data, samplemap_df)
 
         diffmgr.run_pipeline(
             peptides_tsv=self.path_analysis_file.value,
             samplemap_tsv= StringIO(
-                str(self.predefined_exp_to_cond.value, "utf-8")
+                str(self.samplemap.value, "utf-8")
             ),
             outdir=self.path_output_folder.value,
             pepheader= "peptide",
