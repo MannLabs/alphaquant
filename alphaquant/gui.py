@@ -19,6 +19,7 @@ with open(file) as f:
     css = f.read()
 
 pn.extension(raw_css=[css])
+pn.extension('plotly')
 
 # global VARIABLES
 SERVER = None

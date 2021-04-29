@@ -405,6 +405,7 @@ class MultipleComparison(object):
         )
         self.output_folder = output_folder
         self.LAYOUT = None
+        self.heatmap = None
 
 
     def create(self):
@@ -415,6 +416,7 @@ class MultipleComparison(object):
         )
         self.LAYOUT = pn.Column(
             self.condpairs_to_compare,
+            self.heatmap
         )
         return self.LAYOUT
 
@@ -423,7 +425,7 @@ class MultipleComparison(object):
         return [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
 
 
-    def return_clustered_heatmap(self):
+    def return_clustered_heatmap(self, *args):
 
         if self.condpairs_to_compare.value:
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.value]
@@ -435,10 +437,22 @@ class MultipleComparison(object):
             condpairs_to_compare=cond_combinations
         )
 
-    def plot_heatmap(df, title, colormap):
+        clustered_dataframe = aqplot.get_clustered_dataframe(overview_dataframe)
+
+        self.LAYOUT[1] = pn.Pane(
+            self.plot_heatmap(
+                clustered_dataframe.T,
+                title='Significant proteins heatmap',
+                colormap='RdBu'
+            )
+        )
+
+
+    def plot_heatmap(self, df, title, colormap):
         """
         This function plots a simple Heatmap.
         """
+        print('inside plotting function')
         fig = go.Figure()
         fig.update_layout(
             title={
