@@ -2,7 +2,8 @@
 
 __all__ = ["index", "modules", "custom_doc_links", "git_url"]
 
-index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
+index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipynb",
+         "run_pipeline": "01_diff_analysis_manager.ipynb",
          "median_offset": "01_diff_analysis_manager.ipynb",
          "analyze_condpair": "01_diff_analysis_manager.ipynb",
          "write_out_normed_df": "01_diff_analysis_manager.ipynb",
