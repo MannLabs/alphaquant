@@ -4,6 +4,10 @@ from io import StringIO
 from itertools import permutations
 import pandas as pd
 
+# alphaquant important
+import alphaquant.diffquant_utils as aqutils
+import alphaquant.diff_analysis_manager as diffmgr
+
 # visualization
 import panel as pn
 
@@ -293,11 +297,15 @@ class RunAnalysis(object):
 
     def set_default_output_folder(self):
         if not self.path_output_folder.value:
-            self.path_output_folder.value = os.path.dirname(self.path_analysis_file.value)
+            self.path_output_folder.value = os.path.join(
+                os.path.dirname(self.path_analysis_file.value),
+                'results'
+            )
 
 
     def activate_after_analysis_file_upload(self, *args):
         self.set_default_output_folder()
+        # self.import_
         self.extract_sample_names()
 
 
