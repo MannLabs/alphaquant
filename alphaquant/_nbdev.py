@@ -77,6 +77,7 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "print_nonref_hits": "06_benchmarking.ipynb",
          "test_run_pipeline": "06_benchmarking.ipynb",
          "generate_random_input": "06_benchmarking.ipynb",
+         "generate_peptide_list": "06_benchmarking.ipynb",
          "generate_protein_list": "06_benchmarking.ipynb",
          "run_protein_normalization": "07_protein_intensities.ipynb",
          "estimate_protein_intensities": "07_protein_intensities.ipynb",

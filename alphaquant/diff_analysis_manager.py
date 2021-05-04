@@ -99,13 +99,13 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir
     t_bgdist_fin = time()
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
 
-    ion2diffDist = {}
+    bgpair2diffDist = {}
     count_ions=0
     for ion in ions_to_check:
         t_ion = time()
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
-        diffDist = aqbg.get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
+        diffDist = aqbg.get_subtracted_bg(bgpair2diffDist,normed_c1, normed_c2,ion, p2z)
         t_subtract_end = time()
         diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction)
         t_diffion = time()

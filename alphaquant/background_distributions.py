@@ -269,17 +269,17 @@ def get_joined(joined,n_from, n_to, min_from, min_to, min_joined):
     return joined
 
 # Cell
-def get_subtracted_bg(ion2diffDist, condbg1, condbg2, ion, p2z):
-    if ion in ion2diffDist.keys():
-        return ion2diffDist.get(ion)
+def get_subtracted_bg(bgpair2diffDist, condbg1, condbg2, ion, p2z):
+
+    bgpair = (condbg1, condbg2)
+    if bgpair in bgpair2diffDist.keys():
+        return bgpair2diffDist.get(bgpair)
+
     bg1 = condbg1.ion2background.get(ion)
     bg2 = condbg2.ion2background.get(ion)
 
-    common_ions = bg1.ions.intersection(bg2.ions)
     subtr_bg = SubtractedBackgrounds(bg1, bg2, p2z)
-    subtr_bg.ions = common_ions
-    ion2diff_dict_new = { ion: subtr_bg for ion in common_ions}
-    ion2diffDist.update(ion2diff_dict_new)
+    bgpair2diffDist[bgpair] = subtr_bg
 
     return subtr_bg
 

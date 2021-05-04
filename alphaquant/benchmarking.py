@@ -2,7 +2,7 @@
 
 __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare_normalization', 'compare_to_reference',
            'compare_significant_proteins', 'print_nonref_hits', 'test_run_pipeline', 'generate_random_input',
-           'generate_protein_list']
+           'generate_peptide_list', 'generate_protein_list']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -149,12 +149,13 @@ def test_run_pipeline():
     plot_pvals(pep_df)
 
 def generate_random_input(num_pep,sample2cond_df , simulate_nas = False):
-    pepnames = list(map(lambda _idx : str(uuid.uuid4()), range(num_pep))) #gives uuid strings for each peptide
+    pepnames = generate_peptide_list(num_pep, [2, 3, 5, 3]) #gives uuid strings for each peptide
+    print(len(pepnames))
     protnames = generate_protein_list(pepnames)
     nrep_1 = 3
     nrep_2 = 12
-    randarrays1 = 10+ 1.5*np.random.randn(num_pep,nrep_1)
-    randarrays2 = 10+ 3.5*np.random.randn(num_pep,nrep_2)
+    randarrays1 = 10+ 1.5*np.random.randn(len(pepnames),nrep_1)
+    randarrays2 = 10+ 3.5*np.random.randn(len(pepnames),nrep_2)
 
     if simulate_nas:
         idxs_1 = np.unique(np.random.randint(0, nrep_1, size= int(len(randarrays1)/3)))
@@ -168,6 +169,29 @@ def generate_random_input(num_pep,sample2cond_df , simulate_nas = False):
     df_intens.insert(0, "ion", pepnames )
     df_intens = df_intens.set_index("ion")
     return df_intens
+
+def generate_peptide_list(num_peps, levels ):
+    """levels is list of ints, each int inidcates, how many potential possibilities there are on this level"""
+    pepcount = 0
+    count = 0
+    peptides = []
+    while count < num_peps:
+        list = [f'pep{pepcount}']
+
+        for levelidx, level in enumerate(levels):
+            num_events = np.random.randint(1,level)
+            new_list = []
+            for elem in list:
+                for idx in range(num_events):
+                    new_list.append(elem + f"_LVL{levelidx}_mod{idx}")
+                    count+=1
+            list = new_list
+        peptides.extend(list)
+        pepcount+=1
+
+    return peptides
+
+
 
 def generate_protein_list(pepnames):
     res = []
