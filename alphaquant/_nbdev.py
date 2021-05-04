@@ -96,6 +96,7 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "get_type2relevant_cols": "08_diffquant_utils.ipynb",
          "filter_input": "08_diffquant_utils.ipynb",
          "merge_protein_and_ion_cols": "08_diffquant_utils.ipynb",
+         "merge_protein_cols_and_ion_dict": "08_diffquant_utils.ipynb",
          "reformat_longtable_according_to_config": "08_diffquant_utils.ipynb",
          "read_wideformat_table": "08_diffquant_utils.ipynb",
          "read_mq_peptides_table": "08_diffquant_utils.ipynb",
@@ -128,7 +129,16 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "calc_per_peppair_z_and_fcfc": "10_doublediff_analysis.ipynb",
          "calculate_pairpair_overlap_factor": "10_doublediff_analysis.ipynb",
          "calculate_scaled_pval": "10_doublediff_analysis.ipynb",
-         "calc_doublediff_score": "10_doublediff_analysis.ipynb"}
+         "calc_doublediff_score": "10_doublediff_analysis.ipynb",
+         "find_fold_change_clusters": "11_cluster_ions.ipynb",
+         "exchange_cluster_idxs": "11_cluster_ions.ipynb",
+         "get_fcs_ions": "11_cluster_ions.ipynb",
+         "evaluate_distance": "11_cluster_ions.ipynb",
+         "create_hierarchical_ion_grouping": "11_cluster_ions.ipynb",
+         "cluster_along_specified_levels": "11_cluster_ions.ipynb",
+         "get_ionlist": "11_cluster_ions.ipynb",
+         "update_nodes": "11_cluster_ions.ipynb",
+         "TypeFilter": "11_cluster_ions.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -139,7 +149,8 @@ modules = ["diff_analysis_manager.py",
            "protein_intensities.py",
            "diffquant_utils.py",
            "ptmsite_mapping.py",
-           "doublediff_analysis.py"]
+           "doublediff_analysis.py",
+           "cluster_ions.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 

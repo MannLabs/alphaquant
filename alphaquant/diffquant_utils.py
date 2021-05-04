@@ -2,7 +2,7 @@
 
 __all__ = ['get_condpairname', 'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'get_ionints_from_pd_df',
            'invert_dictionary', 'get_relevant_columns', 'retrieve_configuration', 'get_config_columns', 'load_config',
-           'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
+           'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
            'reformat_longtable_according_to_config', 'read_wideformat_table', 'read_mq_peptides_table',
            'check_for_processed_runs_in_results_folder', 'import_data', 'get_samplenames', 'load_samplemap',
            'prepare_loaded_tables']
@@ -147,8 +147,21 @@ def merge_protein_and_ion_cols(input_df, protein_cols, ion_cols):
     return input_df
 
 # Cell
+def merge_protein_cols_and_ion_dict(input_df, protein_cols, ion_dict):
+    input_df['protein'] = input_df.loc[:, protein_cols].astype('string').sum(axis=1)
+    ion_hierarchy_local = [x for x in ion_hierarchy if x in ion_dict]
+    rows = input_df[ion_hierarchy_local].to_numpy()
+    ions = []
+    joiner = "_"
+    for row in rows:
+        ionlist = [f"{ion_hierarchy_local[lvl]}_{row[lvl]}" for lvl in range(len(ion_hierarchy_local))]
+        ion = joiner.join(ionlist)
+        ions.append(ion)
+    input_df['ion'] = ions
+    return input_df
 
-def reformat_longtable_according_to_config(input_file, input_type, results_folder, config_file = "longtable_config.yaml", sep = "\t",decimal = "."):
+# Cell
+def reformat_longtable_according_to_config(input_file, input_type, results_folder, config_file = "intable_config.yaml", sep = "\t",decimal = "."):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
@@ -234,7 +247,7 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
     :param file input_file: quantified peptide/ion -level data
     :param file results_folder: the folder where the AlphaQuant outputs are stored
     """
-    config_file = os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "longtable_config.yaml") #the yaml config is located one directory below the python library files
+    config_file = os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "intable_config.yaml") #the yaml config is located one directory below the python library files
     config_dict = load_config(config_file)
     type2relevant_columns = get_type2relevant_cols(config_dict)
 
@@ -271,7 +284,7 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
             elif format == "widetable":
                 data = read_wideformat_table(input_file, config_dict_type)
             else:
-                raise Exception("format: not specified in longtable_config.yaml")
+                raise Exception("format: not specified in intable_config.yaml")
             return data
 
     #if non of the cases match, return error

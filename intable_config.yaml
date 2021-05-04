@@ -44,6 +44,18 @@ spectronaut_fragion:
    - F.FrgIon
    - F.FrgLossType
    - F.Charge
+  ion_hierarchy:
+    SEQ: 
+     - PEP.StrippedSequence
+    MOD: 
+     - EG.ModifiedSequence
+    CHARGE: 
+     - FG.Charge
+    FRGION: 
+     - F.FrgIon
+     - F.FrgLossType
+     - F.Charge
+
   filters:
     decoy_filt:
       param: EG.IsDecoy
