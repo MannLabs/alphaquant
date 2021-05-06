@@ -55,20 +55,19 @@ spectronaut_fragion:
      - F.FrgIon
      - F.FrgLossType
      - F.Charge
-
-  filters:
-    decoy_filt:
-      param: EG.IsDecoy
-      comparator: "=="
-      value: False
-    shape_quality: 
-      param: FG.ShapeQualityScore (MS2)
-      comparator: ">"
-      value: 0.4
-    fragion_interference:
-      param: F.PossibleInterference
-      comparator: "=="
-      value: False
+  # filters:
+  #   decoy_filt:
+  #     param: EG.IsDecoy
+  #     comparator: "=="
+  #     value: False
+  #   shape_quality: 
+  #     param: FG.ShapeQualityScore (MS2)
+  #     comparator: ">"
+  #     value: 0.4
+  #   fragion_interference:
+  #     param: F.PossibleInterference
+  #     comparator: "=="
+  #     value: False
 
 spectronaut_precursor_new:
   format: longtable

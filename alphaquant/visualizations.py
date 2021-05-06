@@ -8,7 +8,7 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'get_condensed_distance_matrix', 'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation',
            'clustersort_numerical_arrays', 'get_clustered_dataframe', 'get_sample_overview_dataframe',
            'get_diffresult_dataframe', 'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition',
-           'get_normed_peptides_dataframe', 'initialize_sample2cond']
+           'get_normed_peptides_dataframe', 'initialize_sample2cond', 'read_condpair_tree']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -386,6 +386,10 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
     are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
       to annotate the plot"""
+    num_ions = len(set(df_melted["ion"]))
+
+    if num_ions>30:
+        plt.figure(figsize=(num_ions*0.7, num_ions*0.2))
 
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
@@ -410,6 +414,7 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
         plt.title(f"{protein} FDR: {fdr:.1e}")
     if saveloc is not None:
         plt.savefig(saveloc)
+
 
     plt.show()
 
@@ -734,3 +739,12 @@ def initialize_sample2cond(samplemap):
     samplemap_df = pd.read_csv(samplemap, sep = "\t")
     sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
     return samplemap_df, sample2cond
+
+# Cell
+from anytree import JsonImporter
+import os
+import alphaquant.diffquant_utils as aqutils
+def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
+    condpairname = utils.get_condpairname([cond1, cond2])
+    tree_file = os.path.join(results_folder, f"{condpairname}.iontree.tsv")
+

@@ -8,7 +8,7 @@ print(os.path.abspath(results_folder))
 
 
 #input_file = os.path.join(tabledir,"diann.tsv" )
-input_file = os.path.join(tabledir, "spectronaut.tsv")
+input_file = os.path.join(tabledir, "spectronaut_frgion.tsv")
 #input_file = os.path.join(tabledir, "mq_peptides.txt")
 
 #samplemap_file = os.path.join(tabledir, "samplemap.diann.tsv")
