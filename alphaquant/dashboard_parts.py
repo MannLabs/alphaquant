@@ -217,10 +217,9 @@ class RunPipeline(BaseWidget):
             # object='test warning message',
             margin=(-20, 10, -5, 16),
         )
-        self.data = None
 
     def create(self):
-        LAYOUT = pn.Card(
+        self.layout = pn.Card(
             pn.Row(
                 pn.Column(
                     self.path_analysis_file,
@@ -287,7 +286,7 @@ class RunPipeline(BaseWidget):
             self.visualize_data,
             'clicks'
         )
-        return LAYOUT
+        return self.layout
 
     def activate_after_analysis_file_upload(self, *args):
         self.set_default_output_folder()
@@ -365,54 +364,63 @@ class RunPipeline(BaseWidget):
 
 class Tabs(object):
 
-    def __init__(self):
-        self.LAYOUT = None
+    def __init__(self, pipeline):
+        self.layout = None
+        self.pipeline = pipeline
 
-    def create(self, *args):
-        UPDATED.param.watch(
-            self.fill_layout(*args),
-            'value'
-        )
-        return self.LAYOUT
+    def create(
+        self,
+        # tab_list=None
+    ):
+        # self.tabs = tab_list
+        return self.pipeline.depends(self.create_layout)
 
-    def fill_layout(self, *args):
-        self.LAYOUT = pn.Tabs(
-            *args,
-            active=0,
-            tabs_location='above',
-            sizing_mode='stretch_width',
-            margin=(5, 8, 10, 8)
-        )
+    def create_layout(self, *args):
+        if self.pipeline.path_output_folder.value is not None and self.pipeline.visualize_data_button.clicks != 0:
+            self.pipeline.layout.collapsed = True
+            self.layout = pn.Tabs(
+                tabs_location='above',
+                margin=(30, 10, 5, 8),
+                sizing_mode='stretch_width',
+            )
+            # self.layout += self.tabs
+            self.layout += [
+                ('Multiple Comparison', MultipleComparison(self.pipeline.path_output_folder.value).create()
+                ),
+                ('Single Comparison', SingleComparison(self.pipeline.path_output_folder.value).create()
+                ),
+            ]
+            self.active = 0
+            return self.layout
 
 
 class MultipleComparison(object):
 
     def __init__(self, output_folder):
         self.condpairs_to_compare = pn.widgets.CrossSelector(
-            options=['c2_vs_c12', 'c12_vs_c2'],
             width=870,
             height=300,
             align='center',
             margin=(15, 15, 15, 15)
         )
         self.output_folder = output_folder
-        self.LAYOUT = None
+        self.layout = None
         self.heatmap = None
 
     def create(self):
-        self.condpairs_to_compare.options = self.extract_conditions_from_folder()
+        self.extract_conditions_from_folder()
         self.condpairs_to_compare.param.watch(
             self.return_clustered_heatmap,
             'value'
         )
-        self.LAYOUT = pn.Column(
+        self.layout = pn.Column(
             self.condpairs_to_compare,
             self.heatmap
         )
-        return self.LAYOUT
+        return self.layout
 
     def extract_conditions_from_folder(self):
-        return [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
+        self.condpairs_to_compare.options = [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
 
     def return_clustered_heatmap(self, *args):
         if self.condpairs_to_compare.value:
@@ -427,7 +435,86 @@ class MultipleComparison(object):
 
         clustered_dataframe = aqplot.get_clustered_dataframe(overview_dataframe)
 
-        self.LAYOUT[1] = pn.Pane(
+        self.layout[1] = pn.Pane(
+            self.plot_heatmap(
+                clustered_dataframe.T,
+                title='Significant proteins heatmap',
+                colormap='RdBu'
+            )
+        )
+
+    def plot_heatmap(self, df, title, colormap):
+        """
+        This function plots a simple Heatmap.
+        """
+        print('inside plotting function')
+        fig = go.Figure()
+        fig.update_layout(
+            title={
+                'text': title,
+                'y': 0.95,
+                'x': 0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            height=1000,
+            width=700,
+            annotations=[dict(xref='paper', yref='paper', showarrow=False, text='')],
+            template='plotly_white'
+        )
+        fig.add_trace(
+            go.Heatmap(
+                z=df.values.tolist(),
+                x = list(df.columns),
+                y = list(df.index),
+                colorscale=colormap
+            )
+        )
+        return fig
+
+
+class SingleComparison(object):
+
+    def __init__(self, output_folder):
+        self.condpairs_to_compare = pn.widgets.CrossSelector(
+            width=870,
+            height=300,
+            align='center',
+            margin=(15, 15, 15, 15)
+        )
+        self.output_folder = output_folder
+        self.layout = None
+        self.heatmap = None
+
+    def create(self):
+        self.extract_conditions_from_folder()
+        self.condpairs_to_compare.param.watch(
+            self.return_clustered_heatmap,
+            'value'
+        )
+        self.layout = pn.Column(
+            self.condpairs_to_compare,
+            self.heatmap
+        )
+        return self.layout
+
+    def extract_conditions_from_folder(self):
+        self.condpairs_to_compare.options = [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
+
+    def return_clustered_heatmap(self, *args):
+        if self.condpairs_to_compare.value:
+            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.value]
+        else:
+            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.options]
+
+        overview_dataframe = aqplot.get_sample_overview_dataframe(
+            results_folder=self.output_folder,
+            condpairs_to_compare=cond_combinations
+        )
+
+        clustered_dataframe = aqplot.get_clustered_dataframe(overview_dataframe)
+
+        self.layout[1] = pn.Pane(
             self.plot_heatmap(
                 clustered_dataframe.T,
                 title='Significant proteins heatmap',
