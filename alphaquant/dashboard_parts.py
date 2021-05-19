@@ -13,7 +13,21 @@ import alphaquant.visualizations as aqplot
 import panel as pn
 import plotly.graph_objs as go
 
-UPDATED = pn.widgets.IntInput(value=0)
+
+class BaseWidget(object):
+
+    def __init__(self, name):
+        self.name = name
+        self.__update_event = pn.widgets.IntInput(value=0)
+        self.depends = pn.depends(self.__update_event.param.value)
+        self.active_depends = pn.depends(
+            self.__update_event.param.value,
+            watch=True
+        )
+
+    def trigger_dependancy(self):
+        self.__update_event.value += 1
+
 
 class HeaderWidget(object):
     """This class creates a layout for the header of the dashboard with the name of the tool and all links to the MPI website, the MPI Mann Lab page and the GitHub repo.
@@ -36,11 +50,12 @@ class HeaderWidget(object):
 
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         title,
         img_folder_path,
         github_url
-        ):
+    ):
         self.header_title = pn.pane.Markdown(
             f'# {title}',
             sizing_mode='stretch_width',
@@ -60,7 +75,7 @@ class HeaderWidget(object):
 
         self.mpi_biochem_logo = pn.pane.PNG(
             self.biochem_logo_path,
-            link_url='https://www.biochem.mpg.de/en',
+            link_url='https://www.biochem.mpg.de/mann',
             width=60,
             height=60,
             align='start'
@@ -81,7 +96,6 @@ class HeaderWidget(object):
             align='end'
         )
 
-
     def create(self):
         return pn.Row(
             self.mpi_biochem_logo,
@@ -95,7 +109,8 @@ class HeaderWidget(object):
 
 class MainWidget(object):
 
-    def __init__(self,
+    def __init__(
+        self,
         description,
         manual_path
     ):
@@ -116,7 +131,6 @@ class MainWidget(object):
             margin=(0, 20, 0, 0)
         )
 
-
     def create(self):
         LAYOUT = pn.Row(
             self.project_description,
@@ -132,7 +146,7 @@ class MainWidget(object):
         return LAYOUT
 
 
-class RunAnalysis(object):
+class RunPipeline(BaseWidget):
 
     def __init__(self):
         # DATA FILES
@@ -202,10 +216,7 @@ class RunAnalysis(object):
             # object='test warning message',
             margin=(-20, 10, -5, 16),
         )
-        # self.updated = pn.widgets.IntInput(value=0)
         self.data = None
-
-
 
     def create(self):
         LAYOUT = pn.Card(
@@ -255,32 +266,26 @@ class RunAnalysis(object):
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
-
-        self.activate_after_analysis_file_upload = pn.depends(
-            self.path_analysis_file.param.value,
-            watch=True
-        )(self.activate_after_analysis_file_upload)
-
-        self.update_samplemap = pn.depends(
-            self.samplemap.param.value,
-            watch=True
-        )(self.update_samplemap)
-
-        self.add_conditions_for_assignment = pn.depends(
-            self.samplemap_table.param.value,
-            watch=True
-        )(self.add_conditions_for_assignment)
-
-        self.run_pipeline = pn.depends(
-            self.run_pipeline_button.param.clicks,
-            watch=True
-        )(self.run_pipeline)
-
-        self.visualize_data = pn.depends(
-            self.visualize_data_button.param.clicks,
-            watch=True
-        )(self.visualize_data)
-
+        self.path_analysis_file.param.watch(
+            self.activate_after_analysis_file_upload,
+            'value'
+        )
+        self.samplemap.param.watch(
+            self.update_samplemap,
+            'value'
+        )
+        self.samplemap_table.param.watch(
+            self.add_conditions_for_assignment,
+            'value'
+        )
+        self.run_pipeline_button.param.watch(
+            self.run_pipeline,
+            'clicks'
+        )
+        self.visualize_data_button.param.watch(
+            self.visualize_data,
+            'clicks'
+        )
         return LAYOUT
 
 
