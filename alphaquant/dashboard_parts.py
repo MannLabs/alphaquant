@@ -1,9 +1,10 @@
 import os
 import re
 from io import StringIO
-from itertools import permutations
+import itertools
 import pandas as pd
 import numpy as np
+from scipy import stats
 
 # alphaquant important
 import alphaquant.diffquant_utils as aqutils
@@ -13,6 +14,7 @@ import alphaquant.visualizations as aqplot
 # visualization
 import panel as pn
 import plotly.graph_objs as go
+import matplotlib.pyplot as plt
 
 
 class BaseWidget(object):
@@ -333,7 +335,7 @@ class RunPipeline(BaseWidget):
 
     def add_conditions_for_assignment(self, *args):
         unique_condit = self.samplemap_table.value.condition.unique()
-        comb_condit = ['_vs_'.join(comb) for comb in permutations(unique_condit, 2)]
+        comb_condit = ['_vs_'.join(comb) for comb in itertools.permutations(unique_condit, 2)]
         self.assign_cond_pairs.options = comb_condit
 
     def run_pipeline(self, *args):
@@ -496,7 +498,10 @@ class SingleComparison(object):
         )
         self.layout = pn.Column(
             self.condpairs_selector,
-            self.volcano_plot
+            pn.Row(
+                self.volcano_plot,
+                None
+            )
         )
         return self.layout
 
@@ -512,11 +517,19 @@ class SingleComparison(object):
                 cond2,
                 results_folder=self.output_folder
             )
+            normalized_intensity_df = aqplot.get_normed_peptides_dataframe(
+                cond1,
+                cond2,
+                results_folder=self.output_folder
+            )
 
-            self.layout[1] = pn.Pane(
+            self.layout[1][0] = pn.Pane(
                 self.plot_volcano(
                     result_df
                 )
+            )
+            self.layout[1][1] = pn.Pane(
+                self.plot_withincond_fcs(normalized_intensity_df)
             )
         else:
             self.layout[1] = self.volcano_plot
@@ -637,5 +650,26 @@ class SingleComparison(object):
             ),
             showlegend=False,
         )
+
+        return fig
+
+
+    def plot_withincond_fcs(self, normed_intensity_df, cut_extremes = True):
+        """takes a normalized intensity dataframe and plots the fold change distribution between all samples. Column = sample, row = ion"""
+        fig = plt.figure(figsize=(10, 5))
+        samplecombs = list(itertools.combinations(normed_intensity_df.columns, 2))
+
+        for spair in samplecombs:#compare all pairs of samples
+            s1 = spair[0]
+            s2 = spair[1]
+            diff_fcs = normed_intensity_df[s1].to_numpy() - normed_intensity_df[s2].to_numpy() #calculate fold changes by subtracting log2 intensities of both samples
+
+            if cut_extremes:
+                cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
+                range = (-cutoff, cutoff)
+            else:
+                range = None
+            plt.hist(diff_fcs, 80, density=True, histtype='step', range=range) #set the cutoffs to focus the visualization
+            plt.xlabel("log2 peptide fcs")
 
         return fig
