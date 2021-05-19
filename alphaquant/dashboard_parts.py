@@ -3,6 +3,7 @@ import re
 from io import StringIO
 from itertools import permutations
 import pandas as pd
+import numpy as np
 
 # alphaquant important
 import alphaquant.diffquant_utils as aqutils
@@ -476,53 +477,52 @@ class MultipleComparison(object):
 class SingleComparison(object):
 
     def __init__(self, output_folder):
-        self.condpairs_to_compare = pn.widgets.CrossSelector(
+        self.condpairs_selector = pn.widgets.Select(
+            name='Select a pair of conditions:',
+            options=['No conditions'],
             width=870,
-            height=300,
             align='center',
             margin=(15, 15, 15, 15)
         )
         self.output_folder = output_folder
         self.layout = None
-        self.heatmap = None
+        self.volcano_plot = None
 
     def create(self):
         self.extract_conditions_from_folder()
-        self.condpairs_to_compare.param.watch(
-            self.return_clustered_heatmap,
+        self.condpairs_selector.param.watch(
+            self.return_volcano_plot,
             'value'
         )
         self.layout = pn.Column(
-            self.condpairs_to_compare,
-            self.heatmap
+            self.condpairs_selector,
+            self.volcano_plot
         )
         return self.layout
 
     def extract_conditions_from_folder(self):
-        self.condpairs_to_compare.options = [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
+        self.condpairs_selector.options.extend([f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)])
 
-    def return_clustered_heatmap(self, *args):
-        if self.condpairs_to_compare.value:
-            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.value]
-        else:
-            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.options]
+    def return_volcano_plot(self, *args):
+        if self.condpairs_selector.value != 'No conditions':
+            cond1, cond2 = self.condpairs_selector.value.split('_vs_')
 
-        overview_dataframe = aqplot.get_sample_overview_dataframe(
-            results_folder=self.output_folder,
-            condpairs_to_compare=cond_combinations
-        )
-
-        clustered_dataframe = aqplot.get_clustered_dataframe(overview_dataframe)
-
-        self.layout[1] = pn.Pane(
-            self.plot_heatmap(
-                clustered_dataframe.T,
-                title='Significant proteins heatmap',
-                colormap='RdBu'
+            result_df = aqplot.get_diffresult_dataframe(
+                cond1,
+                cond2,
+                results_folder=self.output_folder
             )
-        )
 
-    def volcano_plot(
+            self.layout[1] = pn.Pane(
+                self.plot_volcano(
+                    result_df
+                )
+            )
+        else:
+            self.layout[1] = self.volcano_plot
+
+    def plot_volcano(
+        self,
         result_df,
         fc_header = "log2fc",
         fdr_header = "fdr",
@@ -613,11 +613,11 @@ class SingleComparison(object):
 
         maxfc = max(abs(result_df[fc_header])) + 0.5
         fig.update_layout(
-            height=700,
-            width=500,
+            height=500,
+            width=870,
             template='plotly_white',
             title=dict(
-                text=f"{sighits_up} up, {sighits_down} down of {len(result_df)}",
+                text=f"{sighits_down} down, {sighits_up} up of {len(result_df)}",
                 y=0.92,
                 x=0.5,
                 xanchor='center',
