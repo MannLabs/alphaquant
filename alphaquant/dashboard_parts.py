@@ -522,31 +522,120 @@ class SingleComparison(object):
             )
         )
 
-    def plot_heatmap(self, df, title, colormap):
-        """
-        This function plots a simple Heatmap.
-        """
-        print('inside plotting function')
+    def volcano_plot(
+        result_df,
+        fc_header = "log2fc",
+        fdr_header = "fdr",
+        significance_cutoff = 0.05,
+        log2fc_cutoff = 0.5,
+        ybound = None,
+        xbound = None,
+        color='darkgrey',
+        marker_size=5,
+        name=None,
+        opacity=0.9,
+        marker_symbol='circle'
+    ):
+        result_df[fdr_header] = result_df[fdr_header].replace(0, np.min(result_df[fdr_header].replace(0, 1.0)))
+        sighits_down = sum((result_df[fdr_header]<significance_cutoff) & (result_df[fc_header] <= -log2fc_cutoff))
+        sighits_up = sum((result_df[fdr_header]<significance_cutoff) & (result_df[fc_header] >= log2fc_cutoff))
+        result_df_significant = result_df[
+            ((result_df[fdr_header] < significance_cutoff) & (result_df[fc_header] <= -log2fc_cutoff)) |
+            ((result_df[fdr_header] < significance_cutoff) & (result_df[fc_header] >= log2fc_cutoff))
+        ]
         fig = go.Figure()
-        fig.update_layout(
-            title={
-                'text': title,
-                'y': 0.95,
-                'x': 0.5,
-                'xanchor': 'center',
-                'yanchor': 'top'
-            },
-            height=1000,
-            width=700,
-            annotations=[dict(xref='paper', yref='paper', showarrow=False, text='')],
-            template='plotly_white'
-        )
         fig.add_trace(
-            go.Heatmap(
-                z=df.values.tolist(),
-                x = list(df.columns),
-                y = list(df.index),
-                colorscale=colormap
+            go.Scatter(
+                name='',
+                x=result_df[fc_header],
+                y=result_df['-log10fdr'],
+                mode='markers',
+                text=result_df['protein'],
+                marker=dict(
+                    size=marker_size,
+                    symbol=marker_symbol,
+                    color=color,
+                    opacity=opacity,
+                    line=dict(
+                        width=1,
+                        color='#202020'
+                    ),
+                    showscale=False
+                ),
+                hovertemplate =
+                    '<b>protein:</b> %{text}'
+                    '<br><b>log2fc</b>: %{x:.2f}'+
+                    '<br><b>-log10fdr</b>: %{y:.2f}<br>',
             )
         )
+        fig.add_trace(
+            go.Scatter(
+                name='',
+                x=result_df_significant[fc_header],
+                y=result_df_significant['-log10fdr'],
+                mode='markers',
+                text=result_df_significant['protein'],
+                marker=dict(
+                    size=marker_size,
+                    symbol=marker_symbol,
+                    color='darkgreen',
+                    opacity=opacity,
+                    line=dict(
+                        width=1,
+                        color='#202020'
+                    ),
+                    showscale=False
+                ),
+                hovertemplate =
+                    '<b>protein:</b> %{text}'
+                    '<br><b>log2fc</b>: %{x:.2f}'+
+                    '<br><b>-log10fdr</b>: %{y:.2f}<br>',
+            )
+        )
+        fig.add_hline(
+            y=-np.log10(significance_cutoff),
+            line_width=1,
+            line_dash="dash",
+            line_color="green"
+        )
+        fig.add_vline(
+            x=log2fc_cutoff,
+            line_width=1,
+            line_dash="dash",
+            line_color="green"
+        )
+        fig.add_vline(
+            x=-log2fc_cutoff,
+            line_width=1,
+            line_dash="dash",
+            line_color="green"
+        )
+
+        maxfc = max(abs(result_df[fc_header])) + 0.5
+        fig.update_layout(
+            height=700,
+            width=500,
+            template='plotly_white',
+            title=dict(
+                text=f"{sighits_up} up, {sighits_down} down of {len(result_df)}",
+                y=0.92,
+                x=0.5,
+                xanchor='center',
+                yanchor='middle',
+            ),
+            titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
+            hovermode='closest',
+            xaxis=dict(
+                range=[-maxfc,maxfc],
+                title='log2 fold change',
+                titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
+            ),
+            yaxis=dict(
+                title='-log10 FDR',
+                titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
+                range=[-0.1, max(-np.log10(result_df[fdr_header])) + 0.5],
+            ),
+            showlegend=False,
+        )
+
         return fig
