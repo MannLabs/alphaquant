@@ -149,6 +149,7 @@ class MainWidget(object):
 class RunPipeline(BaseWidget):
 
     def __init__(self):
+        super().__init__(name="Data")
         # DATA FILES
         self.path_analysis_file = pn.widgets.TextInput(
             name='Specify an analysis file:',
@@ -288,18 +289,15 @@ class RunPipeline(BaseWidget):
         )
         return LAYOUT
 
-
     def activate_after_analysis_file_upload(self, *args):
         self.set_default_output_folder()
         self.import_exp_data()
         self.extract_sample_names()
 
-
     def natural_sort(self, l):
         convert = lambda text: int(text) if text.isdigit() else text.lower()
         alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
         return sorted(l, key = alphanum_key)
-
 
     def set_default_output_folder(self):
         if not self.path_output_folder.value:
@@ -308,20 +306,17 @@ class RunPipeline(BaseWidget):
                 'results'
             )
 
-
     def import_exp_data(self):
         self.data = aqutils.import_data(
             input_file=self.path_analysis_file.value,
             results_folder=self.path_output_folder.value
         )
 
-
     def extract_sample_names(self):
         sample_names = aqutils.get_samplenames(self.data)
         self.samplemap_table.value = pd.DataFrame(
             data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )
-
 
     def update_samplemap(self, *args):
         file_ext = os.path.splitext(self.samplemap.filename)[-1]
@@ -336,15 +331,12 @@ class RunPipeline(BaseWidget):
             sep=sep
         )
 
-
     def add_conditions_for_assignment(self, *args):
         unique_condit = self.samplemap_table.value.condition.unique()
         comb_condit = ['_vs_'.join(comb) for comb in permutations(unique_condit, 2)]
         self.assign_cond_pairs.options = comb_condit
 
-
     def run_pipeline(self, *args):
-        global UPDATED
         self.run_pipeline_progress.active = True
 
         data_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(
@@ -352,10 +344,10 @@ class RunPipeline(BaseWidget):
             self.samplemap_table.value
         )
 
-        if self.assign_cond_pairs.options:
+        if self.assign_cond_pairs.value:
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.assign_cond_pairs.value]
         else:
-            cond_combinations = None
+            cond_combinations = [tuple(pair.split('_vs_')) for pair in self.assign_cond_pairs.options]
 
         diffmgr.run_pipeline(
             unnormed_df=data_processed,
@@ -364,14 +356,11 @@ class RunPipeline(BaseWidget):
             condpair_combinations=cond_combinations
         )
 
+        self.trigger_dependancy()
         self.run_pipeline_progress.active = False
-        UPDATED.value += 1
-
 
     def visualize_data(self, *args):
-        global UPDATED
-        print(UPDATED)
-        UPDATED.value += 1
+        self.trigger_dependancy()
 
 
 class Tabs(object):
@@ -379,14 +368,12 @@ class Tabs(object):
     def __init__(self):
         self.LAYOUT = None
 
-
     def create(self, *args):
         UPDATED.param.watch(
             self.fill_layout(*args),
             'value'
         )
         return self.LAYOUT
-
 
     def fill_layout(self, *args):
         self.LAYOUT = pn.Tabs(
@@ -412,7 +399,6 @@ class MultipleComparison(object):
         self.LAYOUT = None
         self.heatmap = None
 
-
     def create(self):
         self.condpairs_to_compare.options = self.extract_conditions_from_folder()
         self.condpairs_to_compare.param.watch(
@@ -425,13 +411,10 @@ class MultipleComparison(object):
         )
         return self.LAYOUT
 
-
     def extract_conditions_from_folder(self):
         return [f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)]
 
-
     def return_clustered_heatmap(self, *args):
-
         if self.condpairs_to_compare.value:
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.value]
         else:
@@ -451,7 +434,6 @@ class MultipleComparison(object):
                 colormap='RdBu'
             )
         )
-
 
     def plot_heatmap(self, df, title, colormap):
         """
