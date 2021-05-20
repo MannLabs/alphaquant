@@ -15,6 +15,7 @@ import alphaquant.visualizations as aqplot
 import panel as pn
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
+import seaborn as sns
 from holoviews.streams import Selection1D
 
 
@@ -509,6 +510,10 @@ class SingleComparison(object):
             self.return_volcano_plot,
             'value'
         )
+        self.protein.param.watch(
+            self.visualize_after_protein_selection,
+            'value'
+        )
         self.layout = pn.Column(
             self.condpairs_selector,
             pn.Row(
@@ -728,7 +733,7 @@ class SingleComparison(object):
 
         return fig
 
-    def beeswarm_ion_plot(df_melted, diffresults_protein, saveloc = None):
+    def beeswarm_ion_plot(self, df_melted, diffresults_protein, saveloc = None):
         """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
           Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
           to annotate the plot"""
@@ -761,7 +766,7 @@ class SingleComparison(object):
         return fig
 
 
-    def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
+    def foldchange_ion_plot(self, df_melted, diffresults_protein, saveloc = None):
         """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
         are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
           to annotate the plot"""
