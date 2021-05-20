@@ -15,6 +15,7 @@ import alphaquant.visualizations as aqplot
 import panel as pn
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
+from holoviews.streams import Selection1D
 
 
 class BaseWidget(object):
@@ -388,9 +389,14 @@ class Tabs(object):
             )
             # self.layout += self.tabs
             self.layout += [
-                ('Multiple Comparison', MultipleComparison(self.pipeline.path_output_folder.value).create()
+                ('Multiple Comparison', MultipleComparison(
+                    self.pipeline.path_output_folder.value
+                    ).create()
                 ),
-                ('Single Comparison', SingleComparison(self.pipeline.path_output_folder.value).create()
+                ('Single Comparison', SingleComparison(
+                    self.pipeline.path_output_folder.value,
+                    self.pipeline.samplemap_table.value,
+                    ).create()
                 ),
             ]
             self.active = 0
@@ -478,7 +484,7 @@ class MultipleComparison(object):
 
 class SingleComparison(object):
 
-    def __init__(self, output_folder):
+    def __init__(self, output_folder, sample_to_cond):
         self.condpairs_selector = pn.widgets.Select(
             name='Select a pair of conditions:',
             options=['No conditions'],
@@ -486,7 +492,14 @@ class SingleComparison(object):
             align='center',
             margin=(15, 15, 15, 15)
         )
+        self.protein = pn.widgets.AutocompleteInput(
+            name='Select protein:',
+            placeholder="Type the first letters of the protein's name",
+            min_characters=2,
+            disabled=True
+        )
         self.output_folder = output_folder
+        self.sample_to_cond = sample_to_cond
         self.layout = None
         self.volcano_plot = None
 
@@ -501,8 +514,14 @@ class SingleComparison(object):
             pn.Row(
                 self.volcano_plot,
                 None
+            ),
+            pn.Row(
+                self.protein,
+                None,
+                None
             )
         )
+        # print(self.layout)
         return self.layout
 
     def extract_conditions_from_folder(self):
@@ -510,29 +529,64 @@ class SingleComparison(object):
 
     def return_volcano_plot(self, *args):
         if self.condpairs_selector.value != 'No conditions':
-            cond1, cond2 = self.condpairs_selector.value.split('_vs_')
+            self.cond1, self.cond2 = self.condpairs_selector.value.split('_vs_')
 
-            result_df = aqplot.get_diffresult_dataframe(
-                cond1,
-                cond2,
+            self.result_df = aqplot.get_diffresult_dataframe(
+                self.cond1,
+                self.cond2,
                 results_folder=self.output_folder
             )
-            normalized_intensity_df = aqplot.get_normed_peptides_dataframe(
-                cond1,
-                cond2,
+
+            self.protein.options = self.result_df.protein.values.tolist()
+            self.protein.disabled = False
+            self.normalized_intensity_df = aqplot.get_normed_peptides_dataframe(
+                self.cond1,
+                self.cond2,
                 results_folder=self.output_folder
             )
+
+            self.volcano_plot = self.plot_volcano(
+                self.result_df
+            )
+
+            # selection = Selection1D(source=self.volcano_plot)
 
             self.layout[1][0] = pn.Pane(
-                self.plot_volcano(
-                    result_df
-                )
+                self.volcano_plot
             )
             self.layout[1][1] = pn.Pane(
-                self.plot_withincond_fcs(normalized_intensity_df)
+                self.plot_withincond_fcs(self.normalized_intensity_df)
             )
         else:
-            self.layout[1] = self.volcano_plot
+            self.layout[1][0] = None
+
+    def visualize_after_protein_selection(self, *args):
+        sample2cond = dict(zip(self.sample_to_cond["sample"], self.sample_to_cond["condition"]))
+
+        result_df_protein_index = self.result_df.set_index("protein")
+
+        melted_df, protein_df = aqplot.get_melted_protein_ion_intensity_table(
+            self.protein.value,
+            result_df_protein_index,
+            self.normalized_intensity_df,
+            sample2cond
+        )
+
+        #get fold change data table for protein
+        fc_df = aqplot.get_betweencond_fcs_table(
+            melted_df,
+            self.cond1,
+            self.cond2
+        )
+
+        self.layout[2][1] = pn.Pane(
+            self.beeswarm_ion_plot(melted_df, protein_df)
+        )
+        self.layout[2][2] = pn.Pane(
+            self.foldchange_ion_plot(fc_df, protein_df)
+        )
+
+
 
     def plot_volcano(
         self,
@@ -671,5 +725,69 @@ class SingleComparison(object):
                 range = None
             plt.hist(diff_fcs, 80, density=True, histtype='step', range=range) #set the cutoffs to focus the visualization
             plt.xlabel("log2 peptide fcs")
+
+        return fig
+
+    def beeswarm_ion_plot(df_melted, diffresults_protein, saveloc = None):
+        """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
+          Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
+          to annotate the plot"""
+
+        fig = plt.figure(figsize=(10, 5))
+
+        #get annotations from diffresults
+        fdr = float(diffresults_protein.at["fdr"])
+        protein = diffresults_protein.name
+
+        #define greyscale color palette for the two conditions
+        pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
+
+        #searborn standard functions
+        ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette=pal2)
+        ax = sns.stripplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
+
+        #annotate and format
+        handles, labels = ax.get_legend_handles_labels()
+
+        l = plt.legend(handles[2:4], labels[2:4])
+
+        plt.xticks(rotation=90)
+        if "gene" in diffresults_protein.index:
+            gene = diffresults_line.at["gene"]
+            plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
+        else:
+            plt.title(f"{protein} FDR: {fdr:.1e}")
+
+        return fig
+
+
+    def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
+        """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
+        are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
+          to annotate the plot"""
+
+        fig = plt.figure(figsize=(10, 5))
+
+        #get annotations from diffresults
+        fdr = float(diffresults_protein.at["fdr"])
+        protein = diffresults_protein.name
+
+        #define greyscale color palette
+        pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
+
+        #plot with seaborn standard functions
+        ax = sns.boxplot(x="ion", y="log2fc", data=df_melted, color = "white")
+        ax = sns.stripplot(x="ion", y="log2fc", data=df_melted, color = "grey")
+
+        #annotate and format
+        handles, labels = ax.get_legend_handles_labels()
+        ax.axhline(y = 0, color='black', linewidth=2, alpha=.7, linestyle = "dashed")
+        l = plt.legend(handles[2:4], labels[2:4])
+        plt.xticks(rotation=90)
+        if "gene" in diffresults_protein.index:
+            gene = diffresults_line.at["gene"]
+            plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
+        else:
+            plt.title(f"{protein} FDR: {fdr:.1e}")
 
         return fig
