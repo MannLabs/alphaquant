@@ -518,7 +518,12 @@ class SingleComparison(object):
             self.condpairs_selector,
             pn.Row(
                 self.volcano_plot,
-                None
+                pn.Column(
+                    None,
+                    None,
+                    None,
+                    None
+                )
             ),
             pn.Row(
                 self.protein,
@@ -541,14 +546,26 @@ class SingleComparison(object):
                 self.cond2,
                 results_folder=self.output_folder
             )
-
-            self.protein.options = self.result_df.protein.values.tolist()
-            self.protein.disabled = False
             self.normalized_intensity_df = aqplot.get_normed_peptides_dataframe(
                 self.cond1,
                 self.cond2,
                 results_folder=self.output_folder
             )
+            self.sample2cond = dict(zip(self.sample_to_cond["sample"], self.sample_to_cond["condition"]))
+
+            c1_normed = aqplot.subset_normed_peptides_df_to_condition(
+                self.cond1,
+                self.sample_to_cond,
+                self.normalized_intensity_df
+            )
+            c2_normed = aqplot.subset_normed_peptides_df_to_condition(
+                self.cond2,
+                self.sample_to_cond,
+                self.normalized_intensity_df
+            )
+
+            self.protein.options = self.result_df.protein.values.tolist()
+            self.protein.disabled = False
 
             self.volcano_plot = self.plot_volcano(
                 self.result_df
@@ -559,22 +576,37 @@ class SingleComparison(object):
             self.layout[1][0] = pn.Pane(
                 self.volcano_plot
             )
-            self.layout[1][1] = pn.Pane(
-                self.plot_withincond_fcs(self.normalized_intensity_df)
+            self.layout[1][1][0] = pn.Pane(
+                self.plot_withincond_fcs(self.normalized_intensity_df),
+                height=150,
+                width=500
+            )
+            self.layout[1][1][1] = pn.Pane(
+                self.plot_withincond_fcs(c1_normed),
+                height=125,
+                width=500
+            )
+            self.layout[1][1][2] = pn.Pane(
+                self.plot_withincond_fcs(c2_normed),
+                height=125,
+                width=500
+            )
+            self.layout[1][1][3] = pn.Pane(
+                self.plot_betweencond_fcs(c1_normed, c2_normed),
+                height=125,
+                width=500
             )
         else:
             self.layout[1][0] = None
 
     def visualize_after_protein_selection(self, *args):
-        sample2cond = dict(zip(self.sample_to_cond["sample"], self.sample_to_cond["condition"]))
-
         result_df_protein_index = self.result_df.set_index("protein")
 
         melted_df, protein_df = aqplot.get_melted_protein_ion_intensity_table(
             self.protein.value,
             result_df_protein_index,
             self.normalized_intensity_df,
-            sample2cond
+            self.sample2cond
         )
 
         #get fold change data table for protein
@@ -794,5 +826,29 @@ class SingleComparison(object):
             plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
         else:
             plt.title(f"{protein} FDR: {fdr:.1e}")
+
+        return fig
+
+
+    def plot_betweencond_fcs(self, df_c1_normed, df_c2_normed, merge_samples = True):
+        """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
+        fig = plt.figure(figsize=(10, 5))
+        if merge_samples: #samples can be merged to median intensity
+            df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
+            df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
+
+        both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
+        df1 = df_c1_normed.loc[both_idx]
+        df2 = df_c2_normed.loc[both_idx]
+
+        for col1 in df1.columns:
+            for col2 in df2.columns:
+                diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
+
+                plt.axvline(0, color = 'red', linestyle = "dashed") #the data is normalized around 0, draw in helper line
+                cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
+
+                plt.hist(diff_fcs,80,density=True, histtype='step', range=(-cutoff,cutoff)) #set the cutoffs to focus the visualization
+        plt.xlabel("log2(fc)")
 
         return fig
