@@ -497,7 +497,8 @@ class SingleComparison(object):
             name='Select protein:',
             placeholder="Type the first letters of the protein's name",
             min_characters=2,
-            disabled=True
+            disabled=True,
+            margin=(0, 40, 40, 10)
         )
         self.output_folder = output_folder
         self.sample_to_cond = sample_to_cond
@@ -520,11 +521,14 @@ class SingleComparison(object):
                 self.volcano_plot,
                 pn.Column(
                     None,
-                    None,
+                    None
+                ),
+                pn.Column(
                     None,
                     None
                 )
             ),
+            pn.layout.Divider(sizing_mode='stretch_width'),
             pn.Row(
                 self.protein,
                 None,
@@ -578,26 +582,27 @@ class SingleComparison(object):
             )
             self.layout[1][1][0] = pn.Pane(
                 self.plot_withincond_fcs(self.normalized_intensity_df),
-                height=150,
-                width=500
+                height=250,
+                width=400
             )
             self.layout[1][1][1] = pn.Pane(
                 self.plot_withincond_fcs(c1_normed),
-                height=125,
-                width=500
+                height=250,
+                width=400
             )
-            self.layout[1][1][2] = pn.Pane(
+            self.layout[1][2][0] = pn.Pane(
                 self.plot_withincond_fcs(c2_normed),
-                height=125,
-                width=500
+                height=250,
+                width=400
             )
-            self.layout[1][1][3] = pn.Pane(
+            self.layout[1][2][1] = pn.Pane(
                 self.plot_betweencond_fcs(c1_normed, c2_normed),
-                height=125,
-                width=500
+                height=250,
+                width=400
             )
         else:
             self.layout[1][0] = None
+
 
     def visualize_after_protein_selection(self, *args):
         result_df_protein_index = self.result_df.set_index("protein")
@@ -616,11 +621,13 @@ class SingleComparison(object):
             self.cond2
         )
 
-        self.layout[2][1] = pn.Pane(
-            self.beeswarm_ion_plot(melted_df, protein_df)
+        self.layout[3][1] = pn.Pane(
+            self.beeswarm_ion_plot(melted_df, protein_df),
+            margin=(10, 0, 50, 0)
         )
-        self.layout[2][2] = pn.Pane(
-            self.foldchange_ion_plot(fc_df, protein_df)
+        self.layout[3][2] = pn.Pane(
+            self.foldchange_ion_plot(fc_df, protein_df),
+            margin=(10, 0, 50, 0)
         )
 
 
@@ -747,7 +754,7 @@ class SingleComparison(object):
 
     def plot_withincond_fcs(self, normed_intensity_df, cut_extremes = True):
         """takes a normalized intensity dataframe and plots the fold change distribution between all samples. Column = sample, row = ion"""
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure()
         samplecombs = list(itertools.combinations(normed_intensity_df.columns, 2))
 
         for spair in samplecombs:#compare all pairs of samples
@@ -770,7 +777,7 @@ class SingleComparison(object):
           Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
           to annotate the plot"""
 
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure()
 
         #get annotations from diffresults
         fdr = float(diffresults_protein.at["fdr"])
@@ -788,7 +795,7 @@ class SingleComparison(object):
 
         l = plt.legend(handles[2:4], labels[2:4])
 
-        plt.xticks(rotation=90)
+        plt.xticks()
         if "gene" in diffresults_protein.index:
             gene = diffresults_line.at["gene"]
             plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
@@ -803,7 +810,7 @@ class SingleComparison(object):
         are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
           to annotate the plot"""
 
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure()
 
         #get annotations from diffresults
         fdr = float(diffresults_protein.at["fdr"])
@@ -820,7 +827,7 @@ class SingleComparison(object):
         handles, labels = ax.get_legend_handles_labels()
         ax.axhline(y = 0, color='black', linewidth=2, alpha=.7, linestyle = "dashed")
         l = plt.legend(handles[2:4], labels[2:4])
-        plt.xticks(rotation=90)
+        plt.xticks()
         if "gene" in diffresults_protein.index:
             gene = diffresults_line.at["gene"]
             plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
@@ -832,7 +839,7 @@ class SingleComparison(object):
 
     def plot_betweencond_fcs(self, df_c1_normed, df_c2_normed, merge_samples = True):
         """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
-        fig = plt.figure(figsize=(10, 5))
+        fig = plt.figure()
         if merge_samples: #samples can be merged to median intensity
             df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
             df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
