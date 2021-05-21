@@ -520,13 +520,16 @@ class SingleComparison(object):
             None,
             self.volcano_plot,
             pn.layout.Divider(sizing_mode='stretch_width'),
-            pn.Row(
+            pn.Column(
                 self.protein,
-                None,
-                None
+                pn.Row(
+                    None,
+                    None,
+                    sizing_mode='stretch_width'
+                )
             ),
             sizing_mode='stretch_width',
-            align='center'
+            # align='center'
         )
 
         return self.layout
@@ -639,13 +642,13 @@ class SingleComparison(object):
             self.cond2
         )
 
-        self.layout[4][1] = pn.Pane(
+        self.layout[4][1][0] = pn.Pane(
             self.beeswarm_ion_plot(melted_df, protein_df),
-            margin=(10, 0, 50, 0)
+            # margin=(10, 0, 50, 0)
         )
-        self.layout[4][2] = pn.Pane(
+        self.layout[4][1][1] = pn.Pane(
             self.foldchange_ion_plot(fc_df, protein_df),
-            margin=(10, 0, 50, 0)
+            # margin=(10, 0, 50, 0)
         )
 
 
@@ -885,35 +888,76 @@ class SingleComparison(object):
         )
         return fig
 
-    def beeswarm_ion_plot(self, df_melted, diffresults_protein, saveloc = None):
+    def beeswarm_ion_plot(
+        self,
+        df_melted,
+        diffresults_protein,
+    ):
         """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
           Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
           to annotate the plot"""
 
-        fig = plt.figure()
+        fig = go.Figure()
 
         #get annotations from diffresults
         fdr = float(diffresults_protein.at["fdr"])
         protein = diffresults_protein.name
 
-        #define greyscale color palette for the two conditions
-        pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
+        for cond, color, line_color in zip(df_melted.condition.unique(), ['#FF7F0E', '#2CA02C'], ['#808080', '#a6a6a6']):
+            data = df_melted[df_melted.condition == cond]
 
-        #searborn standard functions
-        ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette=pal2)
-        ax = sns.stripplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
+            fig.add_trace(
+                go.Box(
+                    x=data.ion,
+                    y=data.intensity,
+                    boxpoints='all',
+                    name=cond,
+                    line=dict(
+                        color=line_color
+                    ),
+                    marker=dict(
+                        color=color,
+                        opacity=0.7
+                    ),
+                    pointpos=0
+                )
+            )
 
-        #annotate and format
-        handles, labels = ax.get_legend_handles_labels()
 
-        l = plt.legend(handles[2:4], labels[2:4])
-
-        plt.xticks()
         if "gene" in diffresults_protein.index:
             gene = diffresults_line.at["gene"]
-            plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
+            title = f"{gene} ({protein}) FDR: {fdr:.1e}"
         else:
-            plt.title(f"{protein} FDR: {fdr:.1e}")
+            title = f"{protein} FDR: {fdr:.1e}"
+
+        fig.update_layout(
+            xaxis_title='ion',
+            yaxis_title='intensity',
+            boxmode='group', # group together boxes of the different traces for each value of x
+            template='plotly_white',
+            title = dict(
+                text=title,
+
+                y=0.85,
+                x=0.5,
+                xanchor='center',
+                yanchor='middle',
+            ),
+            titlefont=dict(
+                size=14,
+                color='black',
+                family='Arial, sans-serif'
+            ),
+            legend=dict(
+                title='conditions:',
+                orientation="h",
+                yanchor="bottom",
+                y=1.03,
+                xanchor="right",
+                x=1
+            ),
+            height=300,
+        )
 
         return fig
 
