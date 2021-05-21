@@ -517,25 +517,18 @@ class SingleComparison(object):
         )
         self.layout = pn.Column(
             self.condpairs_selector,
-            pn.Row(
-                self.volcano_plot,
-                pn.Column(
-                    None,
-                    None
-                ),
-                pn.Column(
-                    None,
-                    None
-                )
-            ),
+            None,
+            self.volcano_plot,
             pn.layout.Divider(sizing_mode='stretch_width'),
             pn.Row(
                 self.protein,
                 None,
                 None
-            )
+            ),
+            sizing_mode='stretch_width',
+            align='center'
         )
-        # print(self.layout)
+
         return self.layout
 
     def extract_conditions_from_folder(self):
@@ -573,37 +566,59 @@ class SingleComparison(object):
 
             self.volcano_plot = pn.pane.Plotly(
                 self.plot_volcano(
-                self.result_df
-            ), config={'responsive': True})
+                    self.result_df
+                    ),
+                align='center',
+                config={'responsive': True}
+            )
 
             self.volcano_plot.param.watch(
                 self.update_selected_protein,
                 'click_data'
             )
 
-            self.layout[1][0] = self.volcano_plot
-            self.layout[1][1][0] = pn.Pane(
-                self.plot_withincond_fcs(self.normalized_intensity_df),
-                height=250,
-                width=400
+            self.layout[1] = pn.Card(
+                pn.Pane(
+                    self.plot_withincond_fcs(
+                        self.normalized_intensity_df,
+                        'Log2 fold change distribution between all samples'
+                    ),
+                    align='center'
+
+                ),
+                pn.Pane(
+                    self.plot_withincond_fcs(
+                        c1_normed,
+                        f'Log2 fold change distribution between samples in condition {self.cond1}'
+                    ),
+                    align='center'
+                ),
+                pn.Pane(
+                    self.plot_withincond_fcs(
+                        c2_normed,
+                        f'Log2 fold change distribution between samples in condition {self.cond2}'
+                    ),
+                    align='center'
+                ),
+                pn.Pane(
+                    self.plot_betweencond_fcs(
+                        c1_normed,
+                        c2_normed
+                    ),
+                    height=200,
+                    width=400,
+                    align='center'
+                ),
+                header='Log2 fold change distribution plots',
+                collapsed=True,
+                align='center',
+                sizing_mode='stretch_width'
             )
-            self.layout[1][1][1] = pn.Pane(
-                self.plot_withincond_fcs(c1_normed),
-                height=250,
-                width=400
-            )
-            self.layout[1][2][0] = pn.Pane(
-                self.plot_withincond_fcs(c2_normed),
-                height=250,
-                width=400
-            )
-            self.layout[1][2][1] = pn.Pane(
-                self.plot_betweencond_fcs(c1_normed, c2_normed),
-                height=250,
-                width=400
-            )
+            self.layout[2] = self.volcano_plot
+
         else:
-            self.layout[1][0] = None
+            self.layout[1] = None
+            self.layout[2] = None
 
     def update_selected_protein(self, event):
         self.protein.value = str(event[2].click_data['points'][0]['text'])
@@ -625,11 +640,11 @@ class SingleComparison(object):
             self.cond2
         )
 
-        self.layout[3][1] = pn.Pane(
+        self.layout[4][1] = pn.Pane(
             self.beeswarm_ion_plot(melted_df, protein_df),
             margin=(10, 0, 50, 0)
         )
-        self.layout[3][2] = pn.Pane(
+        self.layout[4][2] = pn.Pane(
             self.foldchange_ion_plot(fc_df, protein_df),
             margin=(10, 0, 50, 0)
         )
@@ -756,24 +771,56 @@ class SingleComparison(object):
         return fig
 
 
-    def plot_withincond_fcs(self, normed_intensity_df, cut_extremes = True):
+    def plot_withincond_fcs(
+        self,
+        normed_intensity_df,
+        title,
+        cut_extremes = True
+    ):
         """takes a normalized intensity dataframe and plots the fold change distribution between all samples. Column = sample, row = ion"""
-        fig = plt.figure()
+        fig = go.Figure()
         samplecombs = list(itertools.combinations(normed_intensity_df.columns, 2))
-
+        cutoff_common = 0
         for spair in samplecombs:#compare all pairs of samples
             s1 = spair[0]
             s2 = spair[1]
             diff_fcs = normed_intensity_df[s1].to_numpy() - normed_intensity_df[s2].to_numpy() #calculate fold changes by subtracting log2 intensities of both samples
 
             if cut_extremes:
-                cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
-                range = (-cutoff, cutoff)
-            else:
-                range = None
-            plt.hist(diff_fcs, 80, density=True, histtype='step', range=range) #set the cutoffs to focus the visualization
-            plt.xlabel("log2 peptide fcs")
+                cutoff_cur = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
+                if cutoff_cur and cutoff_cur > cutoff_common:
+                    cutoff_common = cutoff_cur
 
+            n, bins, _ = plt.hist(diff_fcs, 100, density=True, histtype='step')
+            fig.add_trace(
+                go.Scatter(
+                    x=bins,
+                    y=n,
+                    mode='lines',
+                    line=dict(
+                        shape='hvh'
+                    )
+                )
+            )
+        fig.update_layout(
+            xaxis = dict(
+                title="log2 peptide fcs",
+                range=(-cutoff_common, cutoff_common)
+            ),
+            barmode='stack',
+            template='plotly_white',
+            showlegend=False,
+            title = dict(
+                    text=title,
+                    font=dict(size=16, color='black', family='Arial, sans-serif'),
+                    y=0.91,
+                    x=0.5,
+                    xanchor='center',
+                    yanchor='middle',
+                ),
+            height=400,
+            width=870,
+        )
         return fig
 
     def beeswarm_ion_plot(self, df_melted, diffresults_protein, saveloc = None):
