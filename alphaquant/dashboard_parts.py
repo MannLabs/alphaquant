@@ -529,7 +529,6 @@ class SingleComparison(object):
                 )
             ),
             sizing_mode='stretch_width',
-            # align='center'
         )
 
         return self.layout
@@ -842,16 +841,17 @@ class SingleComparison(object):
         df1 = df_c1_normed.loc[both_idx]
         df2 = df_c2_normed.loc[both_idx]
         cutoff_common = 0
+
+        fig.add_vline(
+            x=0,
+            line_width=1,
+            line_dash="dash",
+            line_color="red"
+        ) #the data is normalized around 0, draw in helper line
+
         for col1 in df1.columns:
             for col2 in df2.columns:
                 diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
-
-                fig.add_vline(
-                    x=0,
-                    line_width=1,
-                    line_dash="dash",
-                    line_color="red"
-                ) #the data is normalized around 0, draw in helper line
                 cutoff_cur = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
                 if cutoff_cur and cutoff_cur > cutoff_common:
                     cutoff_common = cutoff_cur
@@ -962,33 +962,68 @@ class SingleComparison(object):
         return fig
 
 
-    def foldchange_ion_plot(self, df_melted, diffresults_protein, saveloc = None):
+    def foldchange_ion_plot(
+        self,
+        df_melted,
+        diffresults_protein
+    ):
         """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
         are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
           to annotate the plot"""
 
-        fig = plt.figure()
+        fig = go.Figure()
 
         #get annotations from diffresults
         fdr = float(diffresults_protein.at["fdr"])
         protein = diffresults_protein.name
 
-        #define greyscale color palette
-        pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
+        fig.add_hline(
+            y=0,
+            line_width=2,
+            opacity=.7,
+            line_dash="dash",
+            line_color="black"
+        )
 
-        #plot with seaborn standard functions
-        ax = sns.boxplot(x="ion", y="log2fc", data=df_melted, color = "white")
-        ax = sns.stripplot(x="ion", y="log2fc", data=df_melted, color = "grey")
+        fig.add_trace(
+            go.Box(
+                x=df_melted.ion,
+                y=df_melted.log2fc,
+                boxpoints='all',
+                line=dict(
+                    color='lightgrey'
+                ),
+                marker=dict(
+                    color='grey',
+                    opacity=0.7
+                ),
+                pointpos=0
+            )
+        )
 
-        #annotate and format
-        handles, labels = ax.get_legend_handles_labels()
-        ax.axhline(y = 0, color='black', linewidth=2, alpha=.7, linestyle = "dashed")
-        l = plt.legend(handles[2:4], labels[2:4])
-        plt.xticks()
         if "gene" in diffresults_protein.index:
             gene = diffresults_line.at["gene"]
-            plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
+            title = f"{gene} ({protein}) FDR: {fdr:.1e}"
         else:
-            plt.title(f"{protein} FDR: {fdr:.1e}")
+            title = f"{protein} FDR: {fdr:.1e}"
+
+        fig.update_layout(
+            xaxis_title='ion',
+            yaxis_title='log2fc',
+            template='plotly_white',
+            title = dict(
+                text=title,
+                y=0.85,
+                x=0.5,
+                xanchor='center',
+                yanchor='middle',
+            ),
+            titlefont=dict(
+                size=14,
+                color='black',
+                family='Arial, sans-serif'
+            ),
+            height=300,
+        )
 
         return fig
