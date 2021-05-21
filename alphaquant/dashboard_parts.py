@@ -603,10 +603,9 @@ class SingleComparison(object):
                 pn.Pane(
                     self.plot_betweencond_fcs(
                         c1_normed,
-                        c2_normed
+                        c2_normed,
+                        'The distribution of direct peptide fold changes between conditions'
                     ),
-                    height=200,
-                    width=400,
                     align='center'
                 ),
                 header='Log2 fold change distribution plots',
@@ -823,6 +822,69 @@ class SingleComparison(object):
         )
         return fig
 
+    def plot_betweencond_fcs(
+        self,
+        df_c1_normed,
+        df_c2_normed,
+        title,
+        merge_samples = True
+    ):
+        """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
+        fig = go.Figure()
+        if merge_samples: #samples can be merged to median intensity
+            df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
+            df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
+
+        both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
+        df1 = df_c1_normed.loc[both_idx]
+        df2 = df_c2_normed.loc[both_idx]
+        cutoff_common = 0
+        for col1 in df1.columns:
+            for col2 in df2.columns:
+                diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
+
+                fig.add_vline(
+                    x=0,
+                    line_width=1,
+                    line_dash="dash",
+                    line_color="red"
+                ) #the data is normalized around 0, draw in helper line
+                cutoff_cur = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
+                if cutoff_cur and cutoff_cur > cutoff_common:
+                    cutoff_common = cutoff_cur
+
+                n, bins, _ = plt.hist(diff_fcs, 100, density=True, histtype='step')
+                fig.add_trace(
+                    go.Scatter(
+                        x=bins,
+                        y=n,
+                        mode='lines',
+                        line=dict(
+                            shape='hvh'
+                        )
+                    )
+                )
+
+        fig.update_layout(
+            xaxis = dict(
+                title="log2(fc)",
+                range=(-cutoff_common, cutoff_common)
+            ),
+            barmode='stack',
+            template='plotly_white',
+            showlegend=False,
+            title = dict(
+                text=title,
+                y=0.90,
+                x=0.5,
+                xanchor='center',
+                yanchor='middle',
+            ),
+            height=400,
+            width=870,
+        )
+        return fig
+
     def beeswarm_ion_plot(self, df_melted, diffresults_protein, saveloc = None):
         """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
           Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
@@ -884,29 +946,5 @@ class SingleComparison(object):
             plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
         else:
             plt.title(f"{protein} FDR: {fdr:.1e}")
-
-        return fig
-
-
-    def plot_betweencond_fcs(self, df_c1_normed, df_c2_normed, merge_samples = True):
-        """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
-        fig = plt.figure()
-        if merge_samples: #samples can be merged to median intensity
-            df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
-            df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
-
-        both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
-        df1 = df_c1_normed.loc[both_idx]
-        df2 = df_c2_normed.loc[both_idx]
-
-        for col1 in df1.columns:
-            for col2 in df2.columns:
-                diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
-
-                plt.axvline(0, color = 'red', linestyle = "dashed") #the data is normalized around 0, draw in helper line
-                cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
-
-                plt.hist(diff_fcs,80,density=True, histtype='step', range=(-cutoff,cutoff)) #set the cutoffs to focus the visualization
-        plt.xlabel("log2(fc)")
 
         return fig
