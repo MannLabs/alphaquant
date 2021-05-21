@@ -15,8 +15,6 @@ import alphaquant.visualizations as aqplot
 import panel as pn
 import plotly.graph_objs as go
 import matplotlib.pyplot as plt
-import seaborn as sns
-from holoviews.streams import Selection1D
 
 
 class BaseWidget(object):
@@ -508,7 +506,7 @@ class SingleComparison(object):
     def create(self):
         self.extract_conditions_from_folder()
         self.condpairs_selector.param.watch(
-            self.return_volcano_plot,
+            self.run_after_pair_cond_selection,
             'value'
         )
         self.protein.param.watch(
@@ -536,7 +534,7 @@ class SingleComparison(object):
     def extract_conditions_from_folder(self):
         self.condpairs_selector.options.extend([f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)])
 
-    def return_volcano_plot(self, *args):
+    def run_after_pair_cond_selection(self, *args):
         if self.condpairs_selector.value != 'No conditions':
             self.cond1, self.cond2 = self.condpairs_selector.value.split('_vs_')
 
@@ -567,9 +565,9 @@ class SingleComparison(object):
             self.protein.disabled = False
 
             self.volcano_plot = pn.pane.Plotly(
-                self.plot_volcano(
+                aqplot.plot_volcano_plotly(
                     self.result_df
-                    ),
+                ),
                 align='center',
                 config={'responsive': True}
             )
@@ -581,7 +579,7 @@ class SingleComparison(object):
 
             self.layout[1] = pn.Card(
                 pn.Pane(
-                    self.plot_withincond_fcs(
+                    aqplot.plot_withincond_fcs_plotly(
                         self.normalized_intensity_df,
                         'Log2 fold change distribution between all samples'
                     ),
@@ -589,21 +587,21 @@ class SingleComparison(object):
 
                 ),
                 pn.Pane(
-                    self.plot_withincond_fcs(
+                    aqplot.plot_withincond_fcs_plotly(
                         c1_normed,
                         f'Log2 fold change distribution between samples in condition {self.cond1}'
                     ),
                     align='center'
                 ),
                 pn.Pane(
-                    self.plot_withincond_fcs(
+                    aqplot.plot_withincond_fcs_plotly(
                         c2_normed,
                         f'Log2 fold change distribution between samples in condition {self.cond2}'
                     ),
                     align='center'
                 ),
                 pn.Pane(
-                    self.plot_betweencond_fcs(
+                    aqplot.plot_betweencond_fcs_plotly(
                         c1_normed,
                         c2_normed,
                         'The distribution of direct peptide fold changes between conditions'
@@ -642,388 +640,9 @@ class SingleComparison(object):
         )
 
         self.layout[4][1][0] = pn.Pane(
-            self.beeswarm_ion_plot(melted_df, protein_df),
-            # margin=(10, 0, 50, 0)
+            aqplot.beeswarm_ion_plot_plotly(melted_df, protein_df),
         )
         self.layout[4][1][1] = pn.Pane(
-            self.foldchange_ion_plot(fc_df, protein_df),
-            # margin=(10, 0, 50, 0)
+            aqplot.foldchange_ion_plot_plotly(fc_df, protein_df),
+
         )
-
-
-
-    def plot_volcano(
-        self,
-        result_df,
-        fc_header = "log2fc",
-        fdr_header = "fdr",
-        significance_cutoff = 0.05,
-        log2fc_cutoff = 0.5,
-        ybound = None,
-        xbound = None,
-        color='darkgrey',
-        marker_size=5,
-        name=None,
-        opacity=0.9,
-        marker_symbol='circle'
-    ):
-        result_df[fdr_header] = result_df[fdr_header].replace(0, np.min(result_df[fdr_header].replace(0, 1.0)))
-        sighits_down = sum((result_df[fdr_header]<significance_cutoff) & (result_df[fc_header] <= -log2fc_cutoff))
-        sighits_up = sum((result_df[fdr_header]<significance_cutoff) & (result_df[fc_header] >= log2fc_cutoff))
-        result_df_significant = result_df[
-            ((result_df[fdr_header] < significance_cutoff) & (result_df[fc_header] <= -log2fc_cutoff)) |
-            ((result_df[fdr_header] < significance_cutoff) & (result_df[fc_header] >= log2fc_cutoff))
-        ]
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                name='',
-                x=result_df[fc_header],
-                y=result_df['-log10fdr'],
-                mode='markers',
-                text=result_df['protein'],
-                marker=dict(
-                    size=marker_size,
-                    symbol=marker_symbol,
-                    color=color,
-                    opacity=opacity,
-                    line=dict(
-                        width=1,
-                        color='#202020'
-                    ),
-                    showscale=False
-                ),
-                hovertemplate =
-                    '<b>protein:</b> %{text}'
-                    '<br><b>log2fc</b>: %{x:.2f}'+
-                    '<br><b>-log10fdr</b>: %{y:.2f}<br>',
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                name='',
-                x=result_df_significant[fc_header],
-                y=result_df_significant['-log10fdr'],
-                mode='markers',
-                text=result_df_significant['protein'],
-                marker=dict(
-                    size=marker_size,
-                    symbol=marker_symbol,
-                    color='darkgreen',
-                    opacity=opacity,
-                    line=dict(
-                        width=1,
-                        color='#202020'
-                    ),
-                    showscale=False
-                ),
-                hovertemplate =
-                    '<b>protein:</b> %{text}'
-                    '<br><b>log2fc</b>: %{x:.2f}'+
-                    '<br><b>-log10fdr</b>: %{y:.2f}<br>',
-            )
-        )
-        fig.add_hline(
-            y=-np.log10(significance_cutoff),
-            line_width=1,
-            line_dash="dash",
-            line_color="green"
-        )
-        fig.add_vline(
-            x=log2fc_cutoff,
-            line_width=1,
-            line_dash="dash",
-            line_color="green"
-        )
-        fig.add_vline(
-            x=-log2fc_cutoff,
-            line_width=1,
-            line_dash="dash",
-            line_color="green"
-        )
-
-        maxfc = max(abs(result_df[fc_header])) + 0.5
-        fig.update_layout(
-            height=500,
-            width=870,
-            template='plotly_white',
-            title=dict(
-                text=f"{sighits_down} down, {sighits_up} up of {len(result_df)}",
-                y=0.92,
-                x=0.5,
-                xanchor='center',
-                yanchor='middle',
-            ),
-            titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
-            hovermode='closest',
-            xaxis=dict(
-                range=[-maxfc,maxfc],
-                title='log2 fold change',
-                titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
-            ),
-            yaxis=dict(
-                title='-log10 FDR',
-                titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
-                range=[-0.1, max(-np.log10(result_df[fdr_header])) + 0.5],
-            ),
-            showlegend=False,
-        )
-
-        return fig
-
-
-    def plot_withincond_fcs(
-        self,
-        normed_intensity_df,
-        title,
-        cut_extremes = True
-    ):
-        """takes a normalized intensity dataframe and plots the fold change distribution between all samples. Column = sample, row = ion"""
-        fig = go.Figure()
-        samplecombs = list(itertools.combinations(normed_intensity_df.columns, 2))
-        cutoff_common = 0
-        for spair in samplecombs:#compare all pairs of samples
-            s1 = spair[0]
-            s2 = spair[1]
-            diff_fcs = normed_intensity_df[s1].to_numpy() - normed_intensity_df[s2].to_numpy() #calculate fold changes by subtracting log2 intensities of both samples
-
-            if cut_extremes:
-                cutoff_cur = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
-                if cutoff_cur and cutoff_cur > cutoff_common:
-                    cutoff_common = cutoff_cur
-
-            n, bins, _ = plt.hist(diff_fcs, 100, density=True, histtype='step')
-            fig.add_trace(
-                go.Scatter(
-                    x=bins,
-                    y=n,
-                    mode='lines',
-                    line=dict(
-                        shape='hvh'
-                    )
-                )
-            )
-        fig.update_layout(
-            xaxis = dict(
-                title="log2 peptide fcs",
-                range=(-cutoff_common, cutoff_common)
-            ),
-            barmode='stack',
-            template='plotly_white',
-            showlegend=False,
-            title = dict(
-                    text=title,
-                    font=dict(size=16, color='black', family='Arial, sans-serif'),
-                    y=0.91,
-                    x=0.5,
-                    xanchor='center',
-                    yanchor='middle',
-                ),
-            height=400,
-            width=870,
-        )
-        return fig
-
-    def plot_betweencond_fcs(
-        self,
-        df_c1_normed,
-        df_c2_normed,
-        title,
-        merge_samples = True
-    ):
-        """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
-        fig = go.Figure()
-        if merge_samples: #samples can be merged to median intensity
-            df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
-            df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
-
-        both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
-        df1 = df_c1_normed.loc[both_idx]
-        df2 = df_c2_normed.loc[both_idx]
-        cutoff_common = 0
-
-        fig.add_vline(
-            x=0,
-            line_width=1,
-            line_dash="dash",
-            line_color="red"
-        ) #the data is normalized around 0, draw in helper line
-
-        for col1 in df1.columns:
-            for col2 in df2.columns:
-                diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
-                cutoff_cur = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
-                if cutoff_cur and cutoff_cur > cutoff_common:
-                    cutoff_common = cutoff_cur
-
-                n, bins, _ = plt.hist(diff_fcs, 100, density=True, histtype='step')
-                fig.add_trace(
-                    go.Scatter(
-                        x=bins,
-                        y=n,
-                        mode='lines',
-                        line=dict(
-                            shape='hvh'
-                        )
-                    )
-                )
-
-        fig.update_layout(
-            xaxis = dict(
-                title="log2(fc)",
-                range=(-cutoff_common, cutoff_common)
-            ),
-            barmode='stack',
-            template='plotly_white',
-            showlegend=False,
-            title = dict(
-                text=title,
-                y=0.90,
-                x=0.5,
-                xanchor='center',
-                yanchor='middle',
-            ),
-            height=400,
-            width=870,
-        )
-        return fig
-
-    def beeswarm_ion_plot(
-        self,
-        df_melted,
-        diffresults_protein,
-    ):
-        """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
-          Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
-          to annotate the plot"""
-
-        fig = go.Figure()
-
-        #get annotations from diffresults
-        fdr = float(diffresults_protein.at["fdr"])
-        protein = diffresults_protein.name
-
-        for cond, color, line_color in zip(df_melted.condition.unique(), ['#FF7F0E', '#2CA02C'], ['#808080', '#a6a6a6']):
-            data = df_melted[df_melted.condition == cond]
-
-            fig.add_trace(
-                go.Box(
-                    x=data.ion,
-                    y=data.intensity,
-                    boxpoints='all',
-                    name=cond,
-                    line=dict(
-                        color=line_color
-                    ),
-                    marker=dict(
-                        color=color,
-                        opacity=0.7
-                    ),
-                    pointpos=0
-                )
-            )
-
-
-        if "gene" in diffresults_protein.index:
-            gene = diffresults_line.at["gene"]
-            title = f"{gene} ({protein}) FDR: {fdr:.1e}"
-        else:
-            title = f"{protein} FDR: {fdr:.1e}"
-
-        fig.update_layout(
-            xaxis_title='ion',
-            yaxis_title='intensity',
-            boxmode='group', # group together boxes of the different traces for each value of x
-            template='plotly_white',
-            title = dict(
-                text=title,
-
-                y=0.85,
-                x=0.5,
-                xanchor='center',
-                yanchor='middle',
-            ),
-            titlefont=dict(
-                size=14,
-                color='black',
-                family='Arial, sans-serif'
-            ),
-            legend=dict(
-                title='conditions:',
-                orientation="h",
-                yanchor="bottom",
-                y=1.03,
-                xanchor="right",
-                x=1
-            ),
-            height=300,
-        )
-
-        return fig
-
-
-    def foldchange_ion_plot(
-        self,
-        df_melted,
-        diffresults_protein
-    ):
-        """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
-        are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
-          to annotate the plot"""
-
-        fig = go.Figure()
-
-        #get annotations from diffresults
-        fdr = float(diffresults_protein.at["fdr"])
-        protein = diffresults_protein.name
-
-        fig.add_hline(
-            y=0,
-            line_width=2,
-            opacity=.7,
-            line_dash="dash",
-            line_color="black"
-        )
-
-        fig.add_trace(
-            go.Box(
-                x=df_melted.ion,
-                y=df_melted.log2fc,
-                boxpoints='all',
-                line=dict(
-                    color='lightgrey'
-                ),
-                marker=dict(
-                    color='grey',
-                    opacity=0.7
-                ),
-                pointpos=0
-            )
-        )
-
-        if "gene" in diffresults_protein.index:
-            gene = diffresults_line.at["gene"]
-            title = f"{gene} ({protein}) FDR: {fdr:.1e}"
-        else:
-            title = f"{protein} FDR: {fdr:.1e}"
-
-        fig.update_layout(
-            xaxis_title='ion',
-            yaxis_title='log2fc',
-            template='plotly_white',
-            title = dict(
-                text=title,
-                y=0.85,
-                x=0.5,
-                xanchor='center',
-                yanchor='middle',
-            ),
-            titlefont=dict(
-                size=14,
-                color='black',
-                family='Arial, sans-serif'
-            ),
-            height=300,
-        )
-
-        return fig
