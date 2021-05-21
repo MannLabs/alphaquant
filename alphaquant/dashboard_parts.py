@@ -571,15 +571,17 @@ class SingleComparison(object):
             self.protein.options = self.result_df.protein.values.tolist()
             self.protein.disabled = False
 
-            self.volcano_plot = self.plot_volcano(
+            self.volcano_plot = pn.pane.Plotly(
+                self.plot_volcano(
                 self.result_df
+            ), config={'responsive': True})
+
+            self.volcano_plot.param.watch(
+                self.update_selected_protein,
+                'click_data'
             )
 
-            # selection = Selection1D(source=self.volcano_plot)
-
-            self.layout[1][0] = pn.Pane(
-                self.volcano_plot
-            )
+            self.layout[1][0] = self.volcano_plot
             self.layout[1][1][0] = pn.Pane(
                 self.plot_withincond_fcs(self.normalized_intensity_df),
                 height=250,
@@ -603,6 +605,8 @@ class SingleComparison(object):
         else:
             self.layout[1][0] = None
 
+    def update_selected_protein(self, event):
+        self.protein.value = str(event[2].click_data['points'][0]['text'])
 
     def visualize_after_protein_selection(self, *args):
         result_df_protein_index = self.result_df.set_index("protein")
