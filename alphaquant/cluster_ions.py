@@ -169,7 +169,6 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
 
 
 
-
 # Cell
 import anytree
 import alphaquant.diff_analysis as aqdiff
@@ -257,7 +256,7 @@ regex_frgions_only = [[("(SEQ.*MOD.*CHARGE.*FRGION.*)", "frgion")], [("(SEQ.*MOD
 
 # Cell
 import anytree
-from anytree import JsonExporter
+from anytree.exporter import JsonExporter
 import alphaquant.diffquant_utils as aqutils
 
 def export_roots_to_json(rootlist, condpair, results_dir):
@@ -268,5 +267,8 @@ def export_roots_to_json(rootlist, condpair, results_dir):
         root.parent = condpair_node
     results_file = f"{results_dir}/{condpairname}.iontrees.json"
 
-    JsonExporter.write(condpair_node, results_file)
+    j_exporter = JsonExporter(indent=2, sort_keys=True)
+    filehandle = open(results_file, "w")
+    j_exporter.write(condpair_node, filehandle)
+    filehandle.close()
 
