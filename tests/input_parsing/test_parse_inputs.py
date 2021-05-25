@@ -54,4 +54,4 @@ input_data = aqutils.import_data(input_file, results_folder=results_folder)
 samplemap_df = aqutils.load_samplemap(samplemap_file)
 input_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(input_data, samplemap_df)
 
-compare_generic_table_with_original(input_processed, input_file, os.path.join("..", "..", "longtable_config.yaml"), "diann_precursor")
+compare_generic_table_with_original(input_processed, input_file, os.path.join("..", "..", "intable_config.yaml"), "diann_precursor")
