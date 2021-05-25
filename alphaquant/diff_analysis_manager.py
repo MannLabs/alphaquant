@@ -74,6 +74,7 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir
     prot2diffions = {}
     p2z = {}
     prots = []
+    iontrees = []
     pvals = []
     fdrs = []
     fcs = []
@@ -134,6 +135,7 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir
             clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, prot2diffions.get(prot),normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, fc_threshold = 0.3, pval_threshold_basis = 0.05)
             if not clustered_root_node.is_included:
                 continue
+            iontrees.append(clustered_root_node)
             pval, fc, ions_included = aqclust.get_diffresults_from_clust_root_node(clustered_root_node)
         else:
             pval, fc, ions_included = diffprot.pval, diffprot.fc, diffprot.ions
@@ -171,7 +173,7 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir
                 print(list(intersect_columns))
                 res_df = res_df.merge(annot_df, on=list(intersect_columns), how= 'left')
                 pep_df = pep_df.merge(annot_df, on= list(intersect_columns), how = 'left')
-
+        aqclust.export_roots_to_json(iontrees,condpair,results_dir)
         res_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
         pep_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
 
