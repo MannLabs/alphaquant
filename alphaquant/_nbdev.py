@@ -57,6 +57,7 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "get_betweencond_fcs_table": "05_visualizations.ipynb",
          "beeswarm_ion_plot": "05_visualizations.ipynb",
          "foldchange_ion_plot": "05_visualizations.ipynb",
+         "get_iontree_img": "05_visualizations.ipynb",
          "get_normalization_overview_heatmap": "05_visualizations.ipynb",
          "get_protein_regulation_heatmap": "05_visualizations.ipynb",
          "get_heatmapplot_ckg": "05_visualizations.ipynb",
