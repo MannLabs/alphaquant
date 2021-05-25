@@ -107,6 +107,52 @@ spectronaut_precursor_v2:
    - FG.Charge
 
 
+openswath_precursor_aligned:
+  format: longtable
+  sample_ID: run_id
+  quant_ID: Intensity
+  protein_cols:
+   - ProteinName
+  ion_cols:
+   - peptide_group_label
+  filters:
+    decoy:
+      param: decoy
+      comparator: "=="
+      value: 0
+
+openswath_pyprophet:
+  format: longtable
+  sample_ID: filename
+  quant_ID: Intensity
+  protein_cols:
+   - ProteinName
+  ion_cols:
+   - FullPeptideName
+   - Charge
+  filters:
+    decoy:
+      param: decoy
+      comparator: "=="
+      value: 0
+
+skyline_precursor:
+  format: longtable
+  sample_ID: ReplicateName
+  quant_ID: TotalAreaFragment
+  protein_cols:
+   - ProteinName
+  ion_cols:
+   - PeptideModifiedSequence
+   - PrecursorCharge
+
+diaumpire_precursor_ms1:
+  format: widetable
+  protein_cols:
+   - Proteins
+  ion_cols:
+   - Peptide Key
+
 
 
 
