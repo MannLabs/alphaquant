@@ -3,14 +3,14 @@
 __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_withincond_fcs', 'plot_betweencond_fcs',
            'scatter_df_columns', 'plot_cumhist_dfcols', 'compare_peptid_protein_overlaps', 'plot_fold_change',
            'get_volcanoplot_ckg', 'volcano_plot', 'get_melted_protein_ion_intensity_table', 'get_betweencond_fcs_table',
-           'beeswarm_ion_plot', 'foldchange_ion_plot', 'get_iontree_img', 'get_normalization_overview_heatmap',
+           'beeswarm_ion_plot', 'foldchange_ion_plot', 'get_normalization_overview_heatmap',
            'get_protein_regulation_heatmap', 'get_heatmapplot_ckg', 'compare_direction', 'compare_correlation',
            'get_condensed_distance_matrix', 'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation',
            'clustersort_numerical_arrays', 'get_clustered_dataframe', 'get_sample_overview_dataframe',
            'get_diffresult_dataframe', 'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition',
            'get_normed_peptides_dataframe', 'initialize_sample2cond', 'plot_volcano_plotly',
            'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly', 'beeswarm_ion_plot_plotly',
-           'foldchange_ion_plot_plotly']
+           'foldchange_ion_plot_plotly', 'read_condpair_tree']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -49,11 +49,11 @@ def tranform_fc2count_to_fc_space(fc2counts, num_fcs, rescale_factor):
 
 # Cell
 #interactive
-
 import matplotlib.pyplot as plt
+from scipy import stats
 import itertools
 
-def plot_withincond_fcs(normed_intensity_df, cut_extremes = True, indiv_plots = False):
+def plot_withincond_fcs(normed_intensity_df, cut_extremes = True):
     """takes a normalized intensity dataframe and plots the fold change distribution between all samples. Column = sample, row = ion"""
 
     samplecombs = list(itertools.combinations(normed_intensity_df.columns, 2))
@@ -70,18 +70,15 @@ def plot_withincond_fcs(normed_intensity_df, cut_extremes = True, indiv_plots = 
             range = None
         plt.hist(diff_fcs,80,density=True, histtype='step',range=range) #set the cutoffs to focus the visualization
         plt.xlabel("log2 peptide fcs")
-        if indiv_plots:
-            plt.title(f"{s1}_vs_{s2}")
-            plt.show()
-    if not indiv_plots:
-        plt.show()
+
+    plt.show()
 
 # Cell
 #interactive
 import matplotlib.pyplot as plt
 from scipy import stats
 
-def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples = True, indiv_plots= False):
+def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples = True):
     """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
 
     if merge_samples: #samples can be merged to median intensity
@@ -91,7 +88,7 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples = True, indiv
     both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
     df1 = df_c1_normed.loc[both_idx]
     df2 = df_c2_normed.loc[both_idx]
-    plt.xlabel("log2(fc)")
+
     for col1 in df1.columns:
         for col2 in df2.columns:
             diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
@@ -100,11 +97,8 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples = True, indiv
             cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
 
             plt.hist(diff_fcs,80,density=True, histtype='step', range=(-cutoff,cutoff)) #set the cutoffs to focus the visualization
-            if indiv_plots:
-                plt.title(f"{col1}_vs_{col2}")
-                plt.show()
-    if not indiv_plots:
-        plt.show()
+    plt.xlabel("log2(fc)")
+    plt.show()
 
 # Cell
 import matplotlib.pyplot as plt
@@ -317,58 +311,34 @@ def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significan
 
 
 # Cell
-import anytree
-def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, sample2cond, condpair_root_node = None,ion_header = 'ion', protein_header = 'protein'):
+def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, sample2cond, ion_header = 'ion', protein_header = 'protein'):
     diffresults_line = diffresults_df.loc[protein]
     value_vars = set.intersection(set(normed_df.columns), set(sample2cond.keys()))
     protein_df = normed_df.xs(protein, level = 0)
     df_melted = pd.melt(protein_df.reset_index(), value_vars= value_vars, id_vars=[ion_header], value_name="intensity", var_name="sample")
     df_melted["condition"] = [sample2cond.get(x) for x in df_melted["sample"]]
-
-    #if ion clustering has been performed, add cluster information
-    if condpair_root_node != None:
-
-        protein_node = anytree.findall_by_attr(condpair_root_node, protein, maxlevel=2)[0]
-        ions_sorted = [x.name for x in protein_node.leaves]
-        ion2is_included = {x.name : x.is_included for x in protein_node.leaves} #written as dict because identical ion has multiple columns
-        ions_in_df = set(df_melted["ion"]) - set(ions_sorted)
-        if len(ions_in_df)>0:
-            Exception("Clustered ions and observed ions differ!")
-
-        df_melted = df_melted.set_index("ion")
-        df_melted = df_melted.loc[ions_sorted]
-        df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted.index]
-        df_melted = df_melted.reset_index()
-
     return df_melted, diffresults_line
 
 
 # Cell
 
 def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
-    has_clust_info = "is_included" in melted_df.columns
     melted_df = melted_df.set_index(["condition"])
-    sorted_ions = melted_df["ion"]
     c1_df = melted_df.loc[c1]
     c2_df = melted_df.loc[c2]
     ions = set(c1_df[ion_header]).intersection(set(c2_df[ion_header]))
-    sorted_ions = [x for x in sorted_ions if x in ions]
     c1_df = c1_df.set_index([ion_header]).sort_index()
     c2_df = c2_df.set_index([ion_header]).sort_index()
     result_ions = []
     result_fcs = []
-    result_included = []
-    for ion in sorted_ions:
-        is_included = c1_df.loc[ion]["is_included"][0] if has_clust_info else True
-
+    for ion in ions:
         ions1 = c1_df.loc[[ion]]["intensity"]
         ions2 = c2_df.loc[[ion]]["intensity"]
         fcs = [x-y for x,y in itertools.product(ions1, ions2)]
         result_ions.extend([ion for x in range(len(fcs))])
         result_fcs.extend(fcs)
-        result_included.extend([is_included for x in range(len(fcs))])
 
-    res_df = pd.DataFrame({"ion": result_ions, "log2fc": result_fcs, "is_included" : result_included})
+    res_df = pd.DataFrame({"ion": result_ions, "log2fc": result_fcs})
 
     return res_df
 
@@ -418,10 +388,6 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
     are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
       to annotate the plot"""
-    num_ions = len(set(df_melted["ion"]))
-
-    if num_ions>30:
-        plt.figure(figsize=(num_ions*0.7, num_ions*0.2))
 
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
@@ -431,8 +397,8 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
 
     #plot with seaborn standard functions
-    ax = sns.boxplot(x="ion", y="log2fc", hue= "is_included",data=df_melted) #color = "white"
-    ax = sns.stripplot(x="ion", y="log2fc",hue= "is_included", data=df_melted)#, color = "grey"
+    ax = sns.boxplot(x="ion", y="log2fc", data=df_melted, color = "white")
+    ax = sns.stripplot(x="ion", y="log2fc", data=df_melted, color = "grey")
 
     #annotate and format
     handles, labels = ax.get_legend_handles_labels()
@@ -447,17 +413,7 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     if saveloc is not None:
         plt.savefig(saveloc)
 
-
     plt.show()
-
-# Cell
-from anytree.exporter import DotExporter
-import anytree
-
-def get_iontree_img(root, protein,saveloc = None):
-    protein_node = anytree.findall_by_attr(root, protein, maxlevel=2)[0]
-    exporter = DotExporter(protein_node, nodenamefunc=lambda n: f"{n.name}\ncluster{n.cluster}\n{n.is_included}")
-    exporter.to_picture(saveloc)
 
 # Cell
 #interactive
@@ -1176,3 +1132,17 @@ def foldchange_ion_plot_plotly(
     )
 
     return fig
+
+# Cell
+from anytree.importer import JsonImporter
+import os
+import alphaquant.diffquant_utils as aqutils
+def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
+    """reads the merged and clustered iontree for a given condpair"""
+    condpairname = utils.get_condpairname([cond1, cond2])
+    tree_file =os.path.join(results_folder, f"{condpairname}.iontrees.json")
+    importer = JsonImporter()
+    filehandle = open(tree_file, 'r')
+    jsontree = importer.read(filehandle)
+    filehandle.close()
+    return jsontree
