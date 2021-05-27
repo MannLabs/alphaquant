@@ -327,6 +327,7 @@ def get_samplenames(data):
     """extracts the names of the samples of the AQ input dataframe"""
     names = list(data.columns)
     names.remove('protein')
+    names.remove('ion')
     return names
 
 
