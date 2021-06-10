@@ -110,7 +110,7 @@ class AlphaQuantGUI(GUI):
             name="AlphaQuant",
             github_url='https://github.com/MannLabs/alphaquant',
         )
-        self.project_description = """### AlphaQuant is ... ."""
+        self.project_description = """### AlphaQuant is an open-source package for sensitive detection of protein abundance changes."""
         self.manual_path = os.path.join(
             os.path.dirname(__file__),
             "docs",
