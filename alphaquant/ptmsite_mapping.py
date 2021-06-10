@@ -223,21 +223,23 @@ def get_site_prob_overview(modpeps, refprot, refgene):
     return series_collected
 
 # Cell
-def add_ptmsite_infos_spectronaut(input_df, results_folder):
-    ptm_ids_df = assign_dataset(input_df, results_folder= results_folder)
-    intersect_columns = input_df.columns.intersection(ptm_ids.columns)
+def add_ptmsite_infos_spectronaut(input_df, ptm_ids_df):
+    intersect_columns = input_df.columns.intersection(ptm_ids_df.columns)
     if(len(intersect_columns)==2):
         print(f"assigning ptms based on columns {intersect_columns}")
         input_df = input_df.merge(ptm_ids_df, on=list(intersect_columns), how= 'left')
     else:
         raise Exception(f"Number of intersecting columns {intersect_columns} not as expected")
     input_df = add_ptm_precursor_names_spectronaut(input_df)
+    input_df = input_df[~input_df["conditions"].isna()]
     return input_df
 
 # Cell
 def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
-    delimiter = pd.Series(["_" in range(len(ptm_annotated_input.index))])
-    ptm_annotated_input["ion"] = ptm_annotated_input["PEP.StrippedSequence"] + delimiter + ptm_annotated_input["FG.PrecMz"] + delimiter + ptm_annotated_input["FG.Charge"] + delimiter + ptm_annotated_input["REFPROT"] + delimiter +ptm_annotated_input["site"]
+    delimiter = pd.Series(["_" for x in range(len(ptm_annotated_input.index))])
+    ptm_annotated_input["ion"] = ptm_annotated_input["PEP.StrippedSequence"] + delimiter + ptm_annotated_input["FG.PrecMz"].astype('str') + delimiter + ptm_annotated_input["FG.Charge"].astype('str') + delimiter + ptm_annotated_input["REFPROT"] + delimiter +ptm_annotated_input["site"].astype('str')
+    ptm_annotated_input.gene.fillna('', inplace=True)
+    ptm_annotated_input["site_id"] = ptm_annotated_input["gene"].astype('str')+delimiter+ptm_annotated_input["REFPROT"].astype('str') + delimiter +ptm_annotated_input["site"].astype('str')
     return ptm_annotated_input
 
 # Cell
@@ -285,10 +287,18 @@ def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
 # Cell
 import os
 import alphaquant.visualizations as aqviz
-def assign_dataset(input_df,id_thresh = 0.6, excl_thresh =0.2, results_folder = os.path.join(".", "results"), samplemap = 'samples.map',swissprot_file = 'swissprot_mapping.tsv',
+def assign_dataset(input_df,id_thresh = 0.6, excl_thresh =0.2, results_folder = os.path.join(".", "results"), samplemap = 'samples.map.tsv',swissprot_file = 'swissprot_mapping.tsv',
 sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep = "\t", label_column = "R.Label", fg_id_column = "FG.Id"):
 
-    """wrapper function reformats inputs tables and iterates through the whole dataset. Output needs to contain """""
+    """wrapper function reformats Spectronaut inputs tables and iterates through the whole dataset.
+    Needed columns:
+    "EG.PTMProbabilities {modification_type}"
+    "EG.PTMPositions {modification_type}"
+    "PEP.StrippedSequence"
+    "FG.PrecMz"
+    "FG.Charge"
+
+    """""
     if(id_thresh < 0.5):
         print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
         id_thresh = 0.51
@@ -318,6 +328,10 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
     ptmlocs = []
     locprobs = []
     siteprobs = []
+    stripped_seqs = []
+    prec_mz = []
+    fg_charge = []
+
 
     count_peps = 0
     fraction_count = 0
@@ -356,11 +370,14 @@ sequence_file='uniprot_mapping.tsv', modification_type = "[Phospho (STY)]",sep =
         run_ids.extend(protein_df[label_column].tolist())
         prot_ids.extend([prot for x in range(len(ptm_ids_prot))])
         gene_ids.extend([gene for x in range(len(ptm_ids_prot))])
-
-
+        stripped_seqs.extend(protein_df["PEP.StrippedSequence"])
+        prec_mz.extend(protein_df["FG.PrecMz"])
+        fg_charge.extend(protein_df["FG.Charge"])
 
     conditions = [sample2cond.get(x) for x in run_ids]
-    mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,"locprob" : locprobs})
+
+    mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,
+    "locprob" : locprobs, "PEP.StrippedSequence" : stripped_seqs, "FG.PrecMz" : prec_mz, "FG.Charge": fg_charge})
     os.makedirs(results_folder, exist_ok=True)
     mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None)
 
