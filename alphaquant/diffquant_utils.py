@@ -200,8 +200,15 @@ def reformat_longtable_according_to_config_new(input_file, config_dict, results_
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
     """
     relevant_cols = get_relevant_columns_config_dict(config_dict)
-    input_df = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1').drop_duplicates()
-    input_df = filter_input(config_dict.get("filters", {}), input_df)
+
+    input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, chunksize = 10000000, encoding ='latin1') #iterate over df to avoid memory issues for large long tables
+    all_dfs = []
+    for df_chunk in input_df_it:
+        df_chunk = df_chunk.drop_duplicates()
+        df_chunk = filter_input(config_dict.get("filters", {}), df_chunk)
+        all_dfs.append(df_chunk)
+
+    input_df = pd.concat(all_dfs, ignore_index = True)
     if "ion_hierarchy" in config_dict.keys():
         input_df = merge_protein_cols_and_ion_dict(input_df, config_dict.get("protein_cols"), config_dict.get("ion_hierarchy"))
     else:
@@ -219,8 +226,8 @@ def reformat_longtable_according_to_config_new(input_file, config_dict, results_
     return input_reshaped
 
 # Cell
-def read_wideformat_table(peptides_tsv, config_dict):
-    input_df = pd.read_csv(peptides_tsv,sep="\t", encoding ='latin1')
+def read_wideformat_table(peptides_tsv, config_dict, decimal = "."):
+    input_df = pd.read_csv(peptides_tsv,sep="\t", decimal = decimal,encoding ='latin1')
     filter_dict = config_dict.get("filters")
     protein_cols = config_dict.get("protein_cols")
     ion_cols = config_dict.get("ion_cols")
@@ -268,7 +275,7 @@ import os
 import pkg_resources
 import pathlib
 
-def import_data(input_file, results_folder, verbose=True, dashboard=False):
+def import_data(input_file, results_folder, verbose=True, decimal = "." ):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
@@ -282,11 +289,11 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
 
 
     file_ext = os.path.splitext(input_file)[-1]
-    if file_ext=='.csv':
+    if ".csv" in input_file:
         sep=','
-    if file_ext=='.tsv':
+    if '.tsv' in input_file:
         sep='\t'
-    if file_ext=='.txt':
+    if '.txt' in input_file:
         sep='\t'
 
     if 'sep' not in locals():
@@ -309,9 +316,9 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
             if verbose:
                 print(f"{input_type} headers in format {format} detected. Importing and re-formating.")
             if format == "longtable":
-                data = reformat_longtable_according_to_config_new(input_file, config_dict_type, results_folder, sep = sep)
+                data = reformat_longtable_according_to_config_new(input_file, config_dict_type, results_folder, sep = sep, decimal = decimal)
             elif format == "widetable":
-                data = read_wideformat_table(input_file, config_dict_type)
+                data = read_wideformat_table(input_file, config_dict_type,decimal)
             else:
                 raise Exception("format: not specified in intable_config.yaml")
             return data
