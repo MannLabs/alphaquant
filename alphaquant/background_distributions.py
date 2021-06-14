@@ -50,6 +50,8 @@ class ConditionBackgrounds():
 
         #assign the context sizes
         context_size = np.max([1000, int(total_available_comparisons/(1+num_contexts/2))])
+        if context_size> total_available_comparisons:
+            context_size = int(total_available_comparisons/2)
         halfcontext_size = int(context_size/2)
         context_boundaries = np.zeros(3).astype(int)
 
