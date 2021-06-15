@@ -132,8 +132,8 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
             fcfc_total+=z_pair
             count_pairs+=1
 
-    if count_pairs==0:
-        return
+    if count_pairs==0: # in this case, it was not possible to find any sample overlaps -> no comparison "possible"
+        return 0, 1e-16 # classify as "dissimilar" in this case
     secondterm_variance = calculate_pairpair_overlap_factor(all_ionpairs, ion2pairs, ionpair2idx_ols, normed_c1, normed_c2, ion2diffDist, p2z)
     fcfc = fcfc_total/count_pairs
     pval = calculate_scaled_pval(z_total, firstterm_variance, secondterm_variance)
