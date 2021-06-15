@@ -280,16 +280,16 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
     type2relevant_columns = get_type2relevant_cols(config_dict)
 
 
-    file_ext = os.path.splitext(input_file)[-1]
-    if file_ext=='.csv':
+    filename = str(input_file)
+    if '.csv' in filename:
         sep=','
-    if file_ext=='.tsv':
+    if '.tsv' in filename:
         sep='\t'
-    if file_ext=='.txt':
+    if '.txt' in filename:
         sep='\t'
 
     if 'sep' not in locals():
-        raise TypeError(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {input_file}! Your filename has to end with one of these extensions. Please modify your file name accordingly.")
+        raise TypeError(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {input_file}! Your filename has to contain one of these extensions. Please modify your file name accordingly.")
 
     if "aq_reformat" in input_file:
         data = pd.read_csv(input_file, sep = "\t", encoding ='latin1')
