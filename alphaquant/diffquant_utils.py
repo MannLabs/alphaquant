@@ -3,10 +3,10 @@
 __all__ = ['get_condpairname', 'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'get_ionints_from_pd_df',
            'invert_dictionary', 'get_z_from_p_empirical', 'ion_hierarchy', 'get_relevant_columns',
            'get_relevant_columns_config_dict', 'get_config_columns', 'load_config', 'get_type2relevant_cols',
-           'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
-           'reformat_longtable_according_to_config_new', 'read_wideformat_table', 'read_mq_peptides_table',
-           'check_for_processed_runs_in_results_folder', 'import_data', 'get_samplenames', 'load_samplemap',
-           'prepare_loaded_tables']
+           'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_relvant_column_names',
+           'split_extend_df', 'reformat_longtable_according_to_config_new', 'read_wideformat_table',
+           'read_mq_peptides_table', 'check_for_processed_runs_in_results_folder', 'import_data', 'get_samplenames',
+           'load_samplemap', 'prepare_loaded_tables']
 
 # Cell
 def get_condpairname(condpair):
@@ -74,7 +74,7 @@ def get_z_from_p_empirical(p_emp,p2z):
     return z
 
 # Cell
-ion_hierarchy = ["SEQ", "MOD", "CHARGE", "FRGION"]
+ion_hierarchy = {"fragion" :["SEQ", "MOD", "CHARGE", "FRGION"], "ms1iso" : ["SEQ", "MOD", "CHARGE", "MS1ISOTOPES"]}
 
 # Cell
 import yaml
@@ -96,8 +96,14 @@ def get_relevant_columns_config_dict(config_typedict):
 
     for headr in config_typedict.get('ion_hierarchy', {}).values():
         dict_ioncols.extend(headr)
-
-    relevant_cols = config_typedict.get("protein_cols") + config_typedict.get("ion_cols", []) + [config_typedict.get("sample_ID")] + [config_typedict.get("quant_ID")] + filtcols + dict_ioncols
+    quantID = config_typedict.get("quant_ID")
+    if type(quantID) ==type("string"):
+        quant_ids = [config_typedict.get("quant_ID")]
+    elif quantID == None:
+        quant_ids = []
+    else:
+        quant_ids = list(config_typedict.get("quant_ID").values())
+    relevant_cols = config_typedict.get("protein_cols") + config_typedict.get("ion_cols", []) + [config_typedict.get("sample_ID")] + quant_ids + filtcols + dict_ioncols
     relevant_cols = list(set(relevant_cols)) # to remove possible redudancies
     return relevant_cols
 
@@ -163,53 +169,130 @@ def filter_input(filter_dict, input):
     return input
 
 # Cell
-def merge_protein_and_ion_cols(input_df, protein_cols, ion_cols):
+def merge_protein_and_ion_cols(input_df, config_dict):
+    protein_cols =  config_dict.get("protein_cols")
+    ion_cols = config_dict.get("ion_cols")
     input_df['protein'] = input_df.loc[:, protein_cols].astype('string').sum(axis=1)
     input_df['ion'] = input_df.loc[:, ion_cols].astype('string').sum(axis=1)
+    input_df = input_df.rename(columns = {config_dict.get('quant_ID') : "quant_val"})
     return input_df
 
 # Cell
-def merge_protein_cols_and_ion_dict(input_df, protein_cols, ion_dict):
+def merge_protein_cols_and_ion_dict(input_df, config_dict):
+    """[summary]
+
+    Args:
+        input_df ([pandas dataframe]): longtable containing peptide intensity data
+        confid_dict ([dict[String[]]]): nested dict containing the parse information. derived from yaml file
+
+    Returns:
+        pandas dataframe: longtable with newly assigned "protein" and "ion" columns
+    """
+    protein_cols = config_dict.get("protein_cols")
+    ion_dict = config_dict.get("ion_hierarchy")
+    splitcol2sep = config_dict.get('split_cols')
+    quant_id_dict = config_dict.get('quant_ID')
+
+    ion_dfs = []
     input_df['protein'] = input_df.loc[:, protein_cols].astype('string').sum(axis=1)
-    ion_hierarchy_local = [x for x in ion_hierarchy if x in ion_dict]
+    input_df = input_df
+    for hierarchy_type in ion_hierarchy.keys():
+        df_subset = input_df.copy()
+        ion_hierarchy_local = [x for x in ion_hierarchy.get(hierarchy_type) if x in ion_dict]
+        ion_headers_merged, ion_headers_grouped = get_relvant_column_names(ion_dict, ion_hierarchy_local) #ion headers merged is just a helper to select all relevant rows, ionsets merge contains the sets of ionstrings to be merged into a list eg [[SEQ, MOD], [CH]]
+
+        if hierarchy_type == "ms1iso":
+            headers = ion_headers_merged + [config_dict.get('sample_ID'), 'protein']
+            df_subset = df_subset[headers].drop_duplicates()
+            df_subset = df_subset.set_index(['protein', config_dict.get('sample_ID')])
+            df_subset = split_extend_df(df_subset, splitcol2sep)
+        else:
+            headers = ion_headers_merged + ['protein', config_dict.get('sample_ID'), quant_id_dict.get(hierarchy_type)]
+            df_subset = df_subset[headers].drop_duplicates()
+            df_subset = df_subset.set_index(['protein', config_dict.get('sample_ID'), quant_id_dict.get(hierarchy_type)])
+         #if there are multiple protein columns, merge them
+
+        rows = df_subset.to_numpy()
+        ions = []
+
+        for row in rows: #iterate through dataframe
+            ionlist = []
+            count = 0
+            ionstring = ""
+            for lvl_idx in range(len(ion_hierarchy_local)):
+                ionstring += f"{ion_hierarchy_local[lvl_idx]}"
+                for sublvl in ion_headers_grouped[lvl_idx]:
+                    ionstring+= f"_{row[count]}_"
+                    count+=1
+            ions.append(ionstring)
+        df_subset['ion'] = ions
+        df_subset = df_subset.reset_index()
+        df_subset = df_subset.rename(columns = {quant_id_dict.get(hierarchy_type) : "quant_val"})
+
+        ion_dfs.append(df_subset)
+    input_df = pd.concat(ion_dfs,ignore_index=True)
+    return input_df
+
+def get_relvant_column_names(ion_dict, ion_hierarchy_local):
     ion_headers_merged = []
     ion_headers_grouped = []
     for lvl in ion_hierarchy_local:
         ion_headers_merged.extend(ion_dict.get(lvl))
         ion_headers_grouped.append(ion_dict.get(lvl))
-    rows = input_df[ion_headers_merged].to_numpy()
-    ions = []
+    return ion_headers_merged, ion_headers_grouped
 
-    for row in rows:
-        ionlist = []
-        count = 0
-        ionstring = ""
-        for lvl_idx in range(len(ion_hierarchy_local)):
-            ionstring += f"{ion_hierarchy_local[lvl_idx]}"
-            for sublvl in ion_headers_grouped[lvl_idx]:
-                ionstring+= f"_{row[count]}_"
-                count+=1
-        ions.append(ionstring)
-    input_df['ion'] = ions
-    return input_df
+def split_extend_df(input_df, splitcol2sep, value_threshold=10):
+    """reformats data that is stored in a condensed way in a single column. For example isotope1_intensity;isotope2_intensity etc. in Spectronaut
+
+    Args:
+        input_df ([type]): [description]
+        splitcol2sep ([type]): [description]
+        value_threshold([type]): [description]
+
+    Returns:
+        Pandas Dataframe: Pandas dataframe with the condensed items expanded to long format
+    """
+    if splitcol2sep==None:
+        return input_df
+
+    for split_col, separator in splitcol2sep.items():
+        idx_name = f"{split_col}_idxs"
+        split_col_series = input_df[split_col].str.split(separator)
+        input_df = input_df.drop(columns = [split_col])
+
+        input_df[idx_name] = [list(range(len(x))) for x in split_col_series]
+        exploded_input = input_df.explode(idx_name)
+        exploded_split_col_series = split_col_series.explode()
+
+        exploded_input[split_col] = exploded_split_col_series #the column with the intensities has to come after to column with the idxs
+        exploded_input = exploded_input.astype({split_col: float})
+        exploded_input = exploded_input[exploded_input[split_col]>value_threshold]
+        #exploded_input = exploded_input.rename(columns = {'var1': split_col})
+    return exploded_input
+
 
 # Cell
-def reformat_longtable_according_to_config_new(input_file, config_dict, results_folder, sep = "\t",decimal = "."):
+def reformat_longtable_according_to_config_new(input_file, config_dict, sep = "\t",decimal = "."):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
     """
     relevant_cols = get_relevant_columns_config_dict(config_dict)
-    input_df = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1').drop_duplicates()
-    input_df = filter_input(config_dict.get("filters", {}), input_df)
-    if "ion_hierarchy" in config_dict.keys():
-        input_df = merge_protein_cols_and_ion_dict(input_df, config_dict.get("protein_cols"), config_dict.get("ion_hierarchy"))
-    else:
-        input_df = merge_protein_and_ion_cols(input_df, config_dict.get("protein_cols"), config_dict.get("ion_cols"))
+    input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1', chunksize=1000000)
+    input_df_list = []
+    for input_df_subset in input_df_it:
+        input_df_subset = filter_input(config_dict.get("filters", {}), input_df_subset)
+        if "ion_hierarchy" in config_dict.keys():
+            input_df_subset = merge_protein_cols_and_ion_dict(input_df_subset, config_dict)
+        else:
+            input_df_subset = merge_protein_and_ion_cols(input_df_subset, config_dict)
+        input_df_list.append(input_df_subset)
 
 
-    input_df = input_df.astype({f'{config_dict.get("quant_ID")}': 'float'})
-    input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = config_dict.get("sample_ID"), values = config_dict.get("quant_ID"), fill_value=0)
+    input_df = pd.concat(input_df_list)
+
+    input_df = input_df.astype({'quant_val': 'float'})
+    input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = config_dict.get("sample_ID"), values = 'quant_val', fill_value=0)
     if input_reshaped.iloc[:,0].replace(0, np.nan).median() <100: #when values are small, rescale by a constant factor to prevent rounding errors in the subsequent aq analyses
         input_reshaped = input_reshaped *10000
 
@@ -267,7 +350,7 @@ import os
 import pkg_resources
 import pathlib
 
-def import_data(input_file, results_folder, verbose=True, dashboard=False):
+def import_data(input_file,  verbose=True):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
@@ -308,7 +391,7 @@ def import_data(input_file, results_folder, verbose=True, dashboard=False):
             if verbose:
                 print(f"{input_type} headers in format {format} detected. Importing and re-formating.")
             if format == "longtable":
-                data = reformat_longtable_according_to_config_new(input_file, config_dict_type, results_folder, sep = sep)
+                data = reformat_longtable_according_to_config_new(input_file, config_dict_type, sep = sep)
             elif format == "widetable":
                 data = read_wideformat_table(input_file, config_dict_type)
             else:
