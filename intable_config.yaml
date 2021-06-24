@@ -33,10 +33,12 @@ diann_precursor:
       value: 0.3
 
 
-spectronaut_fragion:
+spectronaut_fragion_isotopes:
   format: longtable
   sample_ID: R.Label
-  quant_ID: F.PeakArea
+  quant_ID:
+    fragion: F.PeakArea
+    ms1iso: FG.MS1IsotopeIntensities (Measured)
   protein_cols:
    - PG.ProteinGroups
   ion_cols:
@@ -44,6 +46,8 @@ spectronaut_fragion:
    - F.FrgIon
    - F.FrgLossType
    - F.Charge
+  split_cols:
+    FG.MS1IsotopeIntensities (Measured): ";"
   ion_hierarchy:
     SEQ: 
      - PEP.StrippedSequence
@@ -55,6 +59,13 @@ spectronaut_fragion:
      - F.FrgIon
      - F.FrgLossType
      - F.Charge
+    MS1ISOTOPES:
+     - FG.MS1IsotopeIntensities (Measured)
+  filters:
+    decoy_filt:
+      param: F.PeakArea
+      comparator: ">"
+      value: 5
   # filters:
   #   decoy_filt:
   #     param: EG.IsDecoy
