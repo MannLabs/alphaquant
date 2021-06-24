@@ -311,34 +311,58 @@ def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significan
 
 
 # Cell
-def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, sample2cond, ion_header = 'ion', protein_header = 'protein'):
+import anytree
+def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, sample2cond, condpair_root_node = None,ion_header = 'ion', protein_header = 'protein'):
     diffresults_line = diffresults_df.loc[protein]
     value_vars = set.intersection(set(normed_df.columns), set(sample2cond.keys()))
     protein_df = normed_df.xs(protein, level = 0)
     df_melted = pd.melt(protein_df.reset_index(), value_vars= value_vars, id_vars=[ion_header], value_name="intensity", var_name="sample")
     df_melted["condition"] = [sample2cond.get(x) for x in df_melted["sample"]]
+
+    #if ion clustering has been performed, add cluster information
+    if condpair_root_node != None:
+
+        protein_node = anytree.findall_by_attr(condpair_root_node, protein, maxlevel=2)[0]
+        ions_sorted = [x.name for x in protein_node.leaves]
+        ion2is_included = {x.name : x.is_included for x in protein_node.leaves} #written as dict because identical ion has multiple columns
+        ions_in_df = set(df_melted["ion"]) - set(ions_sorted)
+        if len(ions_in_df)>0:
+            Exception("Clustered ions and observed ions differ!")
+
+        df_melted = df_melted.set_index("ion")
+        df_melted = df_melted.loc[ions_sorted]
+        df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted.index]
+        df_melted = df_melted.reset_index()
+
     return df_melted, diffresults_line
 
 
 # Cell
 
 def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
+    has_clust_info = "is_included" in melted_df.columns
     melted_df = melted_df.set_index(["condition"])
+    sorted_ions = melted_df["ion"]
     c1_df = melted_df.loc[c1]
     c2_df = melted_df.loc[c2]
     ions = set(c1_df[ion_header]).intersection(set(c2_df[ion_header]))
+    sorted_ions = [x for x in sorted_ions if x in ions]
     c1_df = c1_df.set_index([ion_header]).sort_index()
     c2_df = c2_df.set_index([ion_header]).sort_index()
     result_ions = []
     result_fcs = []
-    for ion in ions:
+    result_included = []
+    for ion in sorted_ions:
+        is_included = c1_df.loc[ion]["is_included"][0] if has_clust_info else True
+
         ions1 = c1_df.loc[[ion]]["intensity"]
         ions2 = c2_df.loc[[ion]]["intensity"]
         fcs = [x-y for x,y in itertools.product(ions1, ions2)]
         result_ions.extend([ion for x in range(len(fcs))])
         result_fcs.extend(fcs)
+        result_included.extend([is_included for x in range(len(fcs))])
 
-    res_df = pd.DataFrame({"ion": result_ions, "log2fc": result_fcs})
+    res_df = pd.DataFrame({"ion": result_ions, "log2fc": result_fcs, "is_included" : result_included})
 
     return res_df
 
@@ -988,10 +1012,6 @@ def plot_betweencond_fcs_plotly(
     return fig
 
 # Cell
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-
 def beeswarm_ion_plot_plotly(
     df_melted,
     diffresults_protein,
@@ -1004,6 +1024,7 @@ def beeswarm_ion_plot_plotly(
 
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
+    fc = float(diffresults_protein.at["log2fc"])
     protein = diffresults_protein.name
 
     for cond, color, line_color in zip(df_melted.condition.unique(), ['#FF7F0E', '#2CA02C'], ['#808080', '#a6a6a6']):
@@ -1029,9 +1050,9 @@ def beeswarm_ion_plot_plotly(
 
     if "gene" in diffresults_protein.index:
         gene = diffresults_line.at["gene"]
-        title = f"{gene} ({protein}) FDR: {fdr:.1e}"
+        title = f"{gene} ({protein}) FDR: {fdr:.1e} log2FC: {fc:.2f}"
     else:
-        title = f"{protein} FDR: {fdr:.1e}"
+        title = f"{protein} FDR: {fdr:.1e} log2FC: {fc:.2f}"
 
     fig.update_layout(
         xaxis_title='ion',
@@ -1063,11 +1084,8 @@ def beeswarm_ion_plot_plotly(
 
     return fig
 
-# Cell
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
 
+# Cell
 def foldchange_ion_plot_plotly(
     df_melted,
     diffresults_protein
@@ -1080,6 +1098,7 @@ def foldchange_ion_plot_plotly(
 
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
+    fc = float(diffresults_protein.at["log2fc"])
     protein = diffresults_protein.name
 
     fig.add_hline(
@@ -1090,27 +1109,31 @@ def foldchange_ion_plot_plotly(
         line_color="black"
     )
 
-    fig.add_trace(
-        go.Box(
-            x=df_melted.ion,
-            y=df_melted.log2fc,
-            boxpoints='all',
-            line=dict(
-                color='lightgrey'
-            ),
-            marker=dict(
-                color='grey',
-                opacity=0.7
-            ),
-            pointpos=0
+    for is_included in df_melted["is_included"].unique():
+        df_subset = df_melted[df_melted["is_included"] == is_included]
+        markercol = 'lightblue' if is_included else 'grey'
+        fig.add_trace(
+            go.Box(
+                x=df_subset.ion,
+                y=df_subset.log2fc,
+
+                boxpoints='all',
+                line=dict(
+                    color='lightgrey'
+                ),
+                marker=dict(
+                    color=markercol,
+                    opacity=0.7
+                ),
+                pointpos=0
+            )
         )
-    )
 
     if "gene" in diffresults_protein.index:
         gene = diffresults_line.at["gene"]
-        title = f"{gene} ({protein}) FDR: {fdr:.1e}"
+        title = f"{gene} ({protein}) FDR: {fdr:.1e} log2FC: {fc:.2f}"
     else:
-        title = f"{protein} FDR: {fdr:.1e}"
+        title = f"{protein} FDR: {fdr:.1e} log2FC: {fc:.2f}"
 
     fig.update_layout(
         xaxis_title='ion',
@@ -1141,6 +1164,8 @@ def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results
     """reads the merged and clustered iontree for a given condpair"""
     condpairname = utils.get_condpairname([cond1, cond2])
     tree_file =os.path.join(results_folder, f"{condpairname}.iontrees.json")
+    if not os.path.isfile(tree_file):
+        return None
     importer = JsonImporter()
     filehandle = open(tree_file, 'r')
     jsontree = importer.read(filehandle)
