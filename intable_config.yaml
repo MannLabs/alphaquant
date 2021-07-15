@@ -62,10 +62,10 @@ spectronaut_fragion_isotopes:
     MS1ISOTOPES:
      - FG.MS1IsotopeIntensities (Measured)
   filters:
-    decoy_filt:
+    fragion_intensity:
       param: F.PeakArea
       comparator: ">"
-      value: 5
+      value: 5.0
   # filters:
   #   decoy_filt:
   #     param: EG.IsDecoy
