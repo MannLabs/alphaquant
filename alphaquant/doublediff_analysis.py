@@ -72,6 +72,20 @@ import numpy as np
 
 
 def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist):
+    """Gives a p-value for the null hypothesis: No change between the foldchanges of the ions1 in comparison to the ions2
+
+    Args:
+        ions1 (list[String]): list of ions1 to compared to ions1
+        ions2 (list[String]): list of ions2  to be compared to ions1
+        normed_c1 (ConditionBackground): Condition background ions1
+        normed_c2 (ConditionBackground): Condition background ions2
+        ion2diffDist (dict[String : EmpiricalBackground]): map from each ion to its assigned empirical background distribution
+        p2z (dict[double:double]): map from p-value to z-value (lookup to improve runtime)
+        deedpair2doublediffdist (dict[(EmpiricalBackground, EmpiricalBackground) : EmpiricalBackground]): map from each pair of empirical backgrounds to the subtracted empirical background representing the double differential noise
+
+    Returns:
+        double: p-value as specified above
+    """
     z_total = 0
     fcfc_total = 0
     count_pairs = 0
