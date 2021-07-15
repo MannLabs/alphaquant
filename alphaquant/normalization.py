@@ -231,6 +231,9 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 
     diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy()
     median = np.nanmedian(diff_fcs)
+    if len(diff_fcs<100):
+        print("using median for shift")
+        return -median
     mode = mode_normalization(diff_fcs)
     if(abs(median-mode) <0.05):
         print(f"using median for shift")
