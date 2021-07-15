@@ -199,7 +199,7 @@ def merge_protein_cols_and_ion_dict(input_df, config_dict):
     for hierarchy_type in ion_hierarchy.keys():
         df_subset = input_df.copy()
         ion_hierarchy_local = [x for x in ion_hierarchy.get(hierarchy_type) if x in ion_dict]
-        ion_headers_merged, ion_headers_grouped = get_relvant_column_names(ion_dict, ion_hierarchy_local) #ion headers merged is just a helper to select all relevant rows, ionsets merge contains the sets of ionstrings to be merged into a list eg [[SEQ, MOD], [CH]]
+        ion_headers_merged, ion_headers_grouped = get_relvant_column_names(ion_dict, ion_hierarchy_local) #ion headers merged is just a helper to select all relevant rows, ionheaders grouped contains the sets of ionstrings to be merged into a list eg [[SEQ, MOD], [CH]]
 
         if hierarchy_type == "ms1iso":
             headers = ion_headers_merged + [config_dict.get('sample_ID'), 'protein']
@@ -308,12 +308,15 @@ def read_wideformat_table(peptides_tsv, config_dict):
     protein_cols = config_dict.get("protein_cols")
     ion_cols = config_dict.get("ion_cols")
     input_df = filter_input(filter_dict, input_df)
-    input_df = merge_protein_and_ion_cols(input_df,protein_cols, ion_cols)
+    input_df = merge_protein_and_ion_cols(input_df, config_dict)
     if 'quant_prefix' in config_dict.keys():
         quant_prefix = config_dict.get('quant_prefix')
         headers = ['protein', 'ion'] + list(filter(lambda x: x.startswith(quant_prefix), input_df.columns))
         input_df = input_df[headers]
         input_df = input_df.rename(columns = lambda x : x.replace(quant_prefix, ""))
+
+    input_df = input_df.reset_index()
+    input_df.to_csv(f"{peptides_tsv}.aq_reformat.tsv",  index = False,sep = "\t")
 
     return input_df
 
