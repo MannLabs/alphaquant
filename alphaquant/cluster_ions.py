@@ -3,14 +3,15 @@
 __all__ = ['find_fold_change_clusters', 'find_fold_change_clusters_base_ions', 'propagate_clusters',
            'exchange_cluster_idxs', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping',
            'get_ionlist', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels', 'assign_vals_to_node',
-           'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'TypeFilter', 'NodeProperties',
-           'regex_frgions_only', 'regex_frgions_isotopes', 'export_roots_to_json']
+           'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'TypeFilter',
+           'init_typefilter_from_yaml', 'NodeProperties', 'regex_frgions_only', 'regex_frgions_isotopes',
+           'export_roots_to_json']
 
 # Cell
 import scipy.spatial.distance as distance
 import scipy.cluster.hierarchy as hierarchy
 
-def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold = 0.3, pval_threshold_basis = 1e-3):
+def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
     """Compares the fold changes of different ions and returns the set of ions with consistent fold changes.
 
     Args:
@@ -33,7 +34,7 @@ def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z,
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2,ion2diffDist,p2z,deedpair2doublediffdist,fc_threshold,pval_threshold_basis))
+    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2,ion2diffDist,p2z,deedpair2doublediffdist,pval_threshold_basis, fcfc_threshold, take_median_ion=True))
     after_clust = hierarchy.complete(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
     clustered = exchange_cluster_idxs(clustered)
@@ -155,20 +156,29 @@ def get_fcs_ions(diffions):
 # Cell
 import statistics
 import alphaquant.doublediff_analysis as aqdd
-def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis):
+import numpy as np
+def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold,  take_median_ion = False):
     ions1 = [x.name for x in diffions[idx1]]
     ions2 = [x.name for x in diffions[idx2]]
     fc1 = fcs[idx1]
     fc2 = fcs[idx2]
 
-    if abs((fc1-fc2)) < fc_threshold:
+    if abs((fc1-fc2)) < fcfc_threshold:
         return 0
+
+    if take_median_ion:
+        fcs_ions1 = [x.fc for x in diffions[idx1]]
+        fcs_ions2 = [x.fc for x in diffions[idx2]]
+        idx_ions1 = np.argsort(fcs_ions1)[len(fcs_ions1)//2]
+        idx_ions2 = np.argsort(fcs_ions2)[len(fcs_ions2)//2]
+        ions1 = [ions1[idx_ions1]]
+        ions2 = [ions2[idx_ions2]]
+
+    fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
+    if (pval<pval_threshold_basis) & (abs(fcfc) > fcfc_threshold):
+        return 1
     else:
-        fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
-        if pval<pval_threshold_basis:
-            return 1
-        else:
-            return 0
+        return 0
 
 
 # Cell
@@ -238,7 +248,7 @@ def update_nodes(type_node, typefilter, type_idx, leafs2clust, node2leafs, node_
             continue
         clustid =  leafs2clust.get(tuple(node2leafs.get(node)))
         node.cluster = clustid
-        leafs_included = [x for x in node.leaves if x.is_included]
+        leafs_included = [x for x in type_node.leaves if x.is_included]
         no_leafs = len(leafs_included)==0
         wrong_cluster = (clustid!=typefilter.select_cluster[type_idx]) & (typefilter.select_cluster[type_idx] !=-1)
         #wrong_cluster = (clustid!=type_node.mostcommon_clust) & (typefilter.select_cluster[type_idx] ==-1) #all children should belong to the most common cluster
@@ -271,7 +281,7 @@ def exclude_node(node):
 
 # Cell
 import time
-def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold = 0.3, pval_threshold_basis = 1e-3):
+def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
     #typefilter object specifies filtering and clustering of the nodes
     t_0 = time.time()
     #all_ions = [[ionname2diffion.get(x.name)] for x in root_node.leaves]
@@ -287,11 +297,11 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             if len(leaflist)==0:
                 exclude_node(type_node)
                 continue
-            leafs2clust, nodeprops = find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis) #propagate_clusters(leaflist, ion2cluster)#find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis)
+            leafs2clust, nodeprops = find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist,pval_threshold_basis, fcfc_threshold) #propagate_clusters(leaflist, ion2cluster)#find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis)
             update_nodes(type_node, typefilter, idx, leafs2clust, node2leafs, nodeprops)
     t_2 = time.time()
-    print(f"t_cluster_baseions: {t_1-t_0}")
-    print(f"t_update_nodes: {t_2-t_1}")
+    #print(f"t_cluster_baseions: {t_1-t_0}")
+    #print(f"t_update_nodes: {t_2-t_1}")
     return root_node
 
 # Cell
@@ -324,13 +334,14 @@ def get_diffresults_from_clust_root_node(root_node):
     ions_included = [x.name for x in root_node.leaves if x.is_included]
     return pval, fc, ions_included
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold = 0.3, pval_threshold_basis = 1e-5):
-    typefilter = TypeFilter('successive')
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
+    #typefilter = TypeFilter('successive')
+    typefilter = init_typefilter_from_yaml('default')
     regex_patterns = regex_frgions_isotopes
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions)
     #print(anytree.RenderTree(root_node))
-    root_node_clust = cluster_along_specified_levels(typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis)
+    root_node_clust = cluster_along_specified_levels(typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold)
     #print(anytree.RenderTree(root_node_clust))
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
@@ -383,16 +394,36 @@ class TypeFilter():
             self.exclude_if_num_mostcommonclusts_less_than = [1, 1, 1, 1, 1, 2]
         if filttype=='successive':
             self.type = ['frgion', 'ms1_isotopes', 'mod_seq_charge', 'mod_seq', 'seq', 'gene']
-            self.select_cluster = [-1, -1,0,-1,-1,-1,-1]
+            self.select_cluster = [0, 0,-1,-1,-1,-1,-1]
             self.exclude_if_more_clusters_than = [ np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
-            self.exclude_if_fraction_of_mainclust_smaller_than = [0, 0, 0, 0, 0, 0]
+            self.exclude_if_fraction_of_mainclust_smaller_than = [0, 0, 0.6, 0.6, 0, 0]
             self.exclude_if_frac_mostcommonclust_less_than = [0,0,0,0,0,0]
             self.exclude_if_elements_in_mainclust_less_than = [0, 0, 0, 0, 0, 0]
             self.exclude_if_elements_in_mostcommonclust_less_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_num_mainclusts_less_than = [0, 0, 0, 0, 0, 2]
+            self.exclude_if_num_mainclusts_less_than = [0, 0, 2, 0, 0, 2]
             self.exclude_if_num_mostcommonclusts_less_than = [0, 0, 0, 0, 0, 0]
 
 
+
+# Cell
+import yaml
+import os
+import pathlib
+def init_typefilter_from_yaml(filttype):
+    typefilter_yaml = os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "typefilt_config.yaml")
+    stream = open(typefilter_yaml, 'r')
+    typefilter_yaml = yaml.safe_load(stream)
+    filttype_dict = typefilter_yaml.get(filttype)
+    typefilt = TypeFilter(filttype)
+    typefilt.type = filttype_dict.get("type")
+    typefilt.select_cluster = filttype_dict.get("select_cluster")
+    typefilt.exclude_if_more_clusters_than = filttype_dict.get("exclude_if_more_clusters_than")
+    typefilt.exclude_if_fraction_of_mainclust_smaller_than = filttype_dict.get("exclude_if_fraction_of_mainclust_smaller_than")
+    typefilt.exclude_if_frac_mostcommonclust_less_than = filttype_dict.get("exclude_if_frac_mostcommonclust_less_than")
+    typefilt.exclude_if_num_mainclusts_less_than = filttype_dict.get("exclude_if_num_mainclusts_less_than")
+    typefilt.exclude_if_num_mostcommonclusts_less_than = filttype_dict.get("exclude_if_num_mostcommonclusts_less_than")
+
+    return typefilt
 
 # Cell
 
@@ -413,7 +444,7 @@ class NodeProperties():
 
 regex_frgions_only = [[("(SEQ.*MOD.*CHARGE.*FRGION.*)", "frgion")], [("(SEQ.*MOD.*CHARGE.*)(FRGION.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
 
-regex_frgions_isotopes = [[("(SEQ.*MOD.*CHARGE.*FRGION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRGION.*|MS1ISO.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
+regex_frgions_isotopes = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
 
 
 
