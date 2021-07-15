@@ -310,8 +310,7 @@ class RunPipeline(BaseWidget):
 
     def import_exp_data(self):
         self.data = aqutils.import_data(
-            input_file=self.path_analysis_file.value,
-            results_folder=self.path_output_folder.value
+            input_file=self.path_analysis_file.value
         )
 
     def extract_sample_names(self):
@@ -498,6 +497,7 @@ class SingleComparison(object):
             disabled=True,
             margin=(0, 40, 40, 10)
         )
+        
         self.output_folder = output_folder
         self.sample_to_cond = sample_to_cond
         self.layout = None
@@ -537,7 +537,7 @@ class SingleComparison(object):
     def run_after_pair_cond_selection(self, *args):
         if self.condpairs_selector.value != 'No conditions':
             self.cond1, self.cond2 = self.condpairs_selector.value.split('_vs_')
-
+            self.iontree_condpair = aqplot.read_condpair_tree(self.cond1, self.cond2, self.output_folder)
             self.result_df = aqplot.get_diffresult_dataframe(
                 self.cond1,
                 self.cond2,
@@ -629,7 +629,8 @@ class SingleComparison(object):
             self.protein.value,
             result_df_protein_index,
             self.normalized_intensity_df,
-            self.sample2cond
+            self.sample2cond,
+            self.iontree_condpair
         )
 
         #get fold change data table for protein
@@ -644,5 +645,4 @@ class SingleComparison(object):
         )
         self.layout[4][1][1] = pn.Pane(
             aqplot.foldchange_ion_plot_plotly(fc_df, protein_df),
-
         )
