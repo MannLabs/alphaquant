@@ -37,10 +37,10 @@ default:
   exclude_if_num_mainclusts_less_than:
   - 0
   - 0
-  - 2
   - 0
   - 0
-  - 2
+  - 0
+  - 0
   exclude_if_num_mostcommonclusts_less_than:
   - 0
   - 0
