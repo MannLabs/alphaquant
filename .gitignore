@@ -142,5 +142,5 @@ checklink/cookies.txt
 #debug folder
 debug
 
-#debug folder
-debug
+#debug file
+debug.py
