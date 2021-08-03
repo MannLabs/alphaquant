@@ -277,7 +277,8 @@ def add_merged_ionnames(df_subset, ion_hierarchy_local, ion_headers_grouped, qua
     all_ion_headers = list(itertools.chain.from_iterable(ion_headers_grouped))
     columns_to_index = [x for x in df_subset.columns if x not in all_ion_headers]
     df_subset = df_subset.set_index(columns_to_index)
-    rows = df_subset.to_numpy()
+
+    rows = df_subset[all_ion_headers].to_numpy()
     ions = []
 
     for row in rows: #iterate through dataframe
