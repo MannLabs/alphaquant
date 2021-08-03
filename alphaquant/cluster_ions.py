@@ -2,10 +2,10 @@
 
 __all__ = ['find_fold_change_clusters', 'find_fold_change_clusters_base_ions', 'propagate_clusters',
            'exchange_cluster_idxs', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping',
-           'get_ionlist', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels', 'assign_vals_to_node',
-           'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'TypeFilter',
-           'init_typefilter_from_yaml', 'NodeProperties', 'regex_frgions_only', 'regex_frgions_isotopes',
-           'export_roots_to_json']
+           'get_ionlist', 'get_leafs', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels',
+           'assign_vals_to_node', 'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions',
+           'assign_fcs_to_base_ions', 'TypeFilter', 'init_typefilter_from_yaml', 'NodeProperties', 'regex_frgions_only',
+           'regex_frgions_isotopes', 'export_roots_to_json']
 
 # Cell
 import scipy.spatial.distance as distance
@@ -15,7 +15,7 @@ def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z,
     """Compares the fold changes of different ions and returns the set of ions with consistent fold changes.
 
     Args:
-        diffions (list[list[ionnames]] ): contains the sets of ions to be tested, for examples [[fragion1_precursor1, fragion2_precursor1, fragion3_precursor1],[fragion1_precursor2],[fragion1_precursor3, fragion2_precursor3]]. The ions are assumed to be similar!
+        diffions (list[list[ionnames]]): contains the sets of ions to be tested, for examples [[fragion1_precursor1, fragion2_precursor1, fragion3_precursor1],[fragion1_precursor2],[fragion1_precursor3, fragion2_precursor3]]. The ions are assumed to be similar in type (e.g. fragment, precursor)!
         normed_c1 (ConditionBackground): [description]
         normed_c2 (ConditionBackground): [description]
         ion2diffDist (dict(ion : SubtractedBackground)): [description]
@@ -212,15 +212,37 @@ def create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions):
 
 # Cell
 
-def get_ionlist(type_nodes, ionname2diffion):
+def get_ionlist(type_nodes, ionname2diffion, select_mainclust_ions):
     ionlist = []
     node2leafs = {}
     for node in type_nodes:
-        leafs = [ionname2diffion.get(x.name) for x in node.leaves if x.is_included]
+        leafs = get_leafs(node, ionname2diffion, select_mainclust_ions)
         if len(leafs)>0:
             ionlist.append(leafs)
             node2leafs[node] = leafs
+
     return ionlist, node2leafs
+
+def get_leafs(node, ionname2diffion,only_include_mainclust):
+    """Returns all the leafs (i.e. ions) that belong to the node. With the option to only include those that were in the main cluster of the child nodes
+
+    Args:
+        node ([type]): [description]
+        ionname2diffion ([type]): [description]
+        only_include_mainclust ([type]): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    if node.is_leaf:
+        return [ionname2diffion.get(node.name)]
+    leafs = []
+    for child in node.children:
+        if only_include_mainclust & (child.cluster!=0):
+            continue
+        leafs.extend([ionname2diffion.get(x.name) for x in child.leaves if x.is_included])
+    return leafs
+
 
 
 def update_nodes(type_node, typefilter, type_idx, leafs2clust, node2leafs, node_props):
@@ -293,7 +315,7 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             continue
         for type_node in type_nodes:
             child_nodes = type_node.children
-            leaflist, node2leafs = get_ionlist(child_nodes, ionname2diffion)
+            leaflist, node2leafs = get_ionlist(child_nodes, ionname2diffion, select_mainclust_ions=True)
             if len(leaflist)==0:
                 exclude_node(type_node)
                 continue
@@ -312,7 +334,28 @@ from scipy.stats import norm
 import statistics
 import numpy as np
 
-def assign_vals_to_node(zvals, fcs, node):
+def assign_vals_to_node(node, idx, name2diffion, only_use_mainclust = True):
+
+
+    if idx ==1: #assign the base-level scores
+        if only_use_mainclust:
+            leafs_included = [name2diffion.get(x.name) for x in node.leaves if x.is_included & (x.cluster==0)]
+        else:
+            leafs_included = [name2diffion.get(x.name) for x in node.leaves if x.is_included]
+        num_leaves_total = len(node.leaves)
+        zvals = [name2diffion.get(x.name).z_val for x in leafs_included]
+        fcs = [name2diffion.get(x.name).fc for x in leafs_included]
+        fraction_consistent = sum([1/num_leaves_total for x in node.leaves if x.is_included & (x.cluster ==0)])
+    else:
+        if only_use_mainclust:
+            childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
+        else:
+            childs = [x for x in node.children if x.is_included]
+        num_childs_total = len(node.children)
+        zvals = [x.z_val for x in childs]
+        fcs =  [x.fc for x in childs]
+        fraction_consistent = sum([x.fraction_consistent/num_childs_total for x in childs if x.cluster ==0])
+
     z_sum = sum(zvals)
     p_z = norm(0, np.sqrt(len(zvals))).cdf(z_sum)
     z_normed = norm.ppf(p_z)
@@ -326,13 +369,15 @@ def assign_vals_to_node(zvals, fcs, node):
     node.z_val = z_normed
     node.p_val = p_val
     node.fc = statistics.median(fcs)
+    node.fraction_consistent = fraction_consistent
 
 
 def get_diffresults_from_clust_root_node(root_node):
     pval = root_node.p_val
     fc = root_node.fc
     ions_included = [x.name for x in root_node.leaves if x.is_included]
-    return pval, fc, ions_included
+    consistency_score = root_node.fraction_consistent * len(root_node.leaves)
+    return pval, fc, consistency_score, ions_included
 
 def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
     #typefilter = TypeFilter('successive')
@@ -346,27 +391,25 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
 
-    for idx in range(1, len(level_sorted_nodes)):
+    for idx in range(0, len(level_sorted_nodes)):
         nodes = level_sorted_nodes[idx]
+        if idx==0:
+            assign_fcs_to_base_ions(nodes, name2diffion)
+            continue
         for node in nodes:
             if not node.is_included:
                 continue
-            if idx ==1: #if we are 1 above base level, we
-                leafs_included = [name2diffion.get(x.name) for x in node.leaves if x.is_included]
-                zvals = [name2diffion.get(x.name).z_val for x in leafs_included]
-                fcs = [name2diffion.get(x.name).fc for x in leafs_included]
-            else:
-                childs = [x for x in node.children if x.is_included]
-                zvals = [x.z_val for x in childs]
-                fcs =  [x.fc for x in childs]
-
-            assign_vals_to_node(zvals, fcs,node)
+            assign_vals_to_node(node, idx, name2diffion)
 
     if len(nodes)!=1:
         Exception("there should be only one root node!")
 
     root_node_annot = nodes[0]
     return root_node_annot
+
+def assign_fcs_to_base_ions(nodes, name2diffion):
+    for node in nodes:
+        node.fc = name2diffion.get(node.name).fc
 
 # Cell
 import numpy as np
