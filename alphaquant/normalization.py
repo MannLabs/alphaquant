@@ -265,8 +265,6 @@ def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, runtime_pl
 
     df_c1_nonans = df_c1.dropna(axis=0) #determine normalization factors on the proteins without missing values
     df_c2_nonans = df_c2.dropna(axis=0)
-    display(df_c1_nonans)
-    display(df_c2_nonans)
     if len(df_c1_nonans.index)<300 | len(df_c2_nonans.index)<300:
         print('to few values for normalization without missing values. Including missing values')
         df_c1_nonans = df_c1
