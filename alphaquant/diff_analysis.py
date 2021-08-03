@@ -130,24 +130,22 @@ def select_robust_if_many_ions(fcs, median_fc,ion_diffresults):
     return ion_diffresults, median_offset_fc
 
 # Cell
-import numpy as np
+def calc_pseudo_intensities(ions, normed_c2, log2fc):
+    """Sumarizes the ion intensities in one condition and uses the fold change to calculate the intensity in the other condition.
 
-def calc_pseudo_intensities(normed_df_c2, pep2prot, cond_prots, cond_fcs,condpair):
-    summed_df = normed_df_c2.copy()
-    numrep = len(normed_df_c2.columns)-1
-    print(f"numrep {numrep}")
-    display(normed_df_c2)
-    summed_df["summed_int"] = normed_df_c2["median"]+numrep#summed_df.sum(axis=1)
-    summed_df["summed_int"] = np.exp2(summed_df["summed_int"])
-    summed_df = summed_df[["summed_int"]]
-    summed_df["protein"] = list(map(lambda x: pep2prot.get(x),summed_df.index))
-    summed_df = summed_df.reset_index()
-    summed_df = summed_df.set_index(['protein', 'ion'])
-    summed_df = summed_df.sum(level='protein')
-    prot2int = dict(zip(summed_df.index, summed_df["summed_int"]))
-    pseudoint1 = list(map(lambda x : prot2int.get(x),cond_prots))*np.exp2(cond_fcs)
-    pseudoint2 = list(map(lambda x : prot2int.get(x),cond_prots))
-    return pseudoint1, pseudoint2
+    Args:
+        ions ([type]): [description]
+        normed_c2 ([type]): [description]
+        log2fc ([type]): [description]
+    """
+    intensity_c2_summed = 0
+    for ion in ions:
+        intensity_est =  2**(np.median(normed_c2.ion2nonNanvals.get(ion.name)))
+        intensity_c2_summed += intensity_est
+    fc = 2**log2fc #fc = int_c1/int_c2
+    intensity_c1_summed = fc*intensity_c2_summed#-> int_c1 = fc*int_c2
+    return intensity_c1_summed, intensity_c2_summed
+
 
 # Cell
 import re
