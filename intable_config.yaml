@@ -8,6 +8,14 @@ maxquant_peptides:
    - Leading razor protein
   ion_cols:
    - Sequence
+  ion_hierarchy:
+    sequence_int:
+      order: [SEQ, MOD]
+      mapping:
+        SEQ: 
+          - Sequence
+        MOD:
+          - Mass
   filters:
     reverse:
       param: Reverse
@@ -49,18 +57,30 @@ spectronaut_fragion_isotopes:
   split_cols:
     FG.MS1IsotopeIntensities (Measured): ";"
   ion_hierarchy:
-    SEQ: 
-     - PEP.StrippedSequence
-    MOD: 
-     - EG.ModifiedSequence
-    CHARGE: 
-     - FG.Charge
-    FRGION: 
-     - F.FrgIon
-     - F.FrgLossType
-     - F.Charge
-    MS1ISOTOPES:
-     - FG.MS1IsotopeIntensities (Measured)
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        FRGION: 
+         - F.FrgIon
+         - F.FrgLossType
+         - F.Charge
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        MS1ISOTOPES:
+         - FG.MS1IsotopeIntensities (Measured)
   filters:
     fragion_intensity:
       param: F.PeakArea
@@ -122,13 +142,23 @@ spectronaut_precursor:
 spectronaut_precursor_v2:
   format: longtable
   sample_ID: R.Label
-  quant_ID: FG.Quantity
+  quant_ID:
+    precursor: FG.Quantity
   protein_cols:
    - PG.ProteinGroups
   ion_cols:
    - EG.ModifiedPeptide
    - FG.Charge
-
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE]
+      mapping:
+        SEQ: 
+          - PEP.StrippedSequence
+        MOD:
+          - EG.ModifiedPeptide
+        CHARGE:
+          - FG.Charge
 
 
 openswath_precursor_aligned:
@@ -176,9 +206,4 @@ diaumpire_precursor_ms1:
    - Proteins
   ion_cols:
    - Peptide Key
-
-
-
-
-
-
+   
