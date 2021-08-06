@@ -110,6 +110,7 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "merge_protein_cols_and_ion_dict": "08_diffquant_utils.ipynb",
          "get_quantitative_columns": "08_diffquant_utils.ipynb",
          "get_ionname_columns": "08_diffquant_utils.ipynb",
+         "adapt_headers_on_extended_df": "08_diffquant_utils.ipynb",
          "split_extend_df": "08_diffquant_utils.ipynb",
          "add_merged_ionnames": "08_diffquant_utils.ipynb",
          "reformat_longtable_according_to_config_new": "08_diffquant_utils.ipynb",
@@ -165,7 +166,11 @@ index = {"run_pipeline_from_preconfigured_files": "01_diff_analysis_manager.ipyn
          "NodeProperties": "11_cluster_ions.ipynb",
          "regex_frgions_only": "11_cluster_ions.ipynb",
          "regex_frgions_isotopes": "11_cluster_ions.ipynb",
-         "export_roots_to_json": "11_cluster_ions.ipynb"}
+         "export_roots_to_json": "11_cluster_ions.ipynb",
+         "collect_node_parameters": "12_classify_ions.ipynb",
+         "get_dataframe": "12_classify_ions.ipynb",
+         "calc_variance_for_node": "12_classify_ions.ipynb",
+         "get_positive_negative_samples": "12_classify_ions.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -177,7 +182,8 @@ modules = ["diff_analysis_manager.py",
            "diffquant_utils.py",
            "ptmsite_mapping.py",
            "doublediff_analysis.py",
-           "cluster_ions.py"]
+           "cluster_ions.py",
+           "classify_ions.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 
