@@ -160,6 +160,23 @@ spectronaut_precursor_v2:
         CHARGE:
           - FG.Charge
 
+spectronaut_precursor_v3:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    precursor: FG.Quantity
+  protein_cols:
+   - PG.ProteinGroups
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE]
+      mapping:
+        SEQ: 
+          - PEP.StrippedSequence
+        MOD:
+          - EG.ModifiedSequence
+        CHARGE:
+          - FG.Charge
 
 openswath_precursor_aligned:
   format: longtable
