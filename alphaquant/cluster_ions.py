@@ -11,7 +11,7 @@ __all__ = ['find_fold_change_clusters', 'find_fold_change_clusters_base_ions', '
 import scipy.spatial.distance as distance
 import scipy.cluster.hierarchy as hierarchy
 
-def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
+def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     """Compares the fold changes of different ions and returns the set of ions with consistent fold changes.
 
     Args:
@@ -34,19 +34,14 @@ def find_fold_change_clusters(diffions, normed_c1, normed_c2, ion2diffDist, p2z,
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2,ion2diffDist,p2z,deedpair2doublediffdist,pval_threshold_basis, fcfc_threshold, take_median_ion=True))
+    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2,ion2diffDist,p2z,deedpair2doublediffdist,pval_threshold_basis, fcfc_threshold, take_median_ion))
     after_clust = hierarchy.complete(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
     clustered = exchange_cluster_idxs(clustered)
-    num_clusters = len(set(clustered))
-    num_mainclusts = sum([x==0 for x in clustered])
-    frac_mainclust = num_mainclusts/len(clustered)
+    nodeprops.num_clusters = len(set(clustered))
+    nodeprops.num_mainclusts = sum([x==0 for x in clustered])
+    nodeprops.frac_mainclust = nodeprops.num_mainclusts/len(clustered)
     ions2clust = { tuple(diffions[ion_idx]) : clust_idx for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)}
-
-    nodeprops.frac_mainclust = frac_mainclust
-    nodeprops.num_mainclusts = num_mainclusts
-    nodeprops.num_clusters = num_clusters
-
 
     return ions2clust, nodeprops
 
@@ -76,7 +71,7 @@ def find_fold_change_clusters_base_ions(all_ions, normed_c1, normed_c2, ion2diff
     diffions_idxs = [[x] for x in range(len(all_ions))]
     diffions_fcs = get_fcs_ions(all_ions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], all_ions, diffions_fcs, normed_c1, normed_c2,ion2diffDist,p2z,deedpair2doublediffdist,fc_threshold,pval_threshold_basis))
+    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], all_ions, diffions_fcs, normed_c1, normed_c2,ion2diffDist,p2z,deedpair2doublediffdist,fc_threshold,pval_threshold_basis, False))
     after_clust = hierarchy.complete(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
     clustered = exchange_cluster_idxs(clustered)
@@ -118,8 +113,9 @@ def propagate_clusters(diffions, ion2cluster):
 
     nodeprops = NodeProperties()
     nodeprops.num_clusters = num_clusters
-    nodeprops.num_mainclust_elems = num_mainclust_elems
-    nodeprops.num_mostcommonclust_elems = num_mostcommonclust_elems
+    nodeprops.num_mainclust_elems = num_mainclust_elems #elements in the overall biggest cluster
+    nodeprops.num_mostcommonclust_elems = num_mostcommonclust_elems #elements in the most common cluster for this particular node.
+    #The most common cluster can only be different from the main cluster in case that clustering has been carried out outside of the set
     nodeprops.frac_mainclust = frac_mainclust
     nodeprops.frac_mostcommonclust = frac_mostcommonclust
     nodeprops.num_mainclusts = num_mainclusts
@@ -157,7 +153,7 @@ def get_fcs_ions(diffions):
 import statistics
 import alphaquant.doublediff_analysis as aqdd
 import numpy as np
-def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold,  take_median_ion = False):
+def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold,  take_median_ion):
     ions1 = [x.name for x in diffions[idx1]]
     ions2 = [x.name for x in diffions[idx2]]
     fc1 = fcs[idx1]
@@ -303,7 +299,7 @@ def exclude_node(node):
 
 # Cell
 import time
-def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
+def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     #typefilter object specifies filtering and clustering of the nodes
     t_0 = time.time()
     #all_ions = [[ionname2diffion.get(x.name)] for x in root_node.leaves]
@@ -319,7 +315,7 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             if len(leaflist)==0:
                 exclude_node(type_node)
                 continue
-            leafs2clust, nodeprops = find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist,pval_threshold_basis, fcfc_threshold) #propagate_clusters(leaflist, ion2cluster)#find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis)
+            leafs2clust, nodeprops = find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist,pval_threshold_basis, fcfc_threshold, take_median_ion) #propagate_clusters(leaflist, ion2cluster)#find_fold_change_clusters(leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fc_threshold, pval_threshold_basis)
             update_nodes(type_node, typefilter, idx, leafs2clust, node2leafs, nodeprops)
     t_2 = time.time()
     #print(f"t_cluster_baseions: {t_1-t_0}")
@@ -379,14 +375,14 @@ def get_diffresults_from_clust_root_node(root_node):
     consistency_score = root_node.fraction_consistent * len(root_node.leaves)
     return pval, fc, consistency_score, ions_included
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     #typefilter = TypeFilter('successive')
     typefilter = init_typefilter_from_yaml('default')
     regex_patterns = regex_frgions_isotopes
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions)
     #print(anytree.RenderTree(root_node))
-    root_node_clust = cluster_along_specified_levels(typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold)
+    root_node_clust = cluster_along_specified_levels(typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
     #print(anytree.RenderTree(root_node_clust))
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
