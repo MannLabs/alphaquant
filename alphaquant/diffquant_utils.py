@@ -3,8 +3,9 @@
 __all__ = ['get_condpairname', 'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'get_ionints_from_pd_df',
            'invert_dictionary', 'get_z_from_p_empirical', 'get_relevant_columns', 'get_relevant_columns_config_dict',
            'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
-           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns', 'split_extend_df',
-           'add_merged_ionnames', 'reformat_longtable_according_to_config_new', 'read_wideformat_table',
+           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
+           'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
+           'reformat_longtable_according_to_config_new', 'read_wideformat_table',
            'check_for_processed_runs_in_results_folder', 'import_data', 'get_samplenames', 'load_samplemap',
            'prepare_loaded_tables']
 
@@ -178,6 +179,7 @@ def merge_protein_and_ion_cols(input_df, config_dict):
     return input_df
 
 # Cell
+import copy
 def merge_protein_cols_and_ion_dict(input_df, config_dict):
     """[summary]
 
@@ -210,6 +212,7 @@ def merge_protein_cols_and_ion_dict(input_df, config_dict):
         if splitcol2sep is not None:
             if quant_columns[0] in splitcol2sep.keys(): #in the case that quantitative values are stored grouped in one column (e.g. msiso1,msiso2,msiso3, etc.), reformat accordingly
                 df_subset = split_extend_df(df_subset, splitcol2sep)
+            ion_headers_grouped = adapt_headers_on_extended_df(ion_headers_grouped, splitcol2sep)
 
         #df_subset = df_subset.set_index(quant_columns)
 
@@ -237,10 +240,21 @@ def get_ionname_columns(ion_dict, ion_hierarchy_local):
     ion_headers_merged = []
     ion_headers_grouped = []
     for lvl in ion_hierarchy_local:
-        ion_headers_merged.extend(ion_dict.get(lvl))
-        ion_headers_grouped.append(ion_dict.get(lvl))
+        vals = ion_dict.get(lvl)
+        ion_headers_merged.extend(vals)
+        ion_headers_grouped.append(vals)
     return ion_headers_merged, ion_headers_grouped
 
+
+def adapt_headers_on_extended_df(ion_headers_grouped, splitcol2sep):
+    #in the case that one column has been split, we need to designate the "naming" column
+    ion_headers_grouped_copy = copy.deepcopy(ion_headers_grouped)
+    for vals in ion_headers_grouped_copy:
+        if splitcol2sep is not None:
+            for idx in range(len(vals)):
+                if vals[idx] in splitcol2sep.keys():
+                    vals[idx] = vals[idx] + "_idxs"
+    return ion_headers_grouped_copy
 
 def split_extend_df(input_df, splitcol2sep, value_threshold=10):
     """reformats data that is stored in a condensed way in a single column. For example isotope1_intensity;isotope2_intensity etc. in Spectronaut
