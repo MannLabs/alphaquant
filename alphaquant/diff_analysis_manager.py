@@ -20,7 +20,7 @@ import statsmodels.stats.multitest as mt
 from time import time
 
 
-def run_pipeline(unnormed_df, labelmap_df, results_dir = "./results",  condpair_combinations = None, minrep = 2, min_num_ions = 1, cluster_threshold_pval = 1e-3, cluster_threshold_fcfc = 0.5, outlier_correction = True, normalize = True, use_iontree_if_possible = True,
+def run_pipeline(unnormed_df, labelmap_df, results_dir = "./results",  condpair_combinations = None, minrep = 2, min_num_ions = 1, cluster_threshold_pval = 1e-3, cluster_threshold_fcfc = 0.5, take_median_ion = True,outlier_correction = True, normalize = True, use_iontree_if_possible = True,
 get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,annotation_file = None):
     """Run the differential analyses.
     """
@@ -47,7 +47,7 @@ get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, 
             print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
             continue
 
-        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,results_dir,condpair, minrep, min_num_ions, cluster_threshold_pval, cluster_threshold_fcfc, outlier_correction, normalize, use_iontree_if_possible, get_ion2clust,median_offset, pre_normed_intensity_file , dia_fragment_selection,
+        res, peps = analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot,results_dir,condpair, minrep, min_num_ions, cluster_threshold_pval, cluster_threshold_fcfc, take_median_ion,outlier_correction, normalize, use_iontree_if_possible, get_ion2clust,median_offset, pre_normed_intensity_file , dia_fragment_selection,
         runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file)
         res_dfs.append(res)
         pep_dfs.append(peps)
@@ -69,7 +69,7 @@ import alphaquant.cluster_ions as aqclust
 import anytree
 
 
-def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir,condpair, minrep, min_num_ions, cluster_threshold_pval, cluster_threshold_fcfc, outlier_correction, normalize, use_iontree_if_possible, get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file):
+def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir,condpair, minrep, min_num_ions, cluster_threshold_pval, cluster_threshold_fcfc, take_median_ion,outlier_correction, normalize, use_iontree_if_possible, get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file):
     t_zero = time()
     print(f"start processeing condpair {condpair}")
     prot2diffions = {}
@@ -142,7 +142,7 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir
             continue
         diffprot = aqdiff.DifferentialProtein(prot,ions, median_offset, dia_fragment_selection)
         if use_ion_tree:
-            clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, ions,normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis = cluster_threshold_pval, fcfc_threshold = cluster_threshold_fcfc)
+            clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, ions,normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis = cluster_threshold_pval, fcfc_threshold = cluster_threshold_fcfc, take_median_ion=take_median_ion)
             #print(anytree.RenderTree(clustered_root_node))
             #if not clustered_root_node.is_included:
              #   continue
