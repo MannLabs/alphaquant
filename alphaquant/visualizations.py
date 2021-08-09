@@ -664,7 +664,7 @@ def get_clustered_dataframe(overview_df, cluster_method ='average',compare_funct
 # Cell
 import re
 import os
-def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), regulated_object = "protein",condpairs_to_compare = []):
+def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"), regulated_object = "protein",condpairs_to_compare = [], show_fcs = False, name_transformation_function = None):
     """
     goes through the results folder and extracts up- and downregulated genes for each (specified) condition comparison
     """
@@ -681,17 +681,24 @@ def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"),
         if(type(results) == type(None)):
             continue
         site_df = results
+        prot2fc = dict(zip(site_df[regulated_object], site_df["log2fc"]))
         positive_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]>0.5)][regulated_object]))
         negative_sites = list(set(site_df[(site_df["fdr"]<0.05) & (site_df["log2fc"]<-0.5)][regulated_object]))
-        df_loc = pd.DataFrame([[1 for x in range(len(positive_sites))]+[-1 for x in range(len(negative_sites))]],columns=positive_sites+negative_sites)
-        df_loc["condpair"] = utils.get_condpairname([c1, c2])
+
+        if show_fcs:
+            df_local = pd.DataFrame([[prot2fc.get(x) for x in positive_sites]+[prot2fc.get(x) for x in negative_sites]],columns=positive_sites+negative_sites)
+        else:
+            df_local = pd.DataFrame([[1 for x in positive_sites]+[-1 for x in negative_sites]],columns=positive_sites+negative_sites)
+        df_local["condpair"] = utils.get_condpairname([c1, c2])
         #df_loc["num_regulated"] = len(positive_sites) + len(negative_sites)
-        dfs.append(df_loc)
+        dfs.append(df_local)
         #print(count)
         count+=1
 
     result_df = pd.concat(dfs)
     result_df = result_df.replace(np.nan, 0).set_index("condpair")
+    if name_transformation_function is not None:
+        result_df = name_transformation_function(result_df)
 
     return result_df
 
