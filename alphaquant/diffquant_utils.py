@@ -58,10 +58,9 @@ def get_ionints_from_pd_df(df):
 # Cell
 def invert_dictionary(my_map):
     inv_map = {}
-    for k, v in my_map.iteritems():
+    for k, v in my_map.items():
         inv_map[v] = inv_map.get(v, []) + [k]
     return inv_map
-
 
 # Cell
 from scipy.stats import norm
@@ -131,7 +130,6 @@ def get_type2relevant_cols(config_all):
         relevant_cols = get_relevant_columns_config_dict(config_typedict)
         type2relcols[type] = relevant_cols
     return type2relcols
-
 
 # Cell
 
@@ -429,7 +427,6 @@ def import_data(input_file,  verbose=True):
     #if non of the cases match, return error
     raise TypeError(f'Input data format for {input_file} not known.')
 
-
 # Cell
 import pandas as pd
 
@@ -439,7 +436,6 @@ def get_samplenames(data):
     names.remove('protein')
     names.remove('ion')
     return names
-
 
 # Cell
 

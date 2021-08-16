@@ -5,13 +5,15 @@ __all__ = ['collect_node_parameters', 'get_dataframe', 'calc_variance_for_node',
 # Cell
 import numpy as np
 import pandas as pd
-def collect_node_parameters(all_nodes):
+def collect_node_parameters(all_nodes, w_annot = True):
     ion2param2val = {}
     all_headers = set()
     for node in all_nodes:
 
-        param2val = {"ion" : node.name,"positive_example" : node.positive_example, "frac_mainclust" : node.frac_mainclust, "num_mainclusts" : node.num_mainclusts,
+        param2val = { "frac_mainclust" : node.frac_mainclust, "num_mainclusts" : node.num_mainclusts,
         "variance_fcs" : calc_variance_for_node(node), "num_children" : len(node.children), "fraction_consistent": node.fraction_consistent, "num_leaves" : len(node.leaves)}
+        if w_annot:
+            param2val.update({"positive_example" : node.positive_example, "ion" : node.name})
         if node.type == 'mod_seq_charge':
             if len(node.children) ==2:
                 fcfc_diff = abs(node.children[0].fc - node.children[1].fc)
