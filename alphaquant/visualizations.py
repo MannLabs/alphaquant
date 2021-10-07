@@ -10,7 +10,9 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
            'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe',
            'initialize_sample2cond', 'plot_volcano_plotly', 'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly',
-           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'read_condpair_tree']
+           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'read_condpair_tree', 'make_mz_fc_boxplot',
+           'assign_mz_cathegory', 'plot_predicted_fc_histogram', 'plot_log_loss_score',
+           'get_error_and_scatter_ml_regression', 'plot_fc_intensity_scatter']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -326,19 +328,21 @@ def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significan
 
 # Cell
 import anytree
+import time
 def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, sample2cond, condpair_root_node = None,ion_header = 'ion', protein_header = 'protein'):
+    t_start = time.time()
     diffresults_line = diffresults_df.loc[protein]
     value_vars = set.intersection(set(normed_df.columns), set(sample2cond.keys()))
     protein_df = normed_df.xs(protein, level = 0)
     df_melted = pd.melt(protein_df.reset_index(), value_vars= value_vars, id_vars=[ion_header], value_name="intensity", var_name="sample")
     df_melted["condition"] = [sample2cond.get(x) for x in df_melted["sample"]]
-
+    t_melted = time.time()
     #if ion clustering has been performed, add cluster information
     if condpair_root_node != None:
 
         protein_node = anytree.findall_by_attr(condpair_root_node, protein, maxlevel=2)[0]
         ions_sorted = [x.name for x in protein_node.leaves]
-        ion2is_included = {x.name : x.is_included for x in protein_node.leaves} #written as dict because identical ion has multiple columns
+        ion2is_included = {x.name : x.cluster==0 for x in protein_node.leaves} #written as dict because identical ion has multiple columns
         ions_in_df = set(df_melted["ion"]) - set(ions_sorted)
         if len(ions_in_df)>0:
             Exception("Clustered ions and observed ions differ!")
@@ -347,13 +351,18 @@ def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, s
         df_melted = df_melted.loc[ions_sorted]
         df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted.index]
         df_melted = df_melted.reset_index()
-
+    t_annotated = time.time()
+    print(f"times melted protein intensities:\n t_melted: {t_melted - t_start} \n t_annotated: {t_annotated - t_melted}")
     return df_melted, diffresults_line
+
+
 
 
 # Cell
 
+import time
 def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
+    t_start = time.time()
     has_clust_info = "is_included" in melted_df.columns
     melted_df = melted_df.set_index(["condition"])
     sorted_ions = melted_df["ion"]
@@ -366,6 +375,7 @@ def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
     result_ions = []
     result_fcs = []
     result_included = []
+    t_localized_index_set = time.time()
     for ion in sorted_ions:
         is_included = c1_df.loc[ion]["is_included"][0] if has_clust_info else True
 
@@ -375,10 +385,11 @@ def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
         result_ions.extend([ion for x in range(len(fcs))])
         result_fcs.extend(fcs)
         result_included.extend([is_included for x in range(len(fcs))])
-
+    t_list_created = time.time()
     res_df = pd.DataFrame({"ion": result_ions, "log2fc": result_fcs, "is_included" : result_included})
-
+    print(f"times betweencond fcs table:\n t_localized_index_set: {t_localized_index_set - t_start} \n t_list_created: {t_list_created - t_localized_index_set}")
     return res_df
+
 
 # Cell
 #interactive
@@ -426,7 +437,6 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
     are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
       to annotate the plot"""
-
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
     protein = diffresults_protein.name
@@ -434,9 +444,12 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     #define greyscale color palette
     pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
 
+    #specify color for included proteins
+    my_pal = {row["ion"]: "lightblue" if row["is_included"] else "grey" for _,row in df_melted.iterrows()}
+
     #plot with seaborn standard functions
     ax = sns.boxplot(x="ion", y="log2fc", data=df_melted, color = "white")
-    ax = sns.stripplot(x="ion", y="log2fc", data=df_melted, color = "grey")
+    ax = sns.stripplot(x="ion", y="log2fc", data=df_melted, palette= my_pal)
 
     #annotate and format
     handles, labels = ax.get_legend_handles_labels()
@@ -1132,7 +1145,7 @@ def foldchange_ion_plot_plotly(
 
     for is_included in df_melted["is_included"].unique():
         df_subset = df_melted[df_melted["is_included"] == is_included]
-        markercol = 'lightblue' if is_included else 'grey'
+        markercol = 'lightblue' #if is_included else 'grey'
         fig.add_trace(
             go.Box(
                 x=df_subset.ion,
@@ -1192,3 +1205,114 @@ def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results
     jsontree = importer.read(filehandle)
     filehandle.close()
     return jsontree
+
+# Cell
+
+import seaborn as sns
+def make_mz_fc_boxplot(merged_df, ion_nodes):
+    merged_df = merged_df.copy()
+    ion2fc = {node.name:node.fc for node in ion_nodes}
+    merged_df["log2fc"] = [ion2fc.get(ion) for ion in merged_df["ion"]]
+    #merged_df = merged_df[merged_df["log2fc"] >0]
+    #merged_df = merged_df[merged_df["EG.ApexRT"] <80]
+    transf_fc = list(2**merged_df["log2fc"])
+    merged_df["fc"]  = transf_fc
+    merged_df['mz_cathegory'] = [assign_mz_cathegory(mz) for mz in merged_df["FG.PrecMz"]]
+    sns.boxplot(x = 'mz_cathegory', y = "log2fc",data = merged_df)
+    plt.ylim(-2, 2)
+    plt.show()
+
+
+def assign_mz_cathegory(mz_val):
+    if mz_val<400:
+        return 400
+    if mz_val < 500:
+        return 500
+    if mz_val < 600:
+        return 600
+    if mz_val < 700:
+        return 700
+    if mz_val < 800:
+        return 800
+    if mz_val < 900:
+        return 900
+    if mz_val < 1000:
+        return 1000
+    if mz_val < 1100:
+        return 1100
+    else:
+        return 1200
+
+# Cell
+import matplotlib.pyplot as plt
+
+def plot_predicted_fc_histogram(y_test, y_pred, fc_cutoff, show_filtered):
+    if show_filtered:
+        fcs = [y_test[i] for i in range(len(y_test)) if y_pred[i]>fc_cutoff]
+        if len(fcs)==0:
+            return
+    else:
+        fcs = [y_test[i] for i in range(len(y_test)) if y_pred[i]<fc_cutoff]
+
+    #is_logged = min(fcs)<0
+    #if not is_logged:
+     #   fcs = np.log2(np.array(fcs))
+    percent_survived = round(len(fcs)/len(y_test), 2)
+    print(f"{percent_survived} of fcs retained of {len(fcs)} total")
+    plt.hist(fcs, 60, density=True, histtype='step',cumulative=False)
+    plt.xlim(-1.8, 1.8)
+
+def plot_log_loss_score(loss_score, y_test, loss_score_cutoff = 0):
+    plt.hist(loss_score, 60, density=False, histtype='step',cumulative=False)
+    plt.show()
+    if loss_score_cutoff > 0:
+        fcs = [y_test[i] for i in range(len(y_test)) if loss_score[i]>loss_score_cutoff]
+        print(f"{len(fcs)} retained of {len(y_test)}")
+        plt.hist(fcs, 60, density=True, histtype='step',cumulative=False)
+        plt.show()
+    plt.scatter(y_test, loss_score, color='blue', alpha=0.3)
+    plt.show()
+
+
+
+
+# Cell
+
+from sklearn.metrics import mean_squared_error, r2_score
+
+def get_error_and_scatter_ml_regression(y_test, y_pred, cutoff):
+    # The mean squared error
+    print('Mean squared error: %.2f'
+        % mean_squared_error(y_test, y_pred))
+    # The coefficient of determination: 1 is perfect prediction
+    print('Coefficient of determination: %.2f'
+        % r2_score(y_test, y_pred))
+    print(f"{len(y_test)} predictions in total")
+
+    # Plot outputs
+    #plt.plot(X_test[:,-1], y_pred,  color='black')
+    plt.scatter(y_test, y_pred, color='blue', alpha=0.3)
+    plt.show()
+    plot_predicted_fc_histogram(y_test, y_pred, cutoff, show_filtered=False)
+    plt.show()
+    plot_predicted_fc_histogram(y_test, y_pred, cutoff, show_filtered=True)
+    plt.show()
+
+# Cell
+import seaborn as sns
+import numpy as np
+
+def plot_fc_intensity_scatter(result_df, name, expected_log2fc = None):
+    result_df["log_median_intensity"] = np.log10(result_df["median_intensity"])
+    ax = sns.scatterplot( x="log2fc", y="log_median_intensity", data=result_df, alpha=0.2)
+    if expected_log2fc is not None:
+        ax.vlines(np.log2(expected_log2fc), 3.8, 11)
+        ax.vlines(np.log2(expected_log2fc)-0.5, 3.8, 11, linestyles = 'dotted')
+        ax.vlines(np.log2(expected_log2fc)+0.5, 3.8, 11, linestyles = 'dotted')
+    std = np.std(result_df['log2fc'].values)
+    mean = np.mean(result_df['log2fc'].values)
+    ax.set_title(f'{name}\n mean {mean:.2f}, std {std:.2f}, nums {len(result_df["log2fc"])}')
+    #ax.set(xlim = (-2, 6))
+    #ax.set(ylim = (3.8, 11))
+    #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.show()
