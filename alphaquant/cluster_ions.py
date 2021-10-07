@@ -43,9 +43,11 @@ def find_fold_change_clusters(typenode, diffions, normed_c1, normed_c2, ion2diff
     typenode.num_mainclusts = sum([x==0 for x in clustered])
     typenode.frac_mainclust = typenode.num_mainclusts/len(clustered)
 
+
     childnode2clust = { typenode.children[ion_idx] : clust_idx for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)}
 
     return childnode2clust
+
 
 # Cell
 import scipy.spatial.distance as distance
@@ -105,14 +107,14 @@ def decide_cluster_order(node, childnode2clust, ml_classifier, featurenames_ml):
     clust2childnodes = aqutils.invert_dictionary(childnode2clust)
     # if len(clust2childnodes.keys())==1:
     #     return childnode2clust
-    if ((node.type == "frgion") | (node.type =="ms1_isotopes") | (node.type == "mod_seq_charge")):
+    if ((node.type == "frgion") | (node.type =="ms1_isotopes") | (node.type == "mod_seq_charge") | (ml_classifier == None)):
         return childnode2clust
     elif (node.type == "mod_seq"):
         return predict_and_order_by_ml_score(node, clust2childnodes,ml_classifier, featurenames_ml)
     else:
         return propagate_and_order_by_ml_score(node, clust2childnodes)
 
-# Cell
+
 import alphaquant.classify_ions as aqclass
 
 def predict_and_order_by_ml_score(node,clust2childnodes, ml_classifier, featurenames_ml):
@@ -137,7 +139,6 @@ def propagate_and_order_by_ml_score(node, clust2childnodes):
     childnode2clust = get_node2clust_from_scored(clust2score, clust2childnodes)
     return childnode2clust
 
-# Cell
 def get_node2clust_from_scored(clust2score, clust2nodes):
     node2clust = {}
     clusts = list(clust2score.keys())
@@ -295,9 +296,9 @@ import pickle
 import pandas as pd
 def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     #typefilter object specifies filtering and clustering of the nodes
-    ml_classifier = pickle.load(open("/Users/constantin/workspace/Quantification/Benchmarks/DIA/1_10_100_Spectronaut/eval_noise/logregression_100_10", 'rb'))
+    #ml_classifier = pickle.load(open("/Users/constantin/workspace/Quantification/Benchmarks/DIA/1_10_100_Spectronaut/eval_noise/logregression_100_10", 'rb'))
     featurenames_ml = list(pd.read_csv("/Users/constantin/workspace/Quantification/Benchmarks/DIA/1_10_100_Spectronaut/eval_noise/featurenames_logregression_100_10.tsv", sep = "\t")['0'])
-    assign_fcs_to_base_ions(root_node, ionname2diffion)
+    assign_fcs_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
     for idx in range(len(typefilter.type)):
         type_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == typefilter.type[idx])
@@ -311,7 +312,7 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
                 exclude_node(type_node)
                 continue
             childnode2clust = find_fold_change_clusters(type_node,leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
-            childnode2clust = decide_cluster_order(type_node, childnode2clust, ml_classifier, featurenames_ml)
+            childnode2clust = decide_cluster_order(type_node, childnode2clust, ml_classifier= None, featurenames_ml = None)
             update_nodes(type_node, typefilter, idx, childnode2clust)
             assign_vals_to_node(type_node, idx, ionname2diffion)
 
@@ -342,9 +343,12 @@ def assign_vals_to_node(node, idx, name2diffion, only_use_mainclust = True):
         childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
     else:
         childs = [x for x in node.children if x.is_included]
+
     num_childs_total = len(node.children)
     zvals = [x.z_val for x in childs]
     fcs =  [x.fc for x in childs]
+    cvs = [x.cv for x in childs]
+    min_intensities = [x.min_intensity for x in childs]
     fraction_consistent = sum([x.fraction_consistent/num_childs_total for x in childs if x.cluster ==0])
 
     z_sum = sum(zvals)
@@ -359,8 +363,10 @@ def assign_vals_to_node(node, idx, name2diffion, only_use_mainclust = True):
 
     node.z_val = z_normed
     node.p_val = p_val
-    node.fc = statistics.median(fcs)
+    node.fc = statistics.mean(fcs)
     node.fraction_consistent = fraction_consistent
+    node.cv = min(cvs)
+    node.min_intensity = statistics.mean(min_intensities)
 
 
 
@@ -399,11 +405,19 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     root_node_annot =root_node_lvl[0]
     return root_node_annot
 
-def assign_fcs_to_base_ions(root_node, name2diffion):
+import scipy.stats
+def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
     for leaf in root_node.leaves:
         leaf.fc = name2diffion.get(leaf.name).fc
         leaf.z_val = name2diffion.get(leaf.name).z_val
         leaf.fraction_consistent = 1
+        original_intensities_c1 = 2**(normed_c1.ion2nonNanvals.get(leaf.name))
+        original_intensities_c2 = 2**(normed_c2.ion2nonNanvals.get(leaf.name))
+        cv_c1 = scipy.stats.variation(original_intensities_c1)
+        cv_c2 = scipy.stats.variation(original_intensities_c2)
+        leaf.cv = min(cv_c1, cv_c2)
+        leaf.min_intensity = min(sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2))
+
 
 
 # Cell
