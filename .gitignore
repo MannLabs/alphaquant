@@ -144,3 +144,6 @@ debug
 
 #debug file
 debug.py
+
+#reference databases for ptmsite mapping
+reference_databases

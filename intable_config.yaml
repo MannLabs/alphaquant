@@ -26,6 +26,41 @@ maxquant_peptides:
       comparator: "!="
       value: "+"
 
+diann_fragion_isotopes:
+  format: longtable
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Raw
+    #Fragment.Quant.Raw
+    ms1iso: Ms1.Area
+  protein_cols:
+   - Protein.Group
+  split_cols:
+    Fragment.Quant.Raw: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        FRGION: 
+         - Fragment.Quant.Raw
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        MS1ISOTOPES:
+         - Precursor.Charge
+
 diann_precursor:
   format: longtable
   sample_ID: Run
@@ -101,6 +136,9 @@ spectronaut_fragion_isotopes:
   #     value: False
 
 
+
+
+
 spectronaut_precursor_ptm_annotated:
   format: longtable
   sample_ID: R.Label
@@ -138,6 +176,15 @@ spectronaut_precursor:
    - PG.ProteinGroups
   ion_cols:
    - FG.Id
+  filters:
+    decoy_filt:
+      param: EG.IsDecoy
+      comparator: "=="
+      value: False
+    used_for_quant:
+      param: EG.UsedForPeptideQuantity
+      comparator: "=="
+      value: True
 
 spectronaut_precursor_v2:
   format: longtable
@@ -177,6 +224,10 @@ spectronaut_precursor_v3:
           - EG.ModifiedSequence
         CHARGE:
           - FG.Charge
+
+
+
+
 
 openswath_precursor_aligned:
   format: longtable
