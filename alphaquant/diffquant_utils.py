@@ -277,7 +277,8 @@ def split_extend_df(input_df, splitcol2sep, value_threshold=10):
         exploded_input = input_df.explode(idx_name)
         exploded_split_col_series = split_col_series.explode()
 
-        exploded_input[split_col] = exploded_split_col_series #the column with the intensities has to come after to column with the idxs
+        exploded_input[split_col] = exploded_split_col_series.replace('', 0) #the column with the intensities has to come after to column with the idxs
+
         exploded_input = exploded_input.astype({split_col: float})
         exploded_input = exploded_input[exploded_input[split_col]>value_threshold]
         #exploded_input = exploded_input.rename(columns = {'var1': split_col})
@@ -334,7 +335,6 @@ def reformat_longtable_according_to_config_new(input_file, config_dict, sep = "\
         input_reshaped = input_reshaped *10000
 
     input_reshaped = input_reshaped.reset_index()
-    input_reshaped.to_csv(f"{input_file}.aq_reformat.tsv",  index = False,sep = "\t")
 
     return input_reshaped
 
@@ -354,7 +354,6 @@ def read_wideformat_table(peptides_tsv, config_dict):
         input_df = input_df.rename(columns = lambda x : x.replace(quant_prefix, ""))
 
     input_df = input_df.reset_index()
-    input_df.to_csv(f"{peptides_tsv}.aq_reformat.tsv",  index = False,sep = "\t")
 
     return input_df
 
@@ -376,7 +375,7 @@ import os
 import pkg_resources
 import pathlib
 
-def import_data(input_file,  verbose=True):
+def import_data(input_file,  verbose=True, input_type_to_use = None):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
@@ -407,7 +406,8 @@ def import_data(input_file,  verbose=True):
     uploaded_data_columns = set(pd.read_csv(input_file, sep=sep, nrows=1, encoding ='latin1').columns)
 
     for input_type in type2relevant_columns.keys():
-
+        if (input_type_to_use is not None) and (input_type!=input_type_to_use):
+            continue
         relevant_columns = type2relevant_columns.get(input_type)
         relevant_columns = [x for x in relevant_columns if x] #filter None values
         print(f"recols {input_type}\t {relevant_columns}")
@@ -422,6 +422,10 @@ def import_data(input_file,  verbose=True):
                 data = read_wideformat_table(input_file, config_dict_type)
             else:
                 raise Exception("format: not specified in intable_config.yaml")
+            if input_type_to_use==None:
+                data.to_csv(f"{input_file}.aq_reformat.tsv",  index = False,sep = "\t")
+            else:
+                data.to_csv(f"{input_file}.{input_type_to_use}.aq_reformat.tsv",  index = False,sep = "\t")
             return data
 
     #if non of the cases match, return error
