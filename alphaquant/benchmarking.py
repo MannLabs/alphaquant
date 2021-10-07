@@ -2,7 +2,8 @@
 
 __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare_normalization', 'compare_to_reference',
            'compare_significant_proteins', 'print_nonref_hits', 'test_run_pipeline', 'generate_random_input',
-           'generate_peptide_list', 'generate_protein_list']
+           'generate_peptide_list', 'generate_protein_list', 'annotate_fcs_to_wideformat_table', 'prepare_mq_table',
+           'compare_filtered_unfiltered_precursors', 'get_precursor_intens_fc_dataframes']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -206,3 +207,67 @@ def generate_protein_list(pepnames):
         protcount+=1
     res = res[:len(pepnames)]
     return res
+
+# Cell
+def annotate_fcs_to_wideformat_table(wideformat_df, columns_intens_c1, columns_intens_c2, na_thresh = None):
+    wideformat_df[columns_intens_c1+columns_intens_c2] = wideformat_df[columns_intens_c1+columns_intens_c2].replace(0, np.nan)
+    prots_c1 = wideformat_df[columns_intens_c1]
+    prots_c2 = wideformat_df[columns_intens_c2]
+
+    prots_c1 = prots_c1.dropna(thresh = na_thresh)
+    prots_c2 = prots_c2.dropna(thresh = na_thresh)
+    both_idx = prots_c1.index.intersection(prots_c2.index)
+    wideformat_df["median_int_c1"] = prots_c1.loc[both_idx].median(axis = 1, skipna = True)
+    wideformat_df["median_int_c2"] = prots_c2.loc[both_idx].median(axis = 1, skipna = True)
+    wideformat_df["median_intensity"] = (wideformat_df["median_int_c1"] + wideformat_df["median_int_c2"])/2
+    wideformat_df = wideformat_df.loc[both_idx]
+    wideformat_df[f"log2fc"] = np.log2(wideformat_df[f"median_int_c1"]) - np.log2(wideformat_df[f"median_int_c2"])
+    return wideformat_df
+
+# Cell
+def prepare_mq_table(mq_df, columns_intens_c1, columns_intens_c2):
+    mq_df = mq_df[mq_df["Species"]!= np.nan]
+    mq_df = mq_df[mq_df['Reverse']!= "+"]
+    mq_df = mq_df[mq_df['Potential contaminant'] != "+"]
+    mq_df = mq_df.rename(columns = {'Species' : "PG.Organisms", 'Protein IDs' : 'protein'})
+    mq_df[columns_intens_c1+columns_intens_c2] = mq_df[columns_intens_c1+columns_intens_c2].replace(0, np.nan)
+    prots_c1 = mq_df[columns_intens_c1]
+    prots_c2 = mq_df[columns_intens_c2]
+
+    prots_c1 = prots_c1.dropna(thresh = 2)
+    prots_c2 = prots_c2.dropna(thresh = 2)
+    both_idx = prots_c1.index.intersection(prots_c2.index)
+
+    mq_df["median_int_c1"] = prots_c1.loc[both_idx].median(axis = 1, skipna = True)
+    mq_df["median_int_c2"] = prots_c2.loc[both_idx].median(axis = 1, skipna = True)
+    mq_df = mq_df.loc[both_idx]
+    mq_df[f"log2fc"] = np.log2(mq_df[f"median_int_c1"]) - np.log2(mq_df[f"median_int_c2"])
+    mq_df["method"] = ["MaxQuant" for x in range(len(mq_df.index))]
+    return mq_df
+
+# Cell
+import alphaquant.diffquant_utils as aqutils
+import seaborn as sns
+import alphaquant.visualizations as aqplot
+import os.path
+
+
+def compare_filtered_unfiltered_precursors(nodes_precursors, c1, c2, spectronaut_file, samplemap_file):
+    specnaut_reformat, node_df = get_precursor_intens_fc_dataframes(nodes_precursors, c1, c2, spectronaut_file, samplemap_file)
+    aqplot.plot_fc_intensity_scatter(specnaut_reformat, "Spectronaut", expected_log2fc = None)
+    aqplot.plot_fc_intensity_scatter(node_df, "AlphaQuant", expected_log2fc = None)
+    return
+
+def get_precursor_intens_fc_dataframes(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, input_type = "spectronaut_precursor"):
+    reformat_file = f"{spectronaut_file}.{input_type}.aq_reformat.tsv"
+    if os.path.isfile(reformat_file):
+        specnaut_reformat = pd.read_csv(reformat_file, sep = "\t", encoding ='latin1')
+    else:
+        specnaut_reformat = aqutils.import_data(spectronaut_file, input_type_to_use="spectronaut_precursor")
+    samplemap_df = aqutils.load_samplemap(samplemap_file)
+    c1_samples = list(samplemap_df[samplemap_df["condition"]==c1]["sample"])
+    c2_samples = list(samplemap_df[samplemap_df["condition"]==c2]["sample"])
+    specnaut_reformat = annotate_fcs_to_wideformat_table(specnaut_reformat,c1_samples, c2_samples)
+    node_info_dict = {'ion': [x.name for x in nodes_precursors], 'log2fc' : [x.fc for x in nodes_precursors], "median_intensity" : [x.min_intensity for x in nodes_precursors]}
+    node_df = pd.DataFrame(node_info_dict)
+    return specnaut_reformat, node_df
