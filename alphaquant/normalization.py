@@ -2,8 +2,8 @@
 
 __all__ = ['get_normfacts_withincond', 'apply_sampleshifts', 'get_bestmatch_pair', 'create_distance_matrix',
            'calc_distance', 'update_distance_matrix', 'get_fcdistrib', 'determine_anchor_and_shift_sample',
-           'shift_samples', 'get_total_shift', 'merge_distribs', 'mode_normalization', 'get_betweencond_shift',
-           'get_normalized_dfs']
+           'shift_samples', 'get_total_shift', 'merge_distribs', 'determine_mode_iteratively', 'find_nearest',
+           'mode_normalization', 'get_betweencond_shift', 'get_normalized_dfs']
 
 # Cell
 import numpy as np
@@ -191,6 +191,47 @@ def merge_distribs(anchor_distrib, shifted_distrib,counts_anchor_distrib, counts
     return res
 
 # Cell
+import scipy.stats
+def determine_mode_iteratively(fcs):
+
+    fcs = np.sort(fcs)
+    #cut away the most extreme fold changes
+    cumul_counts = np.linspace(0, len(fcs), len(fcs))
+    cumul_counts_rel = cumul_counts/cumul_counts[-1]
+    thresh = 0.05
+    subset_vec = (cumul_counts_rel>thresh/2) & (cumul_counts_rel<1-thresh/2)
+    fcs_subset = fcs[subset_vec]
+
+    window_size = (max(fcs_subset) - min(fcs_subset))/2
+
+    while len(fcs_subset)> 40:
+        new_fc_range = []
+        maximum_fcs = -1
+        i=0
+        while i<= (len(fcs_subset) - window_size): #sliding window through the fold changes
+            fc_lower = fcs_subset[i]
+            fc_upper = fc_lower + window_size
+            fc_upper_idx = find_nearest(fcs_subset, fc_upper)
+            number_fcs_in_interval = fc_upper_idx - i
+            if number_fcs_in_interval > maximum_fcs:
+                maximum_fcs = number_fcs_in_interval
+                new_fc_range = [i, fc_upper_idx]
+            i+=1
+        fcs_subset = fcs_subset[new_fc_range[0]:new_fc_range[1]]
+        window_size = window_size/2
+    #fc_selected = scipy.stats.mode(fcs_subset).mode[0]
+    fc_selected = np.median(fcs_subset)
+    return fc_selected
+
+
+def find_nearest(array,value):
+    idx = (np.abs(array-value)).argmin()
+    return idx
+
+
+
+
+# Cell
 import numpy as np
 from scipy.signal import find_peaks
 import pandas as pd
@@ -199,7 +240,8 @@ def mode_normalization(x):
 
     x = np.sort(x)
 
-    cumul_counts = np.linspace(0, len(x), len(x)) #cut away the most extreme fold changes
+    #cut away the most extreme fold changes
+    cumul_counts = np.linspace(0, len(x), len(x))
     cumul_counts_rel = cumul_counts/cumul_counts[-1]
     thresh = 0.05
     subset_vec = (cumul_counts_rel>thresh/2) & (cumul_counts_rel<1-thresh/2)
@@ -240,10 +282,12 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 
     diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy()
     median = np.nanmedian(diff_fcs)
-    if len(diff_fcs<100):
+    if len(diff_fcs)<100:
         print("using median for shift")
         return -median
-    mode = mode_normalization(diff_fcs)
+    #mode = mode_normalization(diff_fcs)
+    mode = determine_mode_iteratively(diff_fcs)
+    print(f"median {median}, mode {mode}")
     if(abs(median-mode) <0.05):
         print(f"using median for shift")
         return -median
