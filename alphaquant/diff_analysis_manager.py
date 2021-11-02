@@ -11,19 +11,25 @@ def run_pipeline_from_preconfigured_files(input_file, samplemap_file, results_di
     input_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(input_data, samplemap_df)
     run_pipeline(input_processed, samplemap_df, results_dir, condpair_combinations,minrep, outlier_correction, median_offset, pre_normed_intensity_file, dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file)
 
-
 # Cell
 import pandas as pd
 from itertools import combinations
 import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
+import alphaquant.diffquant_utils as aqutils
 
 
-def run_pipeline(unnormed_df, labelmap_df, results_dir = "./results",  condpair_combinations = None, minrep = 2, min_num_ions = 1, minpep = 1, cluster_threshold_pval = 1e-3, cluster_threshold_fcfc = 0.5, take_median_ion = True,outlier_correction = True, normalize = True, use_iontree_if_possible = True,
-get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,annotation_file = None):
+def run_pipeline(unnormed_df, labelmap_df, results_dir = "./results",condpair_combinations = None, minrep = 2, min_num_ions = 1, minpep = 1, cluster_threshold_pval = 1e-3, cluster_threshold_fcfc = 0.5, take_median_ion = True,outlier_correction = True, normalize = True, use_iontree_if_possible = True,
+get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, annotation_file = None):
     """Run the differential analyses.
     """
+
+    #store_method_parameters
+    local_vars = locals()
+    local_vars = {x : local_vars[x] for x in local_vars.keys() if (("_df" not in x) and ('condpair' not in x))}
+    print(local_vars)
+    aqutils.store_method_parameters(local_vars, results_dir)
 
     res_dfs = []
     pep_dfs = []
@@ -56,8 +62,6 @@ get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, 
     pep_df = pd.concat(pep_dfs)
 
     return res_df, pep_df
-
-
 
 # Cell
 import alphaquant.background_distributions as aqbg
@@ -205,7 +209,6 @@ def analyze_condpair(df_c1, df_c2, c1_samples, c2_samples, pep2prot, results_dir
 
 
     return res_df, pep_df
-
 
 # Cell
 import numpy as np
