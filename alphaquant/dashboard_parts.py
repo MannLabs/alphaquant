@@ -537,7 +537,7 @@ class SingleComparison(object):
     def run_after_pair_cond_selection(self, *args):
         if self.condpairs_selector.value != 'No conditions':
             self.cond1, self.cond2 = self.condpairs_selector.value.split('_vs_')
-            self.iontree_condpair = aqplot.read_condpair_tree(self.cond1, self.cond2, self.output_folder)
+            self.iontree_condpair = aqutils.read_condpair_tree(self.cond1, self.cond2, self.output_folder)
             self.result_df = aqplot.get_diffresult_dataframe(
                 self.cond1,
                 self.cond2,
