@@ -10,9 +10,11 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
            'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe',
            'initialize_sample2cond', 'plot_volcano_plotly', 'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly',
-           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'read_condpair_tree', 'make_mz_fc_boxplot',
-           'assign_mz_cathegory', 'plot_predicted_fc_histogram', 'plot_log_loss_score',
-           'get_error_and_scatter_ml_regression', 'plot_fc_intensity_scatter']
+           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'make_mz_fc_boxplot', 'assign_mz_cathegory',
+           'plot_predicted_fc_histogram', 'plot_log_loss_score', 'get_error_and_scatter_ml_regression',
+           'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs', 'plot_feature_importances', 'filter_sort_top_n',
+           'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
+           'visualize_filtered_non_filtered_precursors', 'plot_predictability_roc_curve', 'plot_roc_curve']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -186,7 +188,6 @@ def plot_fold_change(df, key1, key2):
     #plt.ylim([6,11.5])
     plt.show()
 
-
 # Cell
 
 import dash_core_components as dcc
@@ -291,7 +292,6 @@ def get_volcanoplot_ckg(results, args = {'x_title':'log2FC', 'y_title':'-log10FD
         figures.append(dcc.Graph(id= identifier, figure = figure))
     return figures
 
-
 # Cell
 #interactive
 import matplotlib.pyplot as plt
@@ -325,7 +325,6 @@ def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significan
         plt.xlim(xbound)
     plt.show()
 
-
 # Cell
 import anytree
 import time
@@ -354,9 +353,6 @@ def get_melted_protein_ion_intensity_table(protein, diffresults_df, normed_df, s
     t_annotated = time.time()
     print(f"times melted protein intensities:\n t_melted: {t_melted - t_start} \n t_annotated: {t_annotated - t_melted}")
     return df_melted, diffresults_line
-
-
-
 
 # Cell
 
@@ -390,27 +386,27 @@ def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
     print(f"times betweencond fcs table:\n t_localized_index_set: {t_localized_index_set - t_start} \n t_list_created: {t_list_created - t_localized_index_set}")
     return res_df
 
-
 # Cell
 #interactive
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-def beeswarm_ion_plot(df_melted, diffresults_protein, saveloc = None):
+def beeswarm_ion_plot(df_melted, diffresults_protein, only_boxplot = False,saveloc = None):
     """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
       Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
       to annotate the plot"""
 
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
+    log2fc = float(diffresults_protein.at["log2fc"])
     protein = diffresults_protein.name
 
     #define greyscale color palette for the two conditions
     pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
 
     #searborn standard functions
-    ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette=pal2)
-    ax = sns.stripplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
+    if only_boxplot:
+        ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)
+    else:
+        ax = sns.boxplot(x="ion", y="intensity", hue="condition", data=df_melted, palette=pal2)
+        ax = sns.stripplot(x="ion", y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
 
     #annotate and format
     handles, labels = ax.get_legend_handles_labels()
@@ -422,11 +418,12 @@ def beeswarm_ion_plot(df_melted, diffresults_protein, saveloc = None):
         gene = diffresults_line.at["gene"]
         plt.title(f"{gene} ({protein}) FDR: {fdr:.1e}")
     else:
-        plt.title(f"{protein} FDR: {fdr:.1e}")
+        plt.title(f"{protein} FDR: {fdr:.1e} log2FC: {log2fc:.1f}")
     if saveloc is not None:
         plt.savefig(saveloc)
 
     plt.show()
+
 
 # Cell
 #interactive
@@ -566,7 +563,6 @@ def get_heatmapplot_ckg(data, identifier= "Heatmap", args = {'format' :'default'
 
     return dcc.Graph(id = identifier, figure = figure)
 
-
 # Cell
 import numpy.ma as ma
 import scipy.cluster.hierarchy as hierarchy
@@ -603,20 +599,12 @@ def clustersort_numerical_arrays(arrays, names , cluster_method ='average',compa
     sorted_names = [names[x] for x in sorted_array_idxs]
     return sorted_array, sorted_names, linkage_matrix
 
-
-
-
-
-
-
-
 # Cell
 import numpy as np
 def compare_direction(array1, array2):
     identical_elements  = array1 == array2
     num_same_direction = np.sum(identical_elements)
     return num_same_direction
-
 
 # Cell
 import numpy.ma as ma
@@ -637,7 +625,6 @@ def clustersort_numerical_arrays(arrays, names , cluster_method ='average',compa
     sorted_array = np.array([arrays[x] for x in sorted_array_idxs])
     sorted_names = np.array([names[x] for x in sorted_array_idxs])
     return sorted_array, sorted_names, linkage_matrix
-
 
 # Cell
 
@@ -672,7 +659,6 @@ def get_clustered_dataframe(overview_df, cluster_method ='average',compare_funct
     df_clustered = pd.DataFrame(rows, index= rownames)
     df_clustered.columns = colnames
     return df_clustered
-
 
 # Cell
 import re
@@ -714,7 +700,6 @@ def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"),
         result_df = name_transformation_function(result_df)
 
     return result_df
-
 
 # Cell
 import pandas as pd
@@ -764,8 +749,6 @@ def subset_normed_peptides_df_to_condition(cond, sample2cond_df, normed_df):
     subset_df = normed_df.drop(columns = columns_to_drop)
     return subset_df
 
-
-
 # Cell
 import pandas as pd
 import os
@@ -785,7 +768,6 @@ def get_normed_peptides_dataframe(cond1, cond2, results_folder = os.path.join(".
     normed_peptides[numeric_cols] = np.log2(normed_peptides[numeric_cols].replace(0, np.nan))
     normed_peptides = normed_peptides.set_index(["protein", "ion"])
     return normed_peptides
-
 
 # Cell
 import pandas as pd
@@ -1118,7 +1100,6 @@ def beeswarm_ion_plot_plotly(
 
     return fig
 
-
 # Cell
 def foldchange_ion_plot_plotly(
     df_melted,
@@ -1191,22 +1172,6 @@ def foldchange_ion_plot_plotly(
     return fig
 
 # Cell
-from anytree.importer import JsonImporter
-import os
-import alphaquant.diffquant_utils as aqutils
-def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
-    """reads the merged and clustered iontree for a given condpair"""
-    condpairname = utils.get_condpairname([cond1, cond2])
-    tree_file =os.path.join(results_folder, f"{condpairname}.iontrees.json")
-    if not os.path.isfile(tree_file):
-        return None
-    importer = JsonImporter()
-    filehandle = open(tree_file, 'r')
-    jsontree = importer.read(filehandle)
-    filehandle.close()
-    return jsontree
-
-# Cell
 
 import seaborn as sns
 def make_mz_fc_boxplot(merged_df, ion_nodes):
@@ -1273,12 +1238,9 @@ def plot_log_loss_score(loss_score, y_test, loss_score_cutoff = 0):
     plt.scatter(y_test, loss_score, color='blue', alpha=0.3)
     plt.show()
 
-
-
-
 # Cell
-
 from sklearn.metrics import mean_squared_error, r2_score
+import seaborn as sns
 
 def get_error_and_scatter_ml_regression(y_test, y_pred, cutoff):
     # The mean squared error
@@ -1291,7 +1253,7 @@ def get_error_and_scatter_ml_regression(y_test, y_pred, cutoff):
 
     # Plot outputs
     #plt.plot(X_test[:,-1], y_pred,  color='black')
-    plt.scatter(y_test, y_pred, color='blue', alpha=0.3)
+    sns.regplot(x = y_test, y = y_pred, scatter_kws=dict(alpha=0.1))
     plt.show()
     plot_predicted_fc_histogram(y_test, y_pred, cutoff, show_filtered=False)
     plt.show()
@@ -1302,17 +1264,174 @@ def get_error_and_scatter_ml_regression(y_test, y_pred, cutoff):
 import seaborn as sns
 import numpy as np
 
-def plot_fc_intensity_scatter(result_df, name, expected_log2fc = None):
+def plot_fc_intensity_scatter(result_df, name, ax = None,expected_log2fc = None, tolerance_interval = 0.5, xlim_lower = -1, xlim_upper = 3.5):
     result_df["log_median_intensity"] = np.log10(result_df["median_intensity"])
-    ax = sns.scatterplot( x="log2fc", y="log_median_intensity", data=result_df, alpha=0.2)
+    if ax == None:
+        ax = sns.scatterplot( x="log2fc", y="log_median_intensity", data=result_df, alpha=0.2)
+    else:
+        sns.scatterplot(x="log2fc", y="log_median_intensity", data=result_df, alpha=0.2, ax = ax)
     if expected_log2fc is not None:
-        ax.vlines(np.log2(expected_log2fc), 3.8, 11)
-        ax.vlines(np.log2(expected_log2fc)-0.5, 3.8, 11, linestyles = 'dotted')
-        ax.vlines(np.log2(expected_log2fc)+0.5, 3.8, 11, linestyles = 'dotted')
+        ax.vlines(expected_log2fc, 3.8, 11)
+        ax.vlines(expected_log2fc-tolerance_interval, 3.8, 11, linestyles = 'dotted')
+        ax.vlines(expected_log2fc+tolerance_interval, 3.8, 11, linestyles = 'dotted')
+        ax.set(xlim = (xlim_lower, expected_log2fc + xlim_upper))
     std = np.std(result_df['log2fc'].values)
     mean = np.mean(result_df['log2fc'].values)
     ax.set_title(f'{name}\n mean {mean:.2f}, std {std:.2f}, nums {len(result_df["log2fc"])}')
     #ax.set(xlim = (-2, 6))
     #ax.set(ylim = (3.8, 11))
     #plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    if ax == None:
+        plt.show()
+
+# Cell
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def plot_violin_plots_log2fcs(names, dfs, ax = None):
+    methods = []
+    fcs = []
+    for idx in range(len(names)):
+        df = dfs[idx]
+        name = names[idx]
+        fcs_local = list(df["log2fc"])
+        fcs.extend(fcs_local)
+        methods.extend([name for x in range(len(fcs_local))])
+    df_fcs_longformat = pd.DataFrame({'variable' : methods, 'value' : fcs})
+    sns.violinplot(x='variable', y='value', data=df_fcs_longformat, scale='width', ax = ax)
+    if ax == None:
+        plt.show()
+
+# Cell
+from matplotlib import pyplot as plt
+import numpy as np
+
+def plot_feature_importances(coef, names, top_n = np.inf, print_out_name = False):
+    imp,names = filter_sort_top_n(coef, names, top_n)
+    plt.barh(range(len(names)), imp, align='center')
+    plt.yticks(range(len(names)), names)
+    if print_out_name:
+        for idx in range(len(imp)):
+            print(f"{imp[idx]}\t{names[idx]}")
     plt.show()
+
+
+def filter_sort_top_n(imp, names, top_n):
+    tuplelist = list(zip(imp, names))
+    tuplelist.sort(key = lambda x : abs(x[0]),reverse=True)
+    tuplelist = tuplelist[:top_n]
+    imp = [x[0] for x in tuplelist]
+    names = [x[1] for x in tuplelist]
+    return imp, names
+
+# Cell
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def visualize_gaussian_mixture_fit(gmm, y_pred):
+
+    data = np.array(y_pred) ##loading univariate data.
+
+    plt.figure()
+    plt.hist(data, bins=50, histtype='stepfilled', density=True, alpha=0.5)
+    plt.xlim(min(y_pred), max(y_pred))
+    f_axis = data.copy().ravel()
+    f_axis.sort()
+    a = []
+    weight_mean_cov = list(zip(gmm.weights_, gmm.means_, gmm.covariances_))
+    weight_mean_cov.sort(key = lambda x : x[0], reverse=True)
+    for weight, mean, covar in weight_mean_cov:
+        a.append(weight*norm.pdf(f_axis, mean, np.sqrt(covar)).ravel())
+        plt.plot(f_axis, a[-1])
+    plt.plot(f_axis, np.array(a).sum(axis =0), 'k-')
+    plt.xlabel('Variable')
+    plt.ylabel('PDF')
+    plt.tight_layout()
+    plt.show()
+
+# Cell
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def visualize_gaussian_nomix_subfit(mean, var, y_pred, y_subset):
+
+    data = np.array(y_pred) ##loading univariate data.
+
+    plt.figure()
+    plt.hist(data, bins=50, histtype='stepfilled', density=True, alpha=0.5)
+    plt.xlim(min(y_pred), max(y_pred))
+    f_axis = data.copy().ravel()
+    f_axis.sort()
+    a = []
+    weight = len(y_subset)/len(y_pred)
+
+    a.append(weight*norm.pdf(f_axis, mean, np.sqrt(var)).ravel())
+    plt.plot(f_axis, a[-1])
+    plt.plot(f_axis, np.array(a).sum(axis =0), 'k-')
+    plt.xlabel('Variable')
+    plt.ylabel('PDF')
+    plt.tight_layout()
+    plt.show()
+
+# Cell
+import matplotlib.pyplot as plt
+
+def visualize_filtered_non_filtered_precursors(all_precursors, predscore = None):
+
+    fcs_unfilt = [x.fc for x in all_precursors]
+    if predscore is not None:
+        fcs_filt = [x.fc for x in all_precursors if abs(x.predscore)<predscore]
+    else:
+        fcs_filt = [x.fc for x in all_precursors if not x.ml_excluded]
+    plt.hist([x.predscore for x in all_precursors],  histtype='step', bins=60)
+    plt.show()
+    plt.hist(fcs_unfilt, histtype='step', bins=60, label=f"unfilt ({len(fcs_unfilt)})", density=True)
+    plt.hist(fcs_filt, histtype='step', bins=60, label = f"filt ({len(fcs_filt)})", density=True)
+    #plt.xlim(-2, 2)
+    plt.legend()
+    plt.show()
+
+# Cell
+
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn import metrics
+import random
+
+
+def plot_predictability_roc_curve(nodes, expected_fc, name,fc_cutoff_bad = 1, fc_cutoff_good = 0.3, ax = None):
+    true_falses = []
+    predscores = []
+    reference_scores = []
+
+    for node in nodes:
+        fc_diff = abs(node.fc - expected_fc)
+        if fc_diff>fc_cutoff_bad:
+            true_falses.append(False)
+            predscores.append(1/abs(node.predscore))
+            reference_scores.append(node.default_quality_score)
+        if fc_diff<fc_cutoff_good:
+            true_falses.append(True)
+            predscores.append(1/abs(node.predscore))
+            reference_scores.append(node.default_quality_score)
+
+    plot_roc_curve(true_falses, predscores, name, ax)
+    plot_roc_curve(true_falses, reference_scores, f"reference_{name}", ax)
+    random.shuffle(true_falses)
+    plot_roc_curve(true_falses, predscores, f"random_{name}", ax)
+
+
+
+
+def plot_roc_curve(true_falses, scores, name, ax):
+    fpr, tpr, _ = metrics.roc_curve(true_falses,  scores)
+    if ax is not None:
+        ax.plot(fpr,tpr, label = name)
+    else:
+        plt.plot(fpr,tpr, label = name)
+        plt.legend()
+        plt.show()
+
