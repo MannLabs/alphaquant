@@ -309,8 +309,6 @@ import pickle
 import pandas as pd
 def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     #typefilter object specifies filtering and clustering of the nodes
-    #ml_classifier = pickle.load(open("/Users/constantin/workspace/Quantification/Benchmarks/DIA/1_10_100_Spectronaut/eval_noise/logregression_100_10", 'rb'))
-    featurenames_ml = list(pd.read_csv("/Users/constantin/workspace/Quantification/Benchmarks/DIA/1_10_100_Spectronaut/eval_noise/featurenames_logregression_100_10.tsv", sep = "\t")['0'])
     assign_fcs_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
     for idx in range(len(typefilter.type)):
