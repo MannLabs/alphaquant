@@ -14,18 +14,22 @@ from .diff_analysis_manager import read_tables
 # Cell
 import pandas as pd
 import numpy as np
+import alphaquant.normalization as aqnorm
 def run_protein_normalization(input_file, protein_header, ion_header):
     input_df = pd.read_csv(input_file, sep = "\t")
     input_df = input_df.set_index([protein_header, ion_header])
     input_df = input_df.replace(0, np.nan)
     input_df = np.log2(input_df)
-    betweencond_normed = pd.DataFrame(normalize_withincond(input_df.to_numpy().T).T, index = input_df.index, columns= input_df.columns)
+    sample2shift = aqnorm.get_normfacts_withincond(input_df.to_numpy().T)
+    normed = aqnorm.apply_sampleshifts(input_df.to_numpy().T, sample2shift)
+    betweencond_normed = pd.DataFrame(normed.T, index = input_df.index, columns= input_df.columns)
     protnormed_df, ionnormed_df = estimate_protein_intensities(betweencond_normed)
     protnormed_df.to_csv(f"{input_file}.proteins.out", sep = "\t")
     ionnormed_df.to_csv(f"{input_file}.ions.out", sep = "\t")
 
 
 # Cell
+import alphaquant.normalization as aqnorm
 def estimate_protein_intensities(normed_df):
     prot_ints = []
     ion_ints = []
@@ -46,7 +50,8 @@ def estimate_protein_intensities(normed_df):
         if(protvals.shape[1]<2):
             normed_protvals = protvals
         else:
-            normed_protvals = normalize_withincond(protvals)#norm_peptides(protvals)
+            sample2shift = aqnorm.get_normfacts_withincond(protvals)
+            normed_protvals = aqnorm.apply_sampleshifts(protvals, sample2shift)
 
         sample2reps = normed_protvals.T
 

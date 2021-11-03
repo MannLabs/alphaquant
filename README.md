@@ -157,7 +157,7 @@ In case of issues, check out the following:
 ---
 ## Citations
 
-There are currently no plans to draft a manuscript.
+Manuscript in preparation.
 
 ---
 ## How to contribute
