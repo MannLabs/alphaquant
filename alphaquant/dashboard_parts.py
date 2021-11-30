@@ -2,6 +2,7 @@ import os
 import re
 from io import StringIO
 import itertools
+import anytree
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -497,6 +498,14 @@ class SingleComparison(object):
             disabled=True,
             margin=(0, 40, 40, 10)
         )
+
+        self.clustlevel_selector = pn.widgets.Select(
+            name='Select clustlevel to color:',
+            options=['No clusters'],
+            width=870,
+            align='center',
+            margin=(15, 15, 15, 15)
+        )
         
         self.output_folder = output_folder
         self.sample_to_cond = sample_to_cond
@@ -513,6 +522,10 @@ class SingleComparison(object):
             self.visualize_after_protein_selection,
             'value'
         )
+        self.clustlevel_selector.param.watch(
+            self.visualize_after_clustlevel_selection,
+            'value'
+        )
         self.layout = pn.Column(
             self.condpairs_selector,
             None,
@@ -526,6 +539,8 @@ class SingleComparison(object):
                     sizing_mode='stretch_width'
                 )
             ),
+            self.clustlevel_selector,
+            None,
             sizing_mode='stretch_width',
         )
 
@@ -533,6 +548,14 @@ class SingleComparison(object):
 
     def extract_conditions_from_folder(self):
         self.condpairs_selector.options.extend([f.replace(".results.tsv", "").replace('VS', 'vs') for f in os.listdir(self.output_folder) if re.match(r'.*results.tsv', f)])
+
+    def extract_clustlevels_from_protnode(self):
+        if self.protnode is not None:
+            cluster_levels = list({child.type for child in anytree.LevelOrderIter(self.protnode)})
+            self.clustlevel_selector.options = cluster_levels
+            self.clustlevel_selector.value = 'seq'
+        else:
+            return
 
     def run_after_pair_cond_selection(self, *args):
         if self.condpairs_selector.value != 'No conditions':
@@ -625,7 +648,7 @@ class SingleComparison(object):
     def visualize_after_protein_selection(self, *args):
         result_df_protein_index = self.result_df.set_index("protein")
 
-        melted_df, protein_df = aqplot.get_melted_protein_ion_intensity_table(
+        melted_df, self.protein_df = aqplot.get_melted_protein_ion_intensity_table(
             self.protein.value,
             result_df_protein_index,
             self.normalized_intensity_df,
@@ -634,15 +657,30 @@ class SingleComparison(object):
         )
 
         #get fold change data table for protein
-        fc_df = aqplot.get_betweencond_fcs_table(
+        self.fc_df = aqplot.get_betweencond_fcs_table(
             melted_df,
             self.cond1,
             self.cond2
         )
 
+        if self.iontree_condpair != None:
+            self.protnode = anytree.find(self.iontree_condpair, filter_= lambda x : x.name == self.protein.value, maxlevel=2)
+        else:
+            self.protnode = None
+        
         self.layout[4][1][0] = pn.Pane(
-            aqplot.beeswarm_ion_plot_plotly(melted_df, protein_df),
+            aqplot.beeswarm_ion_plot_plotly(melted_df, self.protein_df),
         )
         self.layout[4][1][1] = pn.Pane(
-            aqplot.foldchange_ion_plot_plotly(fc_df, protein_df),
+            aqplot.foldchange_ion_plot_plotly(self.fc_df, self.protein_df, protein_node=self.protnode),
+        )
+        self.extract_clustlevels_from_protnode()
+
+
+    def visualize_after_clustlevel_selection(self, *args):
+
+        clustlevel = self.clustlevel_selector.value
+        if clustlevel != 'No clusters':
+            self.layout[6] = pn.Pane(
+            aqplot.foldchange_ion_plot_plotly(self.fc_df, self.protein_df, protein_node=self.protnode, level=clustlevel),
         )
