@@ -4,7 +4,12 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'compare_significant_proteins', 'print_nonref_hits', 'test_run_pipeline', 'generate_random_input',
            'generate_peptide_list', 'generate_protein_list', 'annotate_fcs_to_wideformat_table', 'prepare_mq_table',
            'compare_diann_spectronat_aq', 'compare_aq_w_method', 'get_precursor_intens_fc_dataframes',
-           'count_outlier_fraction', 'generate_precursor_nodes_from_protein_nodes']
+           'count_outlier_fraction', 'generate_precursor_nodes_from_protein_nodes', 'cluster_selected_proteins',
+           'create_background_dists_from_prepared_files', 'get_c1_c2_dfs', 'load_real_example_ions',
+           'get_filtered_protnodes', 'filter_check_protnode', 'get_subset_of_diffions', 'add_perturbations_to_proteins',
+           'group_level_nodes_by_parents', 'get_filtered_intensity_df', 'get_perturbed_intensity_df',
+           'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level', 'count_correctly_excluded',
+           'eval_clustered_results']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -273,8 +278,6 @@ def compare_diann_spectronat_aq(protein_nodes_sn, protein_nodes_diann, expected_
     specnaut_reformat, node_df_sn = get_precursor_intens_fc_dataframes(nodes_precursors_sn, condpair[0], condpair[1], specnaut_loc, samplemap_sn, quant_level_sn, 9)
     diann_reformat, node_df_diann = get_precursor_intens_fc_dataframes(nodes_precursors_diann, condpair[0], condpair[1], diann_loc, samplemap_diann, quant_level_diann, 9)
 
-
-
     frac_outliers_sn = count_outlier_fraction(specnaut_reformat, tolerance_interval, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(specnaut_reformat, f"Spectronaut ({frac_outliers_sn:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[0][0])
     frac_outliers_aq_sn = count_outlier_fraction(node_df_sn, tolerance_interval, expected_log2fc)
@@ -287,6 +290,7 @@ def compare_diann_spectronat_aq(protein_nodes_sn, protein_nodes_diann, expected_
     aqplot.plot_violin_plots_log2fcs(['spectronaut', 'aq_sn', 'diann', 'aq_diann'], [specnaut_reformat, node_df_sn, diann_reformat, node_df_diann], ax = ax[2][0])
     plt.savefig(f"{savedir}/{name}.pdf")
     plt.show()
+
 
 
 def compare_aq_w_method(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, expected_log2fc = None, threshold = 0.5, input_type = "spectronaut_precursor", num_reps = None, method_name = "Spectronaut", tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5):
@@ -328,3 +332,320 @@ def generate_precursor_nodes_from_protein_nodes(protein_nodes, shift_fc = None, 
         for precursor in all_precursors:
             precursor.fc +=shift_fc
     return all_precursors
+
+# Cell
+
+def cluster_selected_proteins(protnames, quant_df, normed_c1, normed_c2, pval_threshold_basis = 0.05, fcfc_threshold = 0, take_median_ion=False):
+    pep2prot = dict(zip(quant_df.index, quant_df['protein']))
+    ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
+    deedpair2doublediffdist = {}
+    bgpair2diffDist = {}
+    p2z = {}
+    prot2diffions = {}
+    root_node = anytree.Node('parent')
+    for ion in ions_to_check:
+        protein = pep2prot.get(ion)
+        if protein not in protnames:
+            continue
+        vals1 = normed_c1.ion2nonNanvals.get(ion)
+        vals2 = normed_c2.ion2nonNanvals.get(ion)
+        diffDist = aqbg.get_subtracted_bg(bgpair2diffDist,normed_c1, normed_c2,ion, p2z)
+
+        diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion,outlier_correction=False)
+
+
+        prot_ions = prot2diffions.get(protein, list())
+        prot_ions.append(diffIon)
+        prot2diffions[protein] = prot_ions
+
+    for prot in prot2diffions.keys():
+        ions = prot2diffions.get(prot)
+        clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis = pval_threshold_basis, fcfc_threshold = fcfc_threshold, take_median_ion=take_median_ion)
+        clustered_root_node.parent = root_node
+
+    return root_node
+
+import alphaquant.normalization as aqnorm
+def create_background_dists_from_prepared_files(samplemap_file, quant_file, cond1, cond2):
+
+    quant_df = pd.read_csv(quant_file, sep = "\t",index_col='ion')
+    samplemap_df = aqutils.load_samplemap(samplemap_file)
+
+    df_c1, df_c2, c1_samples, c2_samples = get_c1_c2_dfs(quant_df, samplemap_df, [cond1, cond2])
+
+    df_c1, df_c2 = aqnorm.get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples, minrep= min(len(df_c1.columns), len(df_c2.columns)), runtime_plots = False)#filter for no missing values
+    p2z = {}
+    normed_c1 = aqbg.ConditionBackgrounds(df_c1, p2z)
+    normed_c2 = aqbg.ConditionBackgrounds(df_c2, p2z)
+    return quant_df, normed_c1, normed_c2
+
+
+def get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
+    c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
+    c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
+    df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep, axis=0)
+    df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
+
+    return df_c1, df_c2, c1_samples, c2_samples
+
+
+# Cell
+import alphaquant.diff_analysis_manager as aqmgr
+import alphaquant.normalization as aqnorm
+import alphaquant.cluster_ions as aqclust
+import alphaquant.diffquant_utils as aqutils
+import anytree
+import math
+import os
+import alphaquant.diff_analysis_manager as aqdiffmgr
+import alphaquant.background_distributions as aqbg
+import pandas as pd
+
+
+def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
+    p2z = {}
+    samplemap_df = aqutils.load_samplemap(samplemap_file)
+    fragion_df = pd.read_csv(input_file, sep = "\t")
+    _, samplemap_df = aqutils.prepare_loaded_tables(fragion_df, samplemap_df)
+    fragion_df = fragion_df.set_index('ion')
+
+    c1_samples, c2_samples, df_c1, df_c2 = aqdiffmgr.format_condpair_input(samplemap_df, fragion_df, ('S1', 'S2'), minrep= 4)
+    df_c1_normed, df_c2_normed = aqnorm.get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
+    normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
+    normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
+    diffions = get_subset_of_diffions(normed_c1, normed_c2, num_ions)
+    return diffions, normed_c1, normed_c2
+
+
+def get_filtered_protnodes(condpair, results_dir_unfiltered):
+    condpairtree = aqutils.read_condpair_tree(condpair[0], condpair[1], results_dir_unfiltered)
+    protnodes = condpairtree.children
+    selected_protnodes = []
+    for protnode in protnodes:
+        filtered_protnode = filter_check_protnode(protnode)
+        if filtered_protnode == None:
+            continue
+        if (filtered_protnode.fc >0.2) or (filtered_protnode.p_val < 0.05) :
+            continue
+        selected_protnodes.append(filtered_protnode)
+
+    return selected_protnodes
+
+
+
+def filter_check_protnode(protnode):
+
+    # filter the base nodes, prepare the ms1 and fragion nodes
+    for base_node in protnode.leaves:
+        if base_node.cluster != 0:
+            base_node.parent = None
+    frgion_ms1_nodes = anytree.search.findall(protnode, filter_=lambda node:  (node.type == 'frgion') or (node.type == 'ms1_isotopes'))
+
+    check_nodes = set()
+    #annotate if fragion_ms1 has enough leafs
+    for frg_ms1_node in frgion_ms1_nodes:
+        if len(frg_ms1_node.leaves) <3:
+            frg_ms1_node.parent = None
+        else:
+            check_nodes.add(frg_ms1_node)
+
+
+    type2required_children = {"mod_seq_charge":2, "mod_seq":2, "seq":1, "gene":3}
+    nodetypes = ["mod_seq_charge", "mod_seq", "seq", "gene"]
+
+    for nodetype in nodetypes:
+        check_nodes =  anytree.search.findall(protnode, filter_=lambda node:  node.type == nodetype) #for each level, check if there are enough children
+        for check_node in check_nodes:
+            num_children = len([x for x in check_node.children if (x.cluster ==0)])
+            if (num_children<type2required_children.get(check_node.type)) or (check_node.fc > 0.1):
+                check_node.parent = None
+                if nodetype == "gene":
+                    return None
+            else:
+                check_node.has_enough = True
+    if len(check_nodes)==0:
+        return None
+    else:
+        return list(check_nodes)[0]
+
+
+import alphaquant.diff_analysis as aqdiff
+
+def get_subset_of_diffions(normed_c1, normed_c2, num_ions):
+    ion2diffDist = {}
+    p2z = {}
+    diffions = []
+    ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
+    count_ions = 0
+    for idx, ion in enumerate(ions_to_check):
+        if count_ions==num_ions:
+            break
+        vals1 = normed_c1.ion2nonNanvals.get(ion)
+        vals2 = normed_c2.ion2nonNanvals.get(ion)
+        diffDist = aqbg.get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
+        diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction = False)
+        diffions.append(diffIon)
+        count_ions+=1
+
+    return diffions
+
+
+
+def add_perturbations_to_proteins(protnodes):
+    #go through each protein and randomly add perturbations at different levels, if a perturbation is added, propagate it to the children etc.
+    for protnode in protnodes:
+        for level_nodes in anytree.LevelOrderGroupIter(protnode, filter_= lambda x : 'gene' not in x.type): #iterate through all levels below protein
+            for nodes_of_interest in group_level_nodes_by_parents(level_nodes):
+                perturb = np.random.uniform(0, 1) < 0.3 #randomly select ~30% of the samples for perturbation
+                num_perturb = math.ceil(len(nodes_of_interest)*0.2) if len(nodes_of_interest)>2 else 0
+                perturb_idxs = random.sample(list(range(len(nodes_of_interest))), num_perturb)
+                for sub_idx in range(len(nodes_of_interest)):
+                    node_of_interest = nodes_of_interest[sub_idx]
+                    applied_shift_parent = 0 if not hasattr(node_of_interest.parent, 'applied_shift') else node_of_interest.parent.applied_shift #check if the parent of the node already had a shift applied, if yes, add this shift
+                    node_of_interest.applied_shift = applied_shift_parent
+                    node_of_interest.applied_shift_local = 0
+                    if (sub_idx in perturb_idxs) and perturb:
+                        applied_shift = np.random.uniform(-2, 2)
+                        node_of_interest.applied_shift += applied_shift
+                        node_of_interest.applied_shift_local = applied_shift
+
+
+def group_level_nodes_by_parents(nodes_of_interest):
+    parent2nodes = {}
+    for node in nodes_of_interest:
+        parent2nodes[node.parent] = parent2nodes.get(node.parent, []) + [node]
+    return list(parent2nodes.values())
+
+def get_filtered_intensity_df(fragion_df, protnodes):
+
+    ions_included = []
+    for protnode in protnodes:
+        ions_included.extend([x.name  for x in protnode.leaves if x.type == 'base'])
+
+    #drop the unincluded ions
+    fragion_df = fragion_df.loc[ions_included]
+
+    return fragion_df
+
+
+def get_perturbed_intensity_df(fragion_df, samplemap, protnodes):
+
+    ion2shift = {}
+    for protnode in protnodes:
+        ion2shift.update({x.name : x.applied_shift for x in protnode.leaves if x.type =='base'})
+    #drop the unincluded ions
+    fragion_df = fragion_df.loc[list(ion2shift.keys())]
+
+    #determine the factors to be added
+    shifts_up = np.array([np.array([abs(ion2shift.get(x)) if ion2shift.get(x)> 0 else 0 for x in fragion_df.index])])
+    shifts_down = np.array([np.array([abs(ion2shift.get(x)) if ion2shift.get(x)< 0 else 0 for x in fragion_df.index])])
+
+    s1_samples = list(samplemap[samplemap["condition"]=="S1"]["sample"])
+    s2_samples = list(samplemap[samplemap["condition"]=="S2"]["sample"])
+
+    fragion_df[s1_samples] =fragion_df[s1_samples] +shifts_up.T
+    fragion_df[s2_samples] =fragion_df[s2_samples]+shifts_down.T
+
+
+    return fragion_df
+
+
+def run_perturbation_test(input_file, samplemap, input_file_filtered = None, input_file_perturbed = None, run_diffanalysis_benchm_set = False, run_filtered = True,run_perturbed = True, run_perturbed_no_iontree = True, cluster_threshold_pval_perturbed = 0.01, runtime_plots = True):
+    condpair_combinations = [("S1", "S2")]
+    results_dir = "results"
+    results_dir_filtered = "results_filtered"
+    results_dir_perturbed = "results_perturbed"
+    results_dir_perturbed_unclustered = "results_perturbed_unclustered"
+    fragion_df = aqutils.import_data(input_file)
+    samplemap = aqutils.load_samplemap(samplemap)
+    fragion_df, samplemap = aqutils.prepare_loaded_tables(fragion_df, samplemap)
+
+
+    #run the diffanalysis of the basic dataset
+    if run_diffanalysis_benchm_set:
+        aqutils.store_method_parameters({'input_file': str(input_file)}, results_dir)
+        aqmgr.run_pipeline(fragion_df, samplemap, condpair_combinations=condpair_combinations, minrep = 9, runtime_plots=runtime_plots, cluster_threshold_pval=0.05, cluster_threshold_fcfc=0,results_dir=results_dir)
+
+    #filter the analyzed results for consistent, low-FC proteins
+    if (not os.path.exists(f"{results_dir}/S1_filtered_VS_S2_filtered.iontrees.json")) or (input_file_filtered == None):
+        protnodes_filt = get_filtered_protnodes(condpair_combinations[0], results_dir_unfiltered=results_dir)
+        fragion_df_only_filt = get_filtered_intensity_df(fragion_df, protnodes_filt)
+        aqclust.export_roots_to_json(protnodes_filt,("S1_filtered", "S2_filtered"), results_dir)
+        fragion_df_only_filt.reset_index().to_csv("filtered_fragions.tsv", sep = "\t", index = None)
+    else:
+        protnodes_filt = aqutils.read_condpair_tree("S1_filtered", "S2_filtered", results_dir).children
+        fragion_df_only_filt = pd.read_csv(input_file_filtered, sep = "\t",index_col='ion')
+
+    #add perturbations to the filtered proteins
+    if (not os.path.exists(f"{results_dir_perturbed}/S1_annot_VS_S2_annot.iontrees.json") or (input_file_perturbed == None)):
+        add_perturbations_to_proteins(protnodes_filt)
+        if not os.path.exists(results_dir_perturbed):
+            os.makedirs(results_dir_perturbed)
+        aqclust.export_roots_to_json(protnodes_filt,("S1_annot", "S2_annot"), results_dir_perturbed)
+        fragion_df_perturbed = get_perturbed_intensity_df(fragion_df, samplemap, protnodes_filt)
+        fragion_df_perturbed.reset_index().to_csv("perturbed_fragions.tsv", sep = "\t", index = None)
+    else:
+        protnodes_filt = aqutils.read_condpair_tree("S1_annot", "S2_annot", results_dir_perturbed).children
+        fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col='ion')
+
+    if run_filtered:
+        aqmgr.run_pipeline(fragion_df_only_filt, samplemap, condpair_combinations=condpair_combinations, minrep = 9, normalize=True, runtime_plots=runtime_plots, use_iontree_if_possible=False, results_dir= results_dir_filtered)
+
+    if run_perturbed_no_iontree:
+        aqmgr.run_pipeline(fragion_df_perturbed, samplemap, condpair_combinations=condpair_combinations, minrep = 9,  normalize=True, runtime_plots=runtime_plots,use_iontree_if_possible=False,results_dir=results_dir_perturbed_unclustered)
+
+    if run_perturbed:
+        aqmgr.run_pipeline(fragion_df_perturbed, samplemap, condpair_combinations=condpair_combinations, minrep = 9,  normalize=True, runtime_plots=runtime_plots, cluster_threshold_pval=cluster_threshold_pval_perturbed, cluster_threshold_fcfc=0,results_dir=results_dir_perturbed)
+
+
+
+
+# Cell
+import alphaquant.visualizations as aqviz
+import alphaquant.diffquant_utils as aqutils
+import sklearn.metrics
+
+
+def compare_cluster_to_benchmarks(results_dir_unperturbed, results_dir_perturbed, results_dir_perturbed_unclustered):
+    aqviz.compare_fcs_unperturbed_vs_perturbed_and_clustered(results_dir_unperturbed,results_dir_perturbed, results_dir_perturbed_unclustered)
+
+
+def evaluate_per_level(level2annotated_shift, level2classified_shift):
+    for level in level2annotated_shift.keys():
+        y_true = level2annotated_shift.get(level)
+        y_pred = level2classified_shift.get(level)
+        metrics = sklearn.metrics.precision_recall_fscore_support(y_true=y_true, y_pred=y_pred)
+        accuracy = sklearn.metrics.accuracy_score(y_true=y_true, y_pred= y_pred)
+        print(f"level {level}")
+        print(f"accuracy:{accuracy}\tprecision:{metrics[0]}\trecall{metrics[1]}\tfscore{metrics[2]}")
+
+
+def count_correctly_excluded(protnodes_annotated, protnodes_clustered):
+    level2annotated_shift = {}
+    level2classified_shift = {}
+    name2node_annot = {x.name : x for x in protnodes_annotated}
+    name2node_clustered = {x.name : x for x in protnodes_clustered}
+    for name in name2node_annot.keys():
+        protnode_annotated = name2node_annot.get(name)
+        protnode_clustered = name2node_clustered.get(name)
+        for annot_nodes in anytree.LevelOrderGroupIter(protnode_annotated, filter_= lambda x : 'gene' not in x.type):
+            for annot_node in annot_nodes:
+                clustered_node = anytree.find(protnode_clustered, filter_= lambda x : annot_node.name == x.name)
+                annot_shifted = annot_node.applied_shift_local!=0
+                cluster_nonzero = clustered_node.cluster != 0
+                if (not annot_shifted) and (not cluster_nonzero):
+                    continue
+                level2annotated_shift[annot_node.type] = level2annotated_shift.get(annot_node.type, [])
+                level2classified_shift[annot_node.type] = level2classified_shift.get(clustered_node.type, [])
+                level2annotated_shift[annot_node.type].append(annot_shifted)
+                level2classified_shift[annot_node.type].append(cluster_nonzero)
+    evaluate_per_level(level2annotated_shift, level2classified_shift)
+
+
+def eval_clustered_results(results_perturbed):
+    protnodes_annot = aqutils.read_condpair_tree("S1_annot", "S2_annot", results_folder=results_perturbed).children
+    protnodes_perturbed = aqutils.read_condpair_tree("S1", "S2", results_folder=results_perturbed).children
+    count_correctly_excluded(protnodes_annot, protnodes_perturbed)
+
+
+
