@@ -152,3 +152,6 @@ reference_databases
 release/one_click_macos_gui/alphaquant.pkg
 release/one_click_macos_gui/build
 release/one_click_macos_gui/dist
+
+#logs
+logs
