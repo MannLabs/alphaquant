@@ -10,11 +10,12 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
            'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe',
            'initialize_sample2cond', 'plot_volcano_plotly', 'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly',
-           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'make_mz_fc_boxplot', 'assign_mz_cathegory',
-           'plot_predicted_fc_histogram', 'plot_log_loss_score', 'get_error_and_scatter_ml_regression',
-           'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs', 'plot_feature_importances', 'filter_sort_top_n',
-           'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
-           'visualize_filtered_non_filtered_precursors', 'plot_predictability_roc_curve', 'plot_roc_curve']
+           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'get_color2ions', 'convert_to_plotly_color_format',
+           'make_mz_fc_boxplot', 'assign_mz_cathegory', 'plot_predicted_fc_histogram', 'plot_log_loss_score',
+           'get_error_and_scatter_ml_regression', 'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs',
+           'plot_feature_importances', 'filter_sort_top_n', 'visualize_gaussian_mixture_fit',
+           'visualize_gaussian_nomix_subfit', 'visualize_filtered_non_filtered_precursors',
+           'plot_predictability_roc_curve', 'plot_roc_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -1057,7 +1058,7 @@ def beeswarm_ion_plot_plotly(
                 ),
                 marker=dict(
                     color=color,
-                    opacity=0.7
+                    opacity=0.3
                 ),
                 pointpos=0
             )
@@ -1101,9 +1102,14 @@ def beeswarm_ion_plot_plotly(
     return fig
 
 # Cell
+from matplotlib.pyplot import cm
+import anytree
+
 def foldchange_ion_plot_plotly(
     df_melted,
-    diffresults_protein
+    diffresults_protein,
+    protein_node = None,
+    level = 'seq'
 ):
     """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
     are visualized, the columns are "ion" and "log2fc".  Also takes results of the protein differential analysis as a series
@@ -1124,9 +1130,20 @@ def foldchange_ion_plot_plotly(
         line_color="black"
     )
 
-    for is_included in df_melted["is_included"].unique():
-        df_subset = df_melted[df_melted["is_included"] == is_included]
-        markercol = 'lightblue' #if is_included else 'grey'
+    if protein_node is not None:
+        clust2col, clust2ions = get_color2ions(protein_node, level)
+    else:
+        clust2col = {-1 : 'lightblue'}
+        clust2ions = {-1 : [x for x in df_melted['ion'].drop_duplicates()]}
+
+
+
+    for clust in sorted(clust2ions.keys()):
+        ions = clust2ions.get(clust)
+        color = clust2col.get(clust)
+
+        df_subset = df_melted[[x in ions for x in df_melted["ion"]]]
+
         fig.add_trace(
             go.Box(
                 x=df_subset.ion,
@@ -1134,13 +1151,14 @@ def foldchange_ion_plot_plotly(
 
                 boxpoints='all',
                 line=dict(
-                    color='lightgrey'
+                    color=color
                 ),
                 marker=dict(
-                    color=markercol,
+                    color=color,
                     opacity=0.7
                 ),
-                pointpos=0
+                pointpos=0,
+                name = clust
             )
         )
 
@@ -1170,6 +1188,29 @@ def foldchange_ion_plot_plotly(
     )
 
     return fig
+
+import alphaquant.diffquant_utils as aqutils
+def get_color2ions(protein_node, level):
+    clust2ions = {}
+
+    relevant_subnodes = anytree.findall(protein_node,filter_ = lambda x : x.type == level)
+    excluded_leaves = []
+
+    for subnode in relevant_subnodes:
+        clust = subnode.cluster
+        clust2ions[clust] = clust2ions.get(clust, []) + [x.name for x in subnode.leaves if subnode.type in x.inclusion_levels]
+        excluded_leaves.extend([x.name for x in subnode.leaves if subnode.type not in x.inclusion_levels])
+
+    colors= cm.rainbow(np.linspace(0, 1, len(clust2ions.keys())))
+    clust2col =  {clust:convert_to_plotly_color_format(col) for clust, col in zip(sorted(clust2ions.keys()), colors)}
+    clust2ions[-1] = excluded_leaves
+    clust2col[-1] = 'lightgrey'
+    #color2ions = {convert_to_plotly_color_format(clust2col.get(x)) : clust2ions.get(x) for x in clust2ions.keys()}
+
+    return clust2col, clust2ions
+
+def convert_to_plotly_color_format(color_array):
+    return f"rgb({int(color_array[0]*250)},{int(color_array[1]*250)},{int(color_array[2]*250)})"
 
 # Cell
 
@@ -1434,4 +1475,26 @@ def plot_roc_curve(true_falses, scores, name, ax):
         plt.plot(fpr,tpr, label = name)
         plt.legend()
         plt.show()
+
+
+
+# Cell
+import alphaquant.diffquant_utils as aqutils
+import alphaquant.visualizations as aqviz
+import anytree
+import matplotlib.pyplot as plt
+
+def compare_fcs_unperturbed_vs_perturbed_and_clustered(results_dir_unperturbed, results_dir_perturbed, results_dir_perturbed_unclustered):
+    ctree_unperturbed = aqutils.read_condpair_tree("S1_filtered", "S2_filtered",results_folder=results_dir_unperturbed)
+    ctree_perturbed = aqutils.read_condpair_tree("S1_annot", "S2_annot", results_folder = results_dir_perturbed)
+    results_df_perturbed_unclustered =  aqviz.get_diffresult_dataframe("S1", "S2", results_dir_perturbed_unclustered)
+    fcs_unperturbed = [x.fc for x in ctree_unperturbed.children]
+    fcs_perturbed = [x.fc for x in ctree_perturbed.children]
+    fcs_perturbed_unclustered = results_df_perturbed_unclustered["log2fc"]
+    plt.hist(fcs_unperturbed,label = "unperturbed", cumulative=True, bins=50, histtype='step')
+    plt.hist(fcs_perturbed,label = "perturbed", cumulative=True, bins=50, histtype='step')
+    plt.hist(fcs_perturbed_unclustered,label = "perturbed_unclustered", cumulative=True, bins=50, histtype='step')
+    plt.legend()
+    plt.show()
+
 
