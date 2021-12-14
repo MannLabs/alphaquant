@@ -159,6 +159,53 @@ diann_protein:
    - Protein.Names
 
 
+spectronaut_ptm_fragion_isotopes:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    fragion: F.PeakArea
+    ms1iso: FG.MS1IsotopeIntensities (Measured)
+  protein_cols:
+   - ptm_id
+  ion_cols:
+   - FG.Id
+   - F.FrgIon
+   - F.FrgLossType
+   - F.Charge
+  split_cols:
+    FG.MS1IsotopeIntensities (Measured): ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - ptm_mapped_modseq
+        CHARGE: 
+         - FG.Charge
+        FRGION: 
+         - F.FrgIon
+         - F.FrgLossType
+         - F.Charge
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - ptm_mapped_modseq
+        CHARGE: 
+         - FG.Charge
+        MS1ISOTOPES:
+         - FG.MS1IsotopeIntensities (Measured)
+  filters:
+    fragion_intensity:
+      param: F.PeakArea
+      comparator: ">"
+      value: 5.0
+
+
 spectronaut_fragion_isotopes:
   format: longtable
   sample_ID: R.Label
@@ -218,38 +265,6 @@ spectronaut_fragion_isotopes:
   #     comparator: "=="
   #     value: False
 
-
-
-
-
-spectronaut_precursor_ptm_annotated:
-  format: longtable
-  sample_ID: R.Label
-  quant_ID: FG.Quantity
-  protein_cols:
-    - site_id
-  ion_cols:
-    - ion
-
-
-spectronaut_precursor_new:
-  format: longtable
-  sample_ID: R.Label
-  quant_ID: FG.MS2RawQuantity
-  protein_cols:
-   - PG.ProteinGroups
-  ion_cols:
-   - FG.Id
-  filters:
-    decoy_filt:
-      param: EG.IsDecoy
-      comparator: "=="
-      value: False
-    shape_quality: 
-      param: FG.ShapeQualityScore (MS2)
-      comparator: ">"
-      value: 0.4
-
   
 spectronaut_precursor:
   format: longtable
@@ -268,6 +283,24 @@ spectronaut_precursor:
       param: EG.UsedForPeptideQuantity
       comparator: "=="
       value: True
+
+spectronaut_precursor_new:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID: FG.MS2RawQuantity
+  protein_cols:
+   - PG.ProteinGroups
+  ion_cols:
+   - FG.Id
+  filters:
+    decoy_filt:
+      param: EG.IsDecoy
+      comparator: "=="
+      value: False
+    shape_quality: 
+      param: FG.ShapeQualityScore (MS2)
+      comparator: ">"
+      value: 0.4
 
 spectronaut_sequence:
   format: longtable
