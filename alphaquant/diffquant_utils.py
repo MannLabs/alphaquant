@@ -506,9 +506,9 @@ import numpy as np
 import alphaquant.diffquant_utils as aqutils
 import os
 
-def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type):
+def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes'):
     config_dict = aqutils.import_config_dict()
-    config_dict_ptm = config_dict.get('spectronaut_ptm_fragion_isotopes')
+    config_dict_ptm = config_dict.get(ptm_type_config_dict)
     relevant_columns = aqutils.get_relevant_columns_config_dict(config_dict_ptm)
     specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=10000)
     ptmmapped_table_filename = f'{spectronaut_file.replace(".tsv", "")}_ptmsite_mapped.tsv'
