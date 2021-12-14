@@ -35,7 +35,7 @@ class ConditionBackgrounds():
         self.ion2allvals = aqutils.get_ionints_from_pd_df(normed_condition_df)
         t_end = time()
         print(f't_ion2nonan_sw {t_end - t_start}')
-        self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))#TODO: list instead of dict!
+        self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))
 
 
     def select_intensity_ranges(self, p2z):
@@ -82,18 +82,31 @@ class ConditionBackgrounds():
 
 # Cell
 import numpy as np
-from random import shuffle
+import random
 import pandas as pd
 from scipy.stats import norm
 import math
 from time import time
+import typing
 
 class BackGroundDistribution:
-
+    """Represents and derives an empirical distribution to describe the variation underlying a measurment
+    """
     fc_resolution_factor = 100
     fc_conversion_factor = 1/fc_resolution_factor
 
-    def __init__(self, start_idx, end_idx, ion2noNanvals, idx2ion,p2z):
+    def __init__(self, start_idx : int, end_idx: int, ion2noNanvals : typing.Dict[int, str], idx2ion : dict,p2z : dict):
+
+        """
+        Initialize the background distribution from a subset of selected ions. The ions are pre-ordered and indexed and a sub range is selected. The
+        Background Distribution is created from the sub-range.
+        Args:
+            start_idx (int): determines the start of sub-range
+            end_idx (int): determines the end of the sub-range
+            ion2noNanvals (dict): maps the ion to all measured intensities of this ion (no NAs/zero measurements)
+            idx2ion (dict): distinct mapping of the index to the ion name
+            p2z (dict): p-values are transformed into z-values on many occasions and are therefore cached with this dictionary.
+        """
         self.fc2counts = {} #binned Fold change Distribution
         self.cumulative = np.array([])
         self.zscores = np.array([])
@@ -108,14 +121,23 @@ class BackGroundDistribution:
         self.ions = {idx2ion.get(idx) for idx in range(start_idx, end_idx)}
 
         anchor_fcs = self.generate_anchorfcs_from_intensity_range(ion2noNanvals, idx2ion)
-        shuffle(anchor_fcs)
+        random.Random(42).shuffle(anchor_fcs) #set seed to ensure reproducibility
         self.generate_fc2counts_from_anchor_fcs(anchor_fcs)
         self.cumulative = self.transform_fc2counts_into_cumulative()
         self.calc_SD(0, self.cumulative)
         self.zscores = self.transform_cumulative_into_z_values(p2z)
        # print(f"create dist SD {self.SD}")
 
-    def generate_anchorfcs_from_intensity_range(self, ion2noNanvals, idx2ion):
+    def generate_anchorfcs_from_intensity_range(self, ion2noNanvals : dict, idx2ion : dict) -> list:
+        """For each ion, a random intensity is selected as an "anchor" and the remaining intensities are subtracted from the achor.
+
+        Args:
+            ion2noNanvals (dict): maps the ion to all measured intensities of this ion (no NAs/zero measurements)
+            idx2ion (dict): distinct mapping of the index to the ion name
+
+        Returns:
+            list: a merged list of all fold changes relative to the anchors
+        """
         anchor_fcs = []
         for idx in range(self.start_idx, self.end_idx):
             vals = ion2noNanvals[idx2ion.get(idx)]
@@ -127,19 +149,31 @@ class BackGroundDistribution:
             anchor_fcs.extend(vals-anchor_val)
         return anchor_fcs
 
-    def generate_fc2counts_from_anchor_fcs(self,anchor_fcs):
+    def generate_fc2counts_from_anchor_fcs(self,anchor_fcs : list):
+        """Arbitrary pairs of anchor-changes are compared with each other, in order to determine the overall variation between the ions.
 
+        Args:
+            anchor_fcs (list): input list of the anchor-changes
+
+        Returns:
+            updates the self.fc2counts instance variable
+        """
         anchor_fcs = np.array(anchor_fcs)
         for idx in range(1, anchor_fcs.shape[0]):
             fc_binned = np.rint(self.fc_resolution_factor*(0.5*(anchor_fcs[idx-1] - anchor_fcs[idx]))).astype(np.long)
-            self.fc2counts[fc_binned] = self.fc2counts.setdefault(fc_binned, 0) + 1
+            self.fc2counts[fc_binned] = self.fc2counts.setdefault(fc_binned, 0) + 1 #the distribution is saved in 2d (binned fold changes vs. count) for memory efficiency
 
         self.min_fc = min(self.fc2counts.keys())
         self.max_fc = max(self.fc2counts.keys())
 
 
-    def transform_fc2counts_into_cumulative(self):
+    def transform_fc2counts_into_cumulative(self) -> np.array(float):
+        """The binned fold change distribution is encoded in a 1d array, where the coordinate of the array represents the fold change and
+        the value of the array represents the cumulative frequency.
 
+        Returns:
+            np.array: cumulative distribution of fold changes encoded in 1d array
+        """
         cumulative = np.zeros(self.max_fc - self.min_fc +1).astype(np.long)
 
         for entry in self.fc2counts.items():
@@ -150,7 +184,18 @@ class BackGroundDistribution:
         return cumulative
 
 
-    def transform_cumulative_into_z_values(self, p2z):
+    def transform_cumulative_into_z_values(self:int, p2z: dict):
+        """
+        The binned fold change distribution is encoded in a 1d array, where the coordinate of the array represents the fold change and
+        the value of the array represents the z-value. For each point in the distribution, we can calculate the z-value. This value encodes the distance from
+        zero in a standard normal distribution that is required to obtain the same relative cumulative value
+
+        Args:
+            p2z (dict): p-values are transformed into z-values on many occasions and are therefore cached with this dictionary.
+
+        Returns:
+            np.array: array of z-values corresponding to the fold changes encoded in 1d array
+        """
         total = self.cumulative[-1]
         min_pval = 1/(total+1)
         self.max_z = abs(norm.ppf(max(1e-9, min_pval)))
@@ -186,6 +231,16 @@ class BackGroundDistribution:
 
 
     def calc_zscore_from_fc(self, fc):
+        """
+        Quick conversion function that looks up the z-value corresponding to an observed new fold change.
+        The fold change is mapped to its fc-bin in the binned fold change distribution and then the z-value of the bin is looked up
+
+        Args:
+            fc (float): [description]
+
+        Returns:
+            float: z-value of the observed fold change, based on the background distribution
+        """
         if abs(fc)<self.fc_conversion_factor:
             return 0
         k = int(fc * self.fc_resolution_factor)
@@ -197,7 +252,13 @@ class BackGroundDistribution:
         return self.zscores[rank]
 
 
-    def calc_SD(self, mean, cumulative):
+    def calc_SD(self, mean:float, cumulative:list):
+        """
+        Calculates the standard deviation of the background distribution
+        Args:
+            mean (float): [description]
+            cumulative (list[int]): [description]
+        """
         sq_err = 0.0
         previous =0
         for i in range(len(cumulative)):
