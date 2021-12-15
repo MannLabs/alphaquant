@@ -17,24 +17,24 @@ import alphaquant.visualizations as aqviz
 import os
 
 
-def run_pipeline(input_file = None, samplemap_file=None, unnormed_df = None, samplemap_df = None, results_dir = "./results", condpair_combinations = None, minrep = 2,
+def run_pipeline(*,input_file = None, samplemap_file=None, input_df = None, samplemap_df = None, results_dir = "./results", condpair_combinations = None, minrep = 2,
 min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.05, cluster_threshold_fcfc = 0, take_median_ion = True,outlier_correction = True, normalize = True,
 use_iontree_if_possible = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False,
 runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, annotation_file = None):
 
     """Run the differential analyses.
     """
-    check_input_consistency(input_file, samplemap_file, unnormed_df, samplemap_df)
+    check_input_consistency(input_file, samplemap_file, input_df, samplemap_df)
 
-    if os.path.exists(input_file): #if input file is given, load the dataframes from there
+    if input_file is not None: #if input file is given, load the dataframes from there
 
         samplemap_df = aqutils.load_samplemap(samplemap_file)
 
         try:
-            unnormed_df = aqutils.import_data(input_file)
-            unnormed_df, samplemap_df = aqutils.prepare_loaded_tables(unnormed_df, samplemap_df)
+            input_df = aqutils.import_data(input_file)
+            input_df, samplemap_df = aqutils.prepare_loaded_tables(input_df, samplemap_df)
         except:
-            unnormed_df = None
+            input_df = None
 
 
     #store method parameters for reproducibility
@@ -47,9 +47,9 @@ runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5, annotation_fil
 
     for condpair in condpair_combinations:
         print(condpair)
-        unnormed_df_local = get_unnormed_df_condpair(unnormed_df,samplemap_df,input_file, condpair)
-        pep2prot = dict(zip(unnormed_df_local.index, unnormed_df_local['protein']))
-        reformatted_input = format_condpair_input(samplemap_df, unnormed_df_local, condpair, minrep)
+        input_df_local = get_unnormed_df_condpair(input_df,samplemap_df,input_file, condpair)
+        pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
+        reformatted_input = format_condpair_input(samplemap_df, input_df_local, condpair, minrep)
         if reformatted_input == None:
             continue
         c1_samples, c2_samples, df_c1, df_c2 = reformatted_input
