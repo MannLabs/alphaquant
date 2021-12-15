@@ -6,7 +6,7 @@ os.chdir(".")
 
 
 def load_perseus_df():
-    df_file = os.path.join("..", "..","test_data", "ptmsite_mapping", "shortened_plugin_outputv4_loc_prob_75.txt.zip")
+    df_file = os.path.join("..","..","..","test_data", "ptmsite_mapping", "shortened_plugin_outputv4_loc_prob_75.txt.zip")
     perseus_res = pd.read_csv(df_file , sep = "\t")
     perseus_res = perseus_res.iloc[1:]
     perseus_gene = [x.split("_")[0] for x in perseus_res["PTM_collapse_key"]]
@@ -107,12 +107,13 @@ def get_site_probabilites_exp_precursors(shortened_aq_input, exp_precs_pers, exp
 
 
 def get_shortened_aq_input():
-    df_file = os.path.join("..", "..","test_data", "ptmsite_mapping", "shortened_aq.tsv.zip")
+    df_file = os.path.join("..","..","..","test_data", "ptmsite_mapping", "shortened_aq.tsv.zip")
+    print(os.path.abspath(df_file))
     shortened_aq_input = pd.read_csv(df_file, sep = "\t")
     return shortened_aq_input
 
 def get_samplemap():
-    samplemap_file = os.path.join("..", "..","test_data", "ptmsite_mapping", "samples.map")
+    samplemap_file = os.path.join("..","..","..","test_data", "ptmsite_mapping", "samples.map")
     samplemap_df = pd.read_csv(samplemap_file, sep = "\t")
     return samplemap_df
 
