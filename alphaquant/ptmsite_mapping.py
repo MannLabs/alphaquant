@@ -3,11 +3,15 @@
 __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_protein', 'get_num_sites',
            'group_by_nummods_posv', 'condense_ions', 'encode_probabilities', 'retrieve_relative_positions_diann',
            'retrieve_probabilities_diann', 'cluster_ions', 'cluster_ions_pairwise', 'compare_ion_similarities',
-           'get_condensed_matrix', 'read_ptmcols_spectronaut', 'get_idmap_column', 'get_site_prob_overview',
-           'add_ptmsite_infos_spectronaut', 'add_ptm_precursor_names_spectronaut', 'filter_input_table',
-           'headers_dicts', 'get_ptmpos_header', 'get_ptmprob_header', 'get_uniprot_path', 'get_swissprot_path',
-           'get_path_to_database', 'assign_protein', 'assign_dataset', 'sequence_file', 'initialize_ptmsite_df',
-           'detect_site_occupancy_change', 'check_site_occupancy_changes_all_diffresults']
+           'get_condensed_matrix', 'read_df_spectronaut_reduce_cols', 'read_df_diann_reduce_cols',
+           'read_df_reduce_cols', 'get_relevant_cols_spectronaut', 'get_relevant_cols_diann', 'get_idmap_column',
+           'get_site_prob_overview', 'add_ptmsite_infos_spectronaut', 'add_ptm_precursor_names_spectronaut',
+           'filter_input_table', 'headers_dicts', 'get_ptmpos_header', 'get_ptmprob_header', 'get_uniprot_path',
+           'get_swissprot_path', 'get_path_to_database', 'assign_protein', 'assign_dataset_inmemory', 'sequence_file',
+           'assign_dataset_chunkwise', 'sequence_file', 'clean_up_previous_processings', 'assign_dataset',
+           'sequence_file', 'merge_ptmsite_mappings_write_table', 'add_ptmsite_info_to_subtable', 'get_ptmid_mappings',
+           'write_chunk_to_file', 'initialize_ptmsite_df', 'detect_site_occupancy_change',
+           'check_site_occupancy_changes_all_diffresults']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -216,9 +220,17 @@ def get_condensed_matrix(seqs, encoded):
 # Cell
 import pandas as pd
 
-def read_ptmcols_spectronaut(input_file, modification_type):
-    relevant_cols = list(headers_dicts.get('Spectronaut').values())
-    relevant_cols = relevant_cols  + [f"EG.PTMPositions {modification_type}", f"EG.PTMProbabilities {modification_type}"]
+def read_df_spectronaut_reduce_cols(input_file, modification_type):
+    relevant_cols = get_relevant_cols_spectronaut(modification_type)
+    input_df = read_df_reduce_cols(input_file, relevant_cols)
+    return input_df
+
+def read_df_diann_reduce_cols(input_file):
+    relevant_cols = get_relevant_cols_diann()
+    input_df = read_df_reduce_cols(input_file, relevant_cols)
+    return input_df
+
+def read_df_reduce_cols(input_file, relevant_cols):
     input_df_it = pd.read_csv(input_file, sep = "\t", usecols = relevant_cols, encoding ='latin1', chunksize=1000000)
     input_df_list = []
     for input_df_subset in input_df_it:
@@ -227,6 +239,15 @@ def read_ptmcols_spectronaut(input_file, modification_type):
     input_df = pd.concat(input_df_list)
     return input_df
 
+def get_relevant_cols_spectronaut(modification_type):
+    relevant_cols = list(headers_dicts.get('Spectronaut').values())
+    relevant_cols = relevant_cols  + [f"EG.PTMPositions {modification_type}", f"EG.PTMProbabilities {modification_type}"]
+    return relevant_cols
+
+def get_relevant_cols_diann():
+    relevant_cols = list(headers_dicts.get('DIANN').values())
+    relevant_cols = relevant_cols  + ["Modified.Sequence", "PTM.Site.Confidence"]
+    return relevant_cols
 
 # Cell
 def get_idmap_column(protgroups, swissprots):
@@ -293,6 +314,8 @@ def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
 # Cell
 def filter_input_table(input_type, modification_type,input_df):
     if input_type == "Spectronaut":
+        non_fragion_columns = [x for x in input_df.columns if not x.startswith("F.")]
+
         return input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
     if input_type == "DIANN":
         return input_df[[(modification_type in x) for x in input_df["Modified.Sequence"]]]
@@ -380,10 +403,66 @@ def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
     return id2groupid, id2normedid
 
 # Cell
+def assign_dataset_inmemory(input_file, results_dir, samplemap = 'samples.map.tsv', modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+sequence_file=None, input_type = "Spectronaut", organism = "human"):
+    if input_type == "Spectronaut":
+        input_df = read_df_spectronaut_reduce_cols(input_file, modification_type)
+    if input_type == "DIANN":
+        input_df = read_df_diann_reduce_cols(input_file)
+
+    assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        organism = organism)
+
+# Cell
+import pandas as pd
+import dask.dataframe as dd
+
+def assign_dataset_chunkwise(input_file, results_dir, samplemap = 'samples.map.tsv', modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+sequence_file=None, input_type = "Spectronaut", organism = "human"):
+    """go through the dataset chunkwise. The crucial step here is, that the dataset needs to be sorted by protein (realized via set_index) such that the chunks are independent (different proteins are independent)
+    """
+    clean_up_previous_processings(results_dir)
+
+    if input_type == 'Spectronaut':
+        relevant_cols = get_relevant_cols_spectronaut(modification_type)
+        input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
+        input_df = input_df.set_index('PG.UniProtIds')
+
+    if input_type == 'DIANN':
+        relevant_cols = get_relevant_cols_diann(modification_type)
+        input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
+        input_df = input_df.set_index('ProteinGroup')
+
+    input_df = input_df.drop_duplicates()
+    sorted_reduced_input = f"{input_file}.sorted_reduced.xz"
+    if os.path.exists(sorted_reduced_input):
+        os.remove(sorted_reduced_input)
+    input_df.to_csv(sorted_reduced_input, single_file = True, sep = "\t", compression = 'xz')
+
+    input_df_it = pd.read_csv(sorted_reduced_input, sep = "\t", chunksize = 1000_000, encoding ='latin1')
+    for input_df in input_df_it:
+
+        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        organism = organism)
+
+
+# Cell
+
+def clean_up_previous_processings(results_folder):
+    file_ptm_ids = os.path.join(results_folder, "ptm_ids.tsv")
+    file_siteprobs = os.path.join(results_folder, "siteprobs.tsv")
+
+    if os.path.exists(file_ptm_ids):
+        os.remove(file_ptm_ids)
+    if os.path.exists(file_siteprobs):
+        os.remove(file_siteprobs)
+
+
+# Cell
 import os
 import alphaquant.visualizations as aqviz
 def assign_dataset(input_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, samplemap = 'samples.map.tsv',swissprot_file = None,
-sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human"):
+sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
 
     """wrapper function reformats Spectronaut inputs tables and iterates through the whole dataset.
     Needed columns:
@@ -481,18 +560,66 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
 
     mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,
     "locprob" : locprobs, "PEP.StrippedSequence" : stripped_seqs, "FG.PrecMz" : prec_mz, "FG.Charge": fg_charge, "FG.Id.ptm" : ion_id, "ptm_id" : ptm_id})
-    if results_folder != None:
-        os.makedirs(results_folder, exist_ok=True)
-        mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None)
+
 
     siteprob_df = pd.DataFrame(siteprobs)
     siteprob_df = siteprob_df.astype({"site" : "int"})
     siteprob_df.set_index(["REFPROT", "site"], inplace=True)
     siteprob_df = siteprob_df.sort_index().reset_index()
+
     if results_folder != None:
-        siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None)
+        os.makedirs(results_folder, exist_ok=True)
+        mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None, header = header, mode = 'a')
+        siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None, header = header, mode = 'a')
+
     return mapped_df, siteprob_df
 
+
+# Cell
+
+import numpy as np
+import alphaquant.diffquant_utils as aqutils
+import os
+
+def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes'):
+    config_dict = aqutils.import_config_dict()
+    config_dict_ptm = config_dict.get(ptm_type_config_dict)
+    relevant_columns = aqutils.get_relevant_columns_config_dict(config_dict_ptm)
+    specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=100_000)
+    file_modified = spectronaut_file.replace(".tsv", "")
+    ptmmapped_table_filename = f'{file_modified}_ptmsite_mapped.tsv'
+    if os.path.exists(ptmmapped_table_filename):
+        os.remove(ptmmapped_table_filename)
+    header = True
+    for specnaut_df in specnaut_df_it:
+        specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, mapped_df, modification_type, relevant_columns)
+        write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
+        header = False
+    return ptmmapped_table_filename
+
+def add_ptmsite_info_to_subtable(spectronaut_df, mapped_df, modification_type, relevant_columns):
+    labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
+    labelid_spectronaut = spectronaut_df["R.Label"].astype('str').to_numpy() + spectronaut_df["FG.Id"].astype('str').to_numpy() #derive the id to map from Spectronaut
+    spectronaut_df["ptm_id"] = np.array([labelid2ptmid.get(x, np.nan) for x in labelid_spectronaut]) #add the ptm_id row to the spectronaut table
+    modseq_typereplaced = np.array([str(x.replace(modification_type, "")) for x in spectronaut_df["EG.ModifiedSequence"]]) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
+    sites = np.array([str(labelid2site.get(x)) for x in labelid_spectronaut])
+    spectronaut_df["ptm_mapped_modseq"] = np.char.add(modseq_typereplaced, sites)
+    spectronaut_df = spectronaut_df.dropna(subset=["ptm_id"]) #drop peptides that have no ptm
+    spectronaut_df = spectronaut_df[relevant_columns]
+    return spectronaut_df
+
+
+def get_ptmid_mappings(mapped_df):
+    labelid = mapped_df["R.Label"].astype('str').to_numpy() + mapped_df["FG.Id"].astype('str').to_numpy()
+    ptm_ids = mapped_df["ptm_id"].to_numpy()
+    site = mapped_df["site"].to_numpy()
+    labelid2ptmid = dict(zip(labelid, ptm_ids))
+    labelid2site = dict(zip(labelid, site))
+    return labelid2ptmid, labelid2site
+
+
+def write_chunk_to_file(chunk, filepath ,write_header):
+    chunk.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
 
 # Cell
 import pandas as pd
