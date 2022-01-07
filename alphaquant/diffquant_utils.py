@@ -7,11 +7,10 @@ __all__ = ['get_condpairname', 'get_middle_elem', 'get_nonna_array', 'get_non_na
            'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_quantitative_columns',
            'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
            'reformat_longtable_according_to_config_new', 'read_wideformat_table', 'read_condpair_tree',
-           'merge_ptmsite_mappings_write_table', 'add_ptmsite_info_to_subtable', 'get_ptmid_mappings',
-           'write_chunk_to_file', 'check_for_processed_runs_in_results_folder', 'import_data',
-           'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
-           'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
-           'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
+           'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
+           'import_config_dict', 'get_samplenames', 'load_samplemap', 'prepare_loaded_tables',
+           'import_acquisition_info_df', 'get_ion_headers_from_config_dict', 'get_all_ion_headers', 'get_ion_row',
+           'get_ion_header', 'merge_acquisition_df_parameter_df']
 
 # Cell
 def get_condpairname(condpair):
@@ -499,49 +498,6 @@ def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results
     jsontree = importer.read(filehandle)
     filehandle.close()
     return jsontree
-
-# Cell
-
-import numpy as np
-import alphaquant.diffquant_utils as aqutils
-import os
-
-def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes'):
-    config_dict = aqutils.import_config_dict()
-    config_dict_ptm = config_dict.get(ptm_type_config_dict)
-    relevant_columns = aqutils.get_relevant_columns_config_dict(config_dict_ptm)
-    specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=10000)
-    ptmmapped_table_filename = f'{spectronaut_file.replace(".tsv", "")}_ptmsite_mapped.tsv'
-    header = True
-    for specnaut_df in specnaut_df_it:
-        specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, mapped_df, modification_type, relevant_columns)
-        write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
-        header = False
-
-
-def add_ptmsite_info_to_subtable(spectronaut_df, mapped_df, modification_type, relevant_columns):
-    labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
-    labelid_spectronaut = spectronaut_df["R.Label"].astype('str').to_numpy() + spectronaut_df["FG.Id"].astype('str').to_numpy() #derive the id to map from Spectronaut
-    spectronaut_df["ptm_id"] = np.array([labelid2ptmid.get(x, np.nan) for x in labelid_spectronaut]) #add the ptm_id row to the spectronaut table
-    modseq_typereplaced = np.array([str(x.replace(modification_type, "")) for x in spectronaut_df["EG.ModifiedSequence"]]) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
-    sites = np.array([str(labelid2site.get(x)) for x in labelid_spectronaut])
-    spectronaut_df["ptm_mapped_modseq"] = np.char.add(modseq_typereplaced, sites)
-    spectronaut_df = spectronaut_df.dropna(subset=["ptm_id"]) #drop peptides that have no ptm
-    spectronaut_df = spectronaut_df[relevant_columns]
-    return spectronaut_df
-
-
-def get_ptmid_mappings(mapped_df):
-    labelid = mapped_df["R.Label"].astype('str').to_numpy() + mapped_df["FG.Id"].astype('str').to_numpy()
-    ptm_ids = mapped_df["ptm_id"].to_numpy()
-    site = mapped_df["site"].to_numpy()
-    labelid2ptmid = dict(zip(labelid, ptm_ids))
-    labelid2site = dict(zip(labelid, site))
-    return labelid2ptmid, labelid2site
-
-
-def write_chunk_to_file(chunk, filepath ,write_header):
-    chunk.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
 
 # Cell
 import os
