@@ -595,8 +595,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
     labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
     specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=chunksize, usecols=relevant_columns_spectronaut)
 
-    num_lines_spectronaut =  sum(1 for _ in open(spectronaut_file))
-    print(f"adding ptm info to spectronaut file with {num_lines_spectronaut} lines")
+    print(f"adding ptm info to spectronaut file")
 
     if os.path.exists(ptmmapped_table_filename):
         os.remove(ptmmapped_table_filename)
@@ -606,7 +605,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
         specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
         write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
         lines_read +=chunksize
-        print(f"{lines_read/num_lines_spectronaut :.3f} of total")
+        print(f"{lines_read} lines read")
         header = False
     return ptmmapped_table_filename
 
