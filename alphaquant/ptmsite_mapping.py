@@ -581,31 +581,45 @@ import numpy as np
 import alphaquant.diffquant_utils as aqutils
 import os
 
-def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes'):
+def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes', chunksize = 100_000):
+    #load configs, determine
     config_dict = aqutils.import_config_dict()
     config_dict_ptm = config_dict.get(ptm_type_config_dict)
-    relevant_columns = aqutils.get_relevant_columns_config_dict(config_dict_ptm)
-    specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=100_000)
+    relevant_columns = aqutils.get_relevant_columns_config_dict(config_dict_ptm)#the columns that will be relevant in the ptm table
+    relevant_columns_spectronaut = list(set(relevant_columns).intersection(set(pd.read_csv(spectronaut_file, sep = "\t", nrows=2).columns)))# the relevant columsn in the spectronaut table ()
+    relevant_columns_spectronaut = relevant_columns_spectronaut+["EG.ModifiedSequence"]
     file_modified = spectronaut_file.replace(".tsv", "")
     ptmmapped_table_filename = f'{file_modified}_ptmsite_mapped.tsv'
+    lines_read = 0
+
+    labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
+    specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=chunksize, usecols=relevant_columns_spectronaut)
+
+    num_lines_spectronaut =  sum(1 for _ in open(spectronaut_file))
+    print(f"adding ptm info to spectronaut file with {num_lines_spectronaut} lines")
+
     if os.path.exists(ptmmapped_table_filename):
         os.remove(ptmmapped_table_filename)
+
     header = True
     for specnaut_df in specnaut_df_it:
-        specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, mapped_df, modification_type, relevant_columns)
+        specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
         write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
+        lines_read +=chunksize
+        print(f"{lines_read/num_lines_spectronaut :.3f} of total")
         header = False
     return ptmmapped_table_filename
 
-def add_ptmsite_info_to_subtable(spectronaut_df, mapped_df, modification_type, relevant_columns):
-    labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
-    labelid_spectronaut = spectronaut_df["R.Label"].astype('str').to_numpy() + spectronaut_df["FG.Id"].astype('str').to_numpy() #derive the id to map from Spectronaut
-    spectronaut_df["ptm_id"] = np.array([labelid2ptmid.get(x, np.nan) for x in labelid_spectronaut]) #add the ptm_id row to the spectronaut table
+def add_ptmsite_info_to_subtable(spectronaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns):
+
+    spectronaut_df["labelid"] = spectronaut_df["R.Label"].astype('str').to_numpy() + spectronaut_df["FG.Id"].astype('str').to_numpy() #derive the id to map from Spectronaut
+    spectronaut_df = spectronaut_df[[x in labelid2ptmid.keys() for x in spectronaut_df["labelid"]]].copy() #drop peptides that have no ptm
+
+    spectronaut_df["ptm_id"] = np.array([labelid2ptmid.get(x) for x in spectronaut_df["labelid"]]) #add the ptm_id row to the spectronaut table
     modseq_typereplaced = np.array([str(x.replace(modification_type, "")) for x in spectronaut_df["EG.ModifiedSequence"]]) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
-    sites = np.array([str(labelid2site.get(x)) for x in labelid_spectronaut])
+    sites = np.array([str(labelid2site.get(x)) for x in spectronaut_df["labelid"]])
     spectronaut_df["ptm_mapped_modseq"] = np.char.add(modseq_typereplaced, sites)
-    spectronaut_df = spectronaut_df.dropna(subset=["ptm_id"]) #drop peptides that have no ptm
-    spectronaut_df = spectronaut_df[relevant_columns]
+
     return spectronaut_df
 
 
