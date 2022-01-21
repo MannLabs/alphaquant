@@ -3,13 +3,17 @@
 __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare_normalization', 'compare_to_reference',
            'compare_significant_proteins', 'print_nonref_hits', 'test_run_pipeline', 'generate_random_input',
            'generate_peptide_list', 'generate_protein_list', 'annotate_fcs_to_wideformat_table', 'prepare_mq_table',
-           'compare_diann_spectronat_aq', 'compare_aq_w_method', 'get_precursor_intens_fc_dataframes',
-           'count_outlier_fraction', 'generate_precursor_nodes_from_protein_nodes', 'cluster_selected_proteins',
+           'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
+           'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
+           'get_original_input_df', 'get_node_df', 'count_outlier_fraction',
+           'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
+           'convert_tree_ionname_to_simple_ionname_diann', 'cluster_selected_proteins',
            'create_background_dists_from_prepared_files', 'get_c1_c2_dfs', 'load_real_example_ions',
            'get_filtered_protnodes', 'filter_check_protnode', 'get_subset_of_diffions', 'add_perturbations_to_proteins',
            'group_level_nodes_by_parents', 'get_filtered_intensity_df', 'get_perturbed_intensity_df',
            'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level', 'count_correctly_excluded',
-           'eval_clustered_results']
+           'eval_clustered_results', 'retrieve_all_peptides_from_fasta_and_save', 'get_peptides_set',
+           'filter_table_by_peptides', 'spectronaut_filtering', 'diann_filtering']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -259,48 +263,113 @@ import os.path
 import anytree
 import copy
 
-def compare_diann_spectronat_aq(protein_nodes_sn, protein_nodes_diann, expected_log2fc, condpair, specnaut_loc, diann_loc, samplemap_sn, samplemap_diann, quant_level_aq, quant_level_sn, quant_level_diann, tolerance_interval, xlim_lower, xlim_upper, name, savedir, predscore_cutoff, ml_exclude):
-    _, ax = plt.subplots(nrows = 3, ncols = 2, figsize=(15,15))
-    nodes_precursors_sn = generate_precursor_nodes_from_protein_nodes(protein_nodes_sn, shift_fc=0,type=quant_level_aq)
-    aqplot.plot_predictability_roc_curve(nodes_precursors_sn, expected_log2fc, name = 'Spectronaut',fc_cutoff_bad=1, fc_cutoff_good=0.3, ax = ax[2][1])
-    nodes_precursors_diann = generate_precursor_nodes_from_protein_nodes(protein_nodes_diann, shift_fc=0,type=quant_level_aq)
-    aqplot.plot_predictability_roc_curve(nodes_precursors_diann, expected_log2fc, name = 'DIANN',fc_cutoff_bad=1, fc_cutoff_good=0.3, ax = ax[2][1])
-    ax[2][1].set_title('ROC curve')
-    ax[2][1].set_xlabel('FPR (how many called are unbiased)')
-    ax[2][1].set_ylabel('TPR (how many unbiased are called)')
-    ax[2][1].legend()
+
+def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_used, name, original_input_file, samplemap,quant_level_aq, quant_level_reference, tolerance_interval, xlim_lower, xlim_upper, savedir, predscore_cutoff, ml_exclude, percentile_to_retain):
+
+    fig, ax = plt.subplots(nrows = 3, ncols = 3, figsize=(15,15))
+    fig.suptitle(f"{software_used}, {aqutils.get_condpairname(condpair)}")
+    nodes_precursors = generate_precursor_nodes_from_protein_nodes(protein_nodes, type=quant_level_aq)
+
+    true_falses, predscores, reference_scores, fcs = aqplot.get_true_false_to_predscores(nodes_precursors, expected_log2fc)
+    aqplot.plot_fc_dist_of_test_set(fcs=fcs, true_falses=true_falses, ax= ax[0][0])
+    aqplot.plot_predictability_roc_curve(true_falses=true_falses, predscores=predscores, reference_scores=reference_scores, ax = ax[0][1], percentile_cutoff_indication=percentile_to_retain)
+    aqplot.plot_predictability_precision_recall_curve(true_falses=true_falses, predscores=predscores, reference_scores=reference_scores, ax=ax[0][2], percentile_cutoff_indication=percentile_to_retain)
+
+
     if predscore_cutoff is not None:
-        nodes_precursors_sn = [x for x in nodes_precursors_sn if abs(x.predscore)<predscore_cutoff]
-        nodes_precursors_diann = [x for x in nodes_precursors_diann if abs(x.predscore)<predscore_cutoff]
+        nodes_precursors = [x for x in nodes_precursors if abs(x.predscore)<predscore_cutoff]
     if (predscore_cutoff is None) and (ml_exclude):
-        nodes_precursors_sn = [x for x in nodes_precursors_sn if not x.ml_excluded]
-        nodes_precursors_diann = [x for x in nodes_precursors_diann if not x.ml_excluded]
-    specnaut_reformat, node_df_sn = get_precursor_intens_fc_dataframes(nodes_precursors_sn, condpair[0], condpair[1], specnaut_loc, samplemap_sn, quant_level_sn, 9)
-    diann_reformat, node_df_diann = get_precursor_intens_fc_dataframes(nodes_precursors_diann, condpair[0], condpair[1], diann_loc, samplemap_diann, quant_level_diann, 9)
+        nodes_precursors = [x for x in nodes_precursors if not x.ml_excluded]
 
-    frac_outliers_sn = count_outlier_fraction(specnaut_reformat, tolerance_interval, expected_log2fc)
-    aqplot.plot_fc_intensity_scatter(specnaut_reformat, f"Spectronaut ({frac_outliers_sn:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[0][0])
-    frac_outliers_aq_sn = count_outlier_fraction(node_df_sn, tolerance_interval, expected_log2fc)
-    aqplot.plot_fc_intensity_scatter(node_df_sn, f"AlphaQuant_SN ({frac_outliers_aq_sn:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[0][1])
 
-    frac_outliers_diann = count_outlier_fraction(diann_reformat, tolerance_interval, expected_log2fc)
-    aqplot.plot_fc_intensity_scatter(diann_reformat, f"DIANN ({frac_outliers_diann:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][0])
-    frac_outliers_aq_diann = count_outlier_fraction(node_df_diann, tolerance_interval, expected_log2fc)
-    aqplot.plot_fc_intensity_scatter(node_df_diann, f"AlphaQuant_DIANN ({frac_outliers_aq_diann:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][1])
-    aqplot.plot_violin_plots_log2fcs(['spectronaut', 'aq_sn', 'diann', 'aq_diann'], [specnaut_reformat, node_df_sn, diann_reformat, node_df_diann], ax = ax[2][0])
-    plt.savefig(f"{savedir}/{name}.pdf")
+
+    original_df_reformat = get_original_input_df( c1 = condpair[0], c2 = condpair[1], input_file = original_input_file, samplemap_file = samplemap, input_type = quant_level_reference, num_reps = 9)
+    node_df = get_node_df(nodes_precursors = nodes_precursors)
+
+
+    if percentile_to_retain is not None:
+        rough_tpr_cutoff = get_rough_tpr_cutoff(percentile_to_retain, true_falses)
+        original_df_reformat, node_df = filter_top_qualityscore_percentiles(df_original=original_df_reformat, df_nodes=node_df, nodes_precursors=nodes_precursors, percentile=rough_tpr_cutoff, method=software_used)
+
+
+    frac_outliers = count_outlier_fraction(original_df_reformat, tolerance_interval, expected_log2fc)
+    aqplot.plot_fc_intensity_scatter(original_df_reformat, f"{software_used} ({frac_outliers:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][0])
+    frac_outliers_aq = count_outlier_fraction(node_df, tolerance_interval, expected_log2fc)
+    aqplot.plot_fc_intensity_scatter(node_df, f"AlphaQuant ({frac_outliers_aq:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][1])
+
+
+    aqplot.plot_violin_plots_log2fcs([software_used, 'AlphaQuant'], [original_df_reformat, node_df], ax = ax[2][0])
+    aqplot.plot_beeswarm_plot_log2fcs([software_used, 'AlphaQuant'], [original_df_reformat, node_df], ax = ax[2][1])
+    fig.tight_layout()
+    plt.savefig(f"{savedir}/{name}_{software_used}.pdf")
+
+    ax[0][0].figure.savefig(f"{savedir}/{name}_fc_dist.pdf")
+    ax[0][1].figure.savefig(f"{savedir}/{name}_predictability_roc_curve.pdf")
+    ax[0][2].figure.savefig(f"{savedir}/{name}_predictability_precision_recall_curve.pdf")
+    ax[1][0].figure.savefig(f"{savedir}/{name}_{software_used}_fc_intensity_scatter.pdf")
+    ax[1][1].figure.savefig(f"{savedir}/{name}_AlphaQuant_fc_intensity_scatter.pdf")
+    ax[2][0].figure.savefig(f"{savedir}/{name}_violin_plot.pdf")
+    ax[2][1].figure.savefig(f"{savedir}/{name}_beeswarm_plot.pdf")
+
     plt.show()
 
 
 
+
+def get_rough_tpr_cutoff(percentile_to_retain, true_false_vec):
+    fraction_true = sum(true_false_vec)/len(true_false_vec)
+    return fraction_true*percentile_to_retain
+
+
+
+def get_top_percentile_node_df(nodes, percentile, node_filterfunction = None):
+
+    if node_filterfunction is not None:
+        nodes = [x for x in nodes if node_filterfunction(x)]
+    nodes_sorted = sorted(nodes,key= lambda x : abs(x.predscore))
+    nodes_sorted = nodes_sorted[:int(len(nodes_sorted)*percentile)]
+    return get_node_df(nodes_sorted)
+
+
+def filter_top_qualityscore_percentiles(df_original, df_nodes, nodes_precursors, percentile, method, node_filterfunction = None):
+    top_precursors_aqscore, top_precursors_default_quality_score = get_top_percentile_peptides(nodes_precursors=nodes_precursors, percentile = percentile, method = method, node_filterfunction = node_filterfunction)
+    df_original = df_original[[x in top_precursors_default_quality_score for x in df_original["ion"]]]
+    df_nodes = df_nodes[[x in top_precursors_aqscore for x in df_nodes["ion"]]]
+
+    return df_original, df_nodes
+
+
+
+
+def get_top_percentile_peptides(nodes_precursors, percentile, method, node_filterfunction = None):
+    if node_filterfunction is not None:
+        nodes_precursors = [x for x in nodes_precursors if node_filterfunction(x)]
+    nodes_aqscore_sorted = sorted(nodes_precursors, key = lambda x : abs(x.predscore))
+    nodes_default_quality_score_sorted = sorted(nodes_precursors, key = lambda x : abs(x.default_quality_score), reverse=True) #the quality scores are higher is better, the predscore is lower is better
+
+    #get the percentiles
+    nodes_default_quality_score_sorted = nodes_default_quality_score_sorted[:int(percentile*len(nodes_default_quality_score_sorted))]
+    nodes_aqscore_sorted = nodes_aqscore_sorted[:int(percentile*len(nodes_aqscore_sorted))]
+
+    #get the precursor names
+    if method == "Spectronaut":
+        treename2simplename = convert_tree_ionname_to_simple_ionname_sn(nodes_precursors)
+    if method =="DIANN":
+        treename2simplename = convert_tree_ionname_to_simple_ionname_diann(nodes_precursors)
+
+    precursors_default_quality_score = {treename2simplename.get(x.name) for x in nodes_default_quality_score_sorted}
+    precursors_aqscore = {x.name for x in nodes_aqscore_sorted}
+    return precursors_aqscore, precursors_default_quality_score
+
 def compare_aq_w_method(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, expected_log2fc = None, threshold = 0.5, input_type = "spectronaut_precursor", num_reps = None, method_name = "Spectronaut", tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5):
-    specnaut_reformat, node_df = get_precursor_intens_fc_dataframes(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, input_type, num_reps)
+    specnaut_reformat = get_original_input_df( c1 = c1, c2 = c2, input_file = spectronaut_file, samplemap_file = samplemap_file, input_type = input_type, num_reps = num_reps)
+    node_df = get_node_df(nodes_precursors = nodes_precursors)
     count_outlier_fraction(specnaut_reformat, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(specnaut_reformat, method_name, expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper)
     count_outlier_fraction(node_df, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(node_df, "AlphaQuant", expected_log2fc = expected_log2fc)
 
-def get_precursor_intens_fc_dataframes(nodes_precursors, c1, c2, input_file, samplemap_file, input_type = "spectronaut_precursor", num_reps = None):
+def get_original_input_df(c1, c2, input_file, samplemap_file, input_type = "spectronaut_precursor", num_reps = None):
     print(f"use input type {input_type}")
     reformat_file = f"{input_file}.{input_type}.aq_reformat.tsv"
     if os.path.isfile(reformat_file):
@@ -311,9 +380,14 @@ def get_precursor_intens_fc_dataframes(nodes_precursors, c1, c2, input_file, sam
     c1_samples = list(samplemap_df[samplemap_df["condition"]==c1]["sample"])
     c2_samples = list(samplemap_df[samplemap_df["condition"]==c2]["sample"])
     specnaut_reformat = annotate_fcs_to_wideformat_table(specnaut_reformat,c1_samples, c2_samples, num_reps = num_reps)
+
+    return specnaut_reformat
+
+def get_node_df(nodes_precursors):
     node_info_dict = {'ion': [x.name for x in nodes_precursors], 'log2fc' : [x.fc for x in nodes_precursors], "median_intensity" : [x.min_intensity for x in nodes_precursors]}
     node_df = pd.DataFrame(node_info_dict)
-    return specnaut_reformat, node_df
+    return node_df
+
 
 def count_outlier_fraction(result_df, threshold, expected_log2fc):
     num_outliers = sum([abs(x-expected_log2fc)> threshold for x in result_df["log2fc"]])
@@ -332,6 +406,23 @@ def generate_precursor_nodes_from_protein_nodes(protein_nodes, shift_fc = None, 
         for precursor in all_precursors:
             precursor.fc +=shift_fc
     return all_precursors
+
+import re
+def convert_tree_ionname_to_simple_ionname_sn(nodes):
+    tree2simple = {}
+    for node in nodes:
+        groups = re.match("(.*MOD_)(.*)(_CHARGE_)(.*)(_.*)",node.name)
+        tree2simple[node.name] = f"{groups[2]}.{groups[4]}"
+    return tree2simple
+
+def convert_tree_ionname_to_simple_ionname_diann(nodes):
+    tree2simple = {}
+    for node in nodes:
+        groups = re.match("(.*MOD_)(.*)(_CHARGE_)(.*)(_.*)",node.name)
+        tree2simple[node.name] = f"{groups[2]}{groups[4]}"
+    return tree2simple
+
+
 
 # Cell
 
@@ -649,3 +740,66 @@ def eval_clustered_results(results_perturbed):
 
 
 
+
+
+# Cell
+from pyopenms import ProteaseDigestion, AASequence
+import pyfasta
+import pandas as pd
+
+def retrieve_all_peptides_from_fasta_and_save(fasta):
+
+    dig = ProteaseDigestion()
+
+    print(dig.getEnzymeName()) # Trypsin
+    dig.setMissedCleavages(2)
+
+    f = pyfasta.Fasta(fasta)
+
+    all_results = []
+    for key in f.keys():
+        val = str(f.get(key))
+        val = AASequence.fromString(val)
+        result = []
+        dig.digest(val, result, 4, 40)
+        all_results.extend(result)
+
+
+    df = pd.DataFrame({'peptide' : all_results})
+    df.to_csv(f"{fasta}.all_peptides.tsv", index = None)
+    return set(df["peptide"])
+
+
+def get_peptides_set(fastas):
+    peps_merged = set()
+    for fasta in fastas:
+        try:
+            peps = set(pd.read_csv(f"{fasta}.all_peptides.tsv", sep = "\t")["peptide"])
+        except:
+            print("could not find digested version of the fasta, try to digest")
+            peps = retrieve_all_peptides_from_fasta_and_save(fasta)
+        peps_merged = peps_merged.union(peps)
+    return peps_merged
+
+
+def filter_table_by_peptides(input_table, undesired_peptides, desired_organism, software_filter_function):
+
+    tableit = pd.read_csv(input_table, sep = "\t", chunksize=100000)
+    tables = []
+    for table_df in tableit:
+        table_df = software_filter_function(table_df, undesired_peptides, desired_organism)
+        tables.append(table_df)
+
+    yeast_df = pd.concat(tables, ignore_index = True)
+    yeast_df.to_csv(f"{desired_organism}_report_filtered.tsv", sep = "\t", index = None)
+
+
+def spectronaut_filtering(table_df, undesired_peptides, desired_organism):
+    table_df = table_df[[(x not in undesired_peptides) for x in table_df['PEP.StrippedSequence']]]
+    table_df["PG.Organisms"] == desired_organism
+
+    return table_df
+
+def diann_filtering(table_df, undesired_peptides, desired_organism):
+    table_df = table_df[[(x not in undesired_peptides) for x in table_df['Stripped.Sequence']]]
+    table_df = table_df[[(desired_organism in x) for x in table_df['Protein.Names']]]
