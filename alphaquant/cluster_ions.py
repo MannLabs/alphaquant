@@ -366,7 +366,7 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
         predscores = [x.predscore for x in childs]
         node.predscore = np.nanmedian(predscores)
         node.cutoff = childs[0].cutoff
-        node.ml_excluded = abs(node.predscore)< node.cutoff
+        node.ml_excluded = bool(abs(node.predscore)< node.cutoff)
 
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
@@ -374,7 +374,7 @@ def filter_fewpeps_per_protein(peptide_nodes):
     for pepnode in peptide_nodes:
         pepleaves = [x for x in pepnode.leaves if "seq" in x.inclusion_levels]
         pepnode2pval2numleaves.append((pepnode, pepnode.p_val,len(pepleaves)))
-    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True)
+    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True) #sort with highest p-val (least significant) first
     numleaves_total = 0
     for pepnode, _, numleaves in pepnode2pval2numleaves:
         peps_filtered.append(pepnode)
@@ -452,7 +452,7 @@ def re_order_depending_on_predscore(protnode, typefilter):
             had_predscore = hasattr(child_nodes[0], 'predscore')
             if had_predscore:
                 re_order_clusters_by_predscore(child_nodes)
-                assign_vals_to_node(type_node)
+                assign_vals_to_node(type_node,only_use_mainclust=True, use_fewpeps_per_protein=False)
 
 
 
