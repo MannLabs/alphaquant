@@ -11,11 +11,14 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe',
            'initialize_sample2cond', 'plot_volcano_plotly', 'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly',
            'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'get_color2ions', 'convert_to_plotly_color_format',
-           'make_mz_fc_boxplot', 'assign_mz_cathegory', 'plot_predicted_fc_histogram', 'plot_log_loss_score',
-           'get_error_and_scatter_ml_regression', 'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs',
-           'plot_feature_importances', 'filter_sort_top_n', 'visualize_gaussian_mixture_fit',
-           'visualize_gaussian_nomix_subfit', 'visualize_filtered_non_filtered_precursors',
-           'plot_predictability_roc_curve', 'plot_roc_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered']
+           'make_mz_fc_boxplot', 'assign_mz_cathegory', 'plot_fc_histogram_ml_filtered', 'plot_log_loss_score',
+           'scatter_ml_regression_perturbation_aware', 'plot_perturbation_histogram', 'plot_perturbed_unperturbed_fcs',
+           'plot_ml_fc_histograms', 'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs',
+           'plot_beeswarm_plot_log2fcs', 'get_longformat_df', 'plot_feature_importances', 'filter_sort_top_n',
+           'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
+           'visualize_filtered_non_filtered_precursors', 'plot_fcs_node', 'plot_predictability_roc_curve',
+           'plot_predictability_precision_recall_curve', 'get_true_false_to_predscores', 'plot_fc_dist_of_test_set',
+           'plot_roc_curve', 'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -1252,7 +1255,7 @@ def assign_mz_cathegory(mz_val):
 # Cell
 import matplotlib.pyplot as plt
 
-def plot_predicted_fc_histogram(y_test, y_pred, fc_cutoff, show_filtered):
+def plot_fc_histogram_ml_filtered(y_test, y_pred, fc_cutoff, show_filtered):
     if show_filtered:
         fcs = [y_test[i] for i in range(len(y_test)) if y_pred[i]>fc_cutoff]
         if len(fcs)==0:
@@ -1283,22 +1286,66 @@ def plot_log_loss_score(loss_score, y_test, loss_score_cutoff = 0):
 from sklearn.metrics import mean_squared_error, r2_score
 import seaborn as sns
 
-def get_error_and_scatter_ml_regression(y_test, y_pred, cutoff):
-    # The mean squared error
-    print('Mean squared error: %.2f'
-        % mean_squared_error(y_test, y_pred))
-    # The coefficient of determination: 1 is perfect prediction
-    print('Coefficient of determination: %.2f'
-        % r2_score(y_test, y_pred))
-    print(f"{len(y_test)} predictions in total")
+def scatter_ml_regression_perturbation_aware(y_test, y_pred, ionnames, nodes, results_dir = None):
+    y_test, y_pred = [np.array(y_test), np.array(y_pred)]
+    perturbed_ions = {x.name  for x in nodes if hasattr(x, "perturbation_added")}
+    is_unperturbed_vec = [x for x in range(len(ionnames)) if ionnames[x] not in perturbed_ions]
+    y_unpert_test = y_test[is_unperturbed_vec]
+    y_unpert_pred = y_pred[is_unperturbed_vec]
 
-    # Plot outputs
-    #plt.plot(X_test[:,-1], y_pred,  color='black')
-    sns.regplot(x = y_test, y = y_pred, scatter_kws=dict(alpha=0.1))
+    fig_perturb, ax_perturb = plt.subplots()
+
+
+    sns.regplot(x = y_unpert_test, y = y_unpert_pred, scatter_kws=dict(alpha=0.1), ax = ax_perturb)
+
+    if len(perturbed_ions)>0:
+        is_perturbed_vec = [x for x in range(len(ionnames)) if ionnames[x] in perturbed_ions]
+        y_pert_test = y_test[is_perturbed_vec]
+        y_pert_pred = y_pred[is_perturbed_vec]
+        sns.scatterplot(x = y_pert_test, y = y_pert_pred, alpha=0.1, label="perturbed", color = sns.color_palette()[1], ax = ax_perturb)
+        plot_perturbed_unperturbed_fcs(fcs_perturbed=y_pert_test,fcs_unperturbed=y_unpert_test, results_dir = results_dir)
+        plot_perturbed_unperturbed_fcs(fcs_perturbed=[x.fc for x in nodes if hasattr(x, "perturbation_added")], fcs_unperturbed=[x.fc for x in nodes if not hasattr(x, "perturbation_added")])
+        plot_perturbation_histogram([x for x in nodes if hasattr(x, "perturbation_added")], results_dir)
+
+
+    err = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    print(f'Mean squared error: {err:.2f}')
+    print(f'Coefficient of determination: {r2:.2f}')
+
+    ax_perturb.set_title(f"MSE: {err:.2f}, R2: {r2:.2f}")
+
+    if results_dir is not None:
+        fig_perturb.savefig(f"{results_dir}/ml_regression.pdf")
+    fig_perturb.show()
     plt.show()
-    plot_predicted_fc_histogram(y_test, y_pred, cutoff, show_filtered=False)
+
+def plot_perturbation_histogram(perturbed_nodes, results_dir):
+    fig, ax = plt.subplots()
+    perturbations = [x.perturbation_added for x in perturbed_nodes]
+    ax.hist(perturbations, 60, density=True, histtype='step',cumulative=True)
+    if results_dir is not None:
+        ax.savefig(f"{results_dir}/perturbation_histogram.pdf")
+    fig.show()
+
+def plot_perturbed_unperturbed_fcs(fcs_perturbed, fcs_unperturbed, results_dir = None):
+    fig, ax = plt.subplots()
+    ax.hist(bins = 60, x=fcs_unperturbed, label= 'unperturbed',density=True, histtype='step')
+    ax.hist(bins = 60, x= fcs_perturbed,label='perturbed', density=True, histtype='step')
+    if results_dir is not None:
+        ax.savefig(f"{results_dir}/compare_pertubed_unperturbed.pdf")
+    fig.show()
+
+
+def plot_ml_fc_histograms(y_test, y_pred, cutoff, results_dir = None):
+
+    plot_fc_histogram_ml_filtered(y_test, y_pred, cutoff, show_filtered=False)
+    if results_dir is not None:
+        plt.savefig(f"{results_dir}/observed_offsets_ml_filtered.pdf")
     plt.show()
-    plot_predicted_fc_histogram(y_test, y_pred, cutoff, show_filtered=True)
+    plot_fc_histogram_ml_filtered(y_test, y_pred, cutoff, show_filtered=True)
+    if results_dir is not None:
+        plt.savefig(f"{results_dir}/observed_offsets_nofilt.pdf")
     plt.show()
 
 # Cell
@@ -1331,6 +1378,20 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 def plot_violin_plots_log2fcs(names, dfs, ax = None):
+    df_fcs_longformat = get_longformat_df(names, dfs)
+    sns.violinplot(x='variable', y='value', data=df_fcs_longformat, scale='width', ax = ax)
+    #sns.stripplot(x='variable', y='value', data=df_fcs_longformat, ax = ax, alpha = 0.35, color = 'lightgrey')
+    if ax == None:
+        plt.show()
+
+def plot_beeswarm_plot_log2fcs(names, dfs, ax = None):
+    df_fcs_longformat = get_longformat_df(names, dfs)
+    sns.boxplot(x='variable', y='value', data=df_fcs_longformat, ax = ax)
+    sns.stripplot(x='variable', y='value', data=df_fcs_longformat, ax = ax, alpha = 0.35)
+    if ax == None:
+        plt.show()
+
+def get_longformat_df(names, dfs):
     methods = []
     fcs = []
     for idx in range(len(names)):
@@ -1340,21 +1401,21 @@ def plot_violin_plots_log2fcs(names, dfs, ax = None):
         fcs.extend(fcs_local)
         methods.extend([name for x in range(len(fcs_local))])
     df_fcs_longformat = pd.DataFrame({'variable' : methods, 'value' : fcs})
-    sns.violinplot(x='variable', y='value', data=df_fcs_longformat, scale='width', ax = ax)
-    if ax == None:
-        plt.show()
+    return df_fcs_longformat
 
 # Cell
 from matplotlib import pyplot as plt
 import numpy as np
 
-def plot_feature_importances(coef, names, top_n = np.inf, print_out_name = False):
+def plot_feature_importances(coef, names, top_n = np.inf, print_out_name = False, results_dir = None):
     imp,names = filter_sort_top_n(coef, names, top_n)
     plt.barh(range(len(names)), imp, align='center')
     plt.yticks(range(len(names)), names)
     if print_out_name:
         for idx in range(len(imp)):
             print(f"{imp[idx]}\t{names[idx]}")
+    if results_dir is not None:
+        plt.savefig(f"{results_dir}/ml_feature_importances.pdf")
     plt.show()
 
 
@@ -1436,17 +1497,61 @@ def visualize_filtered_non_filtered_precursors(all_precursors, predscore = None)
     plt.show()
 
 # Cell
+import seaborn as sns
+import matplotlib.pyplot as plt
+def plot_fcs_node(nodes, percentile, node_filterfunction = None):
+    if node_filterfunction is not None:
+        nodes = [x for x in nodes if node_filterfunction(x)]
+    nodes_sorted = sorted(nodes,key= lambda x : abs(x.predscore))
+    nodes_sorted = nodes_sorted[:int(len(nodes_sorted)*percentile)]
+    sns.stripplot(data = [x.fc for x in nodes_sorted])
+   # plt.show()
+
+
+
+
+# Cell
 
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import metrics
 import random
+import seaborn as sns
 
 
-def plot_predictability_roc_curve(nodes, expected_fc, name,fc_cutoff_bad = 1, fc_cutoff_good = 0.3, ax = None):
+def plot_predictability_roc_curve( true_falses, predscores, reference_scores, ax = None, percentile_cutoff_indication = None):
+
+    if percentile_cutoff_indication is not None:
+        ax.axhline(percentile_cutoff_indication, color = 'lightgrey')
+    plot_roc_curve(true_falses, predscores, "AlphaQuant score", ax)
+    plot_roc_curve(true_falses, reference_scores, f"reference score", ax)
+    true_falses = random.sample(true_falses, len(true_falses))
+    plot_roc_curve(true_falses, predscores, f"random score", ax)
+    ax.set_title('ROC curve')
+    ax.set_xlabel('FPR')
+    ax.set_ylabel('TPR')
+    ax.legend()
+
+
+def plot_predictability_precision_recall_curve( true_falses, predscores, reference_scores, ax = None, percentile_cutoff_indication = None):
+
+
+    if percentile_cutoff_indication is not None:
+        ax.axvline(percentile_cutoff_indication, color = 'lightgrey')
+    plot_precision_recall_curve(true_falses, predscores, "AlphaQuant score", ax)
+    plot_precision_recall_curve(true_falses, reference_scores, "reference score", ax)
+    true_falses = random.sample(true_falses, len(true_falses))
+    plot_precision_recall_curve(true_falses, predscores, "random score", ax)
+    ax.set_title('Precision-recall curve')
+    ax.set_xlabel('recall')
+    ax.set_ylabel('precision')
+    ax.legend()
+
+def get_true_false_to_predscores(nodes, expected_fc, fc_cutoff_bad = 1, fc_cutoff_good = 0.3, reverse = False):
     true_falses = []
     predscores = []
     reference_scores = []
+    fcs = []
 
     for node in nodes:
         fc_diff = abs(node.fc - expected_fc)
@@ -1454,17 +1559,26 @@ def plot_predictability_roc_curve(nodes, expected_fc, name,fc_cutoff_bad = 1, fc
             true_falses.append(False)
             predscores.append(1/abs(node.predscore))
             reference_scores.append(node.default_quality_score)
+            fcs.append(node.fc)
         if fc_diff<fc_cutoff_good:
             true_falses.append(True)
             predscores.append(1/abs(node.predscore))
             reference_scores.append(node.default_quality_score)
+            fcs.append(node.fc)
 
-    plot_roc_curve(true_falses, predscores, name, ax)
-    plot_roc_curve(true_falses, reference_scores, f"reference_{name}", ax)
-    random.shuffle(true_falses)
-    plot_roc_curve(true_falses, predscores, f"random_{name}", ax)
+    if reverse:
+        true_falses = [not x for x in true_falses]
+        predscores = [1/x for x in predscores]
 
+    print(f"num trues{sum(true_falses)}\tnum falses {len(true_falses) - sum(true_falses)}")
 
+    return true_falses, predscores, reference_scores, fcs
+
+def plot_fc_dist_of_test_set(fcs, true_falses, ax):
+    plot_dict = {'fcs': fcs, 'true_false' : true_falses}
+    sns.stripplot(data = plot_dict, x = "true_false", y = 'fcs', ax=ax, palette=[sns.color_palette()[3], sns.color_palette()[0]])
+    ax.set_ylabel('log2FC')
+    ax.set_xlabel('Cathegory for ROC curve')
 
 
 def plot_roc_curve(true_falses, scores, name, ax):
@@ -1473,6 +1587,15 @@ def plot_roc_curve(true_falses, scores, name, ax):
         ax.plot(fpr,tpr, label = name)
     else:
         plt.plot(fpr,tpr, label = name)
+        plt.legend()
+        plt.show()
+
+def plot_precision_recall_curve(true_falses, scores, name, ax):
+    precision, recall, _ = metrics.precision_recall_curve(true_falses, scores)
+    if ax is not None:
+        ax.plot(recall, precision, label = name)
+    else:
+        plt.plot(recall, precision, label = name)
         plt.legend()
         plt.show()
 
