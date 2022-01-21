@@ -3,15 +3,16 @@
 __all__ = ['get_samples_used_from_samplemap', 'filter_df_to_minrep', 'get_condpairname', 'make_dir_w_existcheck',
            'get_results_plot_dir_condpair', 'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df',
            'get_ionints_from_pd_df', 'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
-           'set_logger', 'load_method_parameters', 'store_method_parameters', 'get_methods_dict_from_local_vars',
-           'get_relevant_columns', 'get_relevant_columns_config_dict', 'get_config_columns', 'load_config',
-           'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
-           'get_quantitative_columns', 'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df',
-           'add_merged_ionnames', 'reformat_longtable_according_to_config_new', 'read_wideformat_table',
-           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data',
-           'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
-           'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
-           'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
+           'write_chunk_to_file', 'set_logger', 'load_method_parameters', 'store_method_parameters',
+           'get_methods_dict_from_local_vars', 'get_relevant_columns', 'get_relevant_columns_config_dict',
+           'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
+           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
+           'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
+           'reformat_longtable_according_to_config_new', 'read_wideformat_table', 'read_condpair_tree',
+           'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
+           'import_config_dict', 'get_samplenames', 'load_samplemap', 'prepare_loaded_tables',
+           'import_acquisition_info_df', 'get_ion_headers_from_config_dict', 'get_all_ion_headers', 'get_ion_row',
+           'get_ion_header', 'merge_acquisition_df_parameter_df']
 
 # Cell
 
@@ -120,6 +121,11 @@ def get_levelnodes_from_nodeslist(nodeslist, level):
         precursors = anytree.findall(node, filter_= lambda x : (x.type == level))
         levelnodes.extend(precursors)
     return levelnodes
+
+# Cell
+def write_chunk_to_file(chunk, filepath ,write_header):
+    """write chunk of pandas dataframe to a file"""
+    chunk.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
 
 # Cell
 import logging
