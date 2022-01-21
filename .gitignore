@@ -146,7 +146,7 @@ debug
 debug.py
 
 #reference databases for ptmsite mapping
-reference_databases
+#reference_databases
 
 #releases
 release/one_click_macos_gui/alphaquant.pkg
@@ -155,3 +155,6 @@ release/one_click_macos_gui/dist
 
 #logs
 logs
+
+#tests
+tests/ptmsite_mapping/results
