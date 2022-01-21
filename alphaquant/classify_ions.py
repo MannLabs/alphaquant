@@ -8,10 +8,10 @@ __all__ = ['collect_node_parameters', 'get_param2val', 'get_dataframe', 'calc_cl
            'do_linear_regression', 'do_random_forest_regression', 'scale_input', 'scale_input_minmax',
            'print_good_predicitions', 'get_indices_for_cross_predict', 'get_trained_predictor_and_predicted_trainset',
            'predict_remaining_dataset', 'find_nearest', 'find_mean_and_cutoffs', 'fit_gaussian_to_dist_around_mode',
-           'gauss', 'fit_gaussian_to_subdist', 'gaussian', 'fit_gaussian_to_subdist2', 'annotate_precursor_nodes',
-           'balance_small_and_strong_fcs', 'random_forest_iterative_cross_predict', 'get_indices_for_cross_predict',
-           'get_balance_excluded_subset', 'calculate_log_loss_scores_for_prediction', 'assign_predictability_scores',
-           'add_quality_scores_to_node', 'acquisition_info_filter']
+           'gauss', 'gaussian', 'fit_gaussian_to_subdist', 'annotate_precursor_nodes', 'balance_small_and_strong_fcs',
+           'random_forest_iterative_cross_predict', 'get_indices_for_cross_predict', 'get_balance_excluded_subset',
+           'calculate_log_loss_scores_for_prediction', 'assign_predictability_scores', 'add_quality_scores_to_node',
+           'test_fc_name_mapping']
 
 # Cell
 import numpy as np
@@ -273,7 +273,7 @@ import random
 import numpy as np
 def get_fc_normalized_nodes(nodes_fclevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = np.inf):
     """"get nodes of type lowerlevel which are normalized by the fclevel fold change"""
-    normalized_lowerlevels = []
+    normalized_lowerlevels = [] #the normalized lowerlevels are copied values used for training, better change to different variable names to be used
     all_lowerlevels = []
     count_precursors = 0
     for prot in nodes_fclevel:
@@ -288,7 +288,9 @@ def get_fc_normalized_nodes(nodes_fclevel, type_lowerlevel, min_nums_lowerlevel 
             precursor = copy.copy(precursor)
             precursor.fc = precursor.fc - fc_prot
             if count_precursors%distort_precursor_modulo==0:
+                perturbation = random.uniform(-2, 2)
                 precursor.fc=precursor.fc + random.uniform(-2, 2)
+                precursor.perturbation_added = perturbation
             normalized_lowerlevels.append(precursor)
             count_precursors+=1
 
@@ -583,28 +585,6 @@ def fit_gaussian_to_dist_around_mode(dist, visualize = False):
 def gauss(x, a, x0, sigma):
     return a * np.exp(-(x - x0)**2 / (2 * sigma**2))
 
-def fit_gaussian_to_subdist(dist):
-    #cut out the middle of the data
-    dist = np.sort(np.array(dist))
-    dist_hist = np.histogram(dist, bins = len(dist)/10)
-
-
-
-    mode = aqnorm.determine_mode_iteratively(dist)
-    mode_idx = find_nearest(dist, mode)
-
-    cumsum_rel = np.array(list(range(len(dist))))/len(dist)
-    mode_quantile = cumsum_rel[mode_idx]
-    subrange = min([mode_quantile, 0.2, 1-mode_quantile]) #if the mode is close to the edge, make the interval smaller
-
-    print(f"subrange: {subrange}")
-    quantile1 = mode_quantile-subrange
-    quantile2 = mode_quantile+subrange
-    idx_start = find_nearest(cumsum_rel, quantile1)
-    idx_end = find_nearest(cumsum_rel, quantile2)
-    #try to fit around the same "widht" around the mode
-    difference_start_mode = mode_idx - idx_start
-    difference_mode_end = idx_end - mode_idx
 
 def gaussian(x, amp, cen, wid):
     """1-d gaussian: gaussian(x, amp, cen, wid)"""
@@ -613,7 +593,7 @@ def gaussian(x, amp, cen, wid):
 
 from lmfit import Model
 from scipy.stats import norm
-def fit_gaussian_to_subdist2(dist, visualize):
+def fit_gaussian_to_subdist(dist, visualize, results_dir = None):
     #cut out the middle of the data
     dist = np.sort(np.array(dist))
     dist_hist = np.histogram(dist, bins = int(len(dist)/3))
@@ -651,6 +631,8 @@ def fit_gaussian_to_subdist2(dist, visualize):
         plt.plot(bins_middled, fit_results, '-', label = 'best fit',linewidth = 1.5, c = 'black')
         #plt.plot(x, result.best_fit, '-', label='best fit')
         plt.legend()
+        if results_dir is not None:
+            plt.savefig(f'{results_dir}/ml_offsets_gaussian_fit.pdf')
         plt.show()
 
     print(stdev)
@@ -669,7 +651,7 @@ def annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_total, ionnames_tota
         predscore = precursor2predscore.get(precursor.name)
         ml_excluded = not ((predscore>cutoff_neg) & (predscore<cutoff_pos))
         precursor.predscore = predscore
-        precursor.ml_excluded = ml_excluded
+        precursor.ml_excluded = bool(ml_excluded)
         precursor.cutoff = cutoff_pos #cutoff_pos is -cutoff_neg
 
 
@@ -679,6 +661,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import random
+import numpy as np
 
 
 def balance_small_and_strong_fcs(normed_nodes, cutoff):
@@ -729,16 +712,12 @@ def random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr, b
             regr_export = regr
         # Make predictions using the testing set
         y_pred = regr.predict(X_test)
-        print(idxs_out[:20])
+
         y_test_all.extend(y_test)
         y_pred_all.extend(y_pred)
         ionnames_all.extend(ionnames[idxs_out])
-    #predict the ones that were excluded for small fcs (predictor chosen aribtrarly)
-    #y_pred_not_balanced = regr.predict(X_not_balanced)
-    #y_pred_all.extend(y_pred_not_balanced)
-    #y_test_all.extend(y_not_balanced)
-    regr = regr_export
-    return y_test_all, y_pred_all, ionnames_all
+
+    return y_test_all, y_pred_all, ionnames_all, regr_export
     #aqplot.get_error_and_scatter_ml_regression(y_test_all, y_pred_all, scatter_filt)
 
 
@@ -775,32 +754,42 @@ def calculate_log_loss_scores_for_prediction(y_test, y_pred):
 import alphaquant.diffquant_utils as aqutils
 import alphaquant.visualizations as aqplot
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
 
-def assign_predictability_scores(protein_nodes, results_dir, precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, replace_nans = False,
-acquisition_info_filter = lambda x : ("EG." in x) | ("FG." in x), distort_precursor_modulo = np.inf):
+def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}):
 
     #add predictability scores to each precursor
     #prepare the input table with all the relevant features for machine learning
-    acquisition_info_df = aqutils.import_acquisition_info_df(results_dir, header_filter=acquisition_info_filter)
-    normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, 'mod_seq_charge',precursor_cutoff, fc_cutoff,distort_precursor_modulo=distort_precursor_modulo)
+    acquisition_info_df = aqutils.import_acquisition_info_df(results_dir, samples_used)
+    normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, 'mod_seq_charge', precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo)
     df_precursor_features = collect_node_parameters(normalized_precursors)
     merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
 
     #transform into ML input
     X, y, featurenames, ionnames = generate_ml_input_regression(merged_df, normalized_precursors, replace_nans=replace_nans)
 
+    test_fc_name_mapping(y, ionnames, normalized_precursors)
+
     #predict the subset of peptides that is accessible to protein shifting (only the ones with at least 2 peps per protein)
     regr = RandomForestRegressor()
-    y_test_cp, y_pred_cp, ionnames_cp = random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr)
+    y_test_cp, y_pred_cp, ionnames_cp, regr = random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr)
+    print("performed RF prediction")
+    performance_metrics["r2_score"] = r2_score(y_test_cp, y_pred_cp)
+    test_fc_name_mapping(y_test_cp, ionnames_cp, normalized_precursors)
+
+    #define plot outdir
+    results_dir_plots = aqutils.make_dir_w_existcheck(f"{results_dir}/{name}")
     if plot_predictor_performance:
         plt.hist(y_test_cp, 60, density=True, histtype='stepfilled',cumulative=False, alpha = 0.5)
         plt.xlim(-1.8, 1.8)
         plt.show()
-        aqplot.get_error_and_scatter_ml_regression(y_test_cp, y_pred_cp, 0.5)
-        aqplot.plot_feature_importances(regr.feature_importances_,featurenames, 10)
+
+        aqplot.scatter_ml_regression_perturbation_aware(y_test=y_test_cp, y_pred = y_pred_cp, ionnames=ionnames_cp, nodes=normalized_precursors, results_dir=results_dir_plots)
+        aqplot.plot_ml_fc_histograms(y_test_cp, y_pred_cp, 0.5, results_dir_plots)
+        aqplot.plot_feature_importances(regr.feature_importances_,featurenames, 10, results_dir_plots)
 
     #mean, cutoff_neg, cutoff_pos = find_mean_and_cutoffs(y_pred_cp, visualize= plot_predictor_performance)
-    mean, cutoff_neg, cutoff_pos = fit_gaussian_to_subdist2(y_pred_cp, visualize=plot_predictor_performance)
+    mean, cutoff_neg, cutoff_pos = fit_gaussian_to_subdist(y_pred_cp, visualize=plot_predictor_performance,results_dir = results_dir_plots)
     #use the trained model to predict the remaining ions and stitch together with the already predicted ions
     y_pred_total, ionnames_total = predict_remaining_dataset(all_precursors, regr, y_pred_cp, ionnames_cp, acquisition_info_df)
 
@@ -808,10 +797,11 @@ acquisition_info_filter = lambda x : ("EG." in x) | ("FG." in x), distort_precur
 
     #add quality scores to nodes
 
-    add_quality_scores_to_node(acquisition_info_df, all_precursors, )
+    add_quality_scores_to_node(acquisition_info_df, all_precursors)
 
     #annotate the precursor nodes
     annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
+
 
 
 def add_quality_scores_to_node(acquisition_info_df, nodes):
@@ -822,6 +812,22 @@ def add_quality_scores_to_node(acquisition_info_df, nodes):
         param = "Quantity.Quality"
     else:
         raise Exception("no quality scores available")
-    ion2param = dict(zip(acquisition_info_df["ion"], acquisition_info_df[param]))
+
+    df_avged = acquisition_info_df.groupby("ion").mean().reset_index()
+    ion2param = dict(zip(df_avged["ion"], df_avged[param]))
+
     for node in nodes:
         node.default_quality_score = ion2param.get(node.name)
+
+def test_fc_name_mapping(fcs, ionnames, nodes):
+    number_samplings = min(math.ceil(len(fcs)/5), 30)
+    sample_idxs = random.sample(range(len(fcs)), number_samplings)
+    name2node = {x.name : x for x in nodes}
+    for idx in sample_idxs:
+        fc_ml_input = fcs[idx]
+        name_ml_input = ionnames[idx]
+        fc_node = name2node.get(name_ml_input).fc
+        assert fc_ml_input == fc_node
+
+
+
