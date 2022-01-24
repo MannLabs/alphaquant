@@ -1325,7 +1325,7 @@ def plot_perturbation_histogram(perturbed_nodes, results_dir):
     perturbations = [x.perturbation_added for x in perturbed_nodes]
     ax.hist(perturbations, 60, density=True, histtype='step',cumulative=True)
     if results_dir is not None:
-        ax.savefig(f"{results_dir}/perturbation_histogram.pdf")
+        ax.figure.savefig(f"{results_dir}/perturbation_histogram.pdf")
     fig.show()
 
 def plot_perturbed_unperturbed_fcs(fcs_perturbed, fcs_unperturbed, results_dir = None):
@@ -1333,7 +1333,7 @@ def plot_perturbed_unperturbed_fcs(fcs_perturbed, fcs_unperturbed, results_dir =
     ax.hist(bins = 60, x=fcs_unperturbed, label= 'unperturbed',density=True, histtype='step')
     ax.hist(bins = 60, x= fcs_perturbed,label='perturbed', density=True, histtype='step')
     if results_dir is not None:
-        ax.savefig(f"{results_dir}/compare_pertubed_unperturbed.pdf")
+        ax.figure.savefig(f"{results_dir}/compare_pertubed_unperturbed.pdf")
     fig.show()
 
 
