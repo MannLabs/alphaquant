@@ -10,8 +10,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
            'get_swissprot_path', 'get_path_to_database', 'assign_protein', 'assign_dataset_inmemory', 'sequence_file',
            'assign_dataset_chunkwise', 'sequence_file', 'clean_up_previous_processings', 'assign_dataset',
            'sequence_file', 'merge_ptmsite_mappings_write_table', 'add_ptmsite_info_to_subtable', 'get_ptmid_mappings',
-           'write_chunk_to_file', 'initialize_ptmsite_df', 'detect_site_occupancy_change',
-           'check_site_occupancy_changes_all_diffresults']
+           'initialize_ptmsite_df', 'detect_site_occupancy_change', 'check_site_occupancy_changes_all_diffresults']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -603,7 +602,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
     header = True
     for specnaut_df in specnaut_df_it:
         specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
-        write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
+        aqutils.write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
         lines_read +=chunksize
         print(f"{lines_read} lines read")
         header = False
@@ -631,8 +630,7 @@ def get_ptmid_mappings(mapped_df):
     return labelid2ptmid, labelid2site
 
 
-def write_chunk_to_file(chunk, filepath ,write_header):
-    chunk.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
+
 
 # Cell
 import pandas as pd

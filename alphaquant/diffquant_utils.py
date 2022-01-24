@@ -8,7 +8,8 @@ __all__ = ['get_samples_used_from_samplemap', 'filter_df_to_minrep', 'get_condpa
            'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
            'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
            'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
-           'reformat_longtable_according_to_config_new', 'read_wideformat_table', 'read_condpair_tree',
+           'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable', 'reshape_input_df',
+           'process_with_dask', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
            'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
            'import_config_dict', 'get_samplenames', 'load_samplemap', 'prepare_loaded_tables',
            'import_acquisition_info_df', 'get_ion_headers_from_config_dict', 'get_all_ion_headers', 'get_ion_row',
@@ -285,6 +286,7 @@ def get_relevant_columns_config_dict(config_typedict):
     return relevant_cols
 
 
+
 def get_config_columns(config_dict):
     protein_cols = config_dict.get("protein_cols")
     ion_cols = config_dict.get("ion_cols")
@@ -488,40 +490,88 @@ def add_merged_ionnames(df_subset, ion_hierarchy_local, ion_headers_grouped, qua
     return df_subset
 
 # Cell
-def reformat_longtable_according_to_config_new(input_file, config_dict, conditions_subset = None, sep = "\t",decimal = "."):
+import os.path
+def reformat_and_write_longtable_according_to_config_new(input_file, outfile_name, config_dict, sep = "\t",decimal = ".", enforce_largefile_processing = False, chunksize =1000_000):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
     """
+    filesize = os.path.getsize(input_file)/(1024**3) #size in gigabyte
+    file_is_large = (filesize>10 and str(input_file).endswith(".zip")) or filesize>50 or enforce_largefile_processing
+
+    if file_is_large:
+        tmpfile_large = f"{input_file}.tmp.longformat.columnfilt.tsv" #only needed when file is large
+        #remove potential leftovers from previous processings
+        if os.path.exists(tmpfile_large):
+            os.remove(tmpfile_large)
+        if os.path.exists(outfile_name):
+            os.remove(outfile_name)
+
     relevant_cols = get_relevant_columns_config_dict(config_dict)
-    input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1', chunksize=1000000)
+    input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1', chunksize = chunksize)
     input_df_list = []
+    header = True
     for input_df_subset in input_df_it:
-        input_df_subset = filter_input(config_dict.get("filters", {}), input_df_subset)
-        if conditions_subset !=None:
-            input_df_subset = input_df_subset[[(x in conditions_subset) for x in input_df_subset[config_dict.get("sample_id")]]]
-            if len(input_df_subset.index)==0:
-                continue
-        if "ion_hierarchy" in config_dict.keys():
-            input_df_subset = merge_protein_cols_and_ion_dict(input_df_subset, config_dict)
+        input_df_subset = adapt_subtable(input_df_subset, config_dict)
+        if file_is_large:
+            write_chunk_to_file(input_df_subset,tmpfile_large, header)
         else:
-            input_df_subset = merge_protein_and_ion_cols(input_df_subset, config_dict)
-        input_df_list.append(input_df_subset)
+            input_df_list.append(input_df_subset)
+        header = False
+
+    if file_is_large:
+        process_with_dask(tmpfile_columnfilt=tmpfile_large , outfile_name = outfile_name, config_dict=config_dict)
+    else:
+        input_df = pd.concat(input_df_list)
+        input_reshaped = reshape_input_df(input_df, config_dict)
+        input_reshaped.to_csv(outfile_name, sep = "\t", index = None)
 
 
-    input_df = pd.concat(input_df_list)
 
+
+# Cell
+import dask.dataframe as dd
+import glob
+import os
+import shutil
+
+def adapt_subtable(input_df_subset, config_dict):
+    input_df_subset = filter_input(config_dict.get("filters", {}), input_df_subset)
+    if "ion_hierarchy" in config_dict.keys():
+        return merge_protein_cols_and_ion_dict(input_df_subset, config_dict)
+    else:
+        return merge_protein_and_ion_cols(input_df_subset, config_dict)
+
+
+def reshape_input_df(input_df, config_dict):
     input_df = input_df.astype({'quant_val': 'float'})
     input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = config_dict.get("sample_ID"), values = 'quant_val', fill_value=0)
     if input_reshaped.iloc[:,0].replace(0, np.nan).median() <100: #when values are small, rescale by a constant factor to prevent rounding errors in the subsequent aq analyses
         input_reshaped = input_reshaped *10000
 
     input_reshaped = input_reshaped.reset_index()
-
     return input_reshaped
 
+
+def process_with_dask(*,tmpfile_columnfilt, outfile_name, config_dict):
+    df = dd.read_csv(tmpfile_columnfilt, sep = "\t")
+    df = df.set_index('protein')
+    sorted_filedir = f"{tmpfile_columnfilt}_sorted"
+    df.to_csv(sorted_filedir, sep = "\t")
+    #now the files are sorted and can be pivoted chunkwise (multiindex pivoting at the moment not possible in dask)
+    files_dask = glob.glob(f"{sorted_filedir}/*part")
+    header = True
+    for file in files_dask:
+        input_df = pd.read_csv(file, sep = "\t")
+        input_reshaped = reshape_input_df(input_df, config_dict)
+        write_chunk_to_file(input_reshaped, outfile_name, header)
+        header = False
+    os.remove(tmpfile_columnfilt)
+    shutil.rmtree(sorted_filedir)
+
+
 # Cell
-def read_wideformat_table(peptides_tsv, config_dict):
+def reformat_and_write_wideformat_table(peptides_tsv, outfile_name, config_dict):
     input_df = pd.read_csv(peptides_tsv,sep="\t", encoding ='latin1')
     filter_dict = config_dict.get("filters")
     protein_cols = config_dict.get("protein_cols")
@@ -537,7 +587,7 @@ def read_wideformat_table(peptides_tsv, config_dict):
 
     input_df = input_df.reset_index()
 
-    return input_df
+    input_df.to_csv(outfile_name, sep = '\t', index = None)
 
 # Cell
 from anytree.importer import JsonImporter
@@ -572,7 +622,7 @@ import pandas as pd
 import os
 import pathlib
 
-def import_data(input_file, input_type_to_use = None, conditions_subset = None):
+def import_data(input_file, input_type_to_use = None, samples_subset = None):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
@@ -584,25 +634,31 @@ def import_data(input_file, input_type_to_use = None, conditions_subset = None):
         data = pd.read_csv(input_file, sep = "\t", encoding ='latin1')
         return data
 
-    input_type, config_dict_type, sep = get_input_type_and_config_dict(input_file, input_type_to_use)
+    input_type, config_dict_for_type, sep = get_input_type_and_config_dict(input_file, input_type_to_use)
     print(f"using input type {input_type}")
-    format = config_dict_type.get('format')
+    format = config_dict_for_type.get('format')
+    outfile_name = f"{input_file}.{input_type}.aq_reformat.tsv"
+
+    if samples_subset is not None and os.path.exists(outfile_name):
+        #in the case of very large files that have already been written, read only the relevant samples
+        cols_input = samples_subset + ["ion", "protein"]
+        input_reshaped_subset = pd.read_csv(outfile_name, sep = "\t", usecols=cols_input)
+        return input_reshaped_subset
+
 
     if format == "longtable":
-        data = reformat_longtable_according_to_config_new(input_file, config_dict_type, conditions_subset, sep = sep)
+        reformat_and_write_longtable_according_to_config_new(input_file, outfile_name,config_dict_for_type, sep = sep)
     elif format == "widetable":
-        data = read_wideformat_table(input_file, config_dict_type)
+        reformat_and_write_wideformat_table(input_file, outfile_name, config_dict_for_type)
     else:
         raise Exception('Format not recognized!')
 
-    if conditions_subset !=None:
-        conditions_subset = sorted(conditions_subset)
-        conditions_subset_string = "_".join(conditions_subset)
-        input_type+=conditions_subset_string
-    data.to_csv(f"{input_file}.{input_type}.aq_reformat.tsv",  index = False,sep = "\t")
+
+    input_reshaped = pd.read_csv(outfile_name, sep = "\t", encoding = 'latin1')
+    return input_reshaped
 
 
-    return data
+
 
 # Cell
 import pandas as pd
