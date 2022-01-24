@@ -7,8 +7,8 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'load_real_example_ions', 'get_filtered_protnodes', 'filter_check_protnode', 'get_subset_of_diffions',
            'add_perturbations_to_proteins', 'group_level_nodes_by_parents', 'get_filtered_intensity_df',
            'get_perturbed_intensity_df', 'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level',
-           'count_correctly_excluded', 'eval_clustered_results', 'filter_table_by_peptides', 'get_peptides_set',
-           'retrieve_all_peptides_from_fasta_and_save', 'spectronaut_filtering', 'diann_filtering',
+           'count_correctly_excluded', 'eval_clustered_results', 'read_and_filter_spectronaut_table_to_single_organism',
+           'get_peptides_set', 'retrieve_all_peptides_from_fasta_and_save', 'spectronaut_filtering', 'diann_filtering',
            'decide_filter_function', 'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
            'import_input_file_in_specified_format', 'get_original_input_df', 'get_node_df', 'count_outlier_fraction',
@@ -581,7 +581,7 @@ import pyfasta
 import pandas as pd
 
 
-def filter_table_by_peptides(input_table, fastas,software_filter_function = None, desired_organism = "Saccharomyces cerevisiae"):
+def read_and_filter_spectronaut_table_to_single_organism(input_table, fastas,software_filter_function = None, desired_organism = "Saccharomyces cerevisiae"):
 
     undesired_peptides = get_peptides_set(fastas)
     if software_filter_function == None:
@@ -593,6 +593,7 @@ def filter_table_by_peptides(input_table, fastas,software_filter_function = None
         tables.append(table_df)
 
     yeast_df = pd.concat(tables, ignore_index = True)
+    return yeast_df
     yeast_df.to_csv(f"{desired_organism}_report_filtered.tsv", sep = "\t", index = None)
 
 def get_peptides_set(fastas):
