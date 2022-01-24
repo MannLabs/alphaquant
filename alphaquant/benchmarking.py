@@ -9,7 +9,7 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'get_perturbed_intensity_df', 'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level',
            'count_correctly_excluded', 'eval_clustered_results', 'retrieve_all_peptides_from_fasta_and_save',
            'get_peptides_set', 'filter_table_by_peptides', 'spectronaut_filtering', 'diann_filtering',
-           'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
+           'decide_filter_function', 'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
            'import_input_file_in_specified_format', 'get_original_input_df', 'get_node_df', 'count_outlier_fraction',
            'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
@@ -615,8 +615,9 @@ def get_peptides_set(fastas):
     return peps_merged
 
 
-def filter_table_by_peptides(input_table, undesired_peptides, desired_organism, software_filter_function):
-
+def filter_table_by_peptides(input_table, undesired_peptides, software_filter_function = None, desired_organism = "Saccharomyces cerevisiae"):
+    if software_filter_function == None:
+        software_filter_function = decide_filter_function(input_table = input_table)
     tableit = pd.read_csv(input_table, sep = "\t", chunksize=100000)
     tables = []
     for table_df in tableit:
@@ -636,6 +637,17 @@ def spectronaut_filtering(table_df, undesired_peptides, desired_organism):
 def diann_filtering(table_df, undesired_peptides, desired_organism):
     table_df = table_df[[(x not in undesired_peptides) for x in table_df['Stripped.Sequence']]]
     table_df = table_df[[(desired_organism in x) for x in table_df['Protein.Names']]]
+
+
+def decide_filter_function(input_table):
+    columns_table = pd.read_csv(input_table, sep = "\t", nrows=2).columns
+    if "PG.Organisms" in columns_table:
+        software_filter_function = spectronaut_filtering
+    elif 'Protein.Names' in columns_table:
+        software_filter_function = diann_filtering
+    else:
+        raise Exception("file for filtering does not have the needed columns!")
+    return software_filter_function
 
 
 # Cell
