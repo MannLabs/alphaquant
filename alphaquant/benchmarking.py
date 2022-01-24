@@ -7,8 +7,8 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'load_real_example_ions', 'get_filtered_protnodes', 'filter_check_protnode', 'get_subset_of_diffions',
            'add_perturbations_to_proteins', 'group_level_nodes_by_parents', 'get_filtered_intensity_df',
            'get_perturbed_intensity_df', 'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level',
-           'count_correctly_excluded', 'eval_clustered_results', 'retrieve_all_peptides_from_fasta_and_save',
-           'get_peptides_set', 'filter_table_by_peptides', 'spectronaut_filtering', 'diann_filtering',
+           'count_correctly_excluded', 'eval_clustered_results', 'filter_table_by_peptides', 'get_peptides_set',
+           'retrieve_all_peptides_from_fasta_and_save', 'spectronaut_filtering', 'diann_filtering',
            'decide_filter_function', 'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
            'import_input_file_in_specified_format', 'get_original_input_df', 'get_node_df', 'count_outlier_fraction',
@@ -580,6 +580,32 @@ from pyopenms import ProteaseDigestion, AASequence
 import pyfasta
 import pandas as pd
 
+
+def filter_table_by_peptides(input_table, fastas,software_filter_function = None, desired_organism = "Saccharomyces cerevisiae"):
+
+    undesired_peptides = get_peptides_set(fastas)
+    if software_filter_function == None:
+        software_filter_function = decide_filter_function(input_table = input_table)
+    tableit = pd.read_csv(input_table, sep = "\t", chunksize=100000)
+    tables = []
+    for table_df in tableit:
+        table_df = software_filter_function(table_df, undesired_peptides, desired_organism)
+        tables.append(table_df)
+
+    yeast_df = pd.concat(tables, ignore_index = True)
+    yeast_df.to_csv(f"{desired_organism}_report_filtered.tsv", sep = "\t", index = None)
+
+def get_peptides_set(fastas):
+    peps_merged = set()
+    for fasta in fastas:
+        try:
+            peps = set(pd.read_csv(f"{fasta}.all_peptides.tsv", sep = "\t")["peptide"])
+        except:
+            print("could not find digested version of the fasta, try to digest")
+            peps = retrieve_all_peptides_from_fasta_and_save(fasta)
+        peps_merged = peps_merged.union(peps)
+    return peps_merged
+
 def retrieve_all_peptides_from_fasta_and_save(fasta):
 
     dig = ProteaseDigestion()
@@ -603,29 +629,9 @@ def retrieve_all_peptides_from_fasta_and_save(fasta):
     return set(df["peptide"])
 
 
-def get_peptides_set(fastas):
-    peps_merged = set()
-    for fasta in fastas:
-        try:
-            peps = set(pd.read_csv(f"{fasta}.all_peptides.tsv", sep = "\t")["peptide"])
-        except:
-            print("could not find digested version of the fasta, try to digest")
-            peps = retrieve_all_peptides_from_fasta_and_save(fasta)
-        peps_merged = peps_merged.union(peps)
-    return peps_merged
 
 
-def filter_table_by_peptides(input_table, undesired_peptides, software_filter_function = None, desired_organism = "Saccharomyces cerevisiae"):
-    if software_filter_function == None:
-        software_filter_function = decide_filter_function(input_table = input_table)
-    tableit = pd.read_csv(input_table, sep = "\t", chunksize=100000)
-    tables = []
-    for table_df in tableit:
-        table_df = software_filter_function(table_df, undesired_peptides, desired_organism)
-        tables.append(table_df)
 
-    yeast_df = pd.concat(tables, ignore_index = True)
-    yeast_df.to_csv(f"{desired_organism}_report_filtered.tsv", sep = "\t", index = None)
 
 
 def spectronaut_filtering(table_df, undesired_peptides, desired_organism):
