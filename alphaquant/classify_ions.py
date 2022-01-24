@@ -778,7 +778,8 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     test_fc_name_mapping(y_test_cp, ionnames_cp, normalized_precursors)
 
     #define plot outdir
-    results_dir_plots = aqutils.make_dir_w_existcheck(f"{results_dir}/{name}")
+    results_dir_plots =f"{results_dir}/{name}"
+    aqutils.make_dir_w_existcheck(results_dir_plots)
     if plot_predictor_performance:
         plt.hist(y_test_cp, 60, density=True, histtype='stepfilled',cumulative=False, alpha = 0.5)
         plt.xlim(-1.8, 1.8)
@@ -811,7 +812,7 @@ def add_quality_scores_to_node(acquisition_info_df, nodes):
     elif "Quantity.Quality" in acquisition_info_df.columns:
         param = "Quantity.Quality"
     else:
-        raise Exception("no quality scores available")
+        raise Exception("could not find the quality score")
 
     df_avged = acquisition_info_df.groupby("ion").mean().reset_index()
     ion2param = dict(zip(df_avged["ion"], df_avged[param]))
