@@ -91,6 +91,7 @@ def check_input_consistency(input_file, samplemap_file, unnormed_df, samplemap_d
 
 
 # Cell
+import alphaquant.diffquant_utils as aqutils
 def get_unnormed_df_condpair(unnormed_df :pd.DataFrame, samplemap_df:pd.DataFrame,input_file:str, condpair:str) -> pd.DataFrame:
     """In the case that the total unnormed df does not fit into memory, attempt reloading the unnormed df for each condition pair
 
