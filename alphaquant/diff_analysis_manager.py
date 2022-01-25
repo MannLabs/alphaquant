@@ -108,8 +108,9 @@ def get_unnormed_df_condpair(unnormed_df :pd.DataFrame, samplemap_df:pd.DataFram
         return unnormed_df
 
     else:
-        conditions_subset = [condpair[0], condpair[1]]
-        unnormed_df = aqutils.import_data(input_file,conditions_subset=conditions_subset)
+        samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df=samplemap_df, cond1 = condpair[0], cond2 = condpair[1])
+        used_samples = samples_c1+samples_c2
+        unnormed_df = aqutils.import_data(input_file,samples_subset=used_samples)
         unnormed_df, _ = aqutils.prepare_loaded_tables(unnormed_df, samplemap_df)
         return unnormed_df
 
