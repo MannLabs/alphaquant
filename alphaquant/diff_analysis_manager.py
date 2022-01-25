@@ -132,6 +132,8 @@ def format_condpair_input(labelmap_df, unnormed_df, condpair, minrep):
     return c1_samples, c2_samples, df_c1, df_c2
 
 def get_minrep_for_cond(c_samples, minrep):
+    if minrep is None: #in the case of None, no nans will be allowed
+        return None
     num_samples = len(c_samples.index)
     if num_samples<minrep:
         return num_samples
