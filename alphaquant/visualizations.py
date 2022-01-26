@@ -17,8 +17,9 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'plot_beeswarm_plot_log2fcs', 'get_longformat_df', 'plot_feature_importances', 'filter_sort_top_n',
            'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
            'visualize_filtered_non_filtered_precursors', 'plot_fcs_node', 'plot_predictability_roc_curve',
-           'plot_predictability_precision_recall_curve', 'get_true_false_to_predscores', 'plot_fc_dist_of_test_set',
-           'plot_roc_curve', 'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered']
+           'plot_predictability_precision_recall_curve', 'get_true_false_to_predscores',
+           'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set', 'plot_roc_curve',
+           'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -1574,11 +1575,19 @@ def get_true_false_to_predscores(nodes, expected_fc, fc_cutoff_bad = 1, fc_cutof
 
     return true_falses, predscores, reference_scores, fcs
 
-def plot_fc_dist_of_test_set(fcs, true_falses, ax):
+def plot_true_false_fcs_of_test_set(fcs, true_falses, ax):
     plot_dict = {'fcs': fcs, 'true_false' : true_falses}
     sns.stripplot(data = plot_dict, x = "true_false", y = 'fcs', ax=ax, palette=[sns.color_palette()[3], sns.color_palette()[0]])
     ax.set_ylabel('log2FC')
     ax.set_xlabel('Cathegory for ROC curve')
+
+def plot_fc_dist_of_test_set(fcs, ax):
+    ax.hist(fcs, 60, density=True, histtype='step',cumulative=True)
+    ax.set_xlabel('log2FC')
+    median = np.median(fcs)
+    plt.axvline(x=median)
+    ax.set_title(f'FC distribution of set, median {median}')
+
 
 
 def plot_roc_curve(true_falses, scores, name, ax):
