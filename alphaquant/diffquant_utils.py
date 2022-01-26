@@ -9,11 +9,11 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
            'get_quantitative_columns', 'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df',
            'add_merged_ionnames', 'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable',
-           'reshape_input_df', 'process_with_dask', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
-           'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
-           'import_config_dict', 'get_samplenames', 'load_samplemap', 'prepare_loaded_tables',
-           'import_acquisition_info_df', 'get_ion_headers_from_config_dict', 'get_all_ion_headers', 'get_ion_row',
-           'get_ion_header', 'merge_acquisition_df_parameter_df']
+           'reshape_input_df', 'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table',
+           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data',
+           'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
+           'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
+           'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
 
 # Cell
 
@@ -546,6 +546,7 @@ def reformat_and_write_longtable_according_to_config_new(input_file, outfile_nam
 
 # Cell
 import dask.dataframe as dd
+import pandas as pd
 import glob
 import os
 import shutil
@@ -568,8 +569,10 @@ def reshape_input_df(input_df, config_dict):
     return input_reshaped
 
 
-def process_with_dask(*,tmpfile_columnfilt, outfile_name, config_dict):
+def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict):
     df = dd.read_csv(tmpfile_columnfilt, sep = "\t")
+    allcols = df[config_dict.get("sample_ID")].drop_duplicates().compute()
+    allcols = ['protein', 'ion'] + sorted(allcols)
     df = df.set_index('protein')
     sorted_filedir = f"{tmpfile_columnfilt}_sorted"
     df.to_csv(sorted_filedir, sep = "\t")
@@ -579,10 +582,21 @@ def process_with_dask(*,tmpfile_columnfilt, outfile_name, config_dict):
     for file in files_dask:
         input_df = pd.read_csv(file, sep = "\t")
         input_reshaped = reshape_input_df(input_df, config_dict)
+        input_reshaped = sort_and_add_columns(input_reshaped, allcols)
         write_chunk_to_file(input_reshaped, outfile_name, header)
         header = False
     os.remove(tmpfile_columnfilt)
     shutil.rmtree(sorted_filedir)
+
+
+def sort_and_add_columns(input_reshaped, allcols):
+    missing_cols = set(allcols) - set(input_reshaped.columns)
+    input_reshaped[list(missing_cols)] = 0
+    input_reshaped = input_reshaped[allcols]
+    return input_reshaped
+
+
+
 
 
 # Cell
