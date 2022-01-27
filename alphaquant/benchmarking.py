@@ -7,9 +7,10 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'load_real_example_ions', 'get_filtered_protnodes', 'filter_check_protnode', 'get_subset_of_diffions',
            'add_perturbations_to_proteins', 'group_level_nodes_by_parents', 'get_filtered_intensity_df',
            'get_perturbed_intensity_df', 'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level',
-           'count_correctly_excluded', 'eval_clustered_results', 'read_and_filter_spectronaut_table_to_single_organism',
-           'get_peptides_set', 'retrieve_all_peptides_from_fasta_and_save', 'spectronaut_filtering', 'diann_filtering',
-           'decide_filter_function', 'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
+           'count_correctly_excluded', 'eval_clustered_results', 'read_and_filter_output_table_to_single_organism',
+           'get_peptides_set', 'retrieve_all_peptides_from_fasta_and_save', 'get_peptides_from_protein_sequence',
+           'get_m_replaced_peps', 'spectronaut_filtering', 'diann_filtering', 'decide_filter_function',
+           'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
            'import_input_file_in_specified_format', 'get_original_input_df', 'get_node_df', 'count_outlier_fraction',
            'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
@@ -31,7 +32,7 @@ def get_tps_fps(result_df, prot2org_file, thresh = 0.05, fc_thresh = 0.3):
         annotated_condpair = annotated[annotated["condpair"]==condpair]
         num_tps = sum(annotated_condpair["TP"])
         num_fps = sum(annotated_condpair["FP"])
-        annotated_fcfilt = annotated_condpair[annotated["fc"] >fc_thresh]
+        annotated_fcfilt = annotated_condpair[annotated["log2fc"] >fc_thresh]
         num_regulated_prots = sum(annotated_fcfilt["fdr"]<thresh)
         num_true_positives = sum(annotated_fcfilt["TP"] &(annotated_fcfilt["fdr"]<0.05))
         num_false_positives = sum(annotated_fcfilt["FP"] &(annotated_fcfilt["fdr"]<0.05))
@@ -581,12 +582,15 @@ import pyfasta
 import pandas as pd
 
 
-def read_and_filter_spectronaut_table_to_single_organism(input_table, fastas,software_filter_function = None, desired_organism = "Saccharomyces cerevisiae"):
+def read_and_filter_output_table_to_single_organism(input_table, fastas,desired_organism , software_filter_function = None):
 
     undesired_peptides = get_peptides_set(fastas)
+    print("got undesired peptides")
+    pd.DataFrame({"peptide" : list(undesired_peptides)}).to_csv(f"{input_table}.undesired_peptides.tsv", sep = "\t")
+    print("start filtering")
     if software_filter_function == None:
         software_filter_function = decide_filter_function(input_table = input_table)
-    tableit = pd.read_csv(input_table, sep = "\t", chunksize=100000)
+    tableit = pd.read_csv(input_table, sep = "\t", chunksize=1000_000)
     tables = []
     for table_df in tableit:
         table_df = software_filter_function(table_df, undesired_peptides, desired_organism)
@@ -594,56 +598,76 @@ def read_and_filter_spectronaut_table_to_single_organism(input_table, fastas,sof
 
     yeast_df = pd.concat(tables, ignore_index = True)
     return yeast_df
-    yeast_df.to_csv(f"{desired_organism}_report_filtered.tsv", sep = "\t", index = None)
+
 
 def get_peptides_set(fastas):
     peps_merged = set()
     for fasta in fastas:
-        try:
-            peps = set(pd.read_csv(f"{fasta}.all_peptides.tsv", sep = "\t")["peptide"])
-        except:
-            print("could not find digested version of the fasta, try to digest")
-            peps = retrieve_all_peptides_from_fasta_and_save(fasta)
+        # try:
+        #     peps = set(pd.read_csv(f"{fasta}.all_peptides.tsv", sep = "\t")["peptide"])
+        # except:
+            #print("could not find digested version of the fasta, try to digest")
+        peps = retrieve_all_peptides_from_fasta_and_save(fasta)
         peps_merged = peps_merged.union(peps)
     return peps_merged
 
 def retrieve_all_peptides_from_fasta_and_save(fasta):
 
-    dig = ProteaseDigestion()
+    digestor = ProteaseDigestion()
+    digestor.setEnzyme('Trypsin/P')
 
-    print(dig.getEnzymeName()) # Trypsin
-    dig.setMissedCleavages(2)
+    digestor.setMissedCleavages(2)
 
     f = pyfasta.Fasta(fasta)
 
     all_results = []
     for key in f.keys():
-        val = str(f.get(key))
-        val = AASequence.fromString(val)
-        result = []
-        dig.digest(val, result, 4, 40)
-        all_results.extend(result)
-
+        protseq = str(f.get(key))
+        peptides = get_peptides_from_protein_sequence(protseq=protseq, digestor=digestor)
+        all_results.extend(peptides)
 
     df = pd.DataFrame({'peptide' : all_results})
     df.to_csv(f"{fasta}.all_peptides.tsv", index = None)
     return set(df["peptide"])
 
 
+def get_peptides_from_protein_sequence(protseq, digestor):
+    val = AASequence.fromString(protseq)
+    peptides = []
+    digestor.digest(val, peptides, 4, 60)
+    for pep in peptides:
+        hass_pref = pep.hasPrefix(pep)
+        if not hass_pref:
+            print(pep)
+    peptides = [str(x) for x in peptides]
+    if len(peptides)>0:
+        n_terminal_peptide = peptides[0]
+        m_removed_peptides = get_m_replaced_peps(peptides)
+        peptides += m_removed_peptides #add the m-removed peptides
+    return peptides
 
 
+def get_m_replaced_peps(peptides):
+    m_removed_peptides = []
+    for peptide in peptides:
+        m_removed_peptide = peptide[0].replace("M", "") + peptide[1:]
+        m_removed_peptides.append(m_removed_peptide)
+    return m_removed_peptides
 
 
 
 def spectronaut_filtering(table_df, undesired_peptides, desired_organism):
     table_df = table_df[[(x not in undesired_peptides) for x in table_df['PEP.StrippedSequence']]]
-    table_df["PG.Organisms"] == desired_organism
+    if desired_organism is not None:
+        table_df = table_df[table_df["PG.Organisms"] == desired_organism]
 
     return table_df
 
 def diann_filtering(table_df, undesired_peptides, desired_organism):
     table_df = table_df[[(x not in undesired_peptides) for x in table_df['Stripped.Sequence']]]
-    table_df = table_df[[(desired_organism in x) for x in table_df['Protein.Names']]]
+    if desired_organism is not None:
+        table_df = table_df[[(desired_organism in x) for x in table_df['Protein.Names']]]
+    return table_df
 
 
 def decide_filter_function(input_table):
@@ -672,8 +696,11 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
     fig.suptitle(f"{software_used}, {aqutils.get_condpairname(condpair)}")
     nodes_precursors = generate_precursor_nodes_from_protein_nodes(protein_nodes, type=quant_level_aq)
 
+    aqplot.plot_fc_dist_of_test_set(fcs = [x.fc for x in nodes_precursors], ax = ax[2][2])
+
     true_falses, predscores, reference_scores, fcs = aqplot.get_true_false_to_predscores(nodes_precursors, expected_log2fc)
-    aqplot.plot_fc_dist_of_test_set(fcs=fcs, true_falses=true_falses, ax= ax[0][0])
+
+    aqplot.plot_true_false_fcs_of_test_set(fcs=fcs, true_falses=true_falses, ax= ax[0][0])
     aqplot.plot_predictability_roc_curve(true_falses=true_falses, predscores=predscores, reference_scores=reference_scores, ax = ax[0][1], percentile_cutoff_indication=percentile_to_retain)
     aqplot.plot_predictability_precision_recall_curve(true_falses=true_falses, predscores=predscores, reference_scores=reference_scores, ax=ax[0][2], percentile_cutoff_indication=percentile_to_retain)
 
@@ -910,7 +937,7 @@ import anytree
 
 def load_tree_assign_predscores(c1, c2, samplemap,name,results_folder, re_run_assignment  = False, results_folder_diann = None, replace_nans = False, distort_precursor_modulo = np.inf):
     """retrieve the predictability scores from a previously run differential analysis. Re-run the predictability score analysis in case they are not available, or if specified"""
-    s1, s2 = aqutils.get_samples_used_from_samplemap(samplemap, c1, c2)
+    s1, s2 = aqutils.get_samples_used_from_samplemap_file(samplemap, c1, c2)
     cpair_tree = aqutils.read_condpair_tree(c1, c2, results_folder=results_folder)
     cpair_tree.type = "asd"
     protnodes = anytree.findall(cpair_tree, filter_= lambda x : (x.type == "gene"),maxlevel=2)
