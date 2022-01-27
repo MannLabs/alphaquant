@@ -10,13 +10,14 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'count_correctly_excluded', 'eval_clustered_results', 'read_and_filter_output_table_to_single_organism',
            'get_peptides_set', 'retrieve_all_peptides_from_fasta_and_save', 'get_peptides_from_protein_sequence',
            'get_m_replaced_peps', 'spectronaut_filtering', 'diann_filtering', 'decide_filter_function',
-           'compare_aq_to_reference', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
+           'compare_aq_to_reference', 'shift_to_expected_fc', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
-           'import_input_file_in_specified_format', 'get_original_input_df', 'get_node_df', 'count_outlier_fraction',
-           'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
-           'convert_tree_ionname_to_simple_ionname_diann', 'filter_score_from_original_df',
-           'filter_top_percentile_reference_df', 'read_reformat_filtered_df', 'load_tree_assign_predscores',
-           'benchmark_configs_and_datasets', 'intersect_with_diann', 'get_benchmark_setting_name', 'predscore_cutoff']
+           'import_input_file_in_specified_format', 'get_original_input_df', 'correct_fcs_to_expected', 'get_node_df',
+           'count_outlier_fraction', 'generate_precursor_nodes_from_protein_nodes',
+           'convert_tree_ionname_to_simple_ionname_sn', 'convert_tree_ionname_to_simple_ionname_diann',
+           'filter_score_from_original_df', 'filter_top_percentile_reference_df', 'read_reformat_filtered_df',
+           'load_tree_assign_predscores', 'benchmark_configs_and_datasets', 'intersect_with_diann',
+           'get_benchmark_setting_name', 'predscore_cutoff']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -688,6 +689,7 @@ import alphaquant.visualizations as aqplot
 import os.path
 import anytree
 import copy
+import numpy as np
 
 
 def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_used, name, original_input_file, samplemap,quant_level_aq, quant_level_reference, tolerance_interval, xlim_lower, xlim_upper, savedir, predscore_cutoff, ml_exclude, percentile_to_retain, num_reps):
@@ -695,8 +697,9 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
     fig, ax = plt.subplots(nrows = 3, ncols = 3, figsize=(15,15))
     fig.suptitle(f"{software_used}, {aqutils.get_condpairname(condpair)}")
     nodes_precursors = generate_precursor_nodes_from_protein_nodes(protein_nodes, type=quant_level_aq)
+    shift_to_expected_fc(nodes_precursors, expected_log2fc)
 
-    aqplot.plot_fc_dist_of_test_set(fcs = [x.fc for x in nodes_precursors], ax = ax[2][2])
+    #aqplot.plot_fc_dist_of_test_set(fcs = [x.fc for x in nodes_precursors], ax = ax[2][2])
 
     true_falses, predscores, reference_scores, fcs = aqplot.get_true_false_to_predscores(nodes_precursors, expected_log2fc)
 
@@ -731,6 +734,8 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
 
     aqplot.plot_violin_plots_log2fcs([software_used, 'AlphaQuant'], [original_df_reformat, node_df], ax = ax[2][0])
     aqplot.plot_beeswarm_plot_log2fcs([software_used, 'AlphaQuant'], [original_df_reformat, node_df], ax = ax[2][1])
+
+    aqplot.plot_outlier_fraction(node_df, reference_df = original_df_reformat, expected_log2fc=expected_log2fc, outlier_thresholds=[1.0, 0.5, 0.3], ax = ax[2][2])
     fig.tight_layout()
     plt.savefig(f"{savedir}/{name}_{software_used}.pdf")
 
@@ -741,10 +746,18 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
     ax[1][1].figure.savefig(f"{savedir}/{name}_AlphaQuant_fc_intensity_scatter.pdf")
     ax[2][0].figure.savefig(f"{savedir}/{name}_violin_plot.pdf")
     ax[2][1].figure.savefig(f"{savedir}/{name}_beeswarm_plot.pdf")
+    ax[2][1].figure.savefig(f"{savedir}/{name}_fraction_outliers.pdf")
 
     plt.show()
 
 
+
+
+def shift_to_expected_fc(nodes_precursors, expected_log2fc):
+    median_fc = np.median([x.fc for x in nodes_precursors])
+    diff = expected_log2fc - median_fc
+    for node in nodes_precursors:
+        node.fc +=diff
 
 
 def get_rough_tpr_cutoff(percentile_to_retain, true_false_vec):
@@ -793,7 +806,7 @@ def get_top_percentile_peptides(nodes_precursors, percentile, method, node_filte
     return precursors_aqscore, precursors_default_quality_score
 
 def compare_aq_w_method(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, expected_log2fc = None, threshold = 0.5, input_type = "spectronaut_precursor", num_reps = None, method_name = "Spectronaut", tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5):
-    specnaut_reformat = get_original_input_df( c1 = c1, c2 = c2, input_file = spectronaut_file, samplemap_file = samplemap_file, input_type = input_type, num_reps = num_reps)
+    specnaut_reformat = get_original_input_df( c1 = c1, c2 = c2, input_file = spectronaut_file, samplemap_file = samplemap_file, input_type = input_type, num_reps = num_reps, expected_log2fc=expected_log2fc)
     node_df = get_node_df(nodes_precursors = nodes_precursors)
     count_outlier_fraction(specnaut_reformat, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(specnaut_reformat, method_name, expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper)
@@ -809,14 +822,25 @@ def import_input_file_in_specified_format(input_file, input_type):
         specnaut_reformat = aqutils.import_data(input_file, input_type_to_use=input_type)
     return specnaut_reformat
 
-def get_original_input_df(c1, c2, input_file, samplemap_file, input_type = "spectronaut_precursor", num_reps = None):
+def get_original_input_df(c1, c2, input_file, samplemap_file, num_reps, expected_log2fc  = None,input_type = "spectronaut_precursor"):
     specnaut_reformat = import_input_file_in_specified_format(input_file=input_file, input_type=input_type)
     samplemap_df = aqutils.load_samplemap(samplemap_file)
     c1_samples = list(samplemap_df[samplemap_df["condition"]==c1]["sample"])
     c2_samples = list(samplemap_df[samplemap_df["condition"]==c2]["sample"])
     specnaut_reformat = annotate_fcs_to_wideformat_table(specnaut_reformat,c1_samples, c2_samples, num_reps = num_reps)
+    if expected_log2fc is not None:
+        specnaut_reformat = correct_fcs_to_expected(specnaut_reformat, expected_log2fc)
 
     return specnaut_reformat
+
+import numpy as np
+def correct_fcs_to_expected(specnaut_reformat, expected_log2fc):
+    log2fcs = specnaut_reformat["log2fc"]
+    median_fc = np.median(log2fcs)
+    diff = expected_log2fc-median_fc
+    specnaut_reformat["log2fc"] = [x+diff for x in log2fcs]
+    return specnaut_reformat
+
 
 def get_node_df(nodes_precursors):
     node_info_dict = {'ion': [x.name for x in nodes_precursors], 'log2fc' : [x.fc for x in nodes_precursors], "median_intensity" : [x.min_intensity for x in nodes_precursors]}
