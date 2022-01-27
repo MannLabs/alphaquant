@@ -1582,7 +1582,7 @@ def plot_true_false_fcs_of_test_set(fcs, true_falses, ax):
     ax.set_xlabel('Cathegory for ROC curve')
 
 def plot_fc_dist_of_test_set(fcs, ax):
-    ax.hist(fcs, 60, density=True, histtype='step',cumulative=True)
+    ax.hist(fcs, 60, density=True, histtype='step')
     ax.set_xlabel('log2FC')
     median = np.median(fcs)
     plt.axvline(x=median)
