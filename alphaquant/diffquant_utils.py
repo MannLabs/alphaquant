@@ -760,7 +760,7 @@ def load_samplemap(samplemap_file):
         print(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {samplemap_file}! Trying with tab separation. In the case that it fails, please add the appropriate extension to your file name.")
         sep = "\t"
 
-    return pd.read_csv(samplemap_file, sep = sep, encoding ='latin1')
+    return pd.read_csv(samplemap_file, sep = sep, encoding ='latin1', dtype='str')
 
 # Cell
 def prepare_loaded_tables(data_df, samplemap_df):
