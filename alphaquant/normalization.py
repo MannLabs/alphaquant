@@ -3,7 +3,7 @@
 __all__ = ['get_normfacts_withincond', 'apply_sampleshifts', 'get_bestmatch_pair', 'create_distance_matrix',
            'calc_distance', 'update_distance_matrix', 'get_fcdistrib', 'determine_anchor_and_shift_sample',
            'shift_samples', 'get_total_shift', 'merge_distribs', 'determine_mode_iteratively', 'find_nearest',
-           'mode_normalization', 'get_betweencond_shift', 'get_normalized_dfs', 'drop_nas_if_possible']
+           'mode_normalization', 'get_betweencond_shift', 'perform_normalization_if_necessary', 'drop_nas_if_possible']
 
 # Cell
 import numpy as np
@@ -298,7 +298,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 # Cell
 import pandas as pd
 import alphaquant.visualizations as aqviz
-def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, runtime_plots = True,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
+def perform_normalization_if_necessary(df_c1, df_c2,  c1_samples, c2_samples, minrep, betweencond_shift = True, runtime_plots = True,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
     #c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
     #c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
@@ -308,13 +308,13 @@ def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, runtime_pl
     if prenormed_file is not None:
         print("using pre-normalized data - skipping normalization")
         df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = "ion")
-        df_c1_normed = df_prenormed[c1_samples["sample"]].dropna(thresh=minrep, axis=0)
-        df_c2_normed = df_prenormed[c2_samples["sample"]].dropna(thresh=minrep, axis=0)
+        df_c1_normed = df_prenormed[c1_samples].dropna(thresh=minrep, axis=0)
+        df_c2_normed = df_prenormed[c2_samples].dropna(thresh=minrep, axis=0)
     else:
         sample2shift_c1 = get_normfacts_withincond(drop_nas_if_possible(df_c1).to_numpy().T)
         sample2shift_c2 = get_normfacts_withincond(drop_nas_if_possible(df_c2).to_numpy().T)
-        df_c1_normed = pd.DataFrame(apply_sampleshifts(df_c1.to_numpy().T, sample2shift_c1).T, index = df_c1.index, columns = c1_samples["sample"])
-        df_c2_normed = pd.DataFrame(apply_sampleshifts(df_c2.to_numpy().T, sample2shift_c2).T, index = df_c2.index, columns = c2_samples["sample"])
+        df_c1_normed = pd.DataFrame(apply_sampleshifts(df_c1.to_numpy().T, sample2shift_c1).T, index = df_c1.index, columns = c1_samples)
+        df_c2_normed = pd.DataFrame(apply_sampleshifts(df_c2.to_numpy().T, sample2shift_c2).T, index = df_c2.index, columns = c2_samples)
 
     print(f"normalized within conditions")
     if runtime_plots:
@@ -323,7 +323,10 @@ def get_normalized_dfs(df_c1, df_c2,  c1_samples, c2_samples, minrep, runtime_pl
         print("complete dataset")
         aqviz.plot_betweencond_fcs(df_c1_normed, df_c2_normed, True)
 
-    shift_between_cond = get_betweencond_shift(drop_nas_if_possible(df_c1_normed), drop_nas_if_possible(df_c2_normed))
+    if betweencond_shift:
+        shift_between_cond = get_betweencond_shift(drop_nas_if_possible(df_c1_normed), drop_nas_if_possible(df_c2_normed))
+    else:
+        shift_between_cond = 0
     if(prenormed_file is not None):
         shift_between_cond = -0.18
     print(f"shift cond 2 by {shift_between_cond}")
