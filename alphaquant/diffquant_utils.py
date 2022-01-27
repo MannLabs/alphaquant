@@ -25,8 +25,8 @@ def get_samples_used_from_samplemap_file(samplemap_file, cond1, cond2):
 
 
 def get_samples_used_from_samplemap_df(samplemap_df, cond1, cond2):
-    samples_c1 = samplemap_df[[cond1 in x for x in samplemap_df["condition"]]]["sample"] #subset the df to the condition
-    samples_c2 = samplemap_df[[cond2 in x for x in samplemap_df["condition"]]]["sample"]
+    samples_c1 = samplemap_df[[cond1 == x for x in samplemap_df["condition"]]]["sample"] #subset the df to the condition
+    samples_c2 = samplemap_df[[cond2 == x for x in samplemap_df["condition"]]]["sample"]
     return list(samples_c1), list(samples_c2)
 
 # Cell
