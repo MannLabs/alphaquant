@@ -258,7 +258,7 @@ def store_method_parameters(local_vars, results_dir):
 def get_methods_dict_from_local_vars(local_vars):
     method_params = {}
     for x in local_vars.keys():
-        if (("_df" not in x) and ('condpair' not in x)):
+        if (("_df" not in x) and ('condpair' not in x) and ('sys'!=x)):
             if ("input_file" in x) or ("results_dir" in x):
                 method_params[x] = os.path.abspath(local_vars[x])
                 try2 = pathlib.Path(local_vars[x]).absolute()
