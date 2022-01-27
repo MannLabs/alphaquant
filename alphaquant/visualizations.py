@@ -17,7 +17,7 @@ __all__ = ['plot_pvals', 'plot_bgdist', 'tranform_fc2count_to_fc_space', 'plot_w
            'plot_beeswarm_plot_log2fcs', 'get_longformat_df', 'plot_feature_importances', 'filter_sort_top_n',
            'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
            'visualize_filtered_non_filtered_precursors', 'plot_fcs_node', 'plot_predictability_roc_curve',
-           'plot_predictability_precision_recall_curve', 'get_true_false_to_predscores',
+           'plot_predictability_precision_recall_curve', 'plot_outlier_fraction', 'get_true_false_to_predscores',
            'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set', 'plot_roc_curve',
            'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered']
 
@@ -1518,6 +1518,9 @@ import numpy as np
 from sklearn import metrics
 import random
 import seaborn as sns
+import alphaquant.benchmarking as aqbench
+
+
 
 
 def plot_predictability_roc_curve( true_falses, predscores, reference_scores, ax = None, percentile_cutoff_indication = None):
@@ -1536,7 +1539,6 @@ def plot_predictability_roc_curve( true_falses, predscores, reference_scores, ax
 
 def plot_predictability_precision_recall_curve( true_falses, predscores, reference_scores, ax = None, percentile_cutoff_indication = None):
 
-
     if percentile_cutoff_indication is not None:
         ax.axvline(percentile_cutoff_indication, color = 'lightgrey')
     plot_precision_recall_curve(true_falses, predscores, "AlphaQuant score", ax)
@@ -1547,6 +1549,25 @@ def plot_predictability_precision_recall_curve( true_falses, predscores, referen
     ax.set_xlabel('recall')
     ax.set_ylabel('precision')
     ax.legend()
+
+
+def plot_outlier_fraction(node_df, reference_df, expected_log2fc, outlier_thresholds, ax = None):
+    thresholds = []
+    aq_fractions = []
+    reference_fractions = []
+    for threshold in outlier_thresholds:
+        thresholds.append(threshold)
+        aq_fractions.append(aqbench.count_outlier_fraction(node_df,threshold, expected_log2fc))
+        reference_fractions.append(aqbench.count_outlier_fraction(reference_df, threshold,expected_log2fc))
+    df = pd.DataFrame({'threshold' :thresholds, 'AlphaQuant' : aq_fractions, 'reference' : reference_fractions})
+    df_unpiv = df.melt(id_vars = ['threshold'])
+    sns.barplot(x = "threshold", y = 'value', hue = 'variable', data = df_unpiv, ax = ax)
+
+
+
+
+
+
 
 def get_true_false_to_predscores(nodes, expected_fc, fc_cutoff_bad = 1, fc_cutoff_good = 0.3, reverse = False):
     true_falses = []
