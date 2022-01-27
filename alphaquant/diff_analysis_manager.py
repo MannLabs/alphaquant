@@ -54,13 +54,17 @@ use_iontree_if_possible = True, get_ion2clust = False, median_offset = False, pr
 
     for condpair in condpair_combinations:
         print(condpair)
+        samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
+
         input_df_local = get_unnormed_df_condpair(input_df,samplemap_df,input_file, condpair)
         pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
-        reformatted_input = format_condpair_input(samplemap_df, input_df_local, condpair, minrep)
+
+        reformatted_input = format_condpair_input(samples_c1, samples_c2, input_df_local, minrep)
         if reformatted_input == None:
             continue
-        c1_samples, c2_samples, df_c1, df_c2 = reformatted_input
-        analyze_condpair(df_c1=df_c1, df_c2=df_c2, c1_samples=c1_samples, c2_samples=c2_samples, pep2prot=pep2prot,results_dir=results_dir, condpair=condpair, minrep=minrep, min_num_ions=min_num_ions, minpep=minpep,
+        df_c1, df_c2 = reformatted_input[0], reformatted_input[1]
+
+        analyze_condpair(df_c1=df_c1, df_c2=df_c2, c1_samples=samples_c1, c2_samples=samples_c2, pep2prot=pep2prot,results_dir=results_dir, condpair=condpair, minrep=minrep, min_num_ions=min_num_ions, minpep=minpep,
         cluster_threshold_pval=cluster_threshold_pval, cluster_threshold_fcfc=cluster_threshold_fcfc, take_median_ion=take_median_ion, outlier_correction=outlier_correction, normalize=normalize,
         use_iontree_if_possible=use_iontree_if_possible, get_ion2clust=get_ion2clust,median_offset=median_offset, pre_normed_intensity_file=pre_normed_intensity_file , dia_fragment_selection=dia_fragment_selection,
         runtime_plots=runtime_plots, volcano_fdr=volcano_fdr, volcano_fcthresh=volcano_fcthresh, annotation_file=annotation_file, use_ml = use_ml)
@@ -115,27 +119,26 @@ def get_unnormed_df_condpair(unnormed_df :pd.DataFrame, samplemap_df:pd.DataFram
         return unnormed_df
 
 # Cell
-def format_condpair_input(labelmap_df, unnormed_df, condpair, minrep):
-    c1_samples = labelmap_df[labelmap_df["condition"]== condpair[0]]
-    c2_samples = labelmap_df[labelmap_df["condition"]== condpair[1]]
-    min_samples = min(len(c1_samples.index), len(c2_samples.index))
+def format_condpair_input(samples_c1, samples_c2, unnormed_df, minrep):
+
+    min_samples = min(len(samples_c1), len(samples_c2))
 
     if min_samples<2:
-        print(f"condpair has not enough samples c1:{len(c1_samples)} c2: {len(c2_samples)}, skipping")
+        print(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
         return None
-    minrep_c1 = get_minrep_for_cond(c1_samples, minrep)
-    minrep_c2 = get_minrep_for_cond(c2_samples, minrep)
-    df_c1 = unnormed_df.loc[:, c1_samples["sample"]].dropna(thresh=minrep_c1, axis=0)
-    df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep_c2, axis=0)
+    minrep_c1 = get_minrep_for_cond(samples_c1, minrep)
+    minrep_c2 = get_minrep_for_cond(samples_c2, minrep)
+    df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=minrep_c1, axis=0)
+    df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
     if (len(df_c1.index)<5) | (len(df_c2.index)<5):
         print(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
         return None
-    return c1_samples, c2_samples, df_c1, df_c2
+    return df_c1, df_c2
 
 def get_minrep_for_cond(c_samples, minrep):
     if minrep is None: #in the case of None, no nans will be allowed
         return None
-    num_samples = len(c_samples.index)
+    num_samples = len(c_samples)
     if num_samples<minrep:
         return num_samples
     else:
@@ -165,11 +168,10 @@ get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, 
     quantified_peptides = []
     quantified_proteins = []
 
-    if normalize:
-        df_c1_normed, df_c2_normed = aqnorm.get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples, minrep, runtime_plots,pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
-    else:
-        df_c1_normed = df_c1
-        df_c2_normed = df_c2
+
+    df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, minrep = minrep, normalize_within_conds = normalize, normalize_between_conds = normalize,
+    runtime_plots = runtime_plots,prenormed_file = pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
+
     if results_dir != None:
         write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, results_dir, condpair)
     t_normalized = time()
@@ -242,7 +244,7 @@ get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, 
             ml_performance_dict = {}
             aqclass.assign_predictability_scores(protnodes, results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
             fc_cutoff=0, number_splits=5, plot_predictor_performance=runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
-            if ml_performance_dict["r2_score"] >0.1: #only use the ml score, if it is meaningful
+            if ml_performance_dict["r2_score"] >0.05: #only use the ml score, if it is meaningful
                 aqclust.update_nodes_w_ml_score(protnodes)
                 update_quantified_proteins_w_tree_results(quantified_proteins, protnodes)
             aqclust.export_roots_to_json(protnodes,condpair,results_dir)
