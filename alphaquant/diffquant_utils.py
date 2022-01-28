@@ -4,17 +4,17 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'get_condpairname', 'get_quality_score_column', 'make_dir_w_existcheck', 'get_results_plot_dir_condpair',
            'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'get_ionints_from_pd_df',
            'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
-           'count_fraction_outliers_from_expected_fc', 'write_chunk_to_file', 'set_logger', 'load_method_parameters',
-           'store_method_parameters', 'get_methods_dict_from_local_vars', 'get_relevant_columns',
-           'get_relevant_columns_config_dict', 'get_config_columns', 'load_config', 'get_type2relevant_cols',
-           'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_quantitative_columns',
-           'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
-           'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable', 'reshape_input_df',
-           'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
-           'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
-           'import_config_dict', 'get_samplenames', 'load_samplemap', 'prepare_loaded_tables',
-           'import_acquisition_info_df', 'get_ion_headers_from_config_dict', 'get_all_ion_headers', 'get_ion_row',
-           'get_ion_header', 'merge_acquisition_df_parameter_df']
+           'count_fraction_outliers_from_expected_fc', 'find_node_parent_at_level', 'write_chunk_to_file', 'set_logger',
+           'load_method_parameters', 'store_method_parameters', 'get_methods_dict_from_local_vars',
+           'get_relevant_columns', 'get_relevant_columns_config_dict', 'get_config_columns', 'load_config',
+           'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
+           'get_quantitative_columns', 'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df',
+           'add_merged_ionnames', 'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable',
+           'reshape_input_df', 'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table',
+           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data',
+           'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
+           'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
+           'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
 
 # Cell
 
@@ -145,6 +145,18 @@ def count_fraction_outliers_from_expected_fc(result_df, threshold, expected_log2
     fraction_outliers = num_outliers/len(result_df["log2fc"])
     print(f"{round(fraction_outliers, 2)} outliers")
     return fraction_outliers
+
+# Cell
+import anytree
+
+def find_node_parent_at_level(node, level):
+    if node.level == level:
+        return node
+    while node.parent is not None:
+        node = node.parent
+        if node.level == level:
+            return node
+
 
 # Cell
 def write_chunk_to_file(chunk, filepath ,write_header):
