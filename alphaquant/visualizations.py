@@ -57,7 +57,7 @@ def tranform_fc2count_to_fc_space(fc2counts, num_fcs, rescale_factor):
     return fc2counts_fcscales
 
 # Cell
-#interactive
+
 import matplotlib.pyplot as plt
 from scipy import stats
 import itertools
@@ -97,7 +97,7 @@ def get_nodename(node):
     return shortened_name
 
 # Cell
-#interactive
+
 import matplotlib.pyplot as plt
 from scipy import stats
 
@@ -197,7 +197,7 @@ def plot_fold_change(df, key1, key2):
 
 import dash_core_components as dcc
 import plotly.graph_objs as go
-#interactive
+
 #ckg_copypaste, defaults added for args argument
 def get_volcanoplot_ckg(results, args = {'x_title':'log2FC', 'y_title':'-log10FDR','colorscale':'Blues', 'showscale':True, 'marker_size':7, 'fc' :0.5}):
     """
@@ -298,7 +298,7 @@ def get_volcanoplot_ckg(results, args = {'x_title':'log2FC', 'y_title':'-log10FD
     return figures
 
 # Cell
-#interactive
+
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -392,7 +392,7 @@ def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "ion"):
     return res_df
 
 # Cell
-#interactive
+
 def beeswarm_ion_plot(df_melted, diffresults_protein, only_boxplot = False,saveloc = None):
     """takes pre-formatted long-format dataframe which contains all ion intensities for a given protein.
       Columns are "ion", "intensity", "condition". Also takes results of the protein differential analysis as a series
@@ -431,7 +431,7 @@ def beeswarm_ion_plot(df_melted, diffresults_protein, only_boxplot = False,savel
 
 
 # Cell
-#interactive
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -469,7 +469,7 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     plt.show()
 
 # Cell
-#interactive
+
 import itertools
 import pandas as pd
 import numpy as np
@@ -511,7 +511,7 @@ def get_normalization_overview_heatmap(normed_peptides_df):
     return heatmap
 
 # Cell
-#interactive
+
 import os
 import holoviews as hv
 import pandas as pd
@@ -531,7 +531,7 @@ def get_protein_regulation_heatmap(overview_df, results_folder = os.path.join(".
 # Cell
 import dash_core_components as dcc
 import plotly.graph_objs as go
-#interactive
+
 #ckg_copypaste
 def get_heatmapplot_ckg(data, identifier= "Heatmap", args = {'format' :'default', 'title' : 'heatmap'}):
     """
