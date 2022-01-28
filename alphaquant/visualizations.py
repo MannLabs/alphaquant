@@ -1518,7 +1518,7 @@ import numpy as np
 from sklearn import metrics
 import random
 import seaborn as sns
-import alphaquant.benchmarking as aqbench
+import alphaquant.diffquant_utils as aqutils
 
 
 
@@ -1557,8 +1557,8 @@ def plot_outlier_fraction(node_df, reference_df, expected_log2fc, outlier_thresh
     reference_fractions = []
     for threshold in outlier_thresholds:
         thresholds.append(threshold)
-        aq_fractions.append(aqbench.count_outlier_fraction(node_df,threshold, expected_log2fc))
-        reference_fractions.append(aqbench.count_outlier_fraction(reference_df, threshold,expected_log2fc))
+        aq_fractions.append(aqutils.count_fraction_outliers_from_expected_fc(node_df,threshold, expected_log2fc))
+        reference_fractions.append(aqutils.count_fraction_outliers_from_expected_fc(reference_df, threshold,expected_log2fc))
     df = pd.DataFrame({'threshold' :thresholds, 'AlphaQuant' : aq_fractions, 'reference' : reference_fractions})
     df_unpiv = df.melt(id_vars = ['threshold'])
     sns.barplot(x = "threshold", y = 'value', hue = 'variable', data = df_unpiv, ax = ax)

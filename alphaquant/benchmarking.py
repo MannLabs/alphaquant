@@ -13,11 +13,10 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'compare_aq_to_reference', 'shift_to_expected_fc', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
            'import_input_file_in_specified_format', 'get_original_input_df', 'correct_fcs_to_expected', 'get_node_df',
-           'count_outlier_fraction', 'generate_precursor_nodes_from_protein_nodes',
-           'convert_tree_ionname_to_simple_ionname_sn', 'convert_tree_ionname_to_simple_ionname_diann',
-           'filter_score_from_original_df', 'filter_top_percentile_reference_df', 'read_reformat_filtered_df',
-           'load_tree_assign_predscores', 'benchmark_configs_and_datasets', 'intersect_with_diann',
-           'get_benchmark_setting_name', 'predscore_cutoff']
+           'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
+           'convert_tree_ionname_to_simple_ionname_diann', 'filter_score_from_original_df',
+           'filter_top_percentile_reference_df', 'read_reformat_filtered_df', 'load_tree_assign_predscores',
+           'benchmark_configs_and_datasets', 'intersect_with_diann', 'get_benchmark_setting_name', 'predscore_cutoff']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -725,10 +724,10 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
         doublecheck_df_reformat = filter_score_from_original_df(original_input_file=original_input_file, input_type= quant_level_reference, c1 = condpair[0], c2 = condpair[1], samplemap_file=samplemap,percentile_to_use= rough_tpr_cutoff,minrep=num_reps)
 
 
-    frac_outliers = count_outlier_fraction(original_df_reformat, tolerance_interval, expected_log2fc)
+    frac_outliers = aqutils.count_fraction_outliers_from_expected_fc(original_df_reformat, tolerance_interval, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(original_df_reformat, f"{software_used} ({frac_outliers:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][0])
     aqplot.plot_fc_intensity_scatter(doublecheck_df_reformat, f"{software_used} doublecheck", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][2])
-    frac_outliers_aq = count_outlier_fraction(node_df, tolerance_interval, expected_log2fc)
+    frac_outliers_aq = aqutils.count_fraction_outliers_from_expected_fc(node_df, tolerance_interval, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(node_df, f"AlphaQuant ({frac_outliers_aq:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][1])
 
 
@@ -808,9 +807,9 @@ def get_top_percentile_peptides(nodes_precursors, percentile, method, node_filte
 def compare_aq_w_method(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, expected_log2fc = None, threshold = 0.5, input_type = "spectronaut_precursor", num_reps = None, method_name = "Spectronaut", tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5):
     specnaut_reformat = get_original_input_df( c1 = c1, c2 = c2, input_file = spectronaut_file, samplemap_file = samplemap_file, input_type = input_type, num_reps = num_reps, expected_log2fc=expected_log2fc)
     node_df = get_node_df(nodes_precursors = nodes_precursors)
-    count_outlier_fraction(specnaut_reformat, threshold, expected_log2fc)
+    aqutils.count_fraction_outliers_from_expected_fc(specnaut_reformat, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(specnaut_reformat, method_name, expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper)
-    count_outlier_fraction(node_df, threshold, expected_log2fc)
+    aqutils.count_fraction_outliers_from_expected_fc(node_df, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(node_df, "AlphaQuant", expected_log2fc = expected_log2fc)
 
 def import_input_file_in_specified_format(input_file, input_type):
@@ -848,11 +847,7 @@ def get_node_df(nodes_precursors):
     return node_df
 
 
-def count_outlier_fraction(result_df, threshold, expected_log2fc):
-    num_outliers = sum([abs(x-expected_log2fc)> threshold for x in result_df["log2fc"]])
-    fraction_outliers = num_outliers/len(result_df["log2fc"])
-    print(f"{round(fraction_outliers, 2)} outliers")
-    return fraction_outliers
+
 
 
 def generate_precursor_nodes_from_protein_nodes(protein_nodes, shift_fc = None, type = "mod_seq_charge"):
