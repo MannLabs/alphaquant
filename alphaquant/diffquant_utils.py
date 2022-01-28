@@ -150,11 +150,11 @@ def count_fraction_outliers_from_expected_fc(result_df, threshold, expected_log2
 import anytree
 
 def find_node_parent_at_level(node, level):
-    if node.level == level:
+    if node.type == level:
         return node
     while node.parent is not None:
         node = node.parent
-        if node.level == level:
+        if node.type == level:
             return node
 
 
