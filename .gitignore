@@ -159,3 +159,4 @@ logs
 #tests
 tests/ptmsite_mapping/results
 test_data/oconnel_set/results
+tests/sensitivity_tests/results
