@@ -163,9 +163,7 @@ def find_node_parent_at_level(node, level):
 import anytree
 
 def check_if_node_is_included(node):
-    if node.cluster != 0:
-        return False
-    while node.parent is not None:
+    while node.type != "gene":
         if node.cluster != 0:
             return False
         node = node.parent
