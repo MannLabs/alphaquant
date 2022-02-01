@@ -385,7 +385,7 @@ def get_normed_freqs(cumulative):
 #transform cumulative into frequency
 
 def get_freq_from_cumul(cumulative):
-    res = np.zeros(len(cumulative), dtype="long")
+    res = np.zeros(len(cumulative), dtype=np.int64)
     res[0] = cumulative[0]
     for i in range(1,len(cumulative)):
         res[i] = cumulative[i]-cumulative[i-1]
@@ -402,7 +402,7 @@ def transform_cumulative_into_fc2count(cumulative, min_fc):
 
 # Cell
 def get_cumul_from_freq(freq):
-    res = np.zeros(len(freq), dtype="long")
+    res = np.zeros(len(freq), dtype=np.int64)
     res[0] = freq[0]
     for i in range(1,len(freq)):
         res[i] = res[i-1] + freq[i]
