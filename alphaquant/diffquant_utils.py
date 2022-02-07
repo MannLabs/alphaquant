@@ -6,10 +6,10 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
            'count_fraction_outliers_from_expected_fc', 'find_node_parent_at_level', 'check_if_node_is_included',
            'write_chunk_to_file', 'set_logger', 'load_method_parameters', 'store_method_parameters',
-           'get_methods_dict_from_local_vars', 'get_relevant_columns', 'get_relevant_columns_config_dict',
-           'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
-           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
-           'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
+           'get_methods_dict_from_local_vars', 'add_ml_input_file_location', 'get_relevant_columns',
+           'get_relevant_columns_config_dict', 'get_config_columns', 'load_config', 'get_type2relevant_cols',
+           'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_quantitative_columns',
+           'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
            'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable', 'reshape_input_df',
            'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
            'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
@@ -272,6 +272,7 @@ def set_logger(
 import yaml
 import os.path
 import pathlib
+import re
 
 def load_method_parameters(results_dir):
     params_file = f"{results_dir}/aq_parameters.yaml"
@@ -279,6 +280,7 @@ def load_method_parameters(results_dir):
 
 def store_method_parameters(local_vars, results_dir):
     method_params = get_methods_dict_from_local_vars(local_vars)
+    add_ml_input_file_location(method_params)
     params_file = f"{results_dir}/aq_parameters.yaml"
     if os.path.exists(params_file):
         previous_params = load_method_parameters(results_dir)
@@ -295,10 +297,20 @@ def get_methods_dict_from_local_vars(local_vars):
         if (("_df" not in x) and ('condpair' not in x) and ('sys'!=x)):
             if ("input_file" in x) or ("results_dir" in x):
                 method_params[x] = os.path.abspath(local_vars[x])
-                try2 = pathlib.Path(local_vars[x]).absolute()
             else:
                 method_params[x] = local_vars[x]
     return method_params
+
+def add_ml_input_file_location(method_params):
+    input_file = method_params.get("input_file")
+    if ".aq_reformat" in input_file:
+        matched = re.match("(.*)(\.tsv)(\..*)", input_file)
+        ml_input_file = matched.group(1) + matched.group(2)
+    else:
+        ml_input_file = input_file
+    method_params["ml_input_file"] = ml_input_file
+
+
 
 # Cell
 import yaml
@@ -816,7 +828,7 @@ def import_acquisition_info_df(results_dir, samples,last_ion_level_to_use = "CHA
     """import tables containing details on the acquisition (e.g. the Spectronaut input table)
     """
     method_params_dict = load_method_parameters(results_dir)
-    input_file = method_params_dict.get('input_file')
+    input_file = method_params_dict.get('ml_input_file')
     input_type, config_dict, _ = get_input_type_and_config_dict(input_file)
     is_spectronaut = "ectronaut" in input_type
 
