@@ -364,9 +364,9 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
 
     if hasattr(node.children[0], 'predscore'):
         predscores = [x.predscore for x in childs]
-        node.predscore = np.nanmedian(predscores)
+        node.predscore = np.nanmean([x for x in predscores])
         node.cutoff = childs[0].cutoff
-        node.ml_excluded = bool(abs(node.predscore)< node.cutoff)
+        node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
 
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
@@ -435,7 +435,7 @@ def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
         leaf.min_reps = min(len(normed_c1.ion2nonNanvals.get(leaf.name)), len(normed_c2.ion2nonNanvals.get(leaf.name)) )
 
 # Cell
-
+import numpy as np
 def update_nodes_w_ml_score(protnodes):
     typefilter = init_typefilter_from_yaml('default')
     for prot in protnodes:
@@ -460,9 +460,9 @@ def re_order_clusters_by_predscore(nodes):
     cluster2scores = {}
     for node in nodes:
         cluster2scores[node.cluster] = cluster2scores.get(node.cluster, [])
-        cluster2scores[node.cluster].append(node.predscore)
+        cluster2scores[node.cluster].append(abs(node.predscore))
     clusters = list(cluster2scores.keys())
-    clusters.sort(key = lambda x : abs(np.nanmedian(cluster2scores.get(x))))
+    clusters.sort(key = lambda x : np.nanmin(cluster2scores.get(x)))
     clust2newclust = { clusters[x] :x for x in range(len(clusters))}
     for node in nodes:
         node.cluster =clust2newclust.get(node.cluster)
