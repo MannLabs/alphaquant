@@ -4,8 +4,9 @@ __all__ = ['get_normfacts_withincond', 'apply_sampleshifts', 'get_bestmatch_pair
            'calc_distance', 'update_distance_matrix', 'get_fcdistrib', 'determine_anchor_and_shift_sample',
            'shift_samples', 'get_total_shift', 'merge_distribs', 'determine_mode_iteratively', 'find_nearest',
            'mode_normalization', 'get_betweencond_shift', 'normalize_if_specified',
-           'get_normalized_dfs_between_conditions', 'normalize_within_cond', 'drop_nas_if_possible',
-           'plot_withincond_normalization', 'use_benchmark_prenormed_file']
+           'get_normalized_dfs_between_conditions', 'normalize_within_cond', 'prepare_tables_and_get_betweencond_shift',
+           'read_specified_protein_subset_if_given', 'prepare_table_for_betweencond_shift', 'filter_to_protein_subset',
+           'drop_nas_if_possible', 'plot_withincond_normalization', 'use_benchmark_prenormed_file']
 
 # Cell
 import numpy as np
@@ -300,7 +301,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 # Cell
 import pandas as pd
 import alphaquant.visualizations as aqviz
-def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
+def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, specified_protein_subset_file = None, prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
 
     if prenormed_file is not None:
@@ -316,17 +317,17 @@ def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normali
         plot_withincond_normalization(df_c1, df_c2)
 
     if normalize_between_conds:
-        df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, runtime_plots = runtime_plots)
+        df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, specified_protein_subset_file,runtime_plots = runtime_plots)
         print("normalized between conditions")
 
     return df_c1, df_c2
 
 
 
-def get_normalized_dfs_between_conditions(df_c1, df_c2, runtime_plots):
-    shift_between_cond = get_betweencond_shift(drop_nas_if_possible(df_c1), drop_nas_if_possible(df_c2))
+def get_normalized_dfs_between_conditions(df_c1, df_c2, specified_protein_subset_file, runtime_plots):
+    shift_between_cond = prepare_tables_and_get_betweencond_shift(df_c1, df_c2, specified_protein_subset_file)
 
-    print(f"shift cond 2 by {shift_between_cond}")
+    print(f"shift comparison by {shift_between_cond}")
     df_c2 = df_c2-shift_between_cond
     #compare_normalization("./test_data/normed_intensities.tsv", df_c1_normed, df_c2_normed)
     if runtime_plots:
@@ -338,6 +339,31 @@ def normalize_within_cond(df_c, samples_c):
     sample2shift = get_normfacts_withincond(drop_nas_if_possible(df_c).to_numpy().T)
     df_c_normed = pd.DataFrame(apply_sampleshifts(df_c.to_numpy().T, sample2shift).T, index = df_c.index, columns = samples_c)
     return df_c_normed
+
+def prepare_tables_and_get_betweencond_shift(df_c1, df_c2, specified_protein_subset_file):
+    specified_protein_subset = read_specified_protein_subset_if_given(specified_protein_subset_file)
+    prepared1 = prepare_table_for_betweencond_shift(df_c1, specified_protein_subset)
+    prepared2 = prepare_table_for_betweencond_shift(df_c2, specified_protein_subset)
+    return get_betweencond_shift(prepared1, prepared2)
+
+def read_specified_protein_subset_if_given(specified_protein_subset_file):
+    if specified_protein_subset_file is not None:
+        return set(pd.read_csv(specified_protein_subset_file, sep = "\t")["protein"])
+    else:
+        return None
+
+
+def prepare_table_for_betweencond_shift(df, specified_protein_subset):
+    filtered_df = filter_to_protein_subset(df, specified_protein_subset)
+    filtered_df = drop_nas_if_possible(filtered_df)
+    return filtered_df
+
+
+def filter_to_protein_subset(df, specified_protein_subset):
+    if specified_protein_subset is None:
+        return df
+    else:
+        return df[[x in specified_protein_subset for x in df["protein"]]]
 
 
 def drop_nas_if_possible(df):
