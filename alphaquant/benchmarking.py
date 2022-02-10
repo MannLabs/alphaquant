@@ -1137,7 +1137,7 @@ class SpeciesAnnotator():
         self._mapping_file = mapping_file
         self._protein_column = protein_column
         self._species_column = species_colum
-        self._protein2species_dict = self.__init_protein2species_dict()
+        self._protein_species_mapping_df = self.__load_reduce_mapping_dataframe()
 
     def annotate_table_with_species(self, results_table):
         species_column = results_table.species_column
@@ -1148,24 +1148,35 @@ class SpeciesAnnotator():
 
         results_table.formated_dataframe = results_df
 
+    def save_protein_species_map(self, outfile):
+        self._protein_species_mapping_df.to_csv(outfile, sep = "\t", index = None)
+
+
+    def __load_reduce_mapping_dataframe(self):
+        mapping_df = pd.read_csv(self._mapping_file, sep = "\t", usecols=[self._protein_column, self._species_column], encoding='latin1').drop_duplicates()
+        mapping_df = self.__filter_double_mapping_species(mapping_df)
+        return mapping_df
+
+    def __filter_double_mapping_species(self, protein2species_df):
+        protein2species_df = protein2species_df[[";" not in x for x in protein2species_df[self._species_column]]] #a semicolon seperates different species entries
+        return protein2species_df
+
+
     def __add_organism_column(self, results_df,species_column, protein_column):
-        results_df[species_column] = [self._protein2species_dict.get(x) for x in results_df[protein_column]]
+        protein2species_dict = self.__get_protein2species_dict()
+        results_df[species_column] = [protein2species_dict.get(x) for x in results_df[protein_column]]
         return results_df
+
+    def __get_protein2species_dict(self):
+        protein2species = dict(zip(self._protein_species_mapping_df[self._protein_column], self._protein_species_mapping_df[self._species_column]))
+        return protein2species
 
     @staticmethod
     def __filter_non_matching_proteins(results_df, species_column):
         results_df = results_df[[x is not None for x in results_df[species_column]]]
         return results_df
 
-    def __init_protein2species_dict(self):
-        df = pd.read_csv(self._mapping_file, sep = "\t", usecols=[self._protein_column, self._species_column], encoding='latin1').drop_duplicates()
-        df = self.__filter_double_mapping_species(df)
-        protein2species = dict(zip(df[self._protein_column], df[self._species_column]))
-        return protein2species
 
-    def __filter_double_mapping_species(self, protein2species_df):
-        protein2species_df = protein2species_df[[";" not in x for x in protein2species_df[self._species_column]]] #a semicolon seperates different species entries
-        return protein2species_df
 
 
 # Cell
@@ -1193,7 +1204,6 @@ class ClassificationBenchmarker():
         threshold = self.variable2falsecountthreshold.get(variable)
         ax.axhline(threshold)
 
-   # def __get_color_of_variable()
 
     def __calculate_acceptable_number_of_false_calls_per_variable(self):
         variables = self.__get_variable_names()
