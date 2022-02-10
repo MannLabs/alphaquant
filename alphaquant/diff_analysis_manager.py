@@ -23,7 +23,7 @@ import multiprocess
 def run_pipeline(*,input_file = None, samplemap_file=None, input_df = None, samplemap_df = None, modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
 min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.05, cluster_threshold_fcfc = 0, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
 use_iontree_if_possible = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
-annotation_file = None, specified_protein_subset_file = None):
+annotation_file = None, protein_subset_for_normalization_file = None):
 
     """Run the differential analyses.
     """
@@ -61,7 +61,7 @@ annotation_file = None, specified_protein_subset_file = None):
         pool.map(lambda condpair : analyze_condpair(samplemap_df=samplemap_df, input_df= input_df, input_file = input_file,results_dir=results_dir, condpair=condpair, minrep=minrep, min_num_ions=min_num_ions, minpep=minpep,
         cluster_threshold_pval=cluster_threshold_pval, cluster_threshold_fcfc=cluster_threshold_fcfc, take_median_ion=take_median_ion, outlier_correction=outlier_correction, normalize=normalize,
         use_iontree_if_possible=use_iontree_if_possible, get_ion2clust=get_ion2clust,median_offset=median_offset, pre_normed_intensity_file=pre_normed_intensity_file , dia_fragment_selection=dia_fragment_selection,
-        runtime_plots=runtime_plots, volcano_fdr=volcano_fdr, volcano_fcthresh=volcano_fcthresh, annotation_file=annotation_file, use_ml = use_ml, specified_protein_subset_file=specified_protein_subset_file), condpair_combinations)
+        runtime_plots=runtime_plots, volcano_fdr=volcano_fdr, volcano_fcthresh=volcano_fcthresh, annotation_file=annotation_file, use_ml = use_ml, protein_subset_for_normalization_file=protein_subset_for_normalization_file), condpair_combinations)
 
 
 
@@ -166,7 +166,7 @@ import alphaquant.classify_ions as aqclass
 import anytree
 
 def analyze_condpair(*,samplemap_df,input_df, input_file,results_dir,condpair, minrep, min_num_ions, minpep,cluster_threshold_pval, cluster_threshold_fcfc, take_median_ion,outlier_correction, normalize, use_iontree_if_possible,
-get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file, use_ml, specified_protein_subset_file):
+get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, runtime_plots, volcano_fdr, volcano_fcthresh, annotation_file, use_ml, protein_subset_for_normalization_file):
     t_zero = time()
     print(f"start processeing condpair {condpair}")
     prot2diffions = {}
@@ -184,7 +184,7 @@ get_ion2clust,median_offset, pre_normed_intensity_file, dia_fragment_selection, 
     df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, minrep)
 
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, minrep = minrep, normalize_within_conds = normalize, normalize_between_conds = normalize,
-    runtime_plots = runtime_plots, specified_protein_subset_file=specified_protein_subset_file, prenormed_file = pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
+    runtime_plots = runtime_plots, protein_subset_for_normalization_file=protein_subset_for_normalization_file, pep2prot = pep2prot,prenormed_file = pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
 
     if results_dir != None:
         write_out_normed_df(df_c1_normed,df_c2_normed, pep2prot, results_dir, condpair)

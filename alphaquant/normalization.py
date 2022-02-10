@@ -301,7 +301,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 # Cell
 import pandas as pd
 import alphaquant.visualizations as aqviz
-def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, specified_protein_subset_file = None, prenormed_file = None): #labelmap_df, unnormed_df,condpair,
+def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
 
     if prenormed_file is not None:
@@ -317,15 +317,15 @@ def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normali
         plot_withincond_normalization(df_c1, df_c2)
 
     if normalize_between_conds:
-        df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, specified_protein_subset_file,runtime_plots = runtime_plots)
+        df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots = runtime_plots)
         print("normalized between conditions")
 
     return df_c1, df_c2
 
 
 
-def get_normalized_dfs_between_conditions(df_c1, df_c2, specified_protein_subset_file, runtime_plots):
-    shift_between_cond = prepare_tables_and_get_betweencond_shift(df_c1, df_c2, specified_protein_subset_file)
+def get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots):
+    shift_between_cond = prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot)
 
     print(f"shift comparison by {shift_between_cond}")
     df_c2 = df_c2-shift_between_cond
@@ -340,10 +340,10 @@ def normalize_within_cond(df_c, samples_c):
     df_c_normed = pd.DataFrame(apply_sampleshifts(df_c.to_numpy().T, sample2shift).T, index = df_c.index, columns = samples_c)
     return df_c_normed
 
-def prepare_tables_and_get_betweencond_shift(df_c1, df_c2, specified_protein_subset_file):
-    specified_protein_subset = read_specified_protein_subset_if_given(specified_protein_subset_file)
-    prepared1 = prepare_table_for_betweencond_shift(df_c1, specified_protein_subset)
-    prepared2 = prepare_table_for_betweencond_shift(df_c2, specified_protein_subset)
+def prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot):
+    specified_protein_subset = read_specified_protein_subset_if_given(protein_subset_for_normalization_file)
+    prepared1 = prepare_table_for_betweencond_shift(df_c1, specified_protein_subset, pep2prot)
+    prepared2 = prepare_table_for_betweencond_shift(df_c2, specified_protein_subset, pep2prot)
     return get_betweencond_shift(prepared1, prepared2)
 
 def read_specified_protein_subset_if_given(specified_protein_subset_file):
@@ -353,17 +353,18 @@ def read_specified_protein_subset_if_given(specified_protein_subset_file):
         return None
 
 
-def prepare_table_for_betweencond_shift(df, specified_protein_subset):
-    filtered_df = filter_to_protein_subset(df, specified_protein_subset)
+def prepare_table_for_betweencond_shift(df, specified_protein_subset, pep2prot):
+    filtered_df = filter_to_protein_subset(df, specified_protein_subset, pep2prot)
     filtered_df = drop_nas_if_possible(filtered_df)
     return filtered_df
 
 
-def filter_to_protein_subset(df, specified_protein_subset):
+def filter_to_protein_subset(df, specified_protein_subset, pep2prot):
     if specified_protein_subset is None:
         return df
     else:
-        return df[[x in specified_protein_subset for x in df["protein"]]]
+        proteins = [pep2prot.get(x) for x in df.index]
+        return df[[x in specified_protein_subset for x in proteins]] #protein is set to index
 
 
 def drop_nas_if_possible(df):
