@@ -354,7 +354,13 @@ index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
          "benchmark_configs_and_datasets": "11_benchmarking.ipynb",
          "intersect_with_diann": "11_benchmarking.ipynb",
          "get_benchmark_setting_name": "11_benchmarking.ipynb",
-         "predscore_cutoff": "11_benchmarking.ipynb"}
+         "predscore_cutoff": "11_benchmarking.ipynb",
+         "ResultsTable": "11_benchmarking.ipynb",
+         "ResultsTableSpectronaut": "11_benchmarking.ipynb",
+         "ResultsTableAlphaQuant": "11_benchmarking.ipynb",
+         "MergedResultsTable": "11_benchmarking.ipynb",
+         "SpeciesAnnotator": "11_benchmarking.ipynb",
+         "ClassificationBenchmarker": "11_benchmarking.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",

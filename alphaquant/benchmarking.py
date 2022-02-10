@@ -16,7 +16,9 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
            'convert_tree_ionname_to_simple_ionname_diann', 'filter_score_from_original_df',
            'filter_top_percentile_reference_df', 'read_reformat_filtered_df', 'load_tree_assign_predscores',
-           'benchmark_configs_and_datasets', 'intersect_with_diann', 'get_benchmark_setting_name', 'predscore_cutoff']
+           'benchmark_configs_and_datasets', 'intersect_with_diann', 'get_benchmark_setting_name', 'predscore_cutoff',
+           'ResultsTable', 'ResultsTableSpectronaut', 'ResultsTableAlphaQuant', 'MergedResultsTable',
+           'SpeciesAnnotator', 'ClassificationBenchmarker']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -1011,3 +1013,224 @@ def get_benchmark_setting_name(condpair, replace_nan, distort_number, diann_inte
             name+="diann_intersect_mbr"
 
     return name
+
+# Cell
+import pandas as pd
+import functools
+
+class ResultsTable():
+    def __init__(self, input_file, input_name, fdr_threshold = 0.05):
+        self._input_file = input_file
+        self.input_name = input_name
+        self.fdr_threshold = fdr_threshold
+        self.protein_column = "protein"
+        self.called_column = "called"
+        self.species_column = "species"
+        self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
+
+    def get_proteins(self):
+        return self.formated_dataframe[self.protein_column]
+
+    def subset_to_relevant_columns(self):
+        return self.formated_dataframe[[self.protein_column, self.called_column]]
+
+    def __reformat_input_file_to_default_dataframe(self):
+        return
+
+
+
+
+class ResultsTableSpectronaut(ResultsTable):
+    def __init__(self, input_file, input_name, fdr_threshold = 0.05):
+        super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
+
+        self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
+        self.formated_dataframe = super().subset_to_relevant_columns()
+
+
+    def __reformat_input_file_to_default_dataframe(self):
+        results_df = self.__read_and_rename_input_file()
+        results_df = self.__determine_called_proteins(results_df)
+        return results_df
+
+    def __read_and_rename_input_file(self):
+        results_df = pd.read_excel(self._input_file, sheet_name=2)
+        results_df = results_df.rename(mapper = {'Protein': self.protein_column}, axis=1)
+        return results_df
+
+    def __determine_called_proteins(self, results_df):
+        results_df[self.called_column] = [x<self.fdr_threshold for x in results_df["adjusted.pvalue"]]
+        return results_df
+
+
+class ResultsTableAlphaQuant(ResultsTable):
+    def __init__(self, input_file, input_name, fdr_threshold = 0.05):
+        super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
+        self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
+        self.formated_dataframe = super().subset_to_relevant_columns()
+
+    def __reformat_input_file_to_default_dataframe(self):
+        results_df = self.__read_input_file()
+        results_df = self.__determine_called_proteins(results_df)
+        return results_df
+
+    def __read_input_file(self):
+        results_df = pd.read_csv(self._input_file, sep = "\t")
+        return results_df
+
+    def __determine_called_proteins(self, results_df):
+        results_df[self.called_column] = [x<self.fdr_threshold for x in results_df["fdr"]]
+        return results_df
+
+
+import functools
+class MergedResultsTable(ResultsTable):
+    def __init__(self, list_of_results_tables):
+        self._list_of_results_tables = list_of_results_tables
+        self._list_of_result_dataframes = self.__get_list_of_result_dataframes()
+        self.protein_column = self.__get_protein_column()
+        self.called_column = self.__get_called_column()
+        self.species_column = self.__get_species_column()
+        self.fdr_threshold = self.__get_fdr_threshold()
+        self._merge_column = self.protein_column
+        self.formated_dataframe = self.merge_result_tables()
+
+    def __get_protein_column(self):
+        return self._list_of_results_tables[0].protein_column
+
+    def __get_called_column(self):
+        return self._list_of_results_tables[0].called_column
+
+    def __get_species_column(self):
+        return self._list_of_results_tables[0].species_column
+
+    def __get_fdr_threshold(self):
+        return self._list_of_results_tables[0].fdr_threshold
+
+    def __get_list_of_result_dataframes(self):
+        return [x.formated_dataframe for x in self._list_of_results_tables]
+
+    def merge_result_tables(self):
+        #self.__find_and_remove_redundant_columns()
+        merged_table = self.__join_prepared_tables()
+        merged_table = self.__replace_nans_with_false(merged_table)
+        return merged_table
+
+    def __join_prepared_tables(self):
+        df_final = functools.reduce(lambda left,right: self.__specify_merge_params(left, right), self._list_of_results_tables)
+        return df_final
+
+    def __specify_merge_params(self, left_resultstable, right_resultstable):
+        return pd.merge(left_resultstable.formated_dataframe, right_resultstable.formated_dataframe, on=self._merge_column, how = 'outer', suffixes= ("_"+left_resultstable.input_name, "_"+right_resultstable.input_name))
+
+
+    @staticmethod
+    def __replace_nans_with_false(merged_table):
+        return merged_table.fillna(value=False)
+
+
+
+# Cell
+
+class SpeciesAnnotator():
+    def __init__(self, mapping_file, protein_column = 'PG.ProteinGroups', species_colum = 'PG.Organisms'):
+        self._mapping_file = mapping_file
+        self._protein_column = protein_column
+        self._species_column = species_colum
+        self._protein2species_dict = self.__init_protein2species_dict()
+
+    def annotate_table_with_species(self, results_table):
+        species_column = results_table.species_column
+        protein_column = results_table.protein_column
+
+        results_df = self.__add_organism_column(results_table.formated_dataframe, species_column, protein_column)
+        results_df = self.__filter_non_matching_proteins(results_df, species_column)
+
+        results_table.formated_dataframe = results_df
+
+    def __add_organism_column(self, results_df,species_column, protein_column):
+        results_df[species_column] = [self._protein2species_dict.get(x) for x in results_df[protein_column]]
+        return results_df
+
+    @staticmethod
+    def __filter_non_matching_proteins(results_df, species_column):
+        results_df = results_df[[x is not None for x in results_df[species_column]]]
+        return results_df
+
+    def __init_protein2species_dict(self):
+        df = pd.read_csv(self._mapping_file, sep = "\t", usecols=[self._protein_column, self._species_column], encoding='latin1').drop_duplicates()
+        df = self.__filter_double_mapping_species(df)
+        protein2species = dict(zip(df[self._protein_column], df[self._species_column]))
+        return protein2species
+
+    def __filter_double_mapping_species(self, protein2species_df):
+        protein2species_df = protein2species_df[[";" not in x for x in protein2species_df[self._species_column]]] #a semicolon seperates different species entries
+        return protein2species_df
+
+
+# Cell
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+class ClassificationBenchmarker():
+    def __init__(self, resultstable):
+        self._resultstable = resultstable
+        self._protein_column = resultstable.protein_column
+        self._species_column = resultstable.species_column
+        self.speciescount_table = self.__get_table_counting_detected_proteins_per_species()
+        self.variable2falsecountthreshold = self.__calculate_acceptable_number_of_false_calls_per_variable()
+
+    def plot_detected_proteins_per_species(self):
+        ax = sns.barplot(data=self.speciescount_table, x = self._species_column, y = "value", hue="variable")
+        self.__rotate_x_labels_of_barplot(ax)
+        self.__annotate_plot_with_acceptable_false_id_numbers(ax)
+        return ax
+
+    def __annotate_plot_with_acceptable_false_id_numbers(self, ax):
+        self.__annotate_plot_with_acceptable_false_id_for_given_variable("called_AlphaQuant", ax)
+
+    def __annotate_plot_with_acceptable_false_id_for_given_variable(self, variable, ax):
+        threshold = self.variable2falsecountthreshold.get(variable)
+        ax.axhline(threshold)
+
+   # def __get_color_of_variable()
+
+    def __calculate_acceptable_number_of_false_calls_per_variable(self):
+        variables = self.__get_variable_names()
+        return self.__get_variable2threshold(variables)
+
+    def __get_variable_names(self):
+        return self.speciescount_table["variable"].drop_duplicates()
+
+    def __get_variable2threshold(self, variables):
+        variable2threshold = {}
+        fdr = self._resultstable.fdr_threshold
+        for variable in variables:
+            called_proteins = self.__get_number_called_proteins_for_variable(variable)
+            variable2threshold[variable] = self.__calculate_acceptable_protein_number(called_proteins, fdr)
+        return variable2threshold
+
+    def __get_number_called_proteins_for_variable(self, variable):
+        subset_variables = self.speciescount_table.set_index("variable").loc[variable]
+        num_proteins = sum(subset_variables["value"])
+        return num_proteins
+
+    def __test_get_number_called_proteins_for_variable(self):
+        assert self.__get_number_called_proteins_for_variable("called_AlphaQuant") == 1448
+
+
+    @staticmethod
+    def __calculate_acceptable_protein_number(called_proteins, fdr):
+        return int(called_proteins *fdr)
+
+    @staticmethod
+    def __rotate_x_labels_of_barplot(ax):
+        ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
+
+    def __get_table_counting_detected_proteins_per_species(self):
+        df_melted = self._resultstable.formated_dataframe.melt(id_vars=[self._protein_column, self._species_column])
+        df_grouped = df_melted.groupby([self._species_column, "variable"]).sum().reset_index()
+        return df_grouped
+
+    def run_tests(self):
+        self.__test_get_number_called_proteins_for_variable()
