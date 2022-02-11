@@ -4,7 +4,7 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
            'get_score_mapping_consistency_score', 'get_score_mapping_num_clustelems', 'reformat_to_childnode2clust',
            'order_by_score', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping', 'get_ionlist',
            'get_leafs', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels', 'get_mainclust_leaves',
-           'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein',
+           'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein', 'get_median_peptides',
            'select_predscore_with_minimum_absval', 'get_diffresults_from_clust_root_node',
            'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions', 'update_nodes_w_ml_score',
            're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
@@ -376,13 +376,17 @@ def filter_fewpeps_per_protein(peptide_nodes):
         pepleaves = [x for x in pepnode.leaves if "seq" in x.inclusion_levels]
         pepnode2pval2numleaves.append((pepnode, pepnode.p_val,len(pepleaves)))
     pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True) #sort with highest p-val (least significant) first
-    numleaves_total = 0
-    for pepnode, _, numleaves in pepnode2pval2numleaves:
-        peps_filtered.append(pepnode)
-        numleaves_total+=numleaves
-        if numleaves_total>40:
-            break
-    return peps_filtered
+
+    return get_median_peptides(pepnode2pval2numleaves)
+
+
+import math
+def get_median_peptides(pepnode2pval2numleaves):
+    median_idx = math.floor(len(pepnode2pval2numleaves)/2)
+    if len(pepnode2pval2numleaves)<3:
+        return [x[0] for x in pepnode2pval2numleaves]
+    else:
+        return [x[0] for x in pepnode2pval2numleaves[median_idx-1:median_idx+1]]
 
 def select_predscore_with_minimum_absval(predscores):
     abs_predscores = [abs(x) for x in predscores]
@@ -458,7 +462,7 @@ def re_order_depending_on_predscore(protnode, typefilter):
             had_predscore = hasattr(child_nodes[0], 'predscore')
             if had_predscore:
                 re_order_clusters_by_predscore(child_nodes)
-                assign_vals_to_node(type_node,only_use_mainclust=True, use_fewpeps_per_protein=False)
+                assign_vals_to_node(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
 
 
