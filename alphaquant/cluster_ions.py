@@ -5,8 +5,9 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
            'order_by_score', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping', 'get_ionlist',
            'get_leafs', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels', 'get_mainclust_leaves',
            'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein',
-           'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions',
-           'update_nodes_w_ml_score', 're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
+           'select_predscore_with_minimum_absval', 'get_diffresults_from_clust_root_node',
+           'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions', 'update_nodes_w_ml_score',
+           're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
            'init_typefilter_from_yaml', 'NodeProperties', 'regex_frgions_only', 'regex_frgions_isotopes',
            'export_roots_to_json']
 
@@ -364,7 +365,7 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
 
     if hasattr(node.children[0], 'predscore'):
         predscores = [x.predscore for x in childs]
-        node.predscore = np.nanmean([x for x in predscores])
+        node.predscore = select_predscore_with_minimum_absval(predscores)
         node.cutoff = childs[0].cutoff
         node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
 
@@ -379,10 +380,15 @@ def filter_fewpeps_per_protein(peptide_nodes):
     for pepnode, _, numleaves in pepnode2pval2numleaves:
         peps_filtered.append(pepnode)
         numleaves_total+=numleaves
-        if numleaves_total>4:
+        if numleaves_total>40:
             break
     return peps_filtered
 
+def select_predscore_with_minimum_absval(predscores):
+    abs_predscores = [abs(x) for x in predscores]
+    min_value = min(abs_predscores)
+    min_index = abs_predscores.index(min_value)
+    return predscores[min_index]
 
 
 def get_diffresults_from_clust_root_node(root_node):
