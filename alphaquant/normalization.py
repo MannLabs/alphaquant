@@ -5,7 +5,8 @@ __all__ = ['get_normfacts_withincond', 'apply_sampleshifts', 'get_bestmatch_pair
            'shift_samples', 'get_total_shift', 'merge_distribs', 'determine_mode_iteratively', 'find_nearest',
            'mode_normalization', 'get_betweencond_shift', 'normalize_if_specified',
            'get_normalized_dfs_between_conditions', 'normalize_within_cond', 'prepare_tables_and_get_betweencond_shift',
-           'read_specified_protein_subset_if_given', 'prepare_table_for_betweencond_shift', 'filter_to_protein_subset',
+           'read_specified_protein_subset_if_given', 'get_protein_subset_from_protein_list',
+           'prepare_table_for_betweencond_shift', 'filter_to_protein_subset', 'test_if_proteingroup_is_in_subset',
            'drop_nas_if_possible', 'plot_withincond_normalization', 'use_benchmark_prenormed_file']
 
 # Cell
@@ -273,7 +274,7 @@ def mode_normalization(x):
 import numpy as np
 from scipy import stats
 
-def get_betweencond_shift(df_c1_normed, df_c2_normed):
+def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 
     both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
     df1 = df_c1_normed.loc[both_idx]
@@ -285,6 +286,9 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed):
 
     diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy()
     median = np.nanmedian(diff_fcs)
+    if enfore_median:
+        return -median
+
     if len(diff_fcs)<100:
         print("using median for shift")
         return -median
@@ -344,13 +348,22 @@ def prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_no
     specified_protein_subset = read_specified_protein_subset_if_given(protein_subset_for_normalization_file)
     prepared1 = prepare_table_for_betweencond_shift(df_c1, specified_protein_subset, pep2prot)
     prepared2 = prepare_table_for_betweencond_shift(df_c2, specified_protein_subset, pep2prot)
-    return get_betweencond_shift(prepared1, prepared2)
+    enforce_median = protein_subset_for_normalization_file is not None
+    return get_betweencond_shift(prepared1, prepared2, enforce_median)
 
 def read_specified_protein_subset_if_given(specified_protein_subset_file):
     if specified_protein_subset_file is not None:
-        return set(pd.read_csv(specified_protein_subset_file, sep = "\t")["protein"])
+        return get_protein_subset_from_protein_list(pd.read_csv(specified_protein_subset_file, sep = "\t")["protein"])
     else:
         return None
+
+def get_protein_subset_from_protein_list(protein_list):
+    protein_subset = []
+    for proteingroup in protein_list:
+        for protein in proteingroup.split(";"):
+            protein_subset.append(protein)
+
+    return set(protein_subset)
 
 
 def prepare_table_for_betweencond_shift(df, specified_protein_subset, pep2prot):
@@ -364,7 +377,14 @@ def filter_to_protein_subset(df, specified_protein_subset, pep2prot):
         return df
     else:
         proteins = [pep2prot.get(x) for x in df.index]
-        return df[[x in specified_protein_subset for x in proteins]] #protein is set to index
+        return df[[test_if_proteingroup_is_in_subset(x, specified_protein_subset) for x in proteins]] #protein is set to index
+
+def test_if_proteingroup_is_in_subset(proteingroup, specified_protein_subset):
+    for protein in proteingroup.split(";"):
+        if protein in specified_protein_subset:
+            return True
+
+    return False
 
 
 def drop_nas_if_possible(df):
