@@ -1043,7 +1043,6 @@ class ResultsTable():
 class ResultsTableSpectronaut(ResultsTable):
     def __init__(self, input_file, input_name, fdr_threshold = 0.05):
         super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
-
         self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
         self.formated_dataframe = super().subset_to_relevant_columns()
 
@@ -1064,13 +1063,41 @@ class ResultsTableSpectronaut(ResultsTable):
 
 
 class ResultsTableAlphaQuant(ResultsTable):
-    def __init__(self, input_file, input_name, fdr_threshold = 0.05):
+    def __init__(self, input_file, input_name, fdr_threshold = 0.05, pre_calculated_table = None):
         super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
-        self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
-        self.formated_dataframe = super().subset_to_relevant_columns()
+        self.predscore_column = "predscore"
+        if input_file is not None:
+            results_df = self.__read_input_file()
+        else:
+            results_df = pre_calculated_table
+        self.formated_dataframe = self.__reformat_to_default_dataframe(results_df)
+        self._formated_dataframe_nofilter = self.formated_dataframe
+        self.formated_dataframe = self.__subset_to_relevant_columns()
 
-    def __reformat_input_file_to_default_dataframe(self):
-        results_df = self.__read_input_file()
+
+
+    def reduce_formatted_df_to_predscore_quantile(self, percentile_to_retain):
+        df = self.__set_predscore_values_absolute()
+        df = self.__sort_dataframe_ascending_by_predscore(df)
+        df = self.__return_top_rows(df, percentile_to_retain)
+        self.formated_dataframe = df
+        self.formated_dataframe = self.__subset_to_relevant_columns()
+
+    @staticmethod
+    def __return_top_rows(df, percentile_to_retain):
+        return df.iloc[:int(percentile_to_retain*len(df.index))]
+
+    def __sort_dataframe_ascending_by_predscore(self, df):
+        return df.sort_values(by = self.predscore_column, ascending = True).reset_index()
+
+    def __set_predscore_values_absolute(self):
+        df = self._formated_dataframe_nofilter
+        df[self.predscore_column] = abs(self._formated_dataframe_nofilter[self.predscore_column])
+        return df
+
+
+    def __reformat_to_default_dataframe(self, results_df):
+
         results_df = self.__determine_called_proteins(results_df)
         return results_df
 
@@ -1081,6 +1108,10 @@ class ResultsTableAlphaQuant(ResultsTable):
     def __determine_called_proteins(self, results_df):
         results_df[self.called_column] = [x<self.fdr_threshold for x in results_df["fdr"]]
         return results_df
+
+    def __subset_to_relevant_columns(self):
+        df = self.formated_dataframe[[self.protein_column, self.called_column]]
+        return df
 
 
 import functools
@@ -1198,7 +1229,8 @@ class ClassificationBenchmarker():
         return ax
 
     def __annotate_plot_with_acceptable_false_id_numbers(self, ax):
-        self.__annotate_plot_with_acceptable_false_id_for_given_variable("called_AlphaQuant", ax)
+        for variable in self.variable2falsecountthreshold:
+            self.__annotate_plot_with_acceptable_false_id_for_given_variable(variable, ax)
 
     def __annotate_plot_with_acceptable_false_id_for_given_variable(self, variable, ax):
         threshold = self.variable2falsecountthreshold.get(variable)
