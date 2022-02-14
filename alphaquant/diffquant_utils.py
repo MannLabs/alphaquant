@@ -6,16 +6,16 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
            'count_fraction_outliers_from_expected_fc', 'find_node_parent_at_level', 'check_if_node_is_included',
            'write_chunk_to_file', 'set_logger', 'load_method_parameters', 'store_method_parameters',
-           'get_methods_dict_from_local_vars', 'add_ml_input_file_location', 'get_relevant_columns',
-           'get_relevant_columns_config_dict', 'get_config_columns', 'load_config', 'get_type2relevant_cols',
-           'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_quantitative_columns',
-           'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
-           'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable', 'reshape_input_df',
-           'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
-           'check_for_processed_runs_in_results_folder', 'import_data', 'get_input_type_and_config_dict',
-           'import_config_dict', 'get_samplenames', 'load_samplemap', 'prepare_loaded_tables',
-           'import_acquisition_info_df', 'get_ion_headers_from_config_dict', 'get_all_ion_headers', 'get_ion_row',
-           'get_ion_header', 'merge_acquisition_df_parameter_df']
+           'get_methods_dict_from_local_vars', 'add_ml_input_file_location', 'remove_aq_reformat_suffixes',
+           'get_relevant_columns', 'get_relevant_columns_config_dict', 'get_config_columns', 'load_config',
+           'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
+           'get_quantitative_columns', 'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df',
+           'add_merged_ionnames', 'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable',
+           'reshape_input_df', 'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table',
+           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data',
+           'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
+           'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
+           'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
 
 # Cell
 
@@ -304,12 +304,15 @@ def get_methods_dict_from_local_vars(local_vars):
 def add_ml_input_file_location(method_params):
     input_file = method_params.get("input_file")
     if ".aq_reformat" in input_file:
-        matched = re.match("(.*)(\.tsv)(\..*)", input_file)
-        ml_input_file = matched.group(1) + matched.group(2)
+        ml_input_file = remove_aq_reformat_suffixes(input_file)
     else:
         ml_input_file = input_file
     method_params["ml_input_file"] = ml_input_file
 
+def remove_aq_reformat_suffixes(input_file_name):
+    prefixes = input_file_name.split(".")[:-3]
+    cleaned_filename = ".".join(prefixes)
+    return cleaned_filename
 
 
 # Cell
