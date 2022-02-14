@@ -1066,6 +1066,7 @@ class ResultsTableAlphaQuant(ResultsTable):
     def __init__(self, input_file, input_name, fdr_threshold = 0.05, pre_calculated_table = None):
         super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
         self.predscore_column = "predscore"
+        self.consistencyscore_column = "consistency_score"
         if input_file is not None:
             results_df = self.__read_input_file()
         else:
@@ -1074,18 +1075,39 @@ class ResultsTableAlphaQuant(ResultsTable):
         self._formated_dataframe_nofilter = self.formated_dataframe
         self.formated_dataframe = self.__subset_to_relevant_columns()
 
+    def reduce_formatted_df_to_best_available_score_quantile(self, percentile_to_retain):
+        if self.predscore_column in self.formated_dataframe.columns:
+            self.reduce_formatted_df_to_predscore_quantile(percentile_to_retain)
+        else:
+            self.reduce_formatted_df_to_consistency_score_quantile(percentile_to_retain)
+
+    def reduce_formatted_df_to_consistency_score_quantile(self, percentile_to_retain):
+        sorted_df = self.__sort_dataframe_descending_by_consistency_score(self._formated_dataframe_nofilter)
+        self.__subset_formated_df_to_top_rows(sorted_df, percentile_to_retain)
 
 
     def reduce_formatted_df_to_predscore_quantile(self, percentile_to_retain):
+        sorted_df = self.__sort_by_predscore()
+        self.__subset_formated_df_to_top_rows(sorted_df, percentile_to_retain)
+
+
+    def __sort_by_predscore(self):
         df = self.__set_predscore_values_absolute()
         df = self.__sort_dataframe_ascending_by_predscore(df)
-        df = self.__return_top_rows(df, percentile_to_retain)
-        self.formated_dataframe = df
+        return df
+
+    def __subset_formated_df_to_top_rows(self, sorted_df, percentile_to_retain):
+        sorted_df = self.__return_top_rows(sorted_df, percentile_to_retain)
+        self.formated_dataframe = sorted_df
         self.formated_dataframe = self.__subset_to_relevant_columns()
+
 
     @staticmethod
     def __return_top_rows(df, percentile_to_retain):
         return df.iloc[:int(percentile_to_retain*len(df.index))]
+
+    def __sort_dataframe_descending_by_consistency_score(self, df):
+        return df.sort_values(by = self.consistencyscore_column, ascending = False).reset_index()
 
     def __sort_dataframe_ascending_by_predscore(self, df):
         return df.sort_values(by = self.predscore_column, ascending = True).reset_index()
@@ -1206,8 +1228,6 @@ class SpeciesAnnotator():
     def __filter_non_matching_proteins(results_df, species_column):
         results_df = results_df[[x is not None for x in results_df[species_column]]]
         return results_df
-
-
 
 
 # Cell
