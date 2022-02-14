@@ -386,7 +386,7 @@ def get_median_peptides(pepnode2pval2numleaves):
     if len(pepnode2pval2numleaves)<3:
         return [x[0] for x in pepnode2pval2numleaves]
     else:
-        return [x[0] for x in pepnode2pval2numleaves[median_idx-1:median_idx+1]]
+        return [x[0] for x in pepnode2pval2numleaves[:median_idx+1]]
 
 def select_predscore_with_minimum_absval(predscores):
     abs_predscores = [abs(x) for x in predscores]
