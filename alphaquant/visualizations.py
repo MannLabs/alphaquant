@@ -1894,7 +1894,10 @@ class ProteinIntensityDataFrameGetter():
         return aqutils.check_if_node_is_included(node_at_level)
     @staticmethod
     def __assign_predscore_of_node_at_level( leaf, ion_level):
-        return abs(aqutils.find_node_parent_at_level(leaf, ion_level).predscore)
+        if not hasattr(leaf, "predscore"):
+            return 0.5
+        predscore = aqutils.find_node_parent_at_level(leaf, ion_level).predscore
+        return abs(predscore)
     @staticmethod
     def __assign_name_of_node_at_level(leaf, ion_level):
         return aqutils.find_node_parent_at_level(leaf, ion_level).name
