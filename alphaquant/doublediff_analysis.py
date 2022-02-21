@@ -143,7 +143,7 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
             ddeed_ion1_ion2 = aqbg.get_doublediff_bg(deed_ion1, deed_ion2, deedpair2doublediffdist,p2z)
             z_pair, fcfc_pair = calc_per_peppair_z_and_fcfc(overlapping_c1_idx, overlapping_c2_idx, ion1_c1_ints, ion1_c2_ints, ion2_c1_ints, ion2_c2_ints, ddeed_ion1_ion2)
             z_total+=z_pair
-            fcfc_total+=z_pair
+            fcfc_total+=fcfc_pair
             count_pairs+=1
 
     if count_pairs==0: # in this case, it was not possible to find any sample overlaps -> no comparison "possible"
