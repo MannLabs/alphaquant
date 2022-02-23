@@ -4,10 +4,11 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
            'get_score_mapping_consistency_score', 'get_score_mapping_num_clustelems', 'reformat_to_childnode2clust',
            'order_by_score', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping', 'get_ionlist',
            'get_leafs', 'exclude_node', 'cluster_along_specified_levels', 'get_mainclust_leaves',
-           'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein',
-           'set_bounds_for_p_if_too_extreme', 'get_median_peptides', 'select_predscore_with_minimum_absval',
-           'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions',
-           'update_nodes_w_ml_score', 're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
+           'annotate_mainclust_leaves', 'assign_cluster_number', 'assign_vals_to_node',
+           'get_feature_numpy_array_from_nodes', 'filter_fewpeps_per_protein', 'set_bounds_for_p_if_too_extreme',
+           'get_median_peptides', 'select_predscore_with_minimum_absval', 'get_diffresults_from_clust_root_node',
+           'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions', 'update_nodes_w_ml_score',
+           're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
            'init_typefilter_from_yaml', 'globally_initialized_typefilter', 'NodeProperties', 'regex_frgions_only',
            'regex_frgions_isotopes', 'export_roots_to_json']
 
@@ -235,16 +236,14 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             continue
         for type_node in type_nodes:
             child_nodes = type_node.children
-            #leaflist, node2leafs = get_ionlist(child_nodes, ionname2diffion, select_mainclust_ions=True)
             leaflist = get_mainclust_leaves(child_nodes, ionname2diffion)
-            #print(type_node.name)
-            #print([len([y.name for y in x]) for x in leaflist])
             if len(leaflist)==0:
                 exclude_node(type_node)
                 continue
             childnode2clust = find_fold_change_clusters(type_node,leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
             childnode2clust = decide_cluster_order(type_node,childnode2clust)
             annotate_mainclust_leaves(childnode2clust)
+            assign_cluster_number(type_node, childnode2clust)
             assign_vals_to_node(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
     return root_node
@@ -283,6 +282,15 @@ def annotate_mainclust_leaves(childnode2clust):
                 leafnode.inclusion_levels = [child.type]
 
 # Cell
+
+def assign_cluster_number(type_node, childnode2clust):
+    for node in type_node.children:
+        if not node.is_included:
+            continue
+        clustid =  childnode2clust.get(node)
+        node.cluster = clustid
+
+# Cell
 import anytree
 import alphaquant.diff_analysis as aqdiff
 import alphaquant.diffquant_utils as aqutils
@@ -307,11 +315,14 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
         childs = filter_fewpeps_per_protein(childs)
 
 
-    zvals = [x.z_val for x in childs]
-    fcs =  [x.fc for x in childs]
-    cvs = [x.cv for x in childs]
-    min_intensity = np.nanmedian([x.min_intensity for x in childs])
-    min_reps = np.nanmedian([x.min_reps for x in childs])
+    zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
+    fcs =  get_feature_numpy_array_from_nodes(nodes=childs, feature_name="fc")
+    cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
+    min_intensity = np.median(np.array([x.min_intensity for x in childs]))
+    min_reps = np.median([x.min_reps for x in childs])
+    if np.isnan(min_intensity) or np.isnan(min_reps):
+        Exception("values could not be determined!")
+
     fraction_consistent = sum([x.fraction_consistent/len(node.children) for x in childs if x.cluster ==0])
 
 
@@ -329,7 +340,7 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
 
     node.z_val = z_normed
     node.p_val = p_val
-    node.fc = np.nanmedian(fcs)
+    node.fc = np.median(fcs)
     node.fraction_consistent = fraction_consistent
     node.cv = min(cvs)
     node.min_intensity = min_intensity
@@ -340,6 +351,10 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
         node.predscore = select_predscore_with_minimum_absval(predscores)
         node.cutoff = childs[0].cutoff
         node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
+
+def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = np.float):
+    generator = (x.__dict__.get(feature_name) for x in nodes)
+    return np.fromiter(generator, dtype=dtype)
 
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
