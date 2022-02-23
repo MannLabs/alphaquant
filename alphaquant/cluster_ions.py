@@ -3,7 +3,7 @@
 __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster_order',
            'get_score_mapping_consistency_score', 'get_score_mapping_num_clustelems', 'reformat_to_childnode2clust',
            'order_by_score', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping', 'get_ionlist',
-           'get_leafs', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels', 'get_mainclust_leaves',
+           'get_leafs', 'exclude_node', 'cluster_along_specified_levels', 'get_mainclust_leaves',
            'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein',
            'set_bounds_for_p_if_too_extreme', 'get_median_peptides', 'select_predscore_with_minimum_absval',
            'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions',
@@ -213,20 +213,6 @@ def get_leafs(node, ionname2diffion,select_mainclust_ions):
 
 
 
-def update_nodes(type_node, typefilter, type_idx, childnode2clust):
-
-    for node in type_node.children:
-        if not node.is_included:
-            continue
-        clustid =  childnode2clust.get(node)
-        node.cluster = clustid
-        leafs_included = [x for x in type_node.leaves if x.is_included]
-        no_leafs = len(leafs_included)==0
-        wrong_cluster = (clustid!=typefilter.select_cluster[type_idx]) & (typefilter.select_cluster[type_idx] !=-1)
-        #wrong_cluster = (clustid!=type_node.mostcommon_clust) & (typefilter.select_cluster[type_idx] ==-1) #all children should belong to the most common cluster
-
-        if wrong_cluster | no_leafs:
-            exclude_node(node)
 
 # Cell
 import anytree
@@ -238,7 +224,7 @@ def exclude_node(node):
 # Cell
 import pickle
 import pandas as pd
-def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
+def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
     #typefilter object specifies filtering and clustering of the nodes
     assign_fcs_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
@@ -259,7 +245,6 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             childnode2clust = find_fold_change_clusters(type_node,leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
             childnode2clust = decide_cluster_order(type_node,childnode2clust)
             annotate_mainclust_leaves(childnode2clust)
-            update_nodes(type_node, typefilter, idx, childnode2clust)
             assign_vals_to_node(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
     return root_node
