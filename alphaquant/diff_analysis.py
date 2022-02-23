@@ -5,7 +5,7 @@ __all__ = ['DifferentialIon', 'calc_diffreg_peptide', 'calc_outlier_scaling_fact
            'select_representative_DIA_fragions', 'group_ions_by_precursor']
 
 # Cell
-from scipy.stats import norm
+from statistics import NormalDist
 import numpy as np
 import math
 import statistics
@@ -55,7 +55,7 @@ def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_c
 
     fc = fc_sum/(nrep_from * nrep_to)
     scaled_SD =  math.sqrt(totalVariance/diffDist.var)*outlier_scaling_factor
-    p_val = 2.0 * (1.0 -  norm(loc=0, scale= scaled_SD).cdf(abs(z_sum)))
+    p_val = 2.0 * (1.0 -  NormalDist(mu=0, sigma= scaled_SD).cdf(abs(z_sum)))
     z_val = z_sum/scaled_SD
 
     return p_val, fc, z_val
@@ -82,7 +82,7 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
 # Cell
 import math
 import statistics
-from scipy.stats import norm
+
 import numpy as np
 import alphaquant.diffquant_utils as aqutils
 class DifferentialProtein():
@@ -114,7 +114,7 @@ def evaluate_protein_expression(ion_diffresults, median_offset):
 
 
     z_sum = sum(map(lambda _dr: _dr.z_val, ion_diffresults))
-    p_val = 2.0 * (1.0 - norm(0, math.sqrt(len(ion_diffresults))).cdf(abs(z_sum)))
+    p_val = 2.0 * (1.0 - statistics.NormalDist(mu = 0, sigma = math.sqrt(len(ion_diffresults))).cdf(abs(z_sum)))
     ions = list(map(lambda _dr : _dr.name, ion_diffresults))
 
     prot_fc = median_offset_fc if median_offset else median_fc

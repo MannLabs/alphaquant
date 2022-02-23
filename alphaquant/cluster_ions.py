@@ -4,12 +4,12 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
            'get_score_mapping_consistency_score', 'get_score_mapping_num_clustelems', 'reformat_to_childnode2clust',
            'order_by_score', 'get_fcs_ions', 'evaluate_distance', 'create_hierarchical_ion_grouping', 'get_ionlist',
            'get_leafs', 'update_nodes', 'exclude_node', 'cluster_along_specified_levels', 'get_mainclust_leaves',
-           'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein', 'get_median_peptides',
-           'select_predscore_with_minimum_absval', 'get_diffresults_from_clust_root_node',
-           'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions', 'update_nodes_w_ml_score',
-           're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
-           'init_typefilter_from_yaml', 'NodeProperties', 'regex_frgions_only', 'regex_frgions_isotopes',
-           'export_roots_to_json']
+           'annotate_mainclust_leaves', 'assign_vals_to_node', 'filter_fewpeps_per_protein',
+           'set_bounds_for_p_if_too_extreme', 'get_median_peptides', 'select_predscore_with_minimum_absval',
+           'get_diffresults_from_clust_root_node', 'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions',
+           'update_nodes_w_ml_score', 're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
+           'init_typefilter_from_yaml', 'globally_initialized_typefilter', 'NodeProperties', 'regex_frgions_only',
+           'regex_frgions_isotopes', 'export_roots_to_json']
 
 # Cell
 import scipy.spatial.distance as distance
@@ -228,22 +228,8 @@ def update_nodes(type_node, typefilter, type_idx, childnode2clust):
         if wrong_cluster | no_leafs:
             exclude_node(node)
 
-    filtercrit_numclust = hasattr(type_node, "num_clusters") and (type_node.num_clusters > typefilter.exclude_if_more_clusters_than[type_idx])
-    filtercrit_frac_mainclust = hasattr(type_node, "frac_mainclust") and (type_node.frac_mainclust < typefilter.exclude_if_fraction_of_mainclust_smaller_than[type_idx])
-    filtercrit_elems_mainclust = hasattr(type_node, "num_mainclust_elems") and(type_node.num_mainclust_elems < typefilter.exclude_if_elements_in_mainclust_less_than[type_idx])
-    filtercrit_elems_mostcommonclust = hasattr(type_node, "num_mostcommonclust_elems") and(type_node.num_mostcommonclust_elems < typefilter.exclude_if_elements_in_mostcommonclust_less_than[type_idx])
-    filtercrit_frac_mostcommonclust = hasattr(type_node, "frac_mostcommonclust") and(type_node.frac_mostcommonclust < typefilter.exclude_if_frac_mostcommonclust_less_than[type_idx])
-    filtercrit_num_mainclusts = hasattr(type_node, "num_mainclusts") and(type_node.num_mainclusts < typefilter.exclude_if_num_mainclusts_less_than[type_idx])
-    filtercrit_num_mostcommonclusts = hasattr(type_node, "num_mostcommon_clusts") and(type_node.num_mostcommon_clusts < typefilter.exclude_if_num_mostcommonclusts_less_than[type_idx])
-    no_leafs = len([x for x in node.leaves if x.is_included])==0
-    #print("filtercrit_numclust\tfiltercrit_frac_mainclust\tfiltercrit_elems_mainclust\tfiltercrit_elems_mostcommonclust\tfiltercrit_frac_mostcommonclust\tfiltercrit_num_mainclusts\tfiltercrit_num_mostcommonclusts")
-    #print(f"{filtercrit_numclust}\t{filtercrit_frac_mainclust}\t{filtercrit_elems_mainclust}\t{filtercrit_elems_mostcommonclust}\t{filtercrit_frac_mostcommonclust}\t{filtercrit_num_mainclusts}\t{filtercrit_num_mostcommonclusts}")
-
-    if filtercrit_numclust | filtercrit_frac_mainclust | filtercrit_elems_mainclust |filtercrit_elems_mostcommonclust| filtercrit_frac_mostcommonclust |filtercrit_num_mainclusts | filtercrit_num_mostcommonclusts | no_leafs :
-        exclude_node(type_node)
-
 # Cell
-
+import anytree
 def exclude_node(node):
     node.is_included = False
     for descendant in node.descendants:
@@ -315,7 +301,7 @@ def annotate_mainclust_leaves(childnode2clust):
 import anytree
 import alphaquant.diff_analysis as aqdiff
 import alphaquant.diffquant_utils as aqutils
-from scipy.stats import norm
+from statistics import NormalDist
 import statistics
 import numpy as np
 
@@ -346,14 +332,15 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
 
 
     z_sum = sum(zvals)
-    p_z = norm(0, np.sqrt(len(zvals))).cdf(z_sum)
-    z_normed = norm.ppf(p_z)
-    if z_normed <-8.2:
-        z_normed = -8.2
-    if z_normed > 8.2:
-        z_normed = 8.2
+    p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
+    p_z = set_bounds_for_p_if_too_extreme(p_z)
+    z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z)
+    if z_normed <-8.3:
+        Exception("not in alignment with bounded pval")
+    if z_normed > 8.3:
+        Exception("not in alignment with bounded pval")
 
-    p_val = max(1e-16, 2.0 * (1.0 - norm(0, np.sqrt(len(zvals))).cdf(abs(z_sum))))
+    p_val = max(1e-16, 2.0 * (1.0 - NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(abs(z_sum))))
 
     node.z_val = z_normed
     node.p_val = p_val
@@ -380,6 +367,14 @@ def filter_fewpeps_per_protein(peptide_nodes):
     return get_median_peptides(pepnode2pval2numleaves)
 
 
+def set_bounds_for_p_if_too_extreme(p_val):
+    if p_val <1e-16:
+        return 1e-16
+    elif p_val > 1-(1e-16):
+        return 1- (1e-16)
+    else:
+        return p_val
+
 import math
 def get_median_peptides(pepnode2pval2numleaves):
     median_idx = math.floor(len(pepnode2pval2numleaves)/2)
@@ -404,12 +399,12 @@ def get_diffresults_from_clust_root_node(root_node):
 
 def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     #typefilter = TypeFilter('successive')
-    typefilter = init_typefilter_from_yaml('default')
+
     regex_patterns = regex_frgions_isotopes
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions)
     #print(anytree.RenderTree(root_node))
-    root_node_clust = cluster_along_specified_levels(typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
+    root_node_clust = cluster_along_specified_levels(globally_initialized_typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
     #print(anytree.RenderTree(root_node_clust))
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
@@ -531,6 +526,8 @@ def init_typefilter_from_yaml(filttype):
     typefilt.exclude_if_num_mostcommonclusts_less_than = filttype_dict.get("exclude_if_num_mostcommonclusts_less_than")
 
     return typefilt
+
+globally_initialized_typefilter = init_typefilter_from_yaml('default')
 
 # Cell
 

@@ -84,7 +84,7 @@ class ConditionBackgrounds():
 import numpy as np
 import random
 import pandas as pd
-from scipy.stats import norm
+from statistics import NormalDist
 import math
 from time import time
 import typing
@@ -198,13 +198,12 @@ class BackGroundDistribution:
         """
         total = self.cumulative[-1]
         min_pval = 1/(total+1)
-        self.max_z = abs(norm.ppf(max(1e-9, min_pval)))
+        self.max_z = abs(NormalDist().inv_cdf(max(1e-9, min_pval)))
         zscores = np.zeros(len(self.cumulative))
         zero_pos = -self.min_fc
 
         normfact_posvals = 1/(total-self.cumulative[zero_pos]+1)
         normfact_negvals = 1/(self.cumulative[zero_pos-1]+1)
-        norm_fix = norm()
         for i in range(len(self.cumulative)):
             t_start = time()
             num_more_extreme = 0
@@ -271,7 +270,6 @@ class BackGroundDistribution:
         self.SD = math.sqrt(var)
 
 # Cell
-from scipy.stats import norm
 from numba import jit
 from time import time
 
@@ -361,13 +359,13 @@ def get_doublediff_bg(deed_ion1, deed_ion2, deedpair2doublediffdist, p2z):
     return subtr_bg
 
 # Cell
-from scipy.stats import norm
+from statistics import NormalDist
 
 def get_z_from_p_empirical(p_emp,p2z):
     p_rounded = np.format_float_scientific(p_emp, 1)
     if p_rounded in p2z:
         return p2z.get(p_rounded)
-    z = norm.ppf(float(p_rounded))
+    z = NormalDist().inv_cdf(float(p_rounded))
     p2z[p_rounded] = z
     return z
 

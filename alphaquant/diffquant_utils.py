@@ -121,13 +121,13 @@ def invert_dictionary(my_map):
     return inv_map
 
 # Cell
-from scipy.stats import norm
+import statistics
 
 def get_z_from_p_empirical(p_emp,p2z):
     p_rounded = np.format_float_scientific(p_emp, 1)
     if p_rounded in p2z:
         return p2z.get(p_rounded)
-    z = norm.ppf(float(p_rounded))
+    z = statistics.NormalDist().inv_cdf(float(p_rounded))
     p2z[p_rounded] = z
     return z
 
