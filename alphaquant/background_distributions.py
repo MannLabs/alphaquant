@@ -88,6 +88,7 @@ from statistics import NormalDist
 import math
 from time import time
 import typing
+from numba import njit
 
 class BackGroundDistribution:
     """Represents and derives an empirical distribution to describe the variation underlying a measurment
@@ -158,10 +159,10 @@ class BackGroundDistribution:
         Returns:
             updates the self.fc2counts instance variable
         """
-        anchor_fcs = np.array(anchor_fcs)
-        for idx in range(1, anchor_fcs.shape[0]):
-            fc_binned = np.rint(self.fc_resolution_factor*(0.5*(anchor_fcs[idx-1] - anchor_fcs[idx]))).astype(np.long)
-            self.fc2counts[fc_binned] = self.fc2counts.setdefault(fc_binned, 0) + 1 #the distribution is saved in 2d (binned fold changes vs. count) for memory efficiency
+        anchor_fcs = anchor_fcs
+        for idx in range(1, len(anchor_fcs)):
+            fc_binned = np.rint(self.fc_resolution_factor*(0.5*(anchor_fcs[idx-1] - anchor_fcs[idx]))).astype(np.int64)
+            self.fc2counts[fc_binned] = self.fc2counts.get(fc_binned, 0) + 1 #the distribution is saved in 2d (binned fold changes vs. count) for memory efficiency
 
         self.min_fc = min(self.fc2counts.keys())
         self.max_fc = max(self.fc2counts.keys())
@@ -230,25 +231,8 @@ class BackGroundDistribution:
 
 
     def calc_zscore_from_fc(self, fc):
-        """
-        Quick conversion function that looks up the z-value corresponding to an observed new fold change.
-        The fold change is mapped to its fc-bin in the binned fold change distribution and then the z-value of the bin is looked up
+        return _calc_zscore_from_fc(fc, self.fc_conversion_factor, self.fc_resolution_factor, self.min_fc, self.cumulative, self.max_z, self.zscores)
 
-        Args:
-            fc (float): [description]
-
-        Returns:
-            float: z-value of the observed fold change, based on the background distribution
-        """
-        if abs(fc)<self.fc_conversion_factor:
-            return 0
-        k = int(fc * self.fc_resolution_factor)
-        rank = k-self.min_fc
-        if rank <0:
-            return -self.max_z
-        if rank >=len(self.cumulative):
-            return self.max_z
-        return self.zscores[rank]
 
 
     def calc_SD(self, mean:float, cumulative:list):
@@ -268,6 +252,29 @@ class BackGroundDistribution:
         var = sq_err/total
         self.var = var
         self.SD = math.sqrt(var)
+
+@njit
+def _calc_zscore_from_fc(fc, fc_conversion_factor, fc_resolution_factor, min_fc, cumulative, max_z, zscores):
+    """
+    Quick conversion function that looks up the z-value corresponding to an observed new fold change.
+    The fold change is mapped to its fc-bin in the binned fold change distribution and then the z-value of the bin is looked up
+
+    Args:
+        fc (float): [description]
+
+    Returns:
+        float: z-value of the observed fold change, based on the background distribution
+    """
+    if abs(fc)<fc_conversion_factor:
+        return 0
+    k = int(fc * fc_resolution_factor)
+    rank = k-min_fc
+    if rank <0:
+        return -max_z
+    if rank >=len(cumulative):
+        return max_z
+    return zscores[rank]
+
 
 # Cell
 from numba import jit
@@ -370,8 +377,10 @@ def get_z_from_p_empirical(p_emp,p2z):
     return z
 
 # Cell
-#get normalized freqs from cumulative
+from numba import njit
 
+#get normalized freqs from cumulative
+@njit
 def get_normed_freqs(cumulative):
     normfact = 2**30 /cumulative[-1]
     freqs =get_freq_from_cumul(cumulative)
@@ -380,8 +389,10 @@ def get_normed_freqs(cumulative):
     return freqs
 
 # Cell
-#transform cumulative into frequency
+from numba import njit
 
+#transform cumulative into frequency
+@njit
 def get_freq_from_cumul(cumulative):
     res = np.zeros(len(cumulative), dtype=np.int64)
     res[0] = cumulative[0]
@@ -391,14 +402,23 @@ def get_freq_from_cumul(cumulative):
     return res
 
 # Cell
+import numba.typed
+import numba.types
+#@njit
+
 def transform_cumulative_into_fc2count(cumulative, min_fc):
-    res = {}
+#     res_dict = numba.typed.Dict.empty(
+#     key_type=numba.types.int64,
+#     value_type=numba.types.int64,
+# )
+    res_dict = {}
     for idx in range(1, len(cumulative)):
         fc = idx + min_fc
-        res[fc] = cumulative[idx] - cumulative[idx-1]
-    return res
+        res_dict[fc] = cumulative[idx] - cumulative[idx-1]
+    return res_dict
 
 # Cell
+@njit
 def get_cumul_from_freq(freq):
     res = np.zeros(len(freq), dtype=np.int64)
     res[0] = freq[0]
