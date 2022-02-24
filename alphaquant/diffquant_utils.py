@@ -12,7 +12,7 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'get_quantitative_columns', 'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df',
            'add_merged_ionnames', 'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable',
            'reshape_input_df', 'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table',
-           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data',
+           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data', 'expand_samples_subset',
            'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
            'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
            'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
@@ -708,6 +708,8 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None):
     :param file input_file: quantified peptide/ion -level data
     :param file results_folder: the folder where the AlphaQuant outputs are stored
     """
+
+    samples_subset = expand_samples_subset(samples_subset)
     if "aq_reformat" in input_file:
         data = pd.read_csv(input_file, sep = "\t", encoding ='latin1', usecols=samples_subset)
         return data
@@ -719,8 +721,7 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None):
 
     if samples_subset is not None and os.path.exists(outfile_name):
         #in the case of very large files that have already been written, read only the relevant samples
-        cols_input = samples_subset + ["ion", "protein"]
-        input_reshaped_subset = pd.read_csv(outfile_name, sep = "\t", usecols=cols_input)
+        input_reshaped_subset = pd.read_csv(outfile_name, sep = "\t", usecols=samples_subset)
         return input_reshaped_subset
 
 
@@ -736,6 +737,11 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None):
     return input_reshaped
 
 
+def expand_samples_subset(samples_subset):
+    if samples_subset is not None:
+        return samples_subset + ["ion", "protein"]
+    else:
+        return None
 
 
 
