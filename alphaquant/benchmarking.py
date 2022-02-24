@@ -336,8 +336,8 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
     _, samplemap_df = aqutils.prepare_loaded_tables(fragion_df, samplemap_df)
     fragion_df = fragion_df.set_index('ion')
 
-    c1_samples, c2_samples, df_c1, df_c2 = aqdiffmgr.format_condpair_input(samplemap_df, fragion_df, ('S1', 'S2'), minrep= 4)
-    df_c1_normed, df_c2_normed = aqnorm.get_normalized_dfs(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
+    df_c1, df_c2, c1_samples, c2_samples = aqdiffmgr.format_condpair_input(samplemap_df = samplemap_df, input_df = fragion_df, input_file=input_file,condpair = ('S1', 'S2'), minrep= 4)
+    df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
     normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
     normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
     diffions = get_subset_of_diffions(normed_c1, normed_c2, num_ions)
