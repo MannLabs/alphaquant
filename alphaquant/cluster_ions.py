@@ -318,8 +318,10 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
     zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
     fcs =  get_feature_numpy_array_from_nodes(nodes=childs, feature_name="fc")
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
-    min_intensity = np.median(np.array([x.min_intensity for x in childs]))
-    min_reps = np.median([x.min_reps for x in childs])
+    min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
+    min_intensity = np.median(min_intensities)
+    min_reps_childs = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_reps")
+    min_reps = np.median(min_reps_childs)
     if np.isnan(min_intensity) or np.isnan(min_reps):
         Exception("values could not be determined!")
 
