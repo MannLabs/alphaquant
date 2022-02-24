@@ -19,3 +19,4 @@ lmfit
 dask
 multiprocess
 pyopenms
+pyfasta
