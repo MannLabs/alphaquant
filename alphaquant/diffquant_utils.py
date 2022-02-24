@@ -709,7 +709,7 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None):
     :param file results_folder: the folder where the AlphaQuant outputs are stored
     """
     if "aq_reformat" in input_file:
-        data = pd.read_csv(input_file, sep = "\t", encoding ='latin1')
+        data = pd.read_csv(input_file, sep = "\t", encoding ='latin1', usecols=samples_subset)
         return data
 
     input_type, config_dict_for_type, sep = get_input_type_and_config_dict(input_file, input_type_to_use)
@@ -734,6 +734,8 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None):
 
     input_reshaped = pd.read_csv(outfile_name, sep = "\t", encoding = 'latin1')
     return input_reshaped
+
+
 
 
 
