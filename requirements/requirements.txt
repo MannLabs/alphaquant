@@ -16,3 +16,5 @@ graphviz==0.16
 click==8.0.1
 sklearn
 lmfit
+dask
+multiprocess
