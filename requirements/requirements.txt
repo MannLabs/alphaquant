@@ -18,3 +18,4 @@ sklearn
 lmfit
 dask
 multiprocess
+pyopenms
