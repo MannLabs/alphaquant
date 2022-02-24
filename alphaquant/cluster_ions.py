@@ -9,8 +9,8 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
            'get_median_peptides', 'select_predscore_with_minimum_absval', 'get_diffresults_from_clust_root_node',
            'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions', 'update_nodes_w_ml_score',
            're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
-           'init_typefilter_from_yaml', 'globally_initialized_typefilter', 'NodeProperties', 'regex_frgions_only',
-           'regex_frgions_isotopes', 'export_roots_to_json']
+           'globally_initialized_typefilter', 'NodeProperties', 'regex_frgions_only', 'regex_frgions_isotopes',
+           'export_roots_to_json']
 
 # Cell
 import scipy.spatial.distance as distance
@@ -444,7 +444,7 @@ def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
 # Cell
 import numpy as np
 def update_nodes_w_ml_score(protnodes):
-    typefilter = init_typefilter_from_yaml('default')
+    typefilter = globally_initialized_typefilter
     for prot in protnodes:
         re_order_depending_on_predscore(prot, typefilter)
 
@@ -477,59 +477,11 @@ def re_order_clusters_by_predscore(nodes):
 # Cell
 import numpy as np
 class TypeFilter():
-    def __init__(self, filttype= 'hierarchy'):
-        if filttype=='hierarchy':
+    def __init__(self, filttype= 'default'):
+        if filttype=='default':
             self.type = ['frgion', 'ms1_isotopes', 'mod_seq_charge', 'mod_seq', 'seq', 'gene']
-            self.select_cluster = [-1,-1,-1,-1,-1,-1,-1]
-            self.exclude_if_more_clusters_than = [ np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
-            self.exclude_if_fraction_of_mainclust_smaller_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_frac_mostcommonclust_less_than = [0,0,0,0,0,0]
-            self.exclude_if_elements_in_mainclust_less_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_elements_in_mostcommonclust_less_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_num_mainclusts_less_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_num_mostcommonclusts_less_than = [0, 0, 0, 0, 0, 2]
-        if filttype == 'only_frgion':
-            self.type = ['frgion', 'ms1_isotopes', 'mod_seq_charge', 'mod_seq', 'seq', 'gene']
-            self.select_cluster = [0,-1,-1,-1,-1,-1,-1]
-            self.exclude_if_more_clusters_than = [ np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
-            self.exclude_if_fraction_of_mainclust_smaller_than = [0, 0, 0.2, 0, 0, 0.3]
-            self.exclude_if_frac_mostcommonclust_less_than = [0,0,0,0,0,0]
-            self.exclude_if_elements_in_mainclust_less_than = [1, 1, 1, 1, 1, 1]
-            self.exclude_if_elements_in_mostcommonclust_less_than = [1, 1, 1, 1, 1, 1]
-            self.exclude_if_num_mainclusts_less_than = [1, 1, 1, 1, 1, 1]
-            self.exclude_if_num_mostcommonclusts_less_than = [1, 1, 1, 1, 1, 2]
-        if filttype=='successive':
-            self.type = ['frgion', 'ms1_isotopes', 'mod_seq_charge', 'mod_seq', 'seq', 'gene']
-            self.select_cluster = [0, 0,-1,-1,-1,-1,-1]
-            self.exclude_if_more_clusters_than = [ np.inf, np.inf, np.inf, np.inf, np.inf, np.inf]
-            self.exclude_if_fraction_of_mainclust_smaller_than = [0, 0, 0.6, 0.6, 0, 0]
-            self.exclude_if_frac_mostcommonclust_less_than = [0,0,0,0,0,0]
-            self.exclude_if_elements_in_mainclust_less_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_elements_in_mostcommonclust_less_than = [0, 0, 0, 0, 0, 0]
-            self.exclude_if_num_mainclusts_less_than = [0, 0, 2, 0, 0, 2]
-            self.exclude_if_num_mostcommonclusts_less_than = [0, 0, 0, 0, 0, 0]
 
-# Cell
-import yaml
-import os
-import pathlib
-def init_typefilter_from_yaml(filttype):
-    typefilter_yaml = os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "typefilt_config.yaml")
-    stream = open(typefilter_yaml, 'r')
-    typefilter_yaml = yaml.safe_load(stream)
-    filttype_dict = typefilter_yaml.get(filttype)
-    typefilt = TypeFilter(filttype)
-    typefilt.type = filttype_dict.get("type")
-    typefilt.select_cluster = filttype_dict.get("select_cluster")
-    typefilt.exclude_if_more_clusters_than = filttype_dict.get("exclude_if_more_clusters_than")
-    typefilt.exclude_if_fraction_of_mainclust_smaller_than = filttype_dict.get("exclude_if_fraction_of_mainclust_smaller_than")
-    typefilt.exclude_if_frac_mostcommonclust_less_than = filttype_dict.get("exclude_if_frac_mostcommonclust_less_than")
-    typefilt.exclude_if_num_mainclusts_less_than = filttype_dict.get("exclude_if_num_mainclusts_less_than")
-    typefilt.exclude_if_num_mostcommonclusts_less_than = filttype_dict.get("exclude_if_num_mostcommonclusts_less_than")
-
-    return typefilt
-
-globally_initialized_typefilter = init_typefilter_from_yaml('default')
+globally_initialized_typefilter = TypeFilter()
 
 # Cell
 
