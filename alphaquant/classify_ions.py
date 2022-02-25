@@ -811,8 +811,6 @@ def add_quality_scores_to_node(acquisition_info_df, nodes):
         param = "FG.ShapeQualityScore"
     elif "Quantity.Quality" in acquisition_info_df.columns:
         param = "Quantity.Quality"
-    else:
-        raise Exception("could not find the quality score")
 
     df_avged = acquisition_info_df.groupby("ion").mean().reset_index()
     ion2param = dict(zip(df_avged["ion"], df_avged[param]))
