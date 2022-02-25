@@ -2,7 +2,8 @@
 
 __all__ = ["index", "modules", "custom_doc_links", "git_url"]
 
-index = {"run_pipeline": "01_diff_analysis_manager.ipynb",
+index = {"RunConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
+         "run_pipeline": "01_diff_analysis_manager.ipynb",
          "min_num_ions": "01_diff_analysis_manager.ipynb",
          "use_iontree_if_possible": "01_diff_analysis_manager.ipynb",
          "annotation_file": "01_diff_analysis_manager.ipynb",
