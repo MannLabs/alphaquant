@@ -6,16 +6,16 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
            'count_fraction_outliers_from_expected_fc', 'find_node_parent_at_level', 'check_if_node_is_included',
            'write_chunk_to_file', 'set_logger', 'load_method_parameters', 'store_method_parameters',
-           'get_methods_dict_from_local_vars', 'add_ml_input_file_location', 'remove_aq_reformat_suffixes',
-           'get_relevant_columns', 'get_relevant_columns_config_dict', 'get_config_columns', 'load_config',
-           'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict',
-           'get_quantitative_columns', 'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df',
-           'add_merged_ionnames', 'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable',
-           'reshape_input_df', 'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table',
-           'read_condpair_tree', 'check_for_processed_runs_in_results_folder', 'import_data', 'expand_samples_subset',
+           'save_dict_as_yaml', 'get_methods_dict_from_local_vars', 'add_ml_input_file_location',
+           'get_path_to_unformatted_file', 'get_relevant_columns', 'get_relevant_columns_config_dict',
+           'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
+           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
+           'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
+           'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable', 'reshape_input_df',
+           'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
+           'check_for_processed_runs_in_results_folder', 'import_data', 'expand_samples_subset',
            'get_input_type_and_config_dict', 'import_config_dict', 'get_samplenames', 'load_samplemap',
-           'prepare_loaded_tables', 'import_acquisition_info_df', 'get_ion_headers_from_config_dict',
-           'get_all_ion_headers', 'get_ion_row', 'get_ion_header', 'merge_acquisition_df_parameter_df']
+           'prepare_loaded_tables', 'AcquistionDataFrameHandler', 'merge_acquisition_df_parameter_df']
 
 # Cell
 
@@ -288,8 +288,12 @@ def store_method_parameters(local_vars, results_dir):
         method_params.update(previous_params)
     if not os.path.exists(f"{results_dir}/"):
         os.makedirs(f"{results_dir}/")
-    with open(params_file, 'w') as outfile:
-        yaml.dump(method_params, outfile, default_flow_style=False)
+    save_dict_as_yaml(method_params, params_file)
+
+def save_dict_as_yaml(dict, file):
+    with open(file, 'w') as outfile:
+        yaml.dump(dict, outfile, default_flow_style=False)
+
 
 def get_methods_dict_from_local_vars(local_vars):
     method_params = {}
@@ -304,12 +308,12 @@ def get_methods_dict_from_local_vars(local_vars):
 def add_ml_input_file_location(method_params):
     input_file = method_params.get("input_file")
     if ".aq_reformat" in input_file:
-        ml_input_file = remove_aq_reformat_suffixes(input_file)
+        ml_input_file = get_path_to_unformatted_file(input_file)
     else:
         ml_input_file = input_file
     method_params["ml_input_file"] = ml_input_file
 
-def remove_aq_reformat_suffixes(input_file_name):
+def get_path_to_unformatted_file(input_file_name):
     prefixes = input_file_name.split(".")[:-3]
     cleaned_filename = ".".join(prefixes)
     return cleaned_filename
@@ -835,80 +839,163 @@ def prepare_loaded_tables(data_df, samplemap_df):
 
 # Cell
 import os
-def import_acquisition_info_df(results_dir, samples,last_ion_level_to_use = "CHARGE", spectronaut_header_filter = lambda x : ("EG." in x) | ("FG." in x), sep = "\t",decimal = "."):
-    """import tables containing details on the acquisition (e.g. the Spectronaut input table)
-    """
-    method_params_dict = load_method_parameters(results_dir)
-    input_file = method_params_dict.get('ml_input_file')
-    input_type, config_dict, _ = get_input_type_and_config_dict(input_file)
-    is_spectronaut = "ectronaut" in input_type
-
-    df_sample = pd.read_csv(input_file, sep = sep, decimal = decimal, encoding='latin1', nrows=3000) #sample 3000 rows from the df to assess the types of each row
-
-    df_sample = df_sample.replace({False: 0, True: 1})
-    ion_headers, ion_levels = get_ion_headers_from_config_dict(config_dict, last_ion_level_to_use)
-
-    numeric_headers =  list(df_sample.select_dtypes(include=np.number).columns)
-
-    filtered_numeric_headers = [x for x in numeric_headers if spectronaut_header_filter(x) or (not is_spectronaut)]
-    sample_id = config_dict.get('sample_ID')
-
-    header_subset = get_all_ion_headers(ion_headers) + filtered_numeric_headers + [sample_id]
 
 
+class AcquistionDataFrameHandler():
+    def __init__(self, results_dir, samples,last_ion_level_to_use = "CHARGE", spectronaut_header_filter = lambda x : ("EG." in x) | ("FG." in x), sep = "\t",decimal = "."):
+        self._results_dir = results_dir
+        self._samples = samples
+        self._last_ion_level_to_use = last_ion_level_to_use
+        self._spectronaut_header_filter = spectronaut_header_filter
+        self._sep = sep
+        self._decimal = decimal
+        self._input_file = self.__get_input_file__()
+        self._file_ending_of_formatted_table = ".ml_info_table.tsv"
+        self.already_formatted =  self.__check_if_input_file_is_already_formatted__()
+        self._input_type, self._config_dict = self.__get_input_type_and_config_dict__()
+        self._sample_column = self.__get_sample_column__()
 
-    input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = header_subset, encoding ='latin1', chunksize=1000000)
-    input_df_list = []
-    for input_df_subset in input_df_it:
+        if not self.already_formatted:
+            self._is_spectronaut = self.__check_if_spectronaut_file__()
+            self._ion_hierarchy = self.__get_ordered_ion_hierarchy__()
+            self._included_levelnames = self.__get_included_levelnames__()
+            self._ion_headers_grouped = self.__get_ion_headers_grouped__()
+            self._ion_headers = self.__get_ion_headers__()
+            self._relevant_headers = self.__get_relevant_headers__()
+            self._output_file_name = self.__get_output_file_name__()
+            self._method_parameters_yaml_path = self.__get_method_parameters_yaml_path__()
+            self._ml_file_accession_in_yaml = "ml_input_file"
+            self._reformatted_dataframe = self.__reformat_and_load_acquisition_data_frame__()
+
+
+    def get_acquisition_info_df(self):
+        if not self.already_formatted:
+            return self.__filter_reformatted_dataframe_to_relevant_samples__(self._reformatted_dataframe)
+        else:
+            reformatted_df = self.__import_preformated_ml_dataframe__()
+            return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
+
+    def save_allsample_dataframe_as_new_acquisition_dataframe(self):
+        self._reformatted_dataframe.to_csv(self._output_file_name, sep = "\t", index = None)
+
+    def update_ml_file_location_in_method_parameters_yaml(self):
+        method_params = load_method_parameters(self._results_dir)
+        method_params[self._ml_file_accession_in_yaml] = self._output_file_name
+        save_dict_as_yaml(method_params, self._method_parameters_yaml_path)
+
+
+
+    def __reformat_and_load_acquisition_data_frame__(self):
+
+        input_df_it = self.__initialize_df_iterator__()
+
+        input_df_list = []
+        for input_df_subset in input_df_it:
+            input_df_subset = self.__filter_sub_dataframe__(input_df_subset)
+            input_df_list.append(input_df_subset)
+        input_df = pd.concat(input_df_list)
+
+        input_df = add_merged_ionnames(input_df, self._included_levelnames, self._ion_headers_grouped, None, None)
+        return input_df
+
+    def __import_preformated_ml_dataframe__(self):
+        return pd.read_csv(self._input_file, sep="\t")
+
+    def __initialize_df_iterator__(self):
+        return pd.read_csv(self._input_file, sep = self._sep, decimal=self._decimal, usecols = self._relevant_headers, encoding ='latin1', chunksize=1000000)
+
+    def __filter_sub_dataframe__(self, input_df_subset):
         input_df_subset = input_df_subset.drop_duplicates()
-        input_df_subset = input_df_subset[[x in samples for x in input_df_subset[sample_id]]]
-        input_df_list.append(input_df_subset)
+        return input_df_subset
 
-    input_df = pd.concat(input_df_list)
-    input_df = add_merged_ionnames(input_df, ion_levels, ion_headers, None, None)
-    #input_df["ion"] = get_ion_row(input_df, ion_headers, ion_levels)
+    def __filter_reformatted_dataframe_to_relevant_samples__(self, input_df_subset):
+        return input_df_subset[[x in self._samples for x in input_df_subset[self._sample_column]]]
+
+    def __check_if_input_file_is_already_formatted__(self):
+        if self._file_ending_of_formatted_table in self._input_file:
+            return True
+        else:
+            return False
+
+    def __get_input_file__(self):
+        method_params_dict = load_method_parameters(self._results_dir)
+        return method_params_dict.get('ml_input_file')
 
 
-    return input_df
+    def __get_input_type_and_config_dict__(self):
+        if self.already_formatted:
+            original_file = self.__get_location_of_original_file__()
+        else:
+            original_file = self._input_file
+        input_type, config_dict, _ = get_input_type_and_config_dict(original_file)
+        return input_type, config_dict
 
-def get_ion_headers_from_config_dict(config_dict, last_ion_level_to_use):
-    ion_headers = []
-    ion_levels = []
-    ion_hierarchy = config_dict.get("ion_hierarchy")
-    hier_key = 'fragion' if 'fragion' in ion_hierarchy.keys() else list(ion_hierarchy.keys())[0]
-    ion_hierarchy = ion_hierarchy.get(hier_key) #chose the first ion hierarchy object at random
-    for idx in range(len(ion_hierarchy.get('order'))):
-        ion_level = ion_hierarchy.get('order')[idx]
-        ion_levels.append(ion_level)
-        ion_headers.append(ion_hierarchy.get('mapping').get(ion_level))
-        if ion_level == last_ion_level_to_use:
-            break
-    return ion_headers, ion_levels
+    def __get_location_of_original_file__(self):
+        return self._input_file.replace(self._file_ending_of_formatted_table, "")
 
-def get_all_ion_headers(ion_headers):
-    #ion headers is a dict of dict, merge all content of the ion headers
-    all_ion_headers = []
-    for ion_header in ion_headers:
-        all_ion_headers.extend(ion_header)
-    return all_ion_headers
 
-def get_ion_row(df, ion_headers, ion_levels):
-    all_ion_headers = get_all_ion_headers(ion_headers)
-    df_subset_np = df[all_ion_headers].to_numpy()
-    ionnames = [get_ion_header(row, ion_headers, ion_levels) for row in df_subset_np]
-    return ionnames
+    def __get_sample_column__(self):
+        return self._config_dict.get("sample_ID")
 
-def get_ion_header(df_row_np, ion_headers ,ion_levels):
-    ion = ""
-    idx_column = 0
-    for idx_level in range(len(ion_levels)):
-        level = str(ion_levels[idx_level]) + "_"
-        name = ""
-        for idx_sublevel in range(len(ion_headers[idx_level])): #in the case that multiple columns determine one level, e.g. the level "FRAGION" is determined by the columns for fragment ion, losses, and fragion charge state
-            name += str(df_row_np[idx_column]) + "_"
-            idx_column+=1
-        ion+=level + name
-    return ion
+    def __check_if_spectronaut_file__(self):
+        return "ectronaut" in self._input_type
+
+    def __get_ordered_ion_hierarchy__(self):
+        ion_hierarchy = self._config_dict.get("ion_hierarchy")
+        hier_key = 'fragion' if 'fragion' in ion_hierarchy.keys() else list(ion_hierarchy.keys())[0]
+        ion_hierarchy_on_chosen_key = ion_hierarchy.get(hier_key)
+        return ion_hierarchy_on_chosen_key
+
+    def __get_included_levelnames__(self):
+        levelnames = self.__get_all_levelnames__(self._ion_hierarchy)
+        last_ionlevel_idx = levelnames.index(self._last_ion_level_to_use)
+        return levelnames[:last_ionlevel_idx+1]
+
+    @staticmethod
+    def __get_all_levelnames__(ion_hierarchy):
+        return  ion_hierarchy.get('order')
+
+    def __get_ion_headers_grouped__(self):
+        mapping_dict = self.__get_levelname_mapping_dict(self._ion_hierarchy)
+        return [mapping_dict.get(x) for x in self._included_levelnames]#on each level there can be multiple names, so it is a list of lists
+
+    def __get_ion_headers__(self):
+        return list(itertools.chain(*self._ion_headers_grouped))
+
+    @staticmethod
+    def __get_levelname_mapping_dict(ion_hierarchy):
+        return ion_hierarchy.get('mapping')
+
+    def __get_relevant_headers__(self):
+        numeric_headers = self.__get_numeric_headers__()
+        return numeric_headers+self._ion_headers + [self._sample_column]
+
+    def __get_output_file_name__(self):
+        old_file_name = self._input_file
+        new_file_name = old_file_name+self._file_ending_of_formatted_table
+        return new_file_name
+
+    def __get_method_parameters_yaml_path__(self):
+        return f"{self._results_dir}/aq_parameters.yaml"
+
+
+    def __get_numeric_headers__(self):
+        df_sample = pd.read_csv(self._input_file, sep = self._sep, decimal = self._decimal, encoding='latin1', nrows=3000) #sample 3000 rows from the df to assess the types of each row
+        df_sample = df_sample.replace({False: 0, True: 1})
+        numeric_headers =  list(df_sample.select_dtypes(include=np.number).columns)
+        numeric_headers = self.__apply_numeric_header_filters_if_specified__(numeric_headers)
+        return numeric_headers
+
+    def __apply_numeric_header_filters_if_specified__(self, numeric_headers):
+        if self._is_spectronaut:
+            return [x for x in numeric_headers if self._spectronaut_header_filter(x)]
+        else:
+            return numeric_headers
+
+
+
+
+
 
 # Cell
 
