@@ -290,7 +290,7 @@ def plot_fold_change(df, key1, key2):
 
 # Cell
 
-import dash_core_components as dcc
+from dash import dcc
 import plotly.graph_objs as go
 
 #ckg_copypaste, defaults added for args argument
@@ -624,7 +624,7 @@ def get_protein_regulation_heatmap(overview_df, results_folder = os.path.join(".
     return heatmap
 
 # Cell
-import dash_core_components as dcc
+from dash import dcc
 import plotly.graph_objs as go
 
 #ckg_copypaste
