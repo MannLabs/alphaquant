@@ -5,7 +5,7 @@
 [![Downloads](https://pepy.tech/badge/alphaquant/week)](https://pepy.tech/project/alphaquant)
 
 
-# alphaquant
+# AlphaQuant
 An open-source Python package of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/). To enable all hyperlinks in this document, please view it at [GitHub](https://github.com/MannLabs/alphaquant).
 
 * [**About**](#about)
@@ -31,21 +31,21 @@ An open-source Python package of the AlphaPept ecosystem from the [Mann Labs at 
 ---
 ## License
 
-alphaquant was developed by the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/) and is freely available with an [Apache License](LICENSE.txt). External Python packages (available in the [requirements](requirements) folder) have their own licenses, which can be consulted on their respective websites.
+AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/) and is freely available with an [Apache License](LICENSE.txt). External Python packages (available in the [requirements](requirements) folder) have their own licenses, which can be consulted on their respective websites.
 
 ---
 ## Installation
 
-alphaquant can be installed and used on all major operating systems (Windows, macOS and Linux).
+AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
 There are three different types of installation possible:
 
 * [**One-click GUI installer:**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible.
-* [**Pip installer:**](#pip) Choose this installation if you want to use alphaquant as a Python package in an existing Python 3.8 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
-* [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of alphaquant and even allows to modify its source code directly. Generally, the developer version of alphaquant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
+* [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing Python 3.8 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
+* [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
 ### One-click GUI
 
-The GUI of alphaquant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. Click on one of the links below to download the latest release for:
+The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. Click on one of the links below to download the latest release for:
 
 * [**Windows**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_windows.exe)
 * [**macOS**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_macos.pkg)
@@ -55,19 +55,19 @@ Older releases remain available on the [release page](https://github.com/MannLab
 
 ### Pip
 
-alphaquant can be installed in an existing Python 3.8 environment with a single `bash` command. *This `bash` command can also be run directly from within a Jupyter notebook by prepending it with a `!`*:
+AlphaQuant can be installed in an existing Python 3.8 environment with a single `bash` command. *This `bash` command can also be run directly from within a Jupyter notebook by prepending it with a `!`*:
 
 ```bash
 pip install alphaquant
 ```
 
-Installing alphaquant like this avoids conflicts when integrating it in other tools, as this does not enforce strict versioning of dependancies. However, if new versions of dependancies are released, they are not guaranteed to be fully compatible with alphaquant. While this should only occur in rare cases where dependencies are not backwards compatible, you can always force alphaquant to use dependancy versions which are known to be compatible with:
+Installing AlphaQuant like this avoids conflicts when integrating it in other tools, as this does not enforce strict versioning of dependancies. However, if new versions of dependancies are released, they are not guaranteed to be fully compatible with AlphaQuant. While this should only occur in rare cases where dependencies are not backwards compatible, you can always force AlphaQuant to use dependancy versions which are known to be compatible with:
 
 ```bash
 pip install "alphaquant[stable]"
 ```
 
-NOTE: You might need to run `pip install pip==21.0` before installing alphaquant like this. Also note the double quotes `"`.
+NOTE: You might need to run `pip install pip==21.0` before installing AlphaQuant like this. Also note the double quotes `"`.
 
 For those who are really adventurous, it is also possible to directly install any branch (e.g. `@development`) with any extras (e.g. `#egg=alphaquant[stable,development-stable]`) from GitHub with e.g.
 
@@ -77,7 +77,7 @@ pip install "git+https://github.com/MannLabs/alphaquant.git@development#egg=alph
 
 ### Developer
 
-alphaquant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:
+AlphaQuant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:
 
 ```bash
 mkdir ~/folder/where/to/install/software
@@ -86,7 +86,7 @@ cd ~/folder/where/to/install/software
 
 ***The following commands assume you do not perform any additional `cd` commands anymore***.
 
-Next, download the alphaquant repository from GitHub either directly or with a `git` command. This creates a new alphaquant subfolder in your current directory.
+Next, download the AlphaQuant repository from GitHub either directly or with a `git` command. This creates a new AlphaQuant subfolder in your current directory.
 
 ```bash
 git clone https://github.com/MannLabs/alphaquant.git
@@ -99,7 +99,7 @@ conda create --name alphaquant python=3.8 -y
 conda activate alphaquant
 ```
 
-Finally, alphaquant and all its [dependancies](requirements) need to be installed. To take advantage of all features and allow development (with the `-e` flag), this is best done by also installing the [development dependencies](requirements/requirements_development.txt) instead of only the [core dependencies](requirements/requirements.txt):
+Finally, AlphaQuant and all its [dependancies](requirements) need to be installed. To take advantage of all features and allow development (with the `-e` flag), this is best done by also installing the [development dependencies](requirements/requirements_development.txt) instead of only the [core dependencies](requirements/requirements.txt):
 
 ```bash
 pip install -e "./alphaquant[development]"
@@ -107,18 +107,18 @@ pip install -e "./alphaquant[development]"
 
 By default this installs loose dependancies (no explicit versioning), although it is also possible to use stable dependencies (e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
-***By using the editable flag `-e`, all modifications to the [alphaquant source code folder](alphaquant) are directly reflected when running alphaquant. Note that the alphaquant folder cannot be moved and/or renamed if an editable version is installed. In case of confusion, you can always retrieve the location of any Python module with e.g. the command `import module` followed by `module.__file__`.***
+***By using the editable flag `-e`, all modifications to the [alphaquant source code folder](alphaquant) are directly reflected when running AlphaQuant. Note that the AlphaQuant folder cannot be moved and/or renamed if an editable version is installed. In case of confusion, you can always retrieve the location of any Python module with e.g. the command `import module` followed by `module.__file__`.***
 
 ---
 ## Usage
 
-There are three ways to use alphaquant:
+There are three ways to use AlphaQuant:
 
 * [**GUI**](#gui)
 * [**CLI**](#cli)
 * [**Python**](#python-and-jupyter-notebooks)
 
-NOTE: The first time you use a fresh installation of alphaquant, it is often quite slow because some functions might still need compilation on your local operating system and architecture. Subsequent use should be a lot faster.
+NOTE: The first time you use a fresh installation of AlphaQuant, it is often quite slow because some functions might still need compilation on your local operating system and architecture. Subsequent use should be a lot faster.
 
 ### GUI
 
@@ -132,7 +132,7 @@ Note that this needs to be prepended with a `!` when you want to run this from w
 
 ### CLI
 
-The CLI can be run with the following command (after activating the `conda` environment with `conda activate alphaquant` or if an alias was set to the alphaquant executable):
+The CLI can be run with the following command (after activating the `conda` environment with `conda activate alphaquant` or if an alias was set to the AlphaQuant executable):
 
 ```bash
 alphaquant -h
@@ -142,7 +142,7 @@ It is possible to get help about each function and their (required) parameters b
 
 ### Python and Jupyter notebooks
 
-alphaquant can be imported as a Python package into any Python script or notebook with the command `import alphaquant`.
+AlphaQuant can be imported as a Python package into any Python script or notebook with the command `import alphaquant`.
 
 A brief [Jupyter notebook tutorial](nbs/tutorial.ipynb) on how to use the API is also present in the [nbs folder](nbs).
 
