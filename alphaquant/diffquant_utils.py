@@ -285,8 +285,8 @@ def load_method_parameters(results_dir):
     params_file = f"{results_dir}/aq_parameters.yaml"
     return load_config(params_file)
 
-def store_method_parameters(local_vars, results_dir):
-    method_params = get_methods_dict_from_local_vars(local_vars)
+def store_method_parameters(local_vars_dict, results_dir):
+    method_params = get_methods_dict_from_local_vars(local_vars_dict)
     add_ml_input_file_location(method_params)
     params_file = f"{results_dir}/aq_parameters.yaml"
     if os.path.exists(params_file):
@@ -713,7 +713,7 @@ import pandas as pd
 import os
 import pathlib
 
-def import_data(input_file, input_type_to_use = None, samples_subset = None):
+def import_data(input_file, input_type_to_use = None, samples_subset = None, results_dir = None):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
@@ -755,6 +755,8 @@ def expand_samples_subset(samples_subset):
         return samples_subset + ["ion", "protein"]
     else:
         return None
+
+
 
 
 
