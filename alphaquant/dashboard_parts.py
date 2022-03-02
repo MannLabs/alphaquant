@@ -350,10 +350,9 @@ class RunPipeline(BaseWidget):
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.assign_cond_pairs.value]
         else:
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.assign_cond_pairs.options]
-
-        diffmgr.run_pipeline(
-            unnormed_df=data_processed,
-            labelmap_df=samplemap_df_processed,
+        
+        diffmgr.run_pipeline(input_file=self.path_analysis_file.value,
+            samplemap_df=self.samplemap_table.value,
             results_dir=self.path_output_folder.value,
             condpair_combinations=cond_combinations
         )
