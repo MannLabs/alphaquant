@@ -402,21 +402,21 @@ def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
     return id2groupid, id2normedid
 
 # Cell
-def assign_dataset_inmemory(input_file, results_dir, samplemap = 'samples.map.tsv', modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
 sequence_file=None, input_type = "Spectronaut", organism = "human"):
     if input_type == "Spectronaut":
         input_df = read_df_spectronaut_reduce_cols(input_file, modification_type)
     if input_type == "DIANN":
         input_df = read_df_diann_reduce_cols(input_file)
 
-    assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+    assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
         organism = organism)
 
 # Cell
 import pandas as pd
 import dask.dataframe as dd
 
-def assign_dataset_chunkwise(input_file, results_dir, samplemap = 'samples.map.tsv', modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+def assign_dataset_chunkwise(input_file, results_dir, samplemap_df , modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
 sequence_file=None, input_type = "Spectronaut", organism = "human"):
     """go through the dataset chunkwise. The crucial step here is, that the dataset needs to be sorted by protein (realized via set_index) such that the chunks are independent (different proteins are independent)
     """
@@ -441,7 +441,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     input_df_it = pd.read_csv(sorted_reduced_input, sep = "\t", chunksize = 1000_000, encoding ='latin1')
     for input_df in input_df_it:
 
-        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
         organism = organism)
 
 
@@ -460,7 +460,7 @@ def clean_up_previous_processings(results_folder):
 # Cell
 import os
 import alphaquant.visualizations as aqviz
-def assign_dataset(input_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, samplemap = 'samples.map.tsv',swissprot_file = None,
+def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
 sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
 
     """wrapper function reformats Spectronaut inputs tables and iterates through the whole dataset.
@@ -481,7 +481,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     headers_dict = headers_dicts.get(input_type)
     label_column = headers_dict.get("label_column")
     fg_id_column = headers_dict.get("fg_id_column")
-    _,sample2cond = aqviz.initialize_sample2cond(samplemap)
+    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
     len_before = len(input_df.index)
     input_df = filter_input_table(input_type, modification_type, input_df)
     print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
