@@ -38,13 +38,14 @@ annotation_file = None, protein_subset_for_normalization_file = None):
 
     check_input_consistency(input_file, samplemap_file, input_df, samplemap_df)
 
-
-    if input_file is not None: #if input file is given, load the dataframes from there
-
-        if modification_type is not None:
-            input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_file=samplemap_file, modification_type=modification_type)
-
+    if samplemap_df is None:
         samplemap_df = aqutils.load_samplemap(samplemap_file)
+
+    if (input_file is not None) and (modification_type is not None):
+
+        input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
+
+
 
 
     #use runconfig object to store the parameters
@@ -83,14 +84,16 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
         ,condpair_combinations)
 
 
+
+
 # Cell
 import alphaquant.ptmsite_mapping as aqptm
 
-def write_ptm_mapped_input(input_file, results_dir, samplemap_file, modification_type):
+def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type):
     try:
-        aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap=samplemap_file, modification_type=modification_type)
+        aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
     except:
-        aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap=samplemap_file, modification_type=modification_type)
+        aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
     mapped_df = pd.read_csv(f"{results_dir}/ptm_ids.tsv", sep = "\t")
     ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
     return ptm_mapped_file
@@ -98,14 +101,12 @@ def write_ptm_mapped_input(input_file, results_dir, samplemap_file, modification
 
 # Cell
 
-def check_input_consistency(input_file, samplemap_file, unnormed_df, samplemap_df):
-    if (input_file is not None) and (samplemap_file is not None):
-        return True
-    elif (unnormed_df is not None) and (samplemap_df is not None):
-        return True
-    else:
+def check_input_consistency(input_file, samplemap_file, input_df, samplemap_df):
+    if input_file is None and input_df is None:
         raise Exception("inputs inconsistent! Either both files or both dataframes need to be specified!")
-
+    if samplemap_file is None and samplemap_df is None:
+        raise Exception("inputs inconsistent! Either both files or both dataframes need to be specified!")
+    return True
 
 # Cell
 import alphaquant.diffquant_utils as aqutils
