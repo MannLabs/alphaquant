@@ -849,13 +849,12 @@ def prepare_loaded_tables(data_df, samplemap_df):
 # Cell
 import os
 
-
 class AcquistionDataFrameHandler():
-    def __init__(self, results_dir, samples,last_ion_level_to_use = "CHARGE", spectronaut_header_filter = lambda x : ("EG." in x) | ("FG." in x), sep = "\t",decimal = "."):
+    def __init__(self, results_dir, samples, sep = "\t", decimal = "."):
         self._results_dir = results_dir
         self._samples = samples
-        self._last_ion_level_to_use = last_ion_level_to_use
-        self._spectronaut_header_filter = spectronaut_header_filter
+        self._spectronaut_header_filter = lambda x : ("EG." in x) | ("FG." in x)
+        self._maxquant_header_filter = lambda x : ("Intensity" not in x) and ("Experiment" not in x)
         self._sep = sep
         self._decimal = decimal
         self._input_file = self.__get_input_file__()
@@ -863,9 +862,12 @@ class AcquistionDataFrameHandler():
         self.already_formatted =  self.__check_if_input_file_is_already_formatted__()
         self._input_type, self._config_dict = self.__get_input_type_and_config_dict__()
         self._sample_column = self.__get_sample_column__()
+        self.last_ion_level_to_use = self.__get_last_ion_level_to_use__()
+        self._is_spectronaut = self.__check_if_spectronaut_file__()
+        self._is_maxquant = self.__check_if_maxquant_file__()
 
         if not self.already_formatted:
-            self._is_spectronaut = self.__check_if_spectronaut_file__()
+
             self._ion_hierarchy = self.__get_ordered_ion_hierarchy__()
             self._included_levelnames = self.__get_included_levelnames__()
             self._ion_headers_grouped = self.__get_ion_headers_grouped__()
@@ -878,11 +880,10 @@ class AcquistionDataFrameHandler():
 
 
     def get_acquisition_info_df(self):
-        if not self.already_formatted:
-            return self.__filter_reformatted_dataframe_to_relevant_samples__(self._reformatted_dataframe)
-        else:
-            reformatted_df = self.__import_preformated_ml_dataframe__()
-            return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
+        reformated_df = self.__get_reformated_df__()
+        return self.__filter_reformated_df_if_necessary__(reformated_df)
+
+
 
     def save_allsample_dataframe_as_new_acquisition_dataframe(self):
         self._reformatted_dataframe.to_csv(self._output_file_name, sep = "\t", index = None)
@@ -892,6 +893,19 @@ class AcquistionDataFrameHandler():
         method_params[self._ml_file_accession_in_yaml] = self._output_file_name
         save_dict_as_yaml(method_params, self._method_parameters_yaml_path)
 
+
+
+    def __get_reformated_df__(self):
+        if self.already_formatted:
+            return self.__import_preformated_ml_dataframe__()
+        else:
+            return self._reformatted_dataframe
+
+    def __filter_reformated_df_if_necessary__(self, reformatted_df):
+        if self._is_maxquant:
+            return reformatted_df
+        if self._is_spectronaut:
+            return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
 
 
     def __reformat_and_load_acquisition_data_frame__(self):
@@ -949,15 +963,21 @@ class AcquistionDataFrameHandler():
     def __check_if_spectronaut_file__(self):
         return "ectronaut" in self._input_type
 
+    def __check_if_maxquant_file__(self):
+        return "maxquant" in self._input_type
+
     def __get_ordered_ion_hierarchy__(self):
         ion_hierarchy = self._config_dict.get("ion_hierarchy")
         hier_key = 'fragion' if 'fragion' in ion_hierarchy.keys() else list(ion_hierarchy.keys())[0]
         ion_hierarchy_on_chosen_key = ion_hierarchy.get(hier_key)
         return ion_hierarchy_on_chosen_key
 
+    def __get_last_ion_level_to_use__(self):
+        return self._config_dict["ml_level"]
+
     def __get_included_levelnames__(self):
         levelnames = self.__get_all_levelnames__(self._ion_hierarchy)
-        last_ionlevel_idx = levelnames.index(self._last_ion_level_to_use)
+        last_ionlevel_idx = levelnames.index(self.last_ion_level_to_use)
         return levelnames[:last_ionlevel_idx+1]
 
     @staticmethod
@@ -977,7 +997,12 @@ class AcquistionDataFrameHandler():
 
     def __get_relevant_headers__(self):
         numeric_headers = self.__get_numeric_headers__()
-        return numeric_headers+self._ion_headers + [self._sample_column]
+        relevant_headers = numeric_headers+self._ion_headers + [self._sample_column]
+        return self.__remove_possible_none_values_from_list__(relevant_headers)
+
+    @staticmethod
+    def __remove_possible_none_values_from_list__(list):
+        return [x for x in list if x is not None]
 
     def __get_output_file_name__(self):
         old_file_name = self._input_file
@@ -986,6 +1011,7 @@ class AcquistionDataFrameHandler():
 
     def __get_method_parameters_yaml_path__(self):
         return f"{self._results_dir}/aq_parameters.yaml"
+
 
 
     def __get_numeric_headers__(self):
@@ -998,8 +1024,12 @@ class AcquistionDataFrameHandler():
     def __apply_numeric_header_filters_if_specified__(self, numeric_headers):
         if self._is_spectronaut:
             return [x for x in numeric_headers if self._spectronaut_header_filter(x)]
+        elif self._is_maxquant:
+            return [x for x in numeric_headers if self._maxquant_header_filter(x)]
         else:
             return numeric_headers
+
+
 
 
 
