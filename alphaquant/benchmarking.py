@@ -4,13 +4,14 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'compare_significant_proteins', 'print_nonref_hits', 'test_run_pipeline', 'generate_random_input',
            'generate_peptide_list', 'generate_protein_list', 'annotate_fcs_to_wideformat_table', 'prepare_mq_table',
            'cluster_selected_proteins', 'create_background_dists_from_prepared_files', 'get_c1_c2_dfs',
-           'load_real_example_ions', 'get_filtered_protnodes', 'filter_check_protnode', 'get_subset_of_diffions',
-           'add_perturbations_to_proteins', 'group_level_nodes_by_parents', 'get_filtered_intensity_df',
-           'get_perturbed_intensity_df', 'run_perturbation_test', 'compare_cluster_to_benchmarks', 'evaluate_per_level',
-           'count_correctly_excluded', 'eval_clustered_results', 'read_and_filter_output_table_to_single_organism',
-           'get_peptides_set', 'retrieve_all_peptides_from_fasta_and_save', 'get_peptides_from_protein_sequence',
-           'get_m_replaced_peps', 'spectronaut_filtering', 'diann_filtering', 'decide_filter_function',
-           'compare_aq_to_reference', 'shift_to_expected_fc', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
+           'load_real_example_ions', 'format_condpair_input', 'get_filtered_protnodes', 'filter_check_protnode',
+           'get_subset_of_diffions', 'add_perturbations_to_proteins', 'group_level_nodes_by_parents',
+           'get_filtered_intensity_df', 'get_perturbed_intensity_df', 'run_perturbation_test',
+           'compare_cluster_to_benchmarks', 'evaluate_per_level', 'count_correctly_excluded', 'eval_clustered_results',
+           'read_and_filter_output_table_to_single_organism', 'get_peptides_set',
+           'retrieve_all_peptides_from_fasta_and_save', 'get_peptides_from_protein_sequence', 'get_m_replaced_peps',
+           'spectronaut_filtering', 'diann_filtering', 'decide_filter_function', 'compare_aq_to_reference',
+           'shift_to_expected_fc', 'get_rough_tpr_cutoff', 'get_top_percentile_node_df',
            'filter_top_qualityscore_percentiles', 'get_top_percentile_peptides', 'compare_aq_w_method',
            'import_input_file_in_specified_format', 'get_original_input_df', 'correct_fcs_to_expected', 'get_node_df',
            'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
@@ -336,13 +337,22 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
     _, samplemap_df = aqutils.prepare_loaded_tables(fragion_df, samplemap_df)
     fragion_df = fragion_df.set_index('ion')
 
-    df_c1, df_c2, c1_samples, c2_samples = aqdiffmgr.format_condpair_input(samplemap_df = samplemap_df, input_df = fragion_df, input_file=input_file,condpair = ('S1', 'S2'), minrep= 4)
+    df_c1, df_c2, c1_samples, c2_samples = format_condpair_input(samplemap_df = samplemap_df, input_df = fragion_df, input_file=input_file,condpair = ('S1', 'S2'), minrep= 4)
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
     normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
     normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
     diffions = get_subset_of_diffions(normed_c1, normed_c2, num_ions)
     return diffions, normed_c1, normed_c2
 
+
+
+def format_condpair_input(samplemap_df, condpair, minrep, input_df, input_file):
+    print(condpair)
+    samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
+    input_df_local = aqdiffmgr.get_unnormed_df_condpair(input_df,samplemap_df,input_file, condpair)
+    pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
+    df_c1, df_c2 = aqdiffmgr.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
+    return df_c1, df_c2, samples_c1, samples_c2
 
 def get_filtered_protnodes(condpair, results_dir_unfiltered):
     condpairtree = aqutils.read_condpair_tree(condpair[0], condpair[1], results_dir_unfiltered)
