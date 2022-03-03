@@ -480,6 +480,7 @@ class TypeFilter():
     def __init__(self, filttype= 'default'):
         if filttype=='default':
             self.type = ['frgion', 'ms1_isotopes', 'mod_seq_charge', 'mod_seq', 'seq', 'gene']
+            self.mapping_dict = {'SEQ':'seq', 'MOD':'mod_seq', 'CHARGE':'mod_seq_charge', 'MS1ISOTOPES':'ms1_isotopes','FRGION':'frgion'}
 
 globally_initialized_typefilter = TypeFilter()
 
