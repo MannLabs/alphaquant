@@ -25,6 +25,7 @@ maxquant_peptides:
       param: Potential contaminant
       comparator: "!="
       value: "+"
+  ml_level: SEQ
 
 diann_fragion_isotopes:
   format: longtable
@@ -251,6 +252,7 @@ spectronaut_fragion_isotopes:
       param: F.PeakArea
       comparator: ">"
       value: 5.0
+  ml_level: CHARGE
   # filters:
   #   decoy_filt:
   #     param: EG.IsDecoy
