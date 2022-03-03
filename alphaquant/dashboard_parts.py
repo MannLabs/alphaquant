@@ -330,7 +330,7 @@ class RunPipeline(BaseWidget):
 
         self.samplemap_table.value = pd.read_csv(
             StringIO(str(self.samplemap.value, "utf-8")),
-            sep=sep
+            sep=sep,dtype='str'
         )
 
     def add_conditions_for_assignment(self, *args):
