@@ -3,8 +3,9 @@
 __all__ = ['RunConfigOfRunPipeline', 'run_pipeline', 'run_analysis_singleprocess', 'run_analysis_multiprocess',
            'min_num_ions', 'use_iontree_if_possible', 'annotation_file', 'write_ptm_mapped_input',
            'check_input_consistency', 'get_unnormed_df_condpair', 'get_per_condition_dataframes', 'get_minrep_for_cond',
-           'format_condpair_input', 'analyze_condpair', 'QuantifiedResult', 'update_quantified_proteins_w_tree_results',
-           'add_fdr', 'get_results_df', 'write_out_normed_df', 'read_tables']
+           'determine_if_ion_tree_is_used', 'analyze_condpair', 'QuantifiedResult',
+           'update_quantified_proteins_w_tree_results', 'add_fdr', 'get_results_df', 'write_out_normed_df',
+           'read_tables']
 
 # Cell
 
@@ -28,15 +29,15 @@ import alphaquant.ptmsite_mapping as aqptm
 import multiprocess
 
 
-def run_pipeline(*,input_file = None, samplemap_file=None, input_df = None, samplemap_df = None, modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
+def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
 min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.05, cluster_threshold_fcfc = 0, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
-use_iontree_if_possible = True, write_out_results_tree = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
+use_iontree_if_possible = None, write_out_results_tree = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
 annotation_file = None, protein_subset_for_normalization_file = None):
 
     """Run the differential analyses.
     """
 
-    check_input_consistency(input_file, samplemap_file, input_df, samplemap_df)
+    check_input_consistency(input_file, samplemap_file, samplemap_df)
 
     if samplemap_df is None:
         samplemap_df = aqutils.load_samplemap(samplemap_file)
@@ -50,6 +51,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
 
     #use runconfig object to store the parameters
     runconfig = RunConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
+    runconfig.use_iontree_if_possible = determine_if_ion_tree_is_used(runconfig)
 
     #store method parameters for reproducibility
     aqutils.store_method_parameters(locals(), results_dir)
@@ -101,36 +103,23 @@ def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_t
 
 # Cell
 
-def check_input_consistency(input_file, samplemap_file, input_df, samplemap_df):
-    if input_file is None and input_df is None:
-        raise Exception("inputs inconsistent! Either both files or both dataframes need to be specified!")
+def check_input_consistency(input_file, samplemap_file, samplemap_df):
+    if input_file is None:
+        raise Exception("no input file!")
     if samplemap_file is None and samplemap_df is None:
-        raise Exception("inputs inconsistent! Either both files or both dataframes need to be specified!")
+        raise Exception("inputs inconsistent! Either file or dataframe needs to be specified!")
     return True
 
 # Cell
 import alphaquant.diffquant_utils as aqutils
-def get_unnormed_df_condpair(unnormed_df :pd.DataFrame, samplemap_df:pd.DataFrame,input_file:str, condpair:str) -> pd.DataFrame:
-    """In the case that the total unnormed df has not already been loaded, load it from the file
+def get_unnormed_df_condpair(input_file:str, samplemap_df:pd.DataFrame, condpair:str) -> pd.DataFrame:
 
-    Args:
-        unnormed_df (pd.DataFrame): unnormed_dataframe that has been loaded (None if load was not successful)
-        samplemap_df (pd.DataFrame): sample mapping
-        input_file (str): path to file containing the unnormed df data
-        condpair (str): pair of conditions to be compared
 
-    Returns:
-        pd.DataFrame: unnormed dataframe per condition, in case the whole did not fit into memory
-    """
-    if unnormed_df is not None:
-        return unnormed_df
-
-    else:
-        samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df=samplemap_df, cond1 = condpair[0], cond2 = condpair[1])
-        used_samples = samples_c1+samples_c2
-        unnormed_df = aqutils.import_data(input_file,samples_subset=used_samples)
-        unnormed_df, _ = aqutils.prepare_loaded_tables(unnormed_df, samplemap_df)
-        return unnormed_df
+    samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df=samplemap_df, cond1 = condpair[0], cond2 = condpair[1])
+    used_samples = samples_c1+samples_c2
+    unnormed_df = aqutils.import_data(input_file,samples_subset=used_samples)
+    unnormed_df, _ = aqutils.prepare_loaded_tables(unnormed_df, samplemap_df)
+    return unnormed_df
 
 # Cell
 def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep):
@@ -161,17 +150,14 @@ def get_minrep_for_cond(c_samples, minrep):
 
 
 # Cell
-def format_condpair_input(samplemap_df, condpair, minrep, input_df, input_file):
+import alphaquant.diffquant_utils as aqutils
+def determine_if_ion_tree_is_used(runconfig):
+    if runconfig.use_iontree_if_possible is not None:
+        return runconfig.use_iontree_if_possible
+    _, config_dict, _ =  aqutils.get_input_type_and_config_dict(runconfig.input_file)
+    return config_dict.get("use_iontree")
 
-    print(condpair)
-    samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
 
-    input_df_local = get_unnormed_df_condpair(input_df,samplemap_df,input_file, condpair)
-    pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
-
-    df_c1, df_c2 = get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
-
-    return df_c1, df_c2, samples_c1, samples_c2
 
 
 # Cell
@@ -195,7 +181,7 @@ def analyze_condpair(*,runconfig, condpair):
     quantified_proteins = []
 
 
-    input_df_local = get_unnormed_df_condpair(runconfig.input_df,runconfig.samplemap_df,runconfig.input_file, condpair)
+    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file, samplemap_df=runconfig.samplemap_df, condpair=condpair)
     pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
