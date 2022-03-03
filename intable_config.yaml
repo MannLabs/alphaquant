@@ -26,6 +26,7 @@ maxquant_peptides:
       comparator: "!="
       value: "+"
   ml_level: SEQ
+  use_iontree: False
 
 diann_fragion_isotopes:
   format: longtable
@@ -61,6 +62,9 @@ diann_fragion_isotopes:
          - Precursor.Charge
         MS1ISOTOPES:
          - Precursor.Charge
+  use_iontree: True
+  ml_level: CHARGE
+
 
 diann_fragion_isotopes_corrected:
   format: longtable
@@ -96,6 +100,8 @@ diann_fragion_isotopes_corrected:
          - Precursor.Charge
         MS1ISOTOPES:
          - Precursor.Charge
+  use_iontree: True
+  ml_level: CHARGE
 
 
 diann_fragion:
@@ -119,6 +125,8 @@ diann_fragion:
          - Precursor.Charge
         FRGION: 
          - Fragment.Quant.Corrected
+  use_iontree: True
+  ml_level: CHARGE
 
 diann_precursor:
   format: longtable
@@ -205,6 +213,8 @@ spectronaut_ptm_fragion_isotopes:
       param: F.PeakArea
       comparator: ">"
       value: 5.0
+  use_iontree: True
+  ml_level: CHARGE
 
 
 spectronaut_fragion_isotopes:
@@ -252,6 +262,7 @@ spectronaut_fragion_isotopes:
       param: F.PeakArea
       comparator: ">"
       value: 5.0
+  use_iontree: True
   ml_level: CHARGE
   # filters:
   #   decoy_filt:
@@ -352,6 +363,8 @@ spectronaut_precursor_v2:
           - EG.ModifiedPeptide
         CHARGE:
           - FG.Charge
+  use_iontree: True
+  ml_level: CHARGE
 
 spectronaut_precursor_v3:
   format: longtable
@@ -370,6 +383,8 @@ spectronaut_precursor_v3:
           - EG.ModifiedSequence
         CHARGE:
           - FG.Charge
+  use_iontree: True
+  ml_level: CHARGE
 
 
 
