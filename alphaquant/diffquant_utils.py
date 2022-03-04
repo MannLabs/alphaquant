@@ -22,7 +22,7 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
 import os
 import pathlib
 if "__file__" in globals():#only run in the translated python file, as __file__ is not defined with ipython
-    INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "intable_config.yaml") #the yaml config is located one directory below the python library files
+    INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs", "intable_config.yaml") #the yaml config is located one directory below the python library files
 
 
 # Cell
