@@ -434,21 +434,22 @@ class MultipleComparison(object):
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.value]
         else:
             cond_combinations = [tuple(pair.split('_vs_')) for pair in self.condpairs_to_compare.options]
-
-        overview_dataframe = aqplot.get_sample_overview_dataframe(
-            results_folder=self.output_folder,
-            condpairs_to_compare=cond_combinations
-        )
-
-        clustered_dataframe = aqplot.get_clustered_dataframe(overview_dataframe)
-
-        self.layout[1] = pn.Pane(
-            self.plot_heatmap(
-                clustered_dataframe.T,
-                title='Significant proteins heatmap',
-                colormap='RdBu'
+        
+        if len(cond_combinations)>1:
+            overview_dataframe = aqplot.get_sample_overview_dataframe(
+                results_folder=self.output_folder,
+                condpairs_to_compare=cond_combinations
             )
-        )
+
+            clustered_dataframe = aqplot.get_clustered_dataframe(overview_dataframe)
+
+            self.layout[1] = pn.Pane(
+                self.plot_heatmap(
+                    clustered_dataframe.T,
+                    title='Significant proteins heatmap',
+                    colormap='RdBu'
+                )
+            )
 
     def plot_heatmap(self, df, title, colormap):
         """
