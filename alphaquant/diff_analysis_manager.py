@@ -185,7 +185,10 @@ def analyze_condpair(*,runconfig, condpair):
     pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
-    df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, runconfig.minrep)
+    try:
+        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, runconfig.minrep)
+    except:
+        return
 
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, minrep = runconfig.minrep, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
     runtime_plots = runconfig.runtime_plots, protein_subset_for_normalization_file=runconfig.protein_subset_for_normalization_file, pep2prot = pep2prot,prenormed_file = runconfig.pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
