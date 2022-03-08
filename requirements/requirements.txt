@@ -20,3 +20,4 @@ dask
 multiprocess
 pyopenms
 pyfasta
+openpyxl
