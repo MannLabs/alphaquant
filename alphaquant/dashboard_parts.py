@@ -266,7 +266,7 @@ class RunPipeline(BaseWidget):
             header_color='#333',
             align='center',
             sizing_mode='stretch_width',
-            height=1000,
+            #height=1000,
             margin=(5, 8, 10, 8),
             css_classes=['background']
         )
