@@ -1178,7 +1178,7 @@ def beeswarm_ion_plot_plotly(
         template='plotly_white',
         title = dict(
             text=title,
-            y=0.85,
+            #y=0.85,
             x=0.5,
             xanchor='center',
             yanchor='middle',
