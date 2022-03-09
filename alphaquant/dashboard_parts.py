@@ -140,7 +140,7 @@ class MainWidget(object):
         LAYOUT = pn.Row(
             self.project_description,
             pn.layout.HSpacer(width=500),
-            self.manual,
+           # self.manual,
             background='#eaeaea',
             align='center',
             sizing_mode='stretch_width',
