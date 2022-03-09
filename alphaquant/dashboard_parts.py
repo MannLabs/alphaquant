@@ -6,6 +6,7 @@ import anytree
 import pandas as pd
 import numpy as np
 from scipy import stats
+import gui_textfields
 
 # alphaquant important
 import alphaquant.diffquant_utils as aqutils
@@ -222,6 +223,7 @@ class RunPipeline(BaseWidget):
             margin=(-20, 10, -5, 16),
         )
 
+
     def create(self):
         self.layout = pn.Card(
             pn.Row(
@@ -236,8 +238,8 @@ class RunPipeline(BaseWidget):
                         ),
                         pn.Card(
                             self.samplemap_table,
-                            header='Assign experiments to conditions manually',
-                            collapsed=True,
+                            header='Experiment to condition map',
+                            collapsed=False,
                             margin=(20, 0, 20, 0),
                             width=601,
                         )
@@ -253,6 +255,11 @@ class RunPipeline(BaseWidget):
                 ),
                 pn.Spacer(sizing_mode='stretch_width'),
                 pn.Column(
+                    gui_textfields.Descriptions.project_instruction,
+                    gui_textfields.Cards.spectronaut,
+                    gui_textfields.Cards.diann,
+                    gui_textfields.Cards.alphapept,
+                    gui_textfields.Cards.maxquant,
                     self.run_pipeline_button,
                     self.run_pipeline_progress,
                     self.visualize_data_button,
@@ -653,5 +660,6 @@ class SingleComparison(object):
         self.layout[4][2] = pn.Pane(
             aqplot.foldchange_ion_plot_plotly(self.fc_df, self.protein_df, protein_node=self.protnode),
         )
+
 
 
