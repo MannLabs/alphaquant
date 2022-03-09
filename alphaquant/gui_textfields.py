@@ -24,9 +24,18 @@ class Descriptions():
         3. Wait until the names of your samples appear in the experiment-to-condition map (for very large datasets, this might take a while)
         4. Either assign the experiments to a condition by hand, or upload a tab-separated mapping file
         5. Click on the _RUN PIPELINE_ button, you can follow the progress on the terminal window
-        6. To explore the results, click on the _VISUALIZE DATA_ button
+        6. The results are stored as textfiles in the output folder
+        7. To explore the results, click on the _VISUALIZE DATA_ button
         """,
         width=ButtonConfiguration.width,
+        align='start',
+        margin=(0, 80, 0, 10))
+
+    single_comparison_instruction = panel.pane.Markdown("""
+        Here you can visualize comparisons of two conditions as a volcano plot. You can click or search proteins of interest and detail plots of the quantification will be shown. 
+        The displayed data is stored as text files in the output folder you specified.
+        """,
+        width=830,
         align='start',
         margin=(0, 80, 0, 10))
 
