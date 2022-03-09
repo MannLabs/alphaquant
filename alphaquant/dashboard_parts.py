@@ -394,10 +394,10 @@ class Tabs(object):
             )
             # self.layout += self.tabs
             self.layout += [
-                ('Multiple Comparison', MultipleComparison(
-                    self.pipeline.path_output_folder.value
-                    ).create()
-                ),
+                # ('Multiple Comparison', MultipleComparison(  #Commented out for pre-release
+                #     self.pipeline.path_output_folder.value
+                #     ).create()
+                # ),
                 ('Single Comparison', SingleComparison(
                     self.pipeline.path_output_folder.value,
                     self.pipeline.samplemap_table.value,
