@@ -19,7 +19,7 @@ class Descriptions():
     project_instruction = panel.pane.Markdown("""
         #### How to use AlphaQuant:
         1. Provide the filepath to your proteomic datasets analyzed by
-        Spectronaut, DIA-NN, AlphaPept or MaxQuant.
+        Spectronaut, DIA-NN, AlphaPept or MaxQuant (see instructions below!).
         2. (optional) An output folder to store output tables and plots is chosen automatically, change the folder if needed
         3. Wait until the names of your samples appear in the experiment-to-condition map (for very large datasets, this might take a while)
         4. Either assign the experiments to a condition by hand, or upload a tab-separated mapping file
