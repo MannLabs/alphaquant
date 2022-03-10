@@ -1,12 +1,16 @@
+<!---
 ![Pip installation](https://github.com/MannLabs/alphaquant/workflows/Default%20installation%20and%20tests/badge.svg)
 ![GUI and PyPi releases](https://github.com/MannLabs/alphaquant/workflows/Publish%20on%20PyPi%20and%20release%20on%20GitHub/badge.svg)
 [![Downloads](https://pepy.tech/badge/alphaquant)](https://pepy.tech/project/alphaquant)
 [![Downloads](https://pepy.tech/badge/alphaquant/month)](https://pepy.tech/project/alphaquant)
 [![Downloads](https://pepy.tech/badge/alphaquant/week)](https://pepy.tech/project/alphaquant)
+-->
 
 
 # AlphaQuant
-An open-source Python package of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/). To enable all hyperlinks in this document, please view it at [GitHub](https://github.com/MannLabs/alphaquant).
+AlphaQuant is an open-source Python package for sensitive proteomics quantification. You can process MS data analyzed by Spectronaut, DIANN, [AlphaPept](https://github.com/MannLabs/alphapept) or MaxQuant using a Graphical User Interface (GUI) or the python package. The current focus is on the comparison of two biological conditions (i.e. "making volcano plots"), with multi-condition functionality to be added soon.
+
+It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/). To enable all hyperlinks in this document, please view it at [GitHub](https://github.com/MannLabs/alphaquant).
 
 * [**About**](#about)
 * [**License**](#license)
@@ -25,8 +29,8 @@ An open-source Python package of the AlphaPept ecosystem from the [Mann Labs at 
 
 ---
 ## About
-
-An open-source Python package of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
+The standard approach for proteomics quantification is the calculation of point estimates that reflect the abundance of a particular protein. This approach usually neglects a large part of the quantitative information that is available, including the type, quality and reliability of the underlying, quantified peptides. AlphaQuant introduces a collection of novel Bioinformatics algorithms for increased accuracy and sensitivity of proteomics quantification. It is built on the foundation of the [MS-EmpiRe](https://doi.org/10.1074/mcp.RA119.001509) algorithm. 
+Alphaquant is an open-source Python package of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
 
 ---
 ## License
@@ -37,10 +41,12 @@ AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Bioche
 ## Installation
 
 AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
-There are three different types of installation possible:
+There are currently two different types of installation possible:
 
 * [**One-click GUI installer:**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible.
+<!---
 * [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing Python 3.8 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
+-->
 * [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
 ### One-click GUI
@@ -53,6 +59,7 @@ The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledg
 
 Older releases remain available on the [release page](https://github.com/MannLabs/alphaquant/releases), but no backwards compatibility is guaranteed.
 
+<!---
 ### Pip
 
 AlphaQuant can be installed in an existing Python 3.8 environment with a single `bash` command. *This `bash` command can also be run directly from within a Jupyter notebook by prepending it with a `!`*:
@@ -74,7 +81,7 @@ For those who are really adventurous, it is also possible to directly install an
 ```bash
 pip install "git+https://github.com/MannLabs/alphaquant.git@development#egg=alphaquant[stable,development-stable]"
 ```
-
+-->
 ### Developer
 
 AlphaQuant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:
@@ -112,10 +119,10 @@ By default this installs loose dependancies (no explicit versioning), although i
 ---
 ## Usage
 
-There are three ways to use AlphaQuant:
+There are two ways to use AlphaQuant:
 
 * [**GUI**](#gui)
-* [**CLI**](#cli)
+<!---* [**CLI**](#cli)-->
 * [**Python**](#python-and-jupyter-notebooks)
 
 NOTE: The first time you use a fresh installation of AlphaQuant, it is often quite slow because some functions might still need compilation on your local operating system and architecture. Subsequent use should be a lot faster.
@@ -130,6 +137,7 @@ alphaquant gui
 
 Note that this needs to be prepended with a `!` when you want to run this from within a Jupyter notebook. When the command is run directly from the command-line, make sure you use the right environment (activate it with e.g. `conda activate alphaquant` or set an alias to the binary executable (can be obtained with `where alphaquant` or `which alphaquant`)).
 
+<!---
 ### CLI
 
 The CLI can be run with the following command (after activating the `conda` environment with `conda activate alphaquant` or if an alias was set to the AlphaQuant executable):
@@ -139,6 +147,7 @@ alphaquant -h
 ```
 
 It is possible to get help about each function and their (required) parameters by using the `-h` flag.
+-->
 
 ### Python and Jupyter notebooks
 
