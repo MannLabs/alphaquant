@@ -39,6 +39,7 @@ def get_tps_fps(result_df, prot2org_file, thresh = 0.05, fc_thresh = 0.3):
         num_regulated_prots = sum(annotated_fcfilt["fdr"]<thresh)
         num_true_positives = sum(annotated_fcfilt["TP"] &(annotated_fcfilt["fdr"]<0.05))
         num_false_positives = sum(annotated_fcfilt["FP"] &(annotated_fcfilt["fdr"]<0.05))
+        fpr = num_false_positives/num_regulated_prots
 
         print(f'condpair {condpair}')
         print(f"total TPs {num_tps}")
@@ -47,8 +48,9 @@ def get_tps_fps(result_df, prot2org_file, thresh = 0.05, fc_thresh = 0.3):
         print(f'false positives {num_false_positives}')
         print(f'true positives {num_true_positives}')
         print(f'regulated control {num_false_positives+num_true_positives}')
-        print(f'precision {num_false_positives/num_regulated_prots}')
-        print(f'precision {num_false_positives/num_regulated_prots}')
+        print(f'FPR {fpr}')
+
+        assert fpr < 0.06
 
 
 def annotate_dataframe(result_df, prot2org_file):
