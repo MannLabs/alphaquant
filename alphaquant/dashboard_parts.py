@@ -6,7 +6,7 @@ import anytree
 import pandas as pd
 import numpy as np
 from scipy import stats
-import gui_textfields
+import alphaquant.gui_textfields as gui_textfields
 
 # alphaquant important
 import alphaquant.diffquant_utils as aqutils
