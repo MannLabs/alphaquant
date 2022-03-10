@@ -299,6 +299,7 @@ def analyze_condpair(*,runconfig, condpair):
         res_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
         pep_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.ions.tsv", sep = "\t", index=None)
 
+    print(f"\ncondition pair {condpair} finished!\n")
 
 
     return res_df, pep_df
