@@ -16,11 +16,11 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 * [**License**](#license)
 * [**Installation**](#installation)
   * [**One-click GUI**](#one-click-gui)
-  * [**Pip installer**](#pip)
+<!---  * [**Pip installer**](#pip) -->
   * [**Developer installer**](#developer)
 * [**Usage**](#usage)
   * [**GUI**](#gui)
-  * [**CLI**](#cli)
+<!---  * [**CLI**](#cli) -->
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
 * [**Troubleshooting**](#troubleshooting)
 * [**Citations**](#citations)
