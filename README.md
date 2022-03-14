@@ -152,8 +152,16 @@ It is possible to get help about each function and their (required) parameters b
 ### Python and Jupyter notebooks
 
 AlphaQuant can be imported as a Python package into any Python script or notebook with the command `import alphaquant`.
+Running the standard analysis (with plots) can be done via the command:
+```bash
+import alphaquant.diff_analysis_manager as diffmgr
 
+diffmgr.run_pipeline(input_file=input_file, samplemap_file=samplemap_file, results_dir=results_dir, runtime_plots=True))
+```
+
+<!---
 A brief [Jupyter notebook tutorial](nbs/tutorial.ipynb) on how to use the API is also present in the [nbs folder](nbs).
+-->
 
 ---
 ## Troubleshooting
