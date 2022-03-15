@@ -158,12 +158,11 @@ logs
 
 #tests
 tests/ptmsite_mapping/results
-test_data/oconnel_set/results
-test_data/oconnel_set/peptides.txt.maxquant_peptides.aq_reformat.tsv
-test_data/oconnel_set/peptides.txt.ml_info_table.tsv
-tests/sensitivity_tests/results
 tests/ratio_tests/tissue_example.ipynb
 tests/sensitivity_tests
+test_data/system_tests
+test_data/unit_tests/results
+
 
 #figures
 figures/
