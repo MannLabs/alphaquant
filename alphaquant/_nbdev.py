@@ -384,7 +384,13 @@ index = {"RunConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "ResultsTableAlphaQuant": "12_benchmarking.ipynb",
          "MergedResultsTable": "12_benchmarking.ipynb",
          "SpeciesAnnotator": "12_benchmarking.ipynb",
-         "ClassificationBenchmarker": "12_benchmarking.ipynb"}
+         "ClassificationBenchmarker": "12_benchmarking.ipynb",
+         "TestFileDownloader": "13_testfile_handling.ipynb",
+         "DownloadLinkConverter": "13_testfile_handling.ipynb",
+         "stream": "13_testfile_handling.ipynb",
+         "yamldict": "13_testfile_handling.ipynb",
+         "download_links": "13_testfile_handling.ipynb",
+         "relpath_dict": "13_testfile_handling.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -396,7 +402,8 @@ modules = ["diff_analysis_manager.py",
            "doublediff_analysis.py",
            "cluster_ions.py",
            "classify_ions.py",
-           "benchmarking.py"]
+           "benchmarking.py",
+           "testfile_handling.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 
