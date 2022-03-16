@@ -39,6 +39,8 @@ annotation_file = None, protein_subset_for_normalization_file = None):
 
     check_input_consistency(input_file, samplemap_file, samplemap_df)
 
+
+
     if samplemap_df is None:
         samplemap_df = aqutils.load_samplemap(samplemap_file)
 
@@ -46,7 +48,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
 
         input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
 
-
+    input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = None)
 
 
     #use runconfig object to store the parameters
