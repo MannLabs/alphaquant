@@ -11,12 +11,12 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
            'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
            'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
-           'reformat_and_write_longtable_according_to_config_new', 'adapt_subtable', 'reshape_input_df',
+           'reformat_and_write_longtable_according_to_config', 'adapt_subtable', 'reshape_input_df',
            'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
-           'check_for_processed_runs_in_results_folder', 'import_data', 'expand_samples_subset',
-           'get_input_type_and_config_dict', 'get_original_file_from_aq_reformat', 'import_config_dict',
-           'get_samplenames', 'load_samplemap', 'prepare_loaded_tables', 'AcquistionDataFrameHandler',
-           'merge_acquisition_df_parameter_df']
+           'check_for_processed_runs_in_results_folder', 'import_data', 'reformat_and_save_input_file',
+           'add_ion_protein_headers_if_applicable', 'get_input_type_and_config_dict',
+           'get_original_file_from_aq_reformat', 'import_config_dict', 'get_samplenames', 'load_samplemap',
+           'prepare_loaded_tables', 'AcquistionDataFrameHandler', 'merge_acquisition_df_parameter_df']
 
 # Cell
 import os
@@ -569,7 +569,7 @@ def add_merged_ionnames(df_subset, ion_hierarchy_local, ion_headers_grouped, qua
 
 # Cell
 import os.path
-def reformat_and_write_longtable_according_to_config_new(input_file, outfile_name, config_dict, sep = "\t",decimal = ".", enforce_largefile_processing = False, chunksize =1000_000):
+def reformat_and_write_longtable_according_to_config(input_file, outfile_name, config_dict, sep = "\t",decimal = ".", enforce_largefile_processing = False, chunksize =1000_000):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
@@ -723,35 +723,35 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None, res
     :param file results_folder: the folder where the AlphaQuant outputs are stored
     """
 
-    samples_subset = expand_samples_subset(samples_subset)
+    samples_subset = add_ion_protein_headers_if_applicable(samples_subset)
     if "aq_reformat" in input_file:
-        data = pd.read_csv(input_file, sep = "\t", encoding ='latin1', usecols=samples_subset)
-        return data
+        file_to_read = input_file
+    else:
+        file_to_read = reformat_and_save_input_file(input_file=input_file, input_type_to_use=input_type_to_use)
+
+    input_reshaped = pd.read_csv(file_to_read, sep = "\t", encoding = 'latin1', usecols=samples_subset)
+    return input_reshaped
+
+
+def reformat_and_save_input_file(input_file, input_type_to_use = None):
 
     input_type, config_dict_for_type, sep = get_input_type_and_config_dict(input_file, input_type_to_use)
     print(f"using input type {input_type}")
     format = config_dict_for_type.get('format')
     outfile_name = f"{input_file}.{input_type}.aq_reformat.tsv"
 
-    if samples_subset is not None and os.path.exists(outfile_name):
-        #in the case of very large files that have already been written, read only the relevant samples
-        input_reshaped_subset = pd.read_csv(outfile_name, sep = "\t", usecols=samples_subset)
-        return input_reshaped_subset
-
-
     if format == "longtable":
-        reformat_and_write_longtable_according_to_config_new(input_file, outfile_name,config_dict_for_type, sep = sep)
+        reformat_and_write_longtable_according_to_config(input_file, outfile_name,config_dict_for_type, sep = sep)
     elif format == "widetable":
         reformat_and_write_wideformat_table(input_file, outfile_name, config_dict_for_type)
     else:
         raise Exception('Format not recognized!')
+    return outfile_name
 
 
-    input_reshaped = pd.read_csv(outfile_name, sep = "\t", encoding = 'latin1')
-    return input_reshaped
 
 
-def expand_samples_subset(samples_subset):
+def add_ion_protein_headers_if_applicable(samples_subset):
     if samples_subset is not None:
         return samples_subset + ["ion", "protein"]
     else:
