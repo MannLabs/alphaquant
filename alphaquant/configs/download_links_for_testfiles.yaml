@@ -1,21 +1,16 @@
+#the files that are used for the system tests are stored on a MPI datashared and the download links as well as the directory and file names are stored here
 
-
-ptmsite_mapping:
-  shortened_plugin_outputv4_loc_prob_75.txt.zip : https://datashare.biochem.mpg.de/s/GqnXbsMNbk57BXp
-  samplemap.tsv : https://datashare.biochem.mpg.de/s/hpVYri1Xx5oN7jr
-  FIHQQPQSSSPVYGSSAK.tsv : https://datashare.biochem.mpg.de/s/xNBpilIk3ocaEbi
-  shortened_aq.tsv.zip : https://datashare.biochem.mpg.de/s/AQhyQPOLIzOr2ZM
 sensitivity_tests:
   Spectronaut_LargeFC:
     20210210_154121_S209-S-1-240min_Report.tsv : https://datashare.biochem.mpg.de/s/Cby3nX5OLzaKYBT
   Spectronaut_SmallFC:
     20210624_120140_MP-DIA-multi-organis_Report_smallfc_COMPLETE.tsv.zip : https://datashare.biochem.mpg.de/s/0zOnHihjcG7Ku7l
-phospho_peptides:
-  20210309_173814_DIA_dilution_benchmark_nLClib_5PTMs_20190523_Report.tsv : https://datashare.biochem.mpg.de/s/pGn2lBdPT4qJwwW
-  20190515_153557_dDIA_Report_Qvalue_noimput_LocNorm.xls : https://datashare.biochem.mpg.de/s/oZBvhjVQxYVL2KH
-  samplemap.tsv : https://datashare.biochem.mpg.de/s/7GWgnGeSM2T0BNQ
-MaxQuant_LFQ:
-  peptides.txt : https://datashare.biochem.mpg.de/s/ocOp7c6DMMxjpZy
+  phospho_peptides:
+    20210309_173814_DIA_dilution_benchmark_nLClib_5PTMs_20190523_Report.tsv : https://datashare.biochem.mpg.de/s/pGn2lBdPT4qJwwW
+    20190515_153557_dDIA_Report_Qvalue_noimput_LocNorm.xls : https://datashare.biochem.mpg.de/s/oZBvhjVQxYVL2KH
+    samplemap.tsv : https://datashare.biochem.mpg.de/s/7GWgnGeSM2T0BNQ
+  MaxQuant_LFQ:
+    peptides.txt : https://datashare.biochem.mpg.de/s/ocOp7c6DMMxjpZy
 ratio_tests:
   mann_labs_mouse_tissues:
     diann_results_mbr.tsv : https://datashare.biochem.mpg.de/s/ARaIoDM1fchaNI8
@@ -38,3 +33,9 @@ fastas:
   uniprot-organism_Escherichia+coli+(strain+K12)+[83333].fasta : https://datashare.biochem.mpg.de/s/u7KvMwo6veZhAb6
   Homo_sapiens.GRCh38.pep.all.fasta : https://datashare.biochem.mpg.de/s/jzOxUkuXKXkWvkU
   uniprot-filtered-organism Homo+sapiens+(Human)+[9606] +AND+review--.fasta : https://datashare.biochem.mpg.de/s/BIrwuWnZSglclsI
+
+# ptmsite_mapping:
+#   shortened_plugin_outputv4_loc_prob_75.txt.zip : https://datashare.biochem.mpg.de/s/GqnXbsMNbk57BXp
+#   samplemap.tsv : https://datashare.biochem.mpg.de/s/hpVYri1Xx5oN7jr
+#   FIHQQPQSSSPVYGSSAK.tsv : https://datashare.biochem.mpg.de/s/xNBpilIk3ocaEbi
+#   shortened_aq.tsv.zip : https://datashare.biochem.mpg.de/s/AQhyQPOLIzOr2ZM
