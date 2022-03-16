@@ -870,8 +870,6 @@ class AcquistionDataFrameHandler():
         self._input_type, self._config_dict = self.__get_input_type_and_config_dict__()
         self._sample_column = self.__get_sample_column__()
         self.last_ion_level_to_use = self.__get_last_ion_level_to_use__()
-        self._is_spectronaut = self.__check_if_spectronaut_file__()
-        self._is_maxquant = self.__check_if_maxquant_file__()
 
         if not self.already_formatted:
 
@@ -909,9 +907,9 @@ class AcquistionDataFrameHandler():
             return self._reformatted_dataframe
 
     def __filter_reformated_df_if_necessary__(self, reformatted_df):
-        if self._is_maxquant:
+        if 'maxquant' in self._input_type:
             return reformatted_df
-        if self._is_spectronaut:
+        if 'spectronaut' in self._input_type or 'diann' in self._input_type:
             return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
 
 
@@ -966,12 +964,6 @@ class AcquistionDataFrameHandler():
 
     def __get_sample_column__(self):
         return self._config_dict.get("sample_ID")
-
-    def __check_if_spectronaut_file__(self):
-        return "ectronaut" in self._input_type
-
-    def __check_if_maxquant_file__(self):
-        return "maxquant" in self._input_type
 
     def __get_ordered_ion_hierarchy__(self):
         ion_hierarchy = self._config_dict.get("ion_hierarchy")
@@ -1029,9 +1021,9 @@ class AcquistionDataFrameHandler():
         return numeric_headers
 
     def __apply_numeric_header_filters_if_specified__(self, numeric_headers):
-        if self._is_spectronaut:
+        if 'spectronaut' in self._input_type:
             return [x for x in numeric_headers if self._spectronaut_header_filter(x)]
-        elif self._is_maxquant:
+        elif 'maxquant' in self._input_type:
             return [x for x in numeric_headers if self._maxquant_header_filter(x)]
         else:
             return numeric_headers
