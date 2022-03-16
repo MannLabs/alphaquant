@@ -273,6 +273,7 @@ import random
 import numpy as np
 def get_fc_normalized_nodes(nodes_fclevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = np.inf):
     """"get nodes of type lowerlevel which are normalized by the fclevel fold change"""
+    randnr_generator = random.Random(42)
     normalized_lowerlevels = [] #the normalized lowerlevels are copied values used for training, better change to different variable names to be used
     all_lowerlevels = []
     count_precursors = 0
@@ -288,8 +289,8 @@ def get_fc_normalized_nodes(nodes_fclevel, type_lowerlevel, min_nums_lowerlevel 
             precursor = copy.copy(precursor)
             precursor.fc = precursor.fc - fc_prot
             if count_precursors%distort_precursor_modulo==0:
-                perturbation = random.uniform(-2, 2)
-                precursor.fc=precursor.fc + random.uniform(-2, 2)
+                perturbation = randnr_generator.uniform(-2, 2)
+                precursor.fc=precursor.fc + perturbation
                 precursor.perturbation_added = perturbation
             normalized_lowerlevels.append(precursor)
             count_precursors+=1
@@ -728,7 +729,7 @@ import math
 def get_indices_for_cross_predict(y, number_splits):
     length_subset = math.floor(len(y)/number_splits)
     y_idxs = list(range(len(y)))
-    random.shuffle(y_idxs)
+    random.Random(42).shuffle(y_idxs) #set seed 42
     chunks_excluded = []
     chunks_included = []
     for i in range(0, len(y), length_subset):
@@ -763,6 +764,7 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     dfhandler = aqutils.AcquistionDataFrameHandler(results_dir=results_dir,samples=samples_used)
     acquisition_info_df = get_acquisition_info_df(dfhandler)
     node_level = get_node_level_from_dfhandler(dfhandler)
+    protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
     normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo)
     df_precursor_features = collect_node_parameters(normalized_precursors)
     merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
