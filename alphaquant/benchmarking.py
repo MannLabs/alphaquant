@@ -226,6 +226,7 @@ def generate_protein_list(pepnames):
     res = res[:len(pepnames)]
     return res
 
+
 # Cell
 def annotate_fcs_to_wideformat_table(wideformat_df, columns_intens_c1, columns_intens_c2, num_reps = None):
     wideformat_df[columns_intens_c1+columns_intens_c2] = wideformat_df[columns_intens_c1+columns_intens_c2].replace(0, np.nan)
