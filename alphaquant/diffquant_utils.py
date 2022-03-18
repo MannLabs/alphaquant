@@ -644,6 +644,8 @@ def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict):
     header = True
     for file in files_dask:
         input_df = pd.read_csv(file, sep = "\t")
+        if len(input_df.index) <2:
+            continue
         input_reshaped = reshape_input_df(input_df, config_dict)
         input_reshaped = sort_and_add_columns(input_reshaped, allcols)
         write_chunk_to_file(input_reshaped, outfile_name, header)
