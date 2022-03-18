@@ -8,7 +8,7 @@ import alphaquant.background_distributions as aqbg
 from numba import njit
 
 @njit
-def calc_per_peppair_z_and_fcfc(*,overlapping_c1_idx, overlapping_c2_idx, ion1_c1_ints, ion1_c2_ints, ion2_c1_ints, ion2_c2_ints, fc_conversion_factor, fc_resolution_factor, min_fc, cumulative, max_z, zscores):#check for speedup ~50% of doublediff runtime
+def calc_per_peppair_z_and_fcfc(*,overlapping_c1_idx, overlapping_c2_idx, ion1_c1_ints, ion1_c2_ints, ion2_c1_ints, ion2_c2_ints, fc_conversion_factor, fc_resolution_factor, min_fc, cumulative, max_z, zscores):
     fcfc_res = 0
     count_fcfcs = 0
     z_summed = 0
@@ -51,11 +51,17 @@ def calculate_pairpair_overlap_factor(all_ionpairs, ion2pairs, ionpair2idx_ols, 
                 n_sameidx_first = len(set(idxs_ionpair[0]).intersection(set(idxs_comp_ionpair[0])))
                 n_sameidx_second = len(set(idxs_ionpair[1]).intersection(set(idxs_comp_ionpair[1])))
 
-                deed1 = aqbg.get_subtracted_bg(ion2diffdist, normed_c1, normed_c2, ion, p2z)
-                deed2 = aqbg.get_subtracted_bg(ion2diffdist, normed_c1, normed_c2, comp_ion, p2z)
 
                 eed_ion_c1 = normed_c1.ion2background.get(ion)
                 eed_ion_c2 = normed_c2.ion2background.get(ion)
+
+                eed_comp_ion_c1 = normed_c1.ion2background.get(comp_ion)
+                eed_comp_ion_c2 = normed_c2.ion2background.get(comp_ion)
+
+                deed1 = aqbg.get_subtracted_bg(ion2diffdist, eed_ion_c1, eed_ion_c2, p2z)
+                deed2 = aqbg.get_subtracted_bg(ion2diffdist, eed_comp_ion_c1, eed_comp_ion_c2, p2z)
+
+
 
                 correlation_normfact = deed1.SD * deed2.SD
 
@@ -105,6 +111,7 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
     nrep_c1 = len(normed_c1.ion2allvals.get(ions1[0]))
     nrep_c2 = len(normed_c2.ion2allvals.get(ions2[0]))
 
+
     for ion1 in ions1:
         ion1_c1_ints = normed_c1.ion2allvals.get(ion1)
         ion1_c2_ints = normed_c2.ion2allvals.get(ion1)
@@ -137,8 +144,8 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
             eed_ion2_c1 = normed_c1.ion2background.get(ion2)
             eed_ion2_c2 = normed_c2.ion2background.get(ion2)
 
-            deed_ion1 = aqbg.get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion1, p2z)
-            deed_ion2 = aqbg.get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion2, p2z)
+            deed_ion1 = aqbg.get_subtracted_bg(ion2diffDist,eed_ion1_c1, eed_ion1_c2, p2z)
+            deed_ion2 = aqbg.get_subtracted_bg(ion2diffDist,eed_ion2_c1, eed_ion2_c2, p2z)
 
             #calculate the ionpair total variance as shown in Berchtold et al. EmpiReS
 
@@ -149,6 +156,7 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
 
             #calculate z-value and fcfc for the ion pair
             ddeed_ion1_ion2 = aqbg.get_doublediff_bg(deed_ion1, deed_ion2, deedpair2doublediffdist,p2z)
+
             z_pair, fcfc_pair = calc_per_peppair_z_and_fcfc(overlapping_c1_idx = np.array(overlapping_c1_idx), overlapping_c2_idx = np.array(overlapping_c2_idx), ion1_c1_ints=  ion1_c1_ints, ion1_c2_ints=ion1_c2_ints,
             ion2_c1_ints = ion2_c1_ints, ion2_c2_ints = ion2_c2_ints, fc_conversion_factor=ddeed_ion1_ion2.fc_conversion_factor,
             fc_resolution_factor=ddeed_ion1_ion2.fc_resolution_factor, min_fc= ddeed_ion1_ion2.min_fc, cumulative = ddeed_ion1_ion2.cumulative, max_z= ddeed_ion1_ion2.max_z, zscores= ddeed_ion1_ion2.zscores)

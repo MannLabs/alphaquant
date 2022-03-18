@@ -44,11 +44,12 @@ annotation_file = None, protein_subset_for_normalization_file = None):
     if samplemap_df is None:
         samplemap_df = aqutils.load_samplemap(samplemap_file)
 
-    if (input_file is not None) and (modification_type is not None):
+    if modification_type is not None:
 
         input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
 
-    input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = None)
+    if "aq_reformat.tsv" not in input_file:
+        input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = None)
 
 
     #use runconfig object to store the parameters
@@ -211,7 +212,9 @@ def analyze_condpair(*,runconfig, condpair):
         t_ion = time()
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
-        diffDist = aqbg.get_subtracted_bg(bgpair2diffDist,normed_c1, normed_c2,ion, p2z)
+        bg1 = normed_c1.ion2background.get(ion)
+        bg2 = normed_c2.ion2background.get(ion)
+        diffDist = aqbg.get_subtracted_bg(bgpair2diffDist, bg1, bg2, p2z)
         t_subtract_end = time()
         diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
         t_diffion = time()
