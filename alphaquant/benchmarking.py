@@ -280,7 +280,9 @@ def cluster_selected_proteins(protnames, quant_df, normed_c1, normed_c2, pval_th
             continue
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
-        diffDist = aqbg.get_subtracted_bg(bgpair2diffDist,normed_c1, normed_c2,ion, p2z)
+        bg1 = normed_c1.ion2background.get(ion.name)
+        bg2 = normed_c2.ion2background.get(ion.name)
+        diffDist = aqbg.get_subtracted_bg(bgpair2diffDist,bg1, bg2, p2z)
 
         diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion,outlier_correction=False)
 
@@ -421,7 +423,9 @@ def get_subset_of_diffions(normed_c1, normed_c2, num_ions):
             break
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
-        diffDist = aqbg.get_subtracted_bg(ion2diffDist,normed_c1, normed_c2,ion, p2z)
+        bg1 = normed_c1.ion2background.get(ion)
+        bg2 = normed_c2.ion2background.get(ion)
+        diffDist = aqbg.get_subtracted_bg(ion2diffDist, bg1, bg2,p2z)
         diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, outlier_correction = False)
         diffions.append(diffIon)
         count_ions+=1
