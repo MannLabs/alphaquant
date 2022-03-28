@@ -322,7 +322,7 @@ class RunPipeline(BaseWidget):
         )
 
     def extract_sample_names(self):
-        sample_names = aqutils.get_samplenames(self.data)
+        sample_names = aqutils.get_samplenames_from_input_df(self.data)
         self.samplemap_table.value = pd.DataFrame(
             data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )

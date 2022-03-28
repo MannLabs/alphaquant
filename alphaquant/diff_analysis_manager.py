@@ -61,7 +61,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
     #store method parameters for reproducibility
     aqutils.store_method_parameters(locals(), results_dir)
 
-    if use_iontree_if_possible & use_ml:
+    if runconfig.use_iontree_if_possible & use_ml:
         reformat_and_save_ml_dataframe(results_dir, samplemap_df)
 
     if condpair_combinations == None:
@@ -80,7 +80,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
 
 # Cell
 def reformat_and_save_ml_dataframe(results_dir, samplemap_df):
-    all_samples = aqutils.get_samplenames(samplemap_df)
+    all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
     dfhandler = aqutils.AcquistionDataFrameHandler(results_dir=results_dir,samples=all_samples)
     dfhandler.save_allsample_dataframe_as_new_acquisition_dataframe()
     dfhandler.update_ml_file_location_in_method_parameters_yaml()
