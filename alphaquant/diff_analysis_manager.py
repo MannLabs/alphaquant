@@ -220,7 +220,7 @@ def analyze_condpair(*,runconfig, condpair):
 
     t_bgdist_fin = time()
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
-    use_ion_tree = list(ions_to_check)[0].startswith("SEQ_") & runconfig.use_iontree_if_possible
+    use_ion_tree = runconfig.use_iontree_if_possible
     bgpair2diffDist = {}
     deedpair2doublediffdist = {}
     count_ions=0
