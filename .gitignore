@@ -163,6 +163,7 @@ tests/sensitivity_tests/sensitivity_phospho_peptides.ipynb
 tests/sensitivity_tests/single_cell_comparison.ipynb
 test_data/system_tests
 test_data/unit_tests/results
+tests/sensitivity_tests/check_peptide_selection_for_significance.ipynb
 
 
 #figures
