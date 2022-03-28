@@ -3,14 +3,6 @@
 __all__ = ['TestFileDownloader', 'DownloadLinkConverter']
 
 # Cell
-import os
-import pathlib
-if "__file__" in globals():#only run in the nbdev translated python file, as __file__ is not defined with ipython
-    DOWNLOAD_LINKS = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs", "testfile_download_links.yaml") #the yaml config is located one directory below the python library files
-
-
-
-# Cell
 import yaml
 import glob
 import subprocess
