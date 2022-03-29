@@ -17,7 +17,7 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'check_for_processed_runs_in_results_folder', 'import_data', 'reformat_and_save_input_file',
            'add_ion_protein_headers_if_applicable', 'get_input_type_and_config_dict',
            'get_original_file_from_aq_reformat', 'import_config_dict', 'load_samplemap', 'prepare_loaded_tables',
-           'AcquistionDataFrameHandler', 'merge_acquisition_df_parameter_df']
+           'AcquisitionDataFrameHandler', 'merge_acquisition_df_parameter_df']
 
 # Cell
 import os
@@ -860,7 +860,7 @@ def prepare_loaded_tables(data_df, samplemap_df):
 # Cell
 import os
 
-class AcquistionDataFrameHandler():
+class AcquisitionDataFrameHandler():
     def __init__(self, results_dir, samples, sep = "\t", decimal = "."):
         self._results_dir = results_dir
         self._samples = samples

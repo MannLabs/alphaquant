@@ -81,7 +81,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
 # Cell
 def reformat_and_save_ml_dataframe(results_dir, samplemap_df):
     all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
-    dfhandler = aqutils.AcquistionDataFrameHandler(results_dir=results_dir,samples=all_samples)
+    dfhandler = aqutils.AcquisitionDataFrameHandler(results_dir=results_dir,samples=all_samples)
     dfhandler.save_allsample_dataframe_as_new_acquisition_dataframe()
     dfhandler.update_ml_file_location_in_method_parameters_yaml()
 
