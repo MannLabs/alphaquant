@@ -47,7 +47,7 @@ class TestFileDownloader():
         return f"{link}/download"
 
     def __convert_relative_to_absolute_path__(self, path):
-        return f"{test_folder}/{path}"
+        return f"{self._test_folder}/{path}"
 
     @staticmethod
     def __prepare_download_directory__(absolute_path):
