@@ -1,8 +1,8 @@
 on:
-   push:
-     branches: [ master, Development ]
-   pull_request:
-     branches: [ master, Development ]
+  #  push:
+  #    branches: [ master, Development ]
+  #  pull_request:
+  #    branches: [ master, Development ]
    workflow_dispatch:
 
 name: All tests based on default installation
