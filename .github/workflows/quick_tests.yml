@@ -5,7 +5,7 @@ on:
      branches: [ master, Development ]
    workflow_dispatch:
 
-name: Default installation and quick tests
+name: Quick tests based on default installation
 
 jobs:
   loose_installation:
