@@ -17,7 +17,9 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'check_for_processed_runs_in_results_folder', 'import_data', 'reformat_and_save_input_file',
            'add_ion_protein_headers_if_applicable', 'get_input_type_and_config_dict',
            'get_original_file_from_aq_reformat', 'import_config_dict', 'load_samplemap', 'prepare_loaded_tables',
-           'AcquisitionDataFrameHandler', 'merge_acquisition_df_parameter_df']
+           'LongTableReformater', 'AcquisitionTableHandler', 'AcquisitionTableInfo', 'AcquisitionTableHeaders',
+           'AcquisitionTableOutputPaths', 'AcquisitionTableReformater', 'AcquisitionTableHeaderFilter',
+           'merge_acquisition_df_parameter_df']
 
 # Cell
 import os
@@ -858,14 +860,81 @@ def prepare_loaded_tables(data_df, samplemap_df):
     return data_df[headers], samplemap_df
 
 # Cell
+
+
+#export
+class LongTableReformater():
+    """Generic class to reformat tabular files in chunks. For the specific cases you can inherit the class and specify reformat and iterate function
+    """
+    def __init__(self, input_file):
+        self._input_file = input_file
+        self._reformatting_function = None
+        self._iterator_function = self.__initialize_df_iterator__
+        self._concat_list = []
+
+    def reformat_and_load_acquisition_data_frame(self):
+
+        input_df_it = self._iterator_function()
+
+        input_df_list = []
+        for input_df_subset in input_df_it:
+            input_df_subset = self._reformatting_function(input_df_subset)
+            input_df_list.append(input_df_subset)
+        input_df = pd.concat(input_df_list)
+
+        return input_df
+
+    def reformat_and_save_acquisition_data_frame(self, output_file):
+
+        input_df_it = self._iterator_function()
+        write_header = True
+
+        for input_df_subset in input_df_it:
+            input_df_subset = self._reformatting_function(input_df_subset)
+            self.__write_reformatted_df_to_file__(input_df_subset, output_file, write_header)
+
+    def __initialize_df_iterator__(self):
+        return pd.read_csv(self._input_file, sep = "\t", encoding ='latin1', chunksize=1000000)
+
+    @staticmethod
+    def __write_reformatted_df_to_file__(reformatted_df, filepath ,write_header):
+        reformatted_df.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
+
+
 import os
 
-class AcquisitionDataFrameHandler():
-    def __init__(self, results_dir, samples, sep = "\t", decimal = "."):
-        self._results_dir = results_dir
+class AcquisitionTableHandler():
+    def __init__(self, results_dir, samples):
         self._samples = samples
-        self._spectronaut_header_filter = lambda x : ("EG." in x) | ("FG." in x)
-        self._maxquant_header_filter = lambda x : ("Intensity" not in x) and ("Experiment" not in x)
+        self._table_infos = AcquisitionTableInfo(results_dir=results_dir)
+
+
+    def get_acquisition_info_df(self):
+        return self.__get_reformated_df__()
+
+    def save_dataframe_as_new_acquisition_dataframe(self):
+        self._header_infos = AcquisitionTableHeaders(self._table_infos)
+        self._output_paths = AcquisitionTableOutputPaths(self._table_infos)
+
+        df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=self._header_infos, samples = self._samples, dataframe_already_preformated=False)
+        df_reformater.reformat_and_save_acquisition_data_frame(self._output_paths.output_file_name)
+
+    def update_ml_file_location_in_method_parameters_yaml(self):
+        method_params = load_method_parameters(self._table_infos._results_dir)
+        if self._output_paths == None:
+            raise Exception("output paths not initialized! This could be because no dataframe was saved before")
+
+        method_params[self._output_paths.ml_file_accession_in_yaml] = self._output_paths
+        save_dict_as_yaml(method_params, self._output_paths.method_parameters_yaml_path)
+
+    def __get_reformated_df__(self):
+        df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=None, samples = self._samples, dataframe_already_preformated=self._table_infos.already_formatted)
+        return df_reformater.reformat_and_load_acquisition_data_frame()
+
+
+class AcquisitionTableInfo():
+    def __init__(self, results_dir, sep = "\t", decimal = "."):
+        self._results_dir = results_dir
         self._sep = sep
         self._decimal = decimal
         self._input_file = self.__get_input_file__()
@@ -875,84 +944,15 @@ class AcquisitionDataFrameHandler():
         self._sample_column = self.__get_sample_column__()
         self.last_ion_level_to_use = self.__get_last_ion_level_to_use__()
 
-        if not self.already_formatted:
-
-            self._ion_hierarchy = self.__get_ordered_ion_hierarchy__()
-            self._included_levelnames = self.__get_included_levelnames__()
-            self._ion_headers_grouped = self.__get_ion_headers_grouped__()
-            self._ion_headers = self.__get_ion_headers__()
-            self._relevant_headers = self.__get_relevant_headers__()
-            self._output_file_name = self.__get_output_file_name__()
-            self._method_parameters_yaml_path = self.__get_method_parameters_yaml_path__()
-            self._ml_file_accession_in_yaml = "ml_input_file"
-            self._reformatted_dataframe = self.__reformat_and_load_acquisition_data_frame__()
-
-
-    def get_acquisition_info_df(self):
-        reformated_df = self.__get_reformated_df__()
-        return self.__filter_reformated_df_if_necessary__(reformated_df)
-
-
-
-    def save_allsample_dataframe_as_new_acquisition_dataframe(self):
-        self._reformatted_dataframe.to_csv(self._output_file_name, sep = "\t", index = None)
-
-    def update_ml_file_location_in_method_parameters_yaml(self):
-        method_params = load_method_parameters(self._results_dir)
-        method_params[self._ml_file_accession_in_yaml] = self._output_file_name
-        save_dict_as_yaml(method_params, self._method_parameters_yaml_path)
-
-
-
-    def __get_reformated_df__(self):
-        if self.already_formatted:
-            return self.__import_preformated_ml_dataframe__()
-        else:
-            return self._reformatted_dataframe
-
-    def __filter_reformated_df_if_necessary__(self, reformatted_df):
-        if 'maxquant' in self._input_type:
-            return reformatted_df
-        if 'spectronaut' in self._input_type or 'diann' in self._input_type:
-            return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
-
-
-    def __reformat_and_load_acquisition_data_frame__(self):
-
-        input_df_it = self.__initialize_df_iterator__()
-
-        input_df_list = []
-        for input_df_subset in input_df_it:
-            input_df_subset = self.__filter_sub_dataframe__(input_df_subset)
-            input_df_list.append(input_df_subset)
-        input_df = pd.concat(input_df_list)
-
-        input_df = add_merged_ionnames(input_df, self._included_levelnames, self._ion_headers_grouped, None, None)
-        return input_df
-
-    def __import_preformated_ml_dataframe__(self):
-        return pd.read_csv(self._input_file, sep="\t")
-
-    def __initialize_df_iterator__(self):
-        return pd.read_csv(self._input_file, sep = self._sep, decimal=self._decimal, usecols = self._relevant_headers, encoding ='latin1', chunksize=1000000)
-
-    def __filter_sub_dataframe__(self, input_df_subset):
-        input_df_subset = input_df_subset.drop_duplicates()
-        return input_df_subset
-
-    def __filter_reformatted_dataframe_to_relevant_samples__(self, input_df_subset):
-        return input_df_subset[[x in self._samples for x in input_df_subset[self._sample_column]]]
+    def __get_input_file__(self):
+        method_params_dict = load_method_parameters(self._results_dir)
+        return method_params_dict.get('ml_input_file')
 
     def __check_if_input_file_is_already_formatted__(self):
         if self._file_ending_of_formatted_table in self._input_file:
             return True
         else:
             return False
-
-    def __get_input_file__(self):
-        method_params_dict = load_method_parameters(self._results_dir)
-        return method_params_dict.get('ml_input_file')
-
 
     def __get_input_type_and_config_dict__(self):
         if self.already_formatted:
@@ -965,22 +965,33 @@ class AcquisitionDataFrameHandler():
     def __get_location_of_original_file__(self):
         return self._input_file.replace(self._file_ending_of_formatted_table, "")
 
-
     def __get_sample_column__(self):
         return self._config_dict.get("sample_ID")
-
-    def __get_ordered_ion_hierarchy__(self):
-        ion_hierarchy = self._config_dict.get("ion_hierarchy")
-        hier_key = 'fragion' if 'fragion' in ion_hierarchy.keys() else list(ion_hierarchy.keys())[0]
-        ion_hierarchy_on_chosen_key = ion_hierarchy.get(hier_key)
-        return ion_hierarchy_on_chosen_key
 
     def __get_last_ion_level_to_use__(self):
         return self._config_dict["ml_level"]
 
+
+class AcquisitionTableHeaders():
+    def __init__(self, acquisition_table_info):
+
+        self._table_info = acquisition_table_info
+
+        self._ion_hierarchy = self.__get_ordered_ion_hierarchy__()
+        self._included_levelnames = self.__get_included_levelnames__()
+        self._ion_headers_grouped = self.__get_ion_headers_grouped__()
+        self._ion_headers = self.__get_ion_headers__()
+        self._relevant_headers = self.__get_relevant_headers__()
+
+    def __get_ordered_ion_hierarchy__(self):
+        ion_hierarchy = self._table_info._config_dict.get("ion_hierarchy")
+        hier_key = 'fragion' if 'fragion' in ion_hierarchy.keys() else list(ion_hierarchy.keys())[0]
+        ion_hierarchy_on_chosen_key = ion_hierarchy.get(hier_key)
+        return ion_hierarchy_on_chosen_key
+
     def __get_included_levelnames__(self):
         levelnames = self.__get_all_levelnames__(self._ion_hierarchy)
-        last_ionlevel_idx = levelnames.index(self.last_ion_level_to_use)
+        last_ionlevel_idx = levelnames.index(self._table_info.last_ion_level_to_use)
         return levelnames[:last_ionlevel_idx+1]
 
     @staticmethod
@@ -991,49 +1002,93 @@ class AcquisitionDataFrameHandler():
         mapping_dict = self.__get_levelname_mapping_dict(self._ion_hierarchy)
         return [mapping_dict.get(x) for x in self._included_levelnames]#on each level there can be multiple names, so it is a list of lists
 
-    def __get_ion_headers__(self):
-        return list(itertools.chain(*self._ion_headers_grouped))
-
     @staticmethod
     def __get_levelname_mapping_dict(ion_hierarchy):
         return ion_hierarchy.get('mapping')
 
+    def __get_ion_headers__(self):
+        return list(itertools.chain(*self._ion_headers_grouped))
+
+
     def __get_relevant_headers__(self):
         numeric_headers = self.__get_numeric_headers__()
-        relevant_headers = numeric_headers+self._ion_headers + [self._sample_column]
+        relevant_headers = numeric_headers+self._ion_headers + [self._table_info._sample_column]
         return self.__remove_possible_none_values_from_list__(relevant_headers)
 
     @staticmethod
     def __remove_possible_none_values_from_list__(list):
         return [x for x in list if x is not None]
 
+    def __get_numeric_headers__(self):
+        df_sample = pd.read_csv(self._table_info._input_file, sep = self._table_info._sep, decimal = self._table_info._decimal, encoding='latin1', nrows=3000) #sample 3000 rows from the df to assess the types of each row
+        df_sample = df_sample.replace({False: 0, True: 1})
+        numeric_headers =  list(df_sample.select_dtypes(include=np.number).columns)
+        numeric_headers = AcquisitionTableHeaderFilter().filter_numeric_headers_if_specified(input_type = self._table_info._input_type, numeric_headers = numeric_headers)
+        return numeric_headers
+
+
+class AcquisitionTableOutputPaths():
+    def __init__(self, table_info):
+        self._table_info = table_info
+        self.output_file_name = self.__get_output_file_name__()
+        self.method_parameters_yaml_path = self.__get_method_parameters_yaml_path__()
+        self.ml_file_accession_in_yaml = "ml_input_file"
+
     def __get_output_file_name__(self):
-        old_file_name = self._input_file
-        new_file_name = old_file_name+self._file_ending_of_formatted_table
+        old_file_name = self._table_info._input_file
+        new_file_name = old_file_name+self._table_info._file_ending_of_formatted_table
         return new_file_name
 
     def __get_method_parameters_yaml_path__(self):
-        return f"{self._results_dir}/aq_parameters.yaml"
+        return f"{self._table_info._results_dir}/aq_parameters.yaml"
 
 
+class AcquisitionTableReformater(LongTableReformater):
+    def __init__(self, table_infos, header_infos, samples, dataframe_already_preformated = False):
 
-    def __get_numeric_headers__(self):
-        df_sample = pd.read_csv(self._input_file, sep = self._sep, decimal = self._decimal, encoding='latin1', nrows=3000) #sample 3000 rows from the df to assess the types of each row
-        df_sample = df_sample.replace({False: 0, True: 1})
-        numeric_headers =  list(df_sample.select_dtypes(include=np.number).columns)
-        numeric_headers = self.__apply_numeric_header_filters_if_specified__(numeric_headers)
-        return numeric_headers
+        LongTableReformater.__init__(self, table_infos._input_file)
+        self._table_infos = table_infos
+        self._header_infos = header_infos
+        self._samples = samples
+        self._dataframe_already_preformated = dataframe_already_preformated
 
-    def __apply_numeric_header_filters_if_specified__(self, numeric_headers):
-        if 'spectronaut' in self._input_type:
+        #set the two functions that specify the explicit reformatting
+        self._reformatting_function = self.__reformatting_function__
+        if not dataframe_already_preformated:
+            self._iterator_function = self.__initialize_iterator_with_specified_columns__
+
+    def __reformatting_function__(self, input_df_subset):
+        input_df_subset = input_df_subset.drop_duplicates()
+        input_df_subset = self.__filter_reformated_df_if_necessary__(input_df_subset)
+        if not self._dataframe_already_preformated:
+            add_merged_ionnames(input_df_subset, self._header_infos._included_levelnames, self._header_infos._ion_headers_grouped, None, None)
+        return input_df_subset
+
+    def __filter_reformated_df_if_necessary__(self, reformatted_df):
+        if 'maxquant' in self._table_infos._input_type:
+            return reformatted_df
+        if 'spectronaut' in self._table_infos._input_type or 'diann' in self._table_infos._input_type:
+            return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
+
+    def __filter_reformatted_dataframe_to_relevant_samples__(self, input_df_subset):
+        return input_df_subset[[x in self._samples for x in input_df_subset[self._table_infos._sample_column]]]
+
+    def __initialize_iterator_with_specified_columns__(self):
+        return pd.read_csv(self._table_infos._input_file, sep = self._table_infos._sep, decimal=self._table_infos._decimal, usecols = self._header_infos._relevant_headers, encoding ='latin1', chunksize=1000000)
+
+
+class AcquisitionTableHeaderFilter():
+    def __init__(self):
+        self._spectronaut_header_filter = lambda x : (("EG." in x) | ("FG." in x)) and ("Global" not in x)
+        self._maxquant_header_filter = lambda x : ("Intensity" not in x) and ("Experiment" not in x)
+
+    def filter_numeric_headers_if_specified(self, input_type, numeric_headers):
+        if 'spectronaut' in input_type:
             return [x for x in numeric_headers if self._spectronaut_header_filter(x)]
-        elif 'maxquant' in self._input_type:
+        elif 'maxquant' in input_type:
             return [x for x in numeric_headers if self._maxquant_header_filter(x)]
         else:
             return numeric_headers
-
-
-
 
 
 
