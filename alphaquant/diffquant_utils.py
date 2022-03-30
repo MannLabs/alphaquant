@@ -929,7 +929,7 @@ class AcquisitionTableHandler():
         save_dict_as_yaml(method_params, self._output_paths.method_parameters_yaml_path)
 
     def __get_reformated_df__(self):
-        df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=None, samples = self._samples, dataframe_already_preformated=self._table_infos.already_formatted)
+        df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=None, samples = self._samples, dataframe_already_preformated=True)
         return df_reformater.reformat_and_load_acquisition_data_frame()
 
     @staticmethod
