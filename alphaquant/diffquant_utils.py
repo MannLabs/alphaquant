@@ -904,6 +904,7 @@ class LongTableReformater():
 # Cell
 
 import os
+import shu
 
 class AcquisitionTableHandler():
     def __init__(self, results_dir, samples):
@@ -917,7 +918,7 @@ class AcquisitionTableHandler():
     def save_dataframe_as_new_acquisition_dataframe(self):
         self._header_infos = AcquisitionTableHeaders(self._table_infos)
         self._output_paths = AcquisitionTableOutputPaths(self._table_infos)
-
+        self.__remove_possible_pre_existing_ml_table__(self._output_paths.output_file_name)
         df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=self._header_infos, samples = self._samples, dataframe_already_preformated=False)
         df_reformater.reformat_and_save_acquisition_data_frame(self._output_paths.output_file_name)
 
@@ -931,6 +932,12 @@ class AcquisitionTableHandler():
     def __get_reformated_df__(self):
         df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=None, samples = self._samples, dataframe_already_preformated=self._table_infos.already_formatted)
         return df_reformater.reformat_and_load_acquisition_data_frame()
+
+    @staticmethod
+    def __remove_possible_pre_existing_ml_table__(output_file_name):
+        if os.path.exists(output_file_name):
+            os.remove(output_file_name)
+            print(f"removed pre existing {output_file_name}")
 
 
 class AcquisitionTableInfo():
