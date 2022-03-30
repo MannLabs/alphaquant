@@ -355,7 +355,7 @@ def get_path_to_database(database_path, database_name, organism):
         if os.path.exists(database_path):
             return database_path
     else:
-        database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "reference_databases", organism, database_name)
+        database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "reference_databases", organism, database_name)
         return database_path
 
 
