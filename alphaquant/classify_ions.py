@@ -10,8 +10,8 @@ __all__ = ['collect_node_parameters', 'get_param2val', 'get_dataframe', 'calc_cl
            'predict_remaining_dataset', 'find_nearest', 'find_mean_and_cutoffs', 'fit_gaussian_to_dist_around_mode',
            'gauss', 'gaussian', 'fit_gaussian_to_subdist', 'annotate_precursor_nodes', 'balance_small_and_strong_fcs',
            'random_forest_iterative_cross_predict', 'get_indices_for_cross_predict', 'get_balance_excluded_subset',
-           'calculate_log_loss_scores_for_prediction', 'assign_predictability_scores', 'get_acquisition_info_df',
-           'get_node_level_from_dfhandler', 'add_quality_scores_to_node', 'test_fc_name_mapping']
+           'calculate_log_loss_scores_for_prediction', 'assign_predictability_scores', 'get_node_level_from_dfhandler',
+           'add_quality_scores_to_node', 'test_fc_name_mapping']
 
 # Cell
 import numpy as np
@@ -762,7 +762,7 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     #add predictability scores to each precursor
     #prepare the input table with all the relevant features for machine learning
     dfhandler = aqutils.AcquisitionTableHandler(results_dir=results_dir,samples=samples_used)
-    acquisition_info_df = get_acquisition_info_df(dfhandler)
+    acquisition_info_df = dfhandler.get_acquisition_info_df()
     node_level = get_node_level_from_dfhandler(dfhandler)
     protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
     normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo)
@@ -808,16 +808,9 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
 
 
-def get_acquisition_info_df(dfhandler):
-    acquisition_df = dfhandler.get_acquisition_info_df()
-    if not dfhandler.already_formatted:
-        dfhandler.save_allsample_dataframe_as_new_acquisition_dataframe()
-        dfhandler.update_ml_file_location_in_method_parameters_yaml()
-    return acquisition_df
-
 from .cluster_ions import globally_initialized_typefilter
 def get_node_level_from_dfhandler(dfhandler):
-    return globally_initialized_typefilter.mapping_dict.get(dfhandler.last_ion_level_to_use)
+    return globally_initialized_typefilter.mapping_dict.get(dfhandler._table_infos.last_ion_level_to_use)
 
 
 def add_quality_scores_to_node(acquisition_info_df, nodes):

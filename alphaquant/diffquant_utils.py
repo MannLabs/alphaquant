@@ -909,13 +909,12 @@ class AcquisitionTableHandler():
     def __init__(self, results_dir, samples):
         self._samples = samples
         self._table_infos = AcquisitionTableInfo(results_dir=results_dir)
-
+        self._header_infos = AcquisitionTableHeaders(self._table_infos)
 
     def get_acquisition_info_df(self):
         return self.__get_reformated_df__()
 
     def save_dataframe_as_new_acquisition_dataframe(self):
-        self._header_infos = AcquisitionTableHeaders(self._table_infos)
         self._output_paths = AcquisitionTableOutputPaths(self._table_infos)
         self.__remove_possible_pre_existing_ml_table__(self._output_paths.output_file_name)
         df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=self._header_infos, samples = self._samples, dataframe_already_preformated=False)
@@ -929,8 +928,9 @@ class AcquisitionTableHandler():
         save_dict_as_yaml(method_params, self._output_paths.method_parameters_yaml_path)
 
     def __get_reformated_df__(self):
-        df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=None, samples = self._samples, dataframe_already_preformated=True)
-        return df_reformater.reformat_and_load_acquisition_data_frame()
+        df_reformater = AcquisitionTableReformater(table_infos = self._table_infos, header_infos=self._header_infos, samples = self._samples, dataframe_already_preformated=True)
+        df = df_reformater.reformat_and_load_acquisition_data_frame()
+        return df.convert_dtypes()
 
     @staticmethod
     def __remove_possible_pre_existing_ml_table__(output_file_name):
@@ -1061,14 +1061,13 @@ class AcquisitionTableReformater(LongTableReformater):
 
         #set the two functions that specify the explicit reformatting
         self._reformatting_function = self.__reformatting_function__
-        if not dataframe_already_preformated:
-            self._iterator_function = self.__initialize_iterator_with_specified_columns__
+        self._iterator_function = self.__initialize_iterator_with_specified_columns__
 
     def __reformatting_function__(self, input_df_subset):
         input_df_subset = input_df_subset.drop_duplicates()
         input_df_subset = self.__filter_reformated_df_if_necessary__(input_df_subset)
         if not self._dataframe_already_preformated:
-            add_merged_ionnames(input_df_subset, self._header_infos._included_levelnames, self._header_infos._ion_headers_grouped, None, None)
+            input_df_subset = add_merged_ionnames(input_df_subset, self._header_infos._included_levelnames, self._header_infos._ion_headers_grouped, None, None)
         return input_df_subset
 
     def __filter_reformated_df_if_necessary__(self, reformatted_df):
@@ -1081,7 +1080,16 @@ class AcquisitionTableReformater(LongTableReformater):
         return input_df_subset[[x in self._samples for x in input_df_subset[self._table_infos._sample_column]]]
 
     def __initialize_iterator_with_specified_columns__(self):
-        return pd.read_csv(self._table_infos._input_file, sep = self._table_infos._sep, decimal=self._table_infos._decimal, usecols = self._header_infos._relevant_headers, encoding ='latin1', chunksize=1000000)
+        cols_to_use = self.__get_cols_to_use__()
+        return pd.read_csv(self._table_infos._input_file, sep = self._table_infos._sep, decimal=self._table_infos._decimal, usecols = cols_to_use, encoding ='latin1', chunksize=1000000)
+
+    def __get_cols_to_use__(self):
+        cols_to_use = self._header_infos._relevant_headers
+        if self._dataframe_already_preformated:
+            return cols_to_use+['ion']
+        else:
+            return cols_to_use
+
 
 
 class AcquisitionTableHeaderFilter():
