@@ -901,6 +901,8 @@ class LongTableReformater():
         reformatted_df.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
 
 
+# Cell
+
 import os
 
 class AcquisitionTableHandler():
@@ -923,8 +925,7 @@ class AcquisitionTableHandler():
         method_params = load_method_parameters(self._table_infos._results_dir)
         if self._output_paths == None:
             raise Exception("output paths not initialized! This could be because no dataframe was saved before")
-
-        method_params[self._output_paths.ml_file_accession_in_yaml] = self._output_paths
+        method_params[self._output_paths.ml_file_accession_in_yaml] = self._output_paths.output_file_name
         save_dict_as_yaml(method_params, self._output_paths.method_parameters_yaml_path)
 
     def __get_reformated_df__(self):
