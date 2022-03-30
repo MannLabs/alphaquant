@@ -904,7 +904,6 @@ class LongTableReformater():
 # Cell
 
 import os
-import shu
 
 class AcquisitionTableHandler():
     def __init__(self, results_dir, samples):
