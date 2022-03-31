@@ -892,6 +892,7 @@ class LongTableReformater():
         for input_df_subset in input_df_it:
             input_df_subset = self._reformatting_function(input_df_subset)
             self.__write_reformatted_df_to_file__(input_df_subset, output_file, write_header)
+            write_header = False
 
     def __initialize_df_iterator__(self):
         return pd.read_csv(self._input_file, sep = "\t", encoding ='latin1', chunksize=1000000)
@@ -988,6 +989,7 @@ class AcquisitionTableHeaders():
         self._included_levelnames = self.__get_included_levelnames__()
         self._ion_headers_grouped = self.__get_ion_headers_grouped__()
         self._ion_headers = self.__get_ion_headers__()
+        self._numeric_headers = self.__get_numeric_headers__()
         self._relevant_headers = self.__get_relevant_headers__()
 
     def __get_ordered_ion_hierarchy__(self):
@@ -1018,8 +1020,7 @@ class AcquisitionTableHeaders():
 
 
     def __get_relevant_headers__(self):
-        numeric_headers = self.__get_numeric_headers__()
-        relevant_headers = numeric_headers+self._ion_headers + [self._table_info._sample_column]
+        relevant_headers = self._numeric_headers+self._ion_headers + [self._table_info._sample_column]
         return self.__remove_possible_none_values_from_list__(relevant_headers)
 
     @staticmethod
@@ -1089,6 +1090,7 @@ class AcquisitionTableReformater(LongTableReformater):
             return cols_to_use+['ion']
         else:
             return cols_to_use
+
 
 
 
