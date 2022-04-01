@@ -284,9 +284,15 @@ def analyze_condpair(*,runconfig, condpair):
     if use_ion_tree:
         if runconfig.use_ml:
             ml_performance_dict = {}
-            aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
-            fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
-            if ml_performance_dict["r2_score"] >0.05: #only use the ml score, if it is meaningful
+            ml_successfull = True
+            try:
+                aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
+                fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
+            except:
+                print(f"Machine Learning did not work for condpair {condpair}, using standard score")
+                ml_successfull=False
+
+            if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
                 aqclust.update_nodes_w_ml_score(protnodes)
                 update_quantified_proteins_w_tree_results(quantified_proteins, protnodes)
             if runconfig.write_out_results_tree:
