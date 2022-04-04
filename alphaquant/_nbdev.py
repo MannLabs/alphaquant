@@ -327,7 +327,6 @@ index = {"ConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "get_balance_excluded_subset": "10_classify_ions.ipynb",
          "calculate_log_loss_scores_for_prediction": "10_classify_ions.ipynb",
          "assign_predictability_scores": "10_classify_ions.ipynb",
-         "get_acquisition_info_df": "10_classify_ions.ipynb",
          "get_node_level_from_dfhandler": "10_classify_ions.ipynb",
          "add_quality_scores_to_node": "10_classify_ions.ipynb",
          "test_fc_name_mapping": "10_classify_ions.ipynb",
@@ -397,7 +396,14 @@ index = {"ConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "SpeciesAnnotator": "12_benchmarking.ipynb",
          "ClassificationBenchmarker": "12_benchmarking.ipynb",
          "TestFileDownloader": "13_testfile_handling.ipynb",
-         "DownloadLinkConverter": "13_testfile_handling.ipynb"}
+         "DownloadLinkConverter": "13_testfile_handling.ipynb",
+         "get_phosphofile2protfile": "14_protein_ptm_normalization.ipynb",
+         "get_name2file": "14_protein_ptm_normalization.ipynb",
+         "normalize_with_proteome": "14_protein_ptm_normalization.ipynb",
+         "phospho_result_files": "14_protein_ptm_normalization.ipynb",
+         "proteom_result_files": "14_protein_ptm_normalization.ipynb",
+         "reference_swissprot": "14_protein_ptm_normalization.ipynb",
+         "count": "14_protein_ptm_normalization.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -410,7 +416,8 @@ modules = ["diff_analysis_manager.py",
            "cluster_ions.py",
            "classify_ions.py",
            "benchmarking.py",
-           "testfile_handling.py"]
+           "testfile_handling.py",
+           "protein_ptm_normalization.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 
