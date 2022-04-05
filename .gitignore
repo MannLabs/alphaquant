@@ -167,6 +167,7 @@ test_data/unit_tests/results
 tests/sensitivity_tests/check_peptide_selection_for_significance.ipynb
 tests/sensitivity_tests/quicktest_dia_set.ipynb
 
-
+#bash scripts
+misc/bumpversion.sh
 #figures
 figures/
