@@ -159,6 +159,7 @@ logs
 #tests
 tests/ptmsite_mapping/results
 tests/ratio_tests/tissue_example.ipynb
+tests/ratio_tests/outlier_scoring_phosphatase_set.ipynb
 tests/sensitivity_tests/sensitivity_phospho_peptides.ipynb
 tests/sensitivity_tests/single_cell_comparison.ipynb
 test_data/system_tests
