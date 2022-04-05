@@ -29,7 +29,7 @@ import alphaquant.ptmsite_mapping as aqptm
 import multiprocess
 
 
-def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
+def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
 min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.05, cluster_threshold_fcfc = 0, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
 use_iontree_if_possible = None, write_out_results_tree = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
 annotation_file = None, protein_subset_for_normalization_file = None):
@@ -52,8 +52,6 @@ annotation_file = None, protein_subset_for_normalization_file = None):
         input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = None)
 
 
-
-
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
     runconfig.use_iontree_if_possible = determine_if_ion_tree_is_used(runconfig)
@@ -61,7 +59,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
     #store method parameters for reproducibility
     aqutils.store_method_parameters(locals(), results_dir)
 
-    if runconfig.use_iontree_if_possible & use_ml:
+    if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:
         reformat_and_save_ml_dataframe(results_dir, samplemap_df)
 
     if condpair_combinations == None:

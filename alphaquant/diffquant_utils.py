@@ -302,7 +302,7 @@ def load_method_parameters(results_dir):
 
 def store_method_parameters(local_vars_dict, results_dir):
     method_params = get_methods_dict_from_local_vars(local_vars_dict)
-    add_ml_input_file_location(method_params)
+    #add_ml_input_file_location(method_params)
     params_file = f"{results_dir}/aq_parameters.yaml"
     if os.path.exists(params_file):
         previous_params = load_method_parameters(results_dir)
