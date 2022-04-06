@@ -20,7 +20,7 @@ cd release/one_click_linux_gui
 pip install "../../dist/alphaquant-0.0.6-py3-none-any.whl[stable]"
 
 # Creating the stand-alone pyinstaller folder
-pip install pyinstaller==4.2
+pip install pyinstaller==4.10
 pyinstaller ../pyinstaller/alphaquant.spec -y
 conda deactivate
 
