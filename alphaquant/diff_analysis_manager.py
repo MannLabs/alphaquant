@@ -283,12 +283,9 @@ def analyze_condpair(*,runconfig, condpair):
         if runconfig.use_ml:
             ml_performance_dict = {}
             ml_successfull = True
-            try:
-                aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
-                fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
-            except:
-                print(f"Machine Learning did not work for condpair {condpair}, using standard score")
-                ml_successfull=False
+            aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
+            fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
+
 
             if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
                 aqclust.update_nodes_w_ml_score(protnodes)
