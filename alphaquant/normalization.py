@@ -7,7 +7,8 @@ __all__ = ['get_normfacts_withincond', 'apply_sampleshifts', 'get_bestmatch_pair
            'get_normalized_dfs_between_conditions', 'normalize_within_cond', 'prepare_tables_and_get_betweencond_shift',
            'read_specified_protein_subset_if_given', 'get_protein_subset_from_protein_list',
            'prepare_table_for_betweencond_shift', 'filter_to_protein_subset', 'test_if_proteingroup_is_in_subset',
-           'drop_nas_if_possible', 'plot_withincond_normalization', 'use_benchmark_prenormed_file']
+           'drop_nas_if_possible', 'calculate_fraction_with_no_NAs', 'plot_withincond_normalization',
+           'use_benchmark_prenormed_file']
 
 # Cell
 import numpy as np
@@ -389,11 +390,16 @@ def test_if_proteingroup_is_in_subset(proteingroup, specified_protein_subset):
 
 def drop_nas_if_possible(df):
     df_nonans = df.dropna(axis=0)
-    if (len(df_nonans.index)<300):
+    fraction_nonans = calculate_fraction_with_no_NAs(df, df_nonans)
+    if fraction_nonans<0.05:
         print('to few values for normalization without missing values. Including missing values')
         return df
     else:
         return df_nonans
+
+def calculate_fraction_with_no_NAs(df, df_nonnans):
+    return len(df_nonnans.index)/len(df.index)
+
 
 def plot_withincond_normalization(df_c1, df_c2):
     print("without missingvals (if applicable)")
