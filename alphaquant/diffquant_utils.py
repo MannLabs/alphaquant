@@ -648,7 +648,7 @@ def reshape_input_df(input_df, config_dict):
 
 def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict):
     df = dd.read_csv(tmpfile_columnfilt, sep = "\t")
-    allcols = df[config_dict.get("sample_ID")].drop_duplicates().compute()
+    allcols = df[config_dict.get("sample_ID")].drop_duplicates().compute() # the columns of the output table are the sample IDs
     allcols = ['protein', 'ion'] + sorted(allcols)
     df = df.set_index('protein')
     sorted_filedir = f"{tmpfile_columnfilt}_sorted"
@@ -746,6 +746,7 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None, res
         file_to_read = reformat_and_save_input_file(input_file=input_file, input_type_to_use=input_type_to_use)
 
     input_reshaped = pd.read_csv(file_to_read, sep = "\t", encoding = 'latin1', usecols=samples_subset)
+    input_reshaped = input_reshaped.drop_duplicates(subset='ion')
     return input_reshaped
 
 
