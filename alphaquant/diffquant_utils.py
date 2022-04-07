@@ -906,6 +906,7 @@ class LongTableReformater():
 # Cell
 
 import os
+import re
 
 class AcquisitionTableHandler():
     def __init__(self, results_dir, samples):
@@ -946,6 +947,7 @@ class AcquisitionTableInfo():
         self._results_dir = results_dir
         self._sep = sep
         self._decimal = decimal
+        self._method_params_dict = load_method_parameters(results_dir)
         self._input_file = self.__get_input_file__()
         self._file_ending_of_formatted_table = ".ml_info_table.tsv"
         self.already_formatted =  self.__check_if_input_file_is_already_formatted__()
@@ -954,8 +956,7 @@ class AcquisitionTableInfo():
         self.last_ion_level_to_use = self.__get_last_ion_level_to_use__()
 
     def __get_input_file__(self):
-        method_params_dict = load_method_parameters(self._results_dir)
-        return method_params_dict.get('ml_input_file')
+        return self._method_params_dict.get('ml_input_file')
 
     def __check_if_input_file_is_already_formatted__(self):
         if self._file_ending_of_formatted_table in self._input_file:
@@ -972,13 +973,27 @@ class AcquisitionTableInfo():
         return input_type, config_dict
 
     def __get_location_of_original_file__(self):
-        return self._input_file.replace(self._file_ending_of_formatted_table, "")
+        input_file = self._method_params_dict.get('input_file')
+        return self.__get_original_filename_from_input_file__(input_file)
+
+    @staticmethod
+    def __get_original_filename_from_input_file__(input_file):
+        pattern = "(.*\.tsv|.*\.csv|.*\.txt)(\..*)(.aq_reformat.tsv)"
+        m = re.match(pattern=pattern, string=input_file)
+        if m:
+            return m.group(1)
+        else:
+            return input_file
+
 
     def __get_sample_column__(self):
         return self._config_dict.get("sample_ID")
 
     def __get_last_ion_level_to_use__(self):
         return self._config_dict["ml_level"]
+
+
+
 
 
 class AcquisitionTableHeaders():
