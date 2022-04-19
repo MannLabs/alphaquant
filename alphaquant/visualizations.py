@@ -20,7 +20,7 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'plot_predictability_roc_curve', 'plot_predictability_precision_recall_curve', 'plot_outlier_fraction',
            'get_true_false_to_predscores', 'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set',
            'plot_roc_curve', 'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
-           'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter']
+           'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -1348,8 +1348,9 @@ class IonFoldChangeCalculator():
 
 
 class IonFoldChangePlotter():
-    def __init__(self, ionfc_calculated, property_column = "predscore", is_included_column="is_included"):
+    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included"):
 
+        ionfc_calculated = IonFoldChangeCalculator(melted_df, condpair)
         self._property_column = property_column
         self._is_included_column = is_included_column
         self.precursors = ionfc_calculated.precursors
@@ -1866,6 +1867,7 @@ class CondpairQuantificationInfo():
         return sample2cond
 
 
+import pandas as pd
 class ProteinIntensityDataFrameGetter():
 
     def __init__(self, quantification_info, ion_header = 'ion'):
@@ -1873,10 +1875,9 @@ class ProteinIntensityDataFrameGetter():
         self.__assign_relevant_data(quantification_info)
 
     def get_melted_protein_ion_intensity_table(self, protein, specified_level = "mod_seq_charge"):
-
-        samples = self.__get_samples_of_condpair()
-        protein_df = self.__subset_dataframe_to_protein(protein)
-        df_melted = self.__melt_protein_dataframe(protein_df, samples)
+        samples = self.__get_samples_of_condpair__()
+        protein_df = self.__subset_dataframe_to_protein__(protein)
+        df_melted = self.__melt_protein_dataframe__(protein_df, samples)
 
         #if ion clustering has been performed, add cluster information
         if self._condpair_root_node != None:
@@ -1887,13 +1888,13 @@ class ProteinIntensityDataFrameGetter():
     def get_protein_diffresults(self, protein):
         return self._diffresults_df.loc[protein]
 
-    def __get_samples_of_condpair(self):
+    def __get_samples_of_condpair__(self):
         return set.intersection(set(self._normed_df.columns), set(self._sample2cond.keys()))
 
-    def __subset_dataframe_to_protein(self, protein):
+    def __subset_dataframe_to_protein__(self, protein):
         return self._normed_df.xs(protein, level = 0)
 
-    def __melt_protein_dataframe(self, protein_df, samples):
+    def __melt_protein_dataframe__(self, protein_df, samples):
         df_melted = pd.melt(protein_df.reset_index(), value_vars= samples, id_vars=[self._ion_header], value_name="intensity", var_name="sample")
         df_melted["condition"] = [self._sample2cond.get(x) for x in df_melted["sample"]]
         return df_melted
@@ -1905,14 +1906,21 @@ class ProteinIntensityDataFrameGetter():
         self._samplemap_df = quantification_info.samplemap_df
         self._sample2cond = quantification_info.sample2cond
 
-
-
     def __annotate_cluster_information(self, df_melted, protein, specified_level): #mod_seq_charge
-        protein_node = anytree.findall_by_attr(self._condpair_root_node, protein, maxlevel=2)[0]
+        protein_node = self.__get_protein_node__(protein)
         protnode_ions = [x.name for x in protein_node.leaves]
-        self.__test_that_diffresult_ions_are_in_tree_ions(df_melted, protnode_ions)
+        self.__test_that_diffresult_ions_are_in_tree_ions__(df_melted, protnode_ions)
 
         #annotate properties
+        self.__annotate_properties_to_tables__(protein_node, df_melted, specified_level)
+
+        return df_melted
+
+
+    def __get_protein_node__(self, protein_name):
+        return anytree.findall_by_attr(self._condpair_root_node, protein_name, maxlevel=2)[0]
+
+    def __annotate_properties_to_tables__(self, protein_node, df_melted, specified_level):
         ion2is_included = self.__get_ionmap_dict(protein_node, self.__assign_if_node_at_level_is_included, specified_level)
         df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted["ion"]]
 
@@ -1921,7 +1929,6 @@ class ProteinIntensityDataFrameGetter():
 
         ion2precursor = self.__get_ionmap_dict(protein_node, self.__assign_name_of_node_at_level, specified_level)
         df_melted["specified_level"] = [ion2precursor.get(x) for x in df_melted["ion"]]
-
         return df_melted
 
     @staticmethod
@@ -1932,22 +1939,65 @@ class ProteinIntensityDataFrameGetter():
     def __assign_if_node_at_level_is_included( leaf, ion_level):
         node_at_level = aqutils.find_node_parent_at_level(leaf, ion_level)
         return aqutils.check_if_node_is_included(node_at_level)
+
     @staticmethod
     def __assign_predscore_of_node_at_level( leaf, ion_level):
         level_node = aqutils.find_node_parent_at_level(leaf, ion_level)
         if not hasattr(level_node, "predscore"):
             return 0.5
         return abs(level_node.predscore)
+
     @staticmethod
     def __assign_name_of_node_at_level(leaf, ion_level):
         return aqutils.find_node_parent_at_level(leaf, ion_level).name
 
-
-
-    def __test_that_diffresult_ions_are_in_tree_ions(self, df_melted, protnode_ions):
+    def __test_that_diffresult_ions_are_in_tree_ions__(self, df_melted, protnode_ions):
         ions_in_df = set(df_melted["ion"]) - set(protnode_ions)
         if len(ions_in_df)>0:
             Exception("Clustered ions and observed ions differ!")
+
+
+
+from .outlier_scoring import ClusterDiffHandler
+
+class ProteoformIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
+    def __init__(self, quantification_info):
+        super().__init__(quantification_info)
+
+    def get_melted_protein_ion_intensity_table(self, clusterdiff_handler :ClusterDiffHandler, specified_level = "seq"):
+
+        samples = self.__get_samples_of_condpair__()
+        protein_df = self.__subset_dataframe_to_protein__(clusterdiff_handler.protein_name)
+        df_melted = self.__melt_protein_dataframe__(protein_df, samples)
+        clusterdiff_protein_node = self.__get_clusterdiff_protein_node__(clusterdiff_handler=clusterdiff_handler)
+
+        df_melted_reduced = self.__reduce_dataframe_to_clusterdiff_ions__(df_melted=df_melted,clusterdiff_protein_node=clusterdiff_protein_node)
+        df_melted_reduced = self.__annotate_cluster_information__(df_melted_reduced, clusterdiff_protein_node, specified_level)
+
+        return df_melted_reduced
+
+    def __get_clusterdiff_protein_node__(self,clusterdiff_handler):
+        protein_node = self.__get_protein_node__(protein_name=clusterdiff_handler.protein_name)
+        return clusterdiff_handler.get_clusterdiff_protnode(protein_node)
+
+    @staticmethod
+    def __reduce_dataframe_to_clusterdiff_ions__(df_melted, clusterdiff_protein_node):
+
+        ions_used = {x.name  for x in clusterdiff_protein_node.leaves}
+        return df_melted[[x in ions_used for x in df_melted["ion"]]]
+
+
+    def __annotate_cluster_information__(self, df_melted, protein_node, specified_level):
+        protnode_ions = [x.name for x in protein_node.leaves]
+        self.__test_that_diffresult_ions_are_in_tree_ions__(df_melted, protnode_ions)
+
+        #annotate properties
+        self.__annotate_properties_to_tables__(protein_node, df_melted, specified_level)
+
+        return df_melted
+
+
+
 
 
 
