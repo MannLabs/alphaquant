@@ -57,6 +57,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
     runconfig.use_iontree_if_possible = determine_if_ion_tree_is_used(runconfig)
 
     #store method parameters for reproducibility
+    aqutils.remove_old_method_parameters_file_if_exists(results_dir)
     aqutils.store_method_parameters(locals(), results_dir)
 
     if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:

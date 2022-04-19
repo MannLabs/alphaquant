@@ -6,20 +6,24 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'get_ionints_from_pd_df',
            'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
            'count_fraction_outliers_from_expected_fc', 'find_node_parent_at_level', 'check_if_node_is_included',
-           'write_chunk_to_file', 'set_logger', 'load_method_parameters', 'store_method_parameters',
-           'save_dict_as_yaml', 'get_methods_dict_from_local_vars', 'add_ml_input_file_location',
-           'get_path_to_unformatted_file', 'get_relevant_columns', 'get_relevant_columns_config_dict',
-           'get_config_columns', 'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
-           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
-           'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
-           'reformat_and_write_longtable_according_to_config', 'adapt_subtable', 'reshape_input_df',
-           'process_with_dask', 'sort_and_add_columns', 'reformat_and_write_wideformat_table', 'read_condpair_tree',
-           'check_for_processed_runs_in_results_folder', 'import_data', 'reformat_and_save_input_file',
-           'add_ion_protein_headers_if_applicable', 'get_input_type_and_config_dict',
-           'get_original_file_from_aq_reformat', 'import_config_dict', 'load_samplemap', 'prepare_loaded_tables',
-           'LongTableReformater', 'AcquisitionTableHandler', 'AcquisitionTableInfo', 'AcquisitionTableHeaders',
-           'AcquisitionTableOutputPaths', 'AcquisitionTableReformater', 'AcquisitionTableHeaderFilter',
-           'merge_acquisition_df_parameter_df']
+           'write_chunk_to_file', 'set_logger', 'remove_old_method_parameters_file_if_exists', 'load_method_parameters',
+           'store_method_parameters', 'save_dict_as_yaml', 'get_methods_dict_from_local_vars',
+           'add_ml_input_file_location', 'get_path_to_unformatted_file', 'get_relevant_columns',
+           'get_relevant_columns_config_dict', 'get_quant_ids_from_config_dict', 'get_sample_ids_from_config_dict',
+           'get_channel_ids_from_config_dict', 'load_config', 'get_type2relevant_cols', 'filter_input',
+           'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_quantitative_columns',
+           'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
+           'reformat_and_write_longtable_according_to_config', 'adapt_subtable', 'process_with_dask',
+           'reshape_input_df', 'sort_and_add_columns', 'extend_sample_allcolumns_for_plexdia_case',
+           'adapt_input_df_columns_in_case_of_plexDIA', 'extend_sampleID_column_for_plexDIA_case',
+           'set_mtraq_reduced_ion_column_into_dataframe', 'remove_mtraq_modifications_from_ion_ids', 'is_plexDIA_table',
+           'parse_channel_from_peptide_column', 'merge_sample_id_and_channels', 'merge_channel_and_sample_string',
+           'reformat_and_write_wideformat_table', 'read_condpair_tree', 'check_for_processed_runs_in_results_folder',
+           'import_data', 'reformat_and_save_input_file', 'add_ion_protein_headers_if_applicable',
+           'get_input_type_and_config_dict', 'get_original_file_from_aq_reformat', 'import_config_dict',
+           'load_samplemap', 'prepare_loaded_tables', 'LongTableReformater', 'AcquisitionTableHandler',
+           'AcquisitionTableInfo', 'AcquisitionTableHeaders', 'AcquisitionTableOutputPaths',
+           'AcquisitionTableReformater', 'AcquisitionTableHeaderFilter', 'merge_acquisition_df_parameter_df']
 
 # Cell
 import os
@@ -296,6 +300,12 @@ import os.path
 import pathlib
 import re
 
+def remove_old_method_parameters_file_if_exists(results_dir):
+    params_file = f"{results_dir}/aq_parameters.yaml"
+    if os.path.exists(params_file):
+        os.remove(params_file)
+
+
 def load_method_parameters(results_dir):
     params_file = f"{results_dir}/aq_parameters.yaml"
     return load_config(params_file)
@@ -366,27 +376,35 @@ def get_relevant_columns_config_dict(config_typedict):
         for headr in config_typedict.get('ion_hierarchy').values():
             ioncols = list(itertools.chain.from_iterable(headr.get("mapping").values()))
             dict_ioncols.extend(ioncols)
-    quantID = config_typedict.get("quant_ID")
-    if type(quantID) ==type("string"):
-        quant_ids = [config_typedict.get("quant_ID")]
-    elif quantID == None:
-        quant_ids = []
-    else:
-        quant_ids = list(config_typedict.get("quant_ID").values())
-    relevant_cols = config_typedict.get("protein_cols") + config_typedict.get("ion_cols", []) + [config_typedict.get("sample_ID")] + quant_ids + filtcols + dict_ioncols
+
+    quant_ids = get_quant_ids_from_config_dict(config_typedict)
+    sample_ids = get_sample_ids_from_config_dict(config_typedict)
+    channel_ids = get_channel_ids_from_config_dict(config_typedict)
+    relevant_cols = config_typedict.get("protein_cols") + config_typedict.get("ion_cols", []) + sample_ids + quant_ids + filtcols + dict_ioncols + channel_ids
     relevant_cols = list(set(relevant_cols)) # to remove possible redudancies
     return relevant_cols
 
+def get_quant_ids_from_config_dict(config_typedict):
+    quantID = config_typedict.get("quant_ID")
+    if type(quantID) ==type("string"):
+        return [config_typedict.get("quant_ID")]
+    if quantID == None:
+        return[]
+    else:
+        return list(config_typedict.get("quant_ID").values())
 
+def get_sample_ids_from_config_dict(config_typedict):
+    sampleID = config_typedict.get("sample_ID")
+    if type(sampleID) ==type("string"):
+        return [config_typedict.get("sample_ID")]
+    if sampleID == None:
+        return []
+    else:
+        return config_typedict.get("sample_ID")
 
-def get_config_columns(config_dict):
-    protein_cols = config_dict.get("protein_cols")
-    ion_cols = config_dict.get("ion_cols")
-    sample_ID = config_dict.get("sample_ID")
-    quant_ID = config_dict.get("quant_ID")
-    filter_dict = config_dict.get("filters", {})
-    relevant_cols = get_relevant_columns(protein_cols, ion_cols, sample_ID, quant_ID, filter_dict)
-    return relevant_cols, protein_cols, ion_cols, sample_ID, quant_ID, filter_dict
+def get_channel_ids_from_config_dict(config_typedict):
+    return config_typedict.get("channel_ID", [])
+
 
 
 def load_config(config_yaml):
@@ -583,7 +601,7 @@ def add_merged_ionnames(df_subset, ion_hierarchy_local, ion_headers_grouped, qua
 
 # Cell
 import os.path
-def reformat_and_write_longtable_according_to_config(input_file, outfile_name, config_dict, sep = "\t",decimal = ".", enforce_largefile_processing = False, chunksize =1000_000):
+def reformat_and_write_longtable_according_to_config(input_file, outfile_name, config_dict_for_type, sep = "\t",decimal = ".", enforce_largefile_processing = False, chunksize =1000_000):
     """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
     :param file input_file: long format proteomic results table
     :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
@@ -599,12 +617,12 @@ def reformat_and_write_longtable_according_to_config(input_file, outfile_name, c
         if os.path.exists(outfile_name):
             os.remove(outfile_name)
 
-    relevant_cols = get_relevant_columns_config_dict(config_dict)
+    relevant_cols = get_relevant_columns_config_dict(config_dict_for_type)
     input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1', chunksize = chunksize)
     input_df_list = []
     header = True
     for input_df_subset in input_df_it:
-        input_df_subset = adapt_subtable(input_df_subset, config_dict)
+        input_df_subset = adapt_subtable(input_df_subset, config_dict_for_type)
         if file_is_large:
             write_chunk_to_file(input_df_subset,tmpfile_large, header)
         else:
@@ -612,21 +630,12 @@ def reformat_and_write_longtable_according_to_config(input_file, outfile_name, c
         header = False
 
     if file_is_large:
-        process_with_dask(tmpfile_columnfilt=tmpfile_large , outfile_name = outfile_name, config_dict=config_dict)
+        process_with_dask(tmpfile_columnfilt=tmpfile_large , outfile_name = outfile_name, config_dict_for_type=config_dict_for_type)
     else:
         input_df = pd.concat(input_df_list)
-        input_reshaped = reshape_input_df(input_df, config_dict)
+        input_reshaped = reshape_input_df(input_df, config_dict_for_type)
         input_reshaped.to_csv(outfile_name, sep = "\t", index = None)
 
-
-
-
-# Cell
-import dask.dataframe as dd
-import pandas as pd
-import glob
-import os
-import shutil
 
 def adapt_subtable(input_df_subset, config_dict):
     input_df_subset = filter_input(config_dict.get("filters", {}), input_df_subset)
@@ -636,19 +645,17 @@ def adapt_subtable(input_df_subset, config_dict):
         return merge_protein_and_ion_cols(input_df_subset, config_dict)
 
 
-def reshape_input_df(input_df, config_dict):
-    input_df = input_df.astype({'quant_val': 'float'})
-    input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = config_dict.get("sample_ID"), values = 'quant_val', fill_value=0)
-    if input_reshaped.iloc[:,0].replace(0, np.nan).median() <100: #when values are small, rescale by a constant factor to prevent rounding errors in the subsequent aq analyses
-        input_reshaped = input_reshaped *10000
+# Cell
+import dask.dataframe as dd
+import pandas as pd
+import glob
+import os
+import shutil
 
-    input_reshaped = input_reshaped.reset_index()
-    return input_reshaped
-
-
-def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict):
+def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict_for_type):
     df = dd.read_csv(tmpfile_columnfilt, sep = "\t")
-    allcols = df[config_dict.get("sample_ID")].drop_duplicates().compute() # the columns of the output table are the sample IDs
+    allcols = df[config_dict_for_type.get("sample_ID")].drop_duplicates().compute() # the columns of the output table are the sample IDs
+    allcols = extend_sample_allcolumns_for_plexdia_case(allcols_samples=allcols, config_dict_for_type=config_dict_for_type)
     allcols = ['protein', 'ion'] + sorted(allcols)
     df = df.set_index('protein')
     sorted_filedir = f"{tmpfile_columnfilt}_sorted"
@@ -660,12 +667,22 @@ def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict):
         input_df = pd.read_csv(file, sep = "\t")
         if len(input_df.index) <2:
             continue
-        input_reshaped = reshape_input_df(input_df, config_dict)
+        input_reshaped = reshape_input_df(input_df, config_dict_for_type)
         input_reshaped = sort_and_add_columns(input_reshaped, allcols)
         write_chunk_to_file(input_reshaped, outfile_name, header)
         header = False
     os.remove(tmpfile_columnfilt)
     shutil.rmtree(sorted_filedir)
+
+def reshape_input_df(input_df, config_dict):
+    input_df = input_df.astype({'quant_val': 'float'})
+    input_df = adapt_input_df_columns_in_case_of_plexDIA(input_df=input_df, config_dict_for_type=config_dict)
+    input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = config_dict.get("sample_ID"), values = 'quant_val', fill_value=0)
+    if input_reshaped.iloc[:,0].replace(0, np.nan).median() <100: #when values are small, rescale by a constant factor to prevent rounding errors in the subsequent aq analyses
+        input_reshaped = input_reshaped *10000
+
+    input_reshaped = input_reshaped.reset_index()
+    return input_reshaped
 
 
 def sort_and_add_columns(input_reshaped, allcols):
@@ -675,7 +692,75 @@ def sort_and_add_columns(input_reshaped, allcols):
     return input_reshaped
 
 
+def extend_sample_allcolumns_for_plexdia_case(allcols_samples, config_dict_for_type):
+    if is_plexDIA_table(config_dict_for_type):
+        new_allcols = []
+        channels = ['mTRAQ-n-0', 'mTRAQ-n-4', 'mTRAQ-n-8']
+        for channel in channels:
+            for sample in allcols_samples:
+                new_allcols.append(merge_channel_and_sample_string(sample, channel))
+        return new_allcols
+    else:
+        return allcols_samples
 
+
+# Cell
+#PLEXDIA case
+
+def adapt_input_df_columns_in_case_of_plexDIA(input_df,config_dict_for_type):
+    if is_plexDIA_table(config_dict_for_type):
+        input_df = extend_sampleID_column_for_plexDIA_case(input_df, config_dict_for_type)
+        input_df = set_mtraq_reduced_ion_column_into_dataframe(input_df)
+        return input_df
+    else:
+        return input_df
+
+
+def extend_sampleID_column_for_plexDIA_case(input_df,config_dict_for_type):
+    channels_per_peptide = parse_channel_from_peptide_column(input_df)
+    return merge_sample_id_and_channels(input_df, channels_per_peptide, config_dict_for_type)
+
+
+def set_mtraq_reduced_ion_column_into_dataframe(input_df):
+    new_ions = remove_mtraq_modifications_from_ion_ids(input_df['ion'])
+    input_df['ion'] = new_ions
+    return input_df
+
+def remove_mtraq_modifications_from_ion_ids(ions):
+    new_ions = []
+    all_mtraq_tags = ["(mTRAQ-K-0)", "(mTRAQ-K-4)", "(mTRAQ-K-8)", "(mTRAQ-n-0)", "(mTRAQ-n-4)", "(mTRAQ-n-8)"]
+    for ion in ions:
+        for tag in all_mtraq_tags:
+            ion = ion.replace(tag, "")
+        new_ions.append(ion)
+    return new_ions
+
+
+def is_plexDIA_table(config_dict_for_type):
+    return config_dict_for_type.get('channel_ID') == ['Channel.0', 'Channel.4', 'Channel.8']
+
+
+import re
+def parse_channel_from_peptide_column(input_df):
+    channels = []
+    for pep in input_df['Modified.Sequence']:
+        pattern = "(.*)(\(mTRAQ-n-.\))(.*)"
+        matched = re.match(pattern, pep)
+        num_appearances = pep.count("mTRAQ-n-")
+        if matched and num_appearances==1:
+            channels.append(matched.group(2))
+        else:
+            channels.append("NA")
+    return channels
+
+def merge_sample_id_and_channels(input_df, channels, config_dict_for_type):
+    sample_id = config_dict_for_type.get("sample_ID")
+    sample_ids = list(input_df[sample_id])
+    input_df[sample_id] = [merge_channel_and_sample_string(sample_ids[idx], channels[idx]) for idx in range(len(sample_ids))]
+    return input_df
+
+def merge_channel_and_sample_string(sample, channel):
+    return f"{sample}_{channel}"
 
 
 # Cell
@@ -910,9 +995,9 @@ import re
 
 class AcquisitionTableHandler():
     def __init__(self, results_dir, samples):
-        self._samples = samples
         self._table_infos = AcquisitionTableInfo(results_dir=results_dir)
         self._header_infos = AcquisitionTableHeaders(self._table_infos)
+        self._samples = self.__reformat_samples_if_necessary(samples)
 
     def get_acquisition_info_df(self):
         return self.__get_reformated_df__()
@@ -935,6 +1020,24 @@ class AcquisitionTableHandler():
         df = df_reformater.reformat_and_load_acquisition_data_frame()
         return df.convert_dtypes()
 
+    def __reformat_samples_if_necessary(self, samples):
+        if "plexDIA" in  self._table_infos._input_type:
+            return self.__get_plexDIA_samplenames__(samples)
+        else:
+            return samples
+
+    def __get_plexDIA_samplenames__(self, samples):
+        new_samples = []
+        for sample in samples:
+            new_samples.append(self.__get_samplename_without_mtraq_tag__(sample))
+        return new_samples
+
+    @staticmethod
+    def __get_samplename_without_mtraq_tag__(samplename):
+        pattern = "(.*)(_\(mTRAQ-n-.\))"
+        matched = re.match(pattern, samplename)
+        return matched.group(1)
+
     @staticmethod
     def __remove_possible_pre_existing_ml_table__(output_file_name):
         if os.path.exists(output_file_name):
@@ -956,7 +1059,10 @@ class AcquisitionTableInfo():
         self.last_ion_level_to_use = self.__get_last_ion_level_to_use__()
 
     def __get_input_file__(self):
-        return self._method_params_dict.get('ml_input_file')
+        if self._method_params_dict.get('ml_input_file') is None:
+            return self.__get_location_of_original_file__()
+        else:
+            return self._method_params_dict.get('ml_input_file')
 
     def __check_if_input_file_is_already_formatted__(self):
         if self._file_ending_of_formatted_table in self._input_file:
@@ -1088,10 +1194,10 @@ class AcquisitionTableReformater(LongTableReformater):
         return input_df_subset
 
     def __filter_reformated_df_if_necessary__(self, reformatted_df):
-        if 'maxquant' in self._table_infos._input_type:
-            return reformatted_df
         if 'spectronaut' in self._table_infos._input_type or 'diann' in self._table_infos._input_type:
             return self.__filter_reformatted_dataframe_to_relevant_samples__(reformatted_df)
+        else:
+            return reformatted_df
 
     def __filter_reformatted_dataframe_to_relevant_samples__(self, input_df_subset):
         return input_df_subset[[x in self._samples for x in input_df_subset[self._table_infos._sample_column]]]
