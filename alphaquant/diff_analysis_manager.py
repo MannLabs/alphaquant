@@ -291,8 +291,7 @@ def analyze_condpair(*,runconfig, condpair):
             if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
                 aqclust.update_nodes_w_ml_score(protnodes)
                 update_quantified_proteins_w_tree_results(quantified_proteins, protnodes)
-            if runconfig.write_out_results_tree:
-                aqclust.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
+
 
     add_fdr(quantified_proteins)
     add_fdr(quantified_peptides)
@@ -305,6 +304,9 @@ def analyze_condpair(*,runconfig, condpair):
         aqviz.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
 
     if runconfig.results_dir!=None:
+
+        if runconfig.write_out_results_tree:
+            aqclust.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
         if runconfig.annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(runconfig.annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)
