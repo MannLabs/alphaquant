@@ -48,6 +48,48 @@ maxquant_peptides:
   ml_level: SEQ
   use_iontree: False
 
+diann_fragion_isotopes_plexDIA:
+  format: longtable
+  channel_ID: 
+   - Channel.0
+   - Channel.4
+   - Channel.8
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Corrected
+    #Fragment.Quant.Raw
+    ms1iso: Ms1.Area
+  protein_cols:
+   - Protein.Group
+  split_cols:
+    Fragment.Quant.Corrected: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        FRGION: 
+         - Fragment.Quant.Corrected
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        MS1ISOTOPES:
+         - Precursor.Charge
+  use_iontree: True
+  ml_level: CHARGE
+
+
 diann_fragion_isotopes:
   format: longtable
   sample_ID: Run
