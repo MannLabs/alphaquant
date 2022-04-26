@@ -18,8 +18,8 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'convert_tree_ionname_to_simple_ionname_diann', 'filter_score_from_original_df',
            'filter_top_percentile_reference_df', 'read_reformat_filtered_df', 'benchmark_configs_and_datasets',
            'load_tree_assign_predscores', 'intersect_with_diann', 'get_benchmark_setting_name', 'predscore_cutoff',
-           'ResultsTable', 'ResultsTableSpectronaut', 'ResultsTableAlphaQuant', 'MergedResultsTable',
-           'SpeciesAnnotator', 'ClassificationBenchmarker']
+           'ResultsTable', 'ResultsTableRatios', 'ResultsTableSpectronaut', 'ResultsTableAlphaQuant',
+           'MergedResultsTable', 'SpeciesAnnotator', 'ClassificationBenchmarker']
 
 # Cell
 from .diff_analysis_manager import run_pipeline
@@ -1036,6 +1036,7 @@ def get_benchmark_setting_name(condpair, replace_nan, distort_number, diann_inte
 import pandas as pd
 import functools
 
+
 class ResultsTable():
     def __init__(self, input_file, input_name, fdr_threshold = 0.05):
         self._input_file = input_file
@@ -1044,16 +1045,39 @@ class ResultsTable():
         self.protein_column = "protein"
         self.called_column = "called"
         self.species_column = "species"
-        self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
+        self.cond1_intensities = "pseudoint1"
+        self.cond2_intensities = "pseudoint2"
+        self.formated_dataframe = self._reformat_input_file_to_default_dataframe()
 
     def get_proteins(self):
         return self.formated_dataframe[self.protein_column]
 
     def subset_to_relevant_columns(self):
-        return self.formated_dataframe[[self.protein_column, self.called_column]]
+        return self.formated_dataframe[[self.protein_column, self.called_column, self.cond1_intensities, self.cond2_intensities]]
 
-    def __reformat_input_file_to_default_dataframe(self):
+    def _reformat_input_file_to_default_dataframe(self):
         return
+
+class ResultsTableRatios(ResultsTable):
+    def __init__(self, input_file, input_name):
+        super().__init__(input_file, input_name)
+        self.log2fc_column = 'log2fc'
+        self.mean_intensity_column = 'mean_intensity'
+        self._add_mean_intensity_column()
+
+
+    def _reformat_input_file_to_default_dataframe(self):
+        return pd.read_csv(self._input_file, sep = "\t")
+
+    def _add_mean_intensity_column(self):
+        column1 = self.formated_dataframe[self.cond1_intensities]
+        column2 = self.formated_dataframe[self.cond2_intensities]
+        self.formated_dataframe[self.mean_intensity_column] = np.nanmean([column1, column2], axis=0)
+
+
+
+
+
 
 
 
@@ -1061,11 +1085,11 @@ class ResultsTable():
 class ResultsTableSpectronaut(ResultsTable):
     def __init__(self, input_file, input_name, fdr_threshold = 0.05):
         super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
-        self.formated_dataframe = self.__reformat_input_file_to_default_dataframe()
+        self.formated_dataframe = self._reformat_input_file_to_default_dataframe()
         self.formated_dataframe = super().subset_to_relevant_columns()
 
 
-    def __reformat_input_file_to_default_dataframe(self):
+    def _reformat_input_file_to_default_dataframe(self):
         results_df = self.__read_and_rename_input_file()
         results_df = self.__determine_called_proteins(results_df)
         return results_df
