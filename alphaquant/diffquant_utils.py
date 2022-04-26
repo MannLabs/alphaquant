@@ -423,6 +423,8 @@ def get_type2relevant_cols(config_all):
 # Cell
 
 def filter_input(filter_dict, input):
+    if filter_dict == None:
+        return input
     for filtname,filterconf in filter_dict.items():
         param = filterconf.get('param')
         comparator = filterconf.get('comparator')
