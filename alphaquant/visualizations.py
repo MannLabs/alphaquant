@@ -1958,13 +1958,13 @@ class ProteinIntensityDataFrameGetter():
 
 
 
-from .outlier_scoring import ClusterDiffHandler
+from .outlier_scoring import ClusterDiffInfo
 
 class ProteoformIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
     def __init__(self, quantification_info):
         super().__init__(quantification_info)
 
-    def get_melted_protein_ion_intensity_table(self, clusterdiff_handler :ClusterDiffHandler, specified_level = "seq"):
+    def get_melted_protein_ion_intensity_table(self, clusterdiff_handler :ClusterDiffInfo, specified_level = "seq"):
 
         samples = self.__get_samples_of_condpair__()
         protein_df = self.__subset_dataframe_to_protein__(clusterdiff_handler.protein_name)
