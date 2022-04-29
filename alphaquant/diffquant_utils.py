@@ -6,13 +6,14 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
            'get_middle_elem', 'get_nonna_array', 'get_non_nas_from_pd_df', 'get_ionints_from_pd_df',
            'invert_dictionary', 'get_z_from_p_empirical', 'get_levelnodes_from_nodeslist',
            'count_fraction_outliers_from_expected_fc', 'find_node_parent_at_level', 'check_if_node_is_included',
-           'write_chunk_to_file', 'set_logger', 'remove_old_method_parameters_file_if_exists', 'load_method_parameters',
-           'store_method_parameters', 'save_dict_as_yaml', 'get_methods_dict_from_local_vars',
-           'add_ml_input_file_location', 'get_path_to_unformatted_file', 'get_relevant_columns',
-           'get_relevant_columns_config_dict', 'get_quant_ids_from_config_dict', 'get_sample_ids_from_config_dict',
-           'get_channel_ids_from_config_dict', 'load_config', 'get_type2relevant_cols', 'filter_input',
-           'merge_protein_and_ion_cols', 'merge_protein_cols_and_ion_dict', 'get_quantitative_columns',
-           'get_ionname_columns', 'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
+           'create_or_replace_folder', 'write_chunk_to_file', 'set_logger',
+           'remove_old_method_parameters_file_if_exists', 'load_method_parameters', 'store_method_parameters',
+           'save_dict_as_yaml', 'get_methods_dict_from_local_vars', 'add_ml_input_file_location',
+           'get_path_to_unformatted_file', 'get_relevant_columns', 'get_relevant_columns_config_dict',
+           'get_quant_ids_from_config_dict', 'get_sample_ids_from_config_dict', 'get_channel_ids_from_config_dict',
+           'load_config', 'get_type2relevant_cols', 'filter_input', 'merge_protein_and_ion_cols',
+           'merge_protein_cols_and_ion_dict', 'get_quantitative_columns', 'get_ionname_columns',
+           'adapt_headers_on_extended_df', 'split_extend_df', 'add_merged_ionnames',
            'reformat_and_write_longtable_according_to_config', 'adapt_subtable', 'process_with_dask',
            'reshape_input_df', 'sort_and_add_columns', 'extend_sample_allcolumns_for_plexdia_case',
            'adapt_input_df_columns_in_case_of_plexDIA', 'extend_sampleID_column_for_plexDIA_case',
@@ -197,6 +198,14 @@ def check_if_node_is_included(node):
     return True
 
 
+
+# Cell
+import os
+import shutil
+def create_or_replace_folder(folder):
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    os.makedirs(folder)
 
 # Cell
 def write_chunk_to_file(chunk, filepath ,write_header):
