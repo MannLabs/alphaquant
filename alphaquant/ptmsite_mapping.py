@@ -347,7 +347,7 @@ import os
 def get_uniprot_path(database_tsv, organism= "human"):
     return get_path_to_database(database_tsv, "uniprot_mapping.tsv.zip",organism)
 
-def get_swissprot_path(database_tsv, organism = "human"):
+def get_swissprot_path(database_tsv = None, organism = "human"):
     return get_path_to_database(database_tsv, "swissprot_mapping.tsv.zip",organism)
 
 def get_path_to_database(database_path, database_name, organism):
