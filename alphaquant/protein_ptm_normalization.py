@@ -111,6 +111,7 @@ class PTMtableNormalizer():
 # Cell
 import glob
 import re
+import pandas as pd
 class PTMtablePreparer():
     def __init__(self, ptm_file, proteome_file):
         self._swissprot_referenceprots = aqptm.get_swissprot_path()
