@@ -129,6 +129,8 @@ class PTMtablePreparer():
         ptm_row = self.ptm_df.loc[ptmsite]
         try:
             protein_row = self.proteome_df.loc[swissprot]
+            protein_row = self.__resolve_possible_duplicate_protein_rows(protein_row)
+
         except:
             return None
         ptm_fdr = self.__get_fdr_from_table_row__(ptm_row)
@@ -138,6 +140,13 @@ class PTMtablePreparer():
         reginfos = RegulationInfos(log2fc_ptm=ptm_fc, fdr_ptm=ptm_fdr, log2fc_protein=protein_fc,fdr_protein=protein_fdr)
 
         return reginfos
+
+    def __resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
+        if type(protein_row) != pd.Series: #a single row gets transposed into a pandas series
+            protein_row = protein_row.sort_values(by = "pseudoint1", ascsending = False)
+            return protein_row.iloc[0]
+        else:
+            return protein_row
 
     def __read_and_annotate_ptm_df__(self, ptm_file):
         ptm_df = self.__read_dataframe__(ptm_file)
