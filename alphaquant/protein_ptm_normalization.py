@@ -26,7 +26,7 @@ class PTMResultsNormalizer():
     def _write_normed_df(self,df_normed, ptmfile):
         ptmfile2name = self._table_localizer.get_ptmfile2name()
         name = ptmfile2name.get(ptmfile)
-        df_normed.to_csv(f"{self.results_dir_protnormed}/{name}.results.tsv", sep = "\t", index = None)
+        df_normed.to_csv(f"{self.results_dir_protnormed}/{name}.results.tsv", sep = "\t")
 
 
 class PTMtableLocalizer():
