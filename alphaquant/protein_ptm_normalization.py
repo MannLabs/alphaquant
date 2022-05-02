@@ -50,7 +50,7 @@ class PTMtableLocalizer():
 
     @staticmethod
     def __get_name2file__(filenames):
-        pattern = "(.*\/results.*\/)(.*)(.results.tsv)"
+        pattern = "(.*\/|^)(results.*\/)(.*)(.results.tsv)"
         name2file = {}
         for file in filenames:
             matched = re.search(pattern, file)
