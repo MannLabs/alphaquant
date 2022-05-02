@@ -59,7 +59,7 @@ class PTMtableLocalizer():
             matched = re.search(pattern, file)
             if matched==None:
                 continue
-            name = matched.group(2)
+            name = matched.group(3)
             name2file.update({name: file})
         return name2file
 
