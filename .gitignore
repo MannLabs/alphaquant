@@ -173,6 +173,8 @@ test_data/unit_tests/input_table_formats/plexdia_diann_subset_v1.tsv.diann_fragi
 test_data/unit_tests/input_table_formats/plexdia_diann_v1_control_ions.tsv
 test_data/unit_tests/input_table_formats/spectronaut_frgion.tsv.spectronaut_fragion_isotopes.aq_reformat.tsv
 
+test_data/unit_tests/protein_ptm_normalization/toy_data
+
 
 #bash scripts
 misc/bumpversion.sh
