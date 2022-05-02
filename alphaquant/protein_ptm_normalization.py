@@ -14,6 +14,9 @@ class PTMResultsNormalizer():
 
     def write_normalized_tables(self):
         for ptm_file, protfile in self._table_localizer.get_ptmfile2protfile().items():
+            if protfile == None:
+                print(f"could not localize protfile for {ptm_file}, skipping")
+                continue
             df_normed = PTMtableNormalizer(ptm_file, protfile).normalize_with_proteome()
             self._write_normed_df(df_normed, ptm_file)
 
