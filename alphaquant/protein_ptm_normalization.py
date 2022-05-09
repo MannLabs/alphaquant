@@ -233,7 +233,7 @@ class FDRDamper():
     similar to the phosphopeptide, we for the moment use a very simple heuristic to correct the fdr down:
 
     1) We only consider phosphopeptides where the fold change has become less strong, i.e. 'dampened' and where the "damping" protein was regulated significantly
-    2) We correct the logged(!) fdr up with an exponnential function and then transform it back to a new fdr. This means a "double exponential" decrease in the significance
+    2) We correct the logged(!) fdr up with an exponnential function and then transform it back to a new fdr. This means a exponential decrease in the significance
     """
     def __init__(self, regulation_infos):
         self._regulation_infos = regulation_infos
@@ -245,7 +245,7 @@ class FDRDamper():
         if self.__check_if_needs_damping():
             return self.__get_adjusted_fdr()
         else:
-            return self._regulation_infos.fdr_protein
+            return self._regulation_infos.fdr_ptm
 
     def __check_if_needs_damping(self):
         if self._regulation_infos.fdr_protein<0.05:
@@ -265,5 +265,5 @@ class FDRDamper():
         return min(fdr_new, 1)
 
     def __calculate_order_of_magnitude_damping_factor(self):
-        factor = 2**(abs(self._regulation_infos.diff_fc/self._regulation_infos.log2fc_ptm))-1 #the factor gives 1 when the fc stays the same and 0 if the fc is at 0
-        return factor
+        ratio_old_new = self._regulation_infos.diff_fc/self._regulation_infos.log2fc_ptm #must be smaller than 1
+        return ratio_old_new
