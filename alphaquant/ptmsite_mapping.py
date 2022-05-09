@@ -441,7 +441,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     input_df_it = pd.read_csv(sorted_reduced_input, sep = "\t", chunksize = 1000_000, encoding ='latin1')
     for input_df in input_df_it:
 
-        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
         organism = organism)
 
 
