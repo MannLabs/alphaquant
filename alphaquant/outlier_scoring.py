@@ -42,17 +42,17 @@ class ProtnodeClusterChecker():
     def get_diffclusts(self):
         if not self.__check_if_multiple_clusters__():
             return []
-        return self.__get_clusterdiff_handler_for_each_cluster__()
+        return self.__get_clusterdiff_info_for_each_cluster()
 
-    def __get_clusterdiff_handler_for_each_cluster__(self):
+    def __get_clusterdiff_info_for_each_cluster(self):
         protnodes = []
-        mainclust_info= self.__get_cluster_info__(clustnum = 0)
+        mainclust_info= self.__get_cluster_info(clustnum = 0)
         for clustnum in range(1, self._num_clusters):
-            outlier_info = self.__get_cluster_info__(clustnum)
+            outlier_info = self.__get_cluster_info(clustnum)
             protnodes.append(self.__get_clusterdiff_info__(outlier_info, mainclust_info))
         return protnodes
 
-    def __get_cluster_info__(self, clustnum):
+    def __get_cluster_info(self, clustnum):
         mainclust_peptides = self.__get_peptides_of_cluster__(clustnum)
         return ClusterInfo(protein_name=self._protnode.name,peptide_nodes = mainclust_peptides)
 
@@ -89,7 +89,8 @@ class ClusterDiffInfo():
         self.fcdiff = abs(mainclust_info.median_fc - outlier_info.median_fc)
         self.quality_score = max(mainclust_info.quality_score, outlier_info.quality_score)
         self.outlier_peptide_names = outlier_info.peptide_names
-        self.peptide_names = mainclust_info.peptide_names + outlier_info.peptide_names
+        self.mainclust_peptide_names = mainclust_info.peptide_names
+        self.peptide_names = self.mainclust_peptide_names + self.outlier_peptide_names
 
     def get_clusterdiff_protnode(self, protnode):
         protnode_clusterdiff = copy.deepcopy(protnode)
@@ -118,13 +119,13 @@ class ClusterDiffInfo():
 class OutlierPeptideLoader():
     def __init__(self, condpair_tree):
         self._condpair_tree = condpair_tree
-        self._outlier_peptides = []
+        self.outlier_peptides = []
+        self._add_outlier_peptides()
 
-    def get_outlier_peptides(self):
+    def _add_outlier_peptides(self):
         for protnode in self._condpair_tree.children:
             nodechecker = ProtnodeClusterCheckerPeptideInfos(protnode)
-            self._outlier_peptides += nodechecker.get_outlier_peptide_infos()
-        return self._outlier_peptides
+            self.outlier_peptides += nodechecker.get_outlier_peptide_infos()
 
 
 class ProtnodeClusterCheckerPeptideInfos(ProtnodeClusterChecker):
@@ -159,10 +160,12 @@ class ProteinInfo():
 class OutlierPeptideInfo(ProteinInfo):
     def __init__(self, peptide_node):
         super().__init__(peptide_node)
+        self._peptide_node = peptide_node
         self.peptide_sequence = peptide_node.name
         self.fc = peptide_node.fc
         self.quality_score = self._get_quality_score(peptide_node)
         self.protnormed_fc = None
+        self.num_mainclust_peptides = self._get_number_mainclust_peptides()
         self._calc_protnormed_fc()
 
     def _get_quality_score(self, peptide_node):
@@ -172,10 +175,13 @@ class OutlierPeptideInfo(ProteinInfo):
         else:
             return peptide_node.fraction_consistent
 
-
     def _calc_protnormed_fc(self):
         self.protnormed_fc = self.fc - self.protein_fc
 
+    def _get_number_mainclust_peptides(self):
+        samelevel_nodes = self._peptide_node.parent.children
+        mainclust_nodes = filter(lambda x : x.cluster ==0, samelevel_nodes)
+        return len(list(mainclust_nodes))
 
 
 # Cell
@@ -208,6 +214,7 @@ class ModifiedPeptideLoader():
 
 class PeptideWithSpecificModification(OutlierPeptideInfo):
     def __init__(self, node_modpeptide, specific_modification= "[Phospho (STY)]"):
+        self.protein_name = self._get_protein_name(node_modpeptide)
         self.modified_sequence = node_modpeptide.name
         self.specific_modification_found = self._check_for_specific_modification(specific_modification)
         if not self.specific_modification_found:
@@ -223,11 +230,15 @@ class PeptideWithSpecificModification(OutlierPeptideInfo):
         pepnode = aqutils.find_node_parent_at_level(node_modpeptide, level='seq')
         return pepnode.name
 
+    def _get_protein_name(self, node_modpeptide):
+        pepnode = aqutils.find_node_parent_at_level(node_modpeptide, level='gene')
+        return pepnode.name
+
 # Cell
 import numpy as np
 class ComplementedClusterLoader():
     def __init__(self, outlier_peptide_loader, modified_peptide_loader):
-        self._outlier_peptides = outlier_peptide_loader.get_outlier_peptides()
+        self._outlier_peptides = outlier_peptide_loader.outlier_peptides
         self._modified_peptide_loader = modified_peptide_loader
         self.complemented_clusters = []
         self._find_complemented_clusters()
@@ -254,6 +265,12 @@ class ComplementedCluster():
     def get_quality_score(self):
         return max(self.outlier_peptide.quality_score, self.modified_peptide.quality_score)
 
+    def get_outlier_quality_score(self):
+        return self.outlier_peptide.quality_score
+
+    def get_modpep_quality_score(self):
+        return self.modified_peptide.quality_score
+
     def get_min_abs_normfc(self):
         return min(abs(self.outlier_peptide.protnormed_fc), abs(self.modified_peptide.protnormed_fc))
 
@@ -269,9 +286,13 @@ class ComplementedCluster():
     def get_ptm_abs_fc(self):
         return abs(self.modified_peptide.fc)
 
+    def get_number_mainclust_peptides(self):
+        return self.outlier_peptide.num_mainclust_peptides
+
     def _add_normfc_to_modpep(self):
         self.modified_peptide.protein_fc = self.outlier_peptide.protein_fc
         self.modified_peptide._calc_protnormed_fc()
+
 
 
 # Cell
