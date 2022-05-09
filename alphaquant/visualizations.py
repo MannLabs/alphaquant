@@ -20,7 +20,8 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'plot_predictability_roc_curve', 'plot_predictability_precision_recall_curve', 'plot_outlier_fraction',
            'get_true_false_to_predscores', 'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set',
            'plot_roc_curve', 'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
-           'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter']
+           'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter',
+           'PeptideIntensityDataframeGetter']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -1378,6 +1379,13 @@ class IonFoldChangePlotter():
         axs[0][1].set_xticks([], [])
         return fig
 
+    def plot_fcs_predscore_relative_strength(self, set_nonmainclust_elems_white = True, ax = None):
+        if ax is None:
+            ax = plt.subplot()
+        colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
+        colormap_relative_strength_all = colorgetter.get_predscore_relative_strength_colormap(set_nonmainclust_elems_whiter=set_nonmainclust_elems_white)
+        self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
+        return ax
 
 
     def plot_fcs_with_specified_color_scheme(self, colormap, ax):
@@ -1881,7 +1889,7 @@ class ProteinIntensityDataFrameGetter():
 
         #if ion clustering has been performed, add cluster information
         if self._condpair_root_node != None:
-            df_melted = self.__annotate_cluster_information(df_melted, protein, specified_level)
+            df_melted = self._annotate_cluster_information(df_melted, protein, specified_level)
 
         return df_melted
 
@@ -1906,7 +1914,7 @@ class ProteinIntensityDataFrameGetter():
         self._samplemap_df = quantification_info.samplemap_df
         self._sample2cond = quantification_info.sample2cond
 
-    def __annotate_cluster_information(self, df_melted, protein, specified_level): #mod_seq_charge
+    def _annotate_cluster_information(self, df_melted, protein, specified_level): #mod_seq_charge
         protein_node = self.__get_protein_node__(protein)
         protnode_ions = [x.name for x in protein_node.leaves]
         self.__test_that_diffresult_ions_are_in_tree_ions__(df_melted, protnode_ions)
@@ -1915,7 +1923,6 @@ class ProteinIntensityDataFrameGetter():
         self.__annotate_properties_to_tables__(protein_node, df_melted, specified_level)
 
         return df_melted
-
 
     def __get_protein_node__(self, protein_name):
         return anytree.findall_by_attr(self._condpair_root_node, protein_name, maxlevel=2)[0]
@@ -1954,7 +1961,7 @@ class ProteinIntensityDataFrameGetter():
     def __test_that_diffresult_ions_are_in_tree_ions__(self, df_melted, protnode_ions):
         ions_in_df = set(df_melted["ion"]) - set(protnode_ions)
         if len(ions_in_df)>0:
-            Exception("Clustered ions and observed ions differ!")
+            Exception("Clustered ions are not entirely contained in  observed ions!")
 
 
 
@@ -1995,6 +2002,25 @@ class ProteoformIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
         self.__annotate_properties_to_tables__(protein_node, df_melted, specified_level)
 
         return df_melted
+
+
+
+class PeptideIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
+    def __init__(self, quantification_info):
+        super().__init__(quantification_info)
+
+    def get_melted_ion_intensity_table_peptide_subset(self, protein, peptides_to_plot, specified_level = "mod_seq_charge"):
+        samples = self.__get_samples_of_condpair__()
+        protein_df = self.__subset_dataframe_to_protein__(protein)
+        df_melted = self.__melt_protein_dataframe__(protein_df, samples)
+        df_melted = self._annotate_cluster_information(df_melted, protein, specified_level)
+        df_melted = self._subset_melted_df_to_peptides(df_melted, peptides_to_plot)
+
+        return df_melted
+
+    def _subset_melted_df_to_peptides(self, df_melted, peptides_to_plot):
+        df_melted_subsetted = df_melted[[x in peptides_to_plot for x in df_melted["specified_level"]]]
+        return df_melted_subsetted
 
 
 
