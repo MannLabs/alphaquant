@@ -361,7 +361,7 @@ def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
     pepnode2pval2numleaves = []
     for pepnode in peptide_nodes:
-        pepleaves = [x for x in pepnode.leaves if "seq" in x.inclusion_levels]
+        pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
         pepnode2pval2numleaves.append((pepnode, pepnode.p_val,len(pepleaves)))
     pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True) #sort with highest p-val (least significant) first
 
