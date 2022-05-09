@@ -3,7 +3,8 @@
 __all__ = ['OutlierHandler', 'ProtnodeClusterChecker', 'ClusterInfo', 'ClusterDiffInfo', 'OutlierPeptideLoader',
            'ProtnodeClusterCheckerPeptideInfos', 'ProteinInfo', 'OutlierPeptideInfo', 'ModifiedPeptideLoader',
            'PeptideWithSpecificModification', 'ComplementedClusterLoader', 'ComplementedCluster',
-           'ComplementedClusterEvaluator']
+           'ComplementedClusterEvaluator', 'ComplementedClusterFilterer', 'ComplementedClusterFilterConfigs',
+           'ComplementedClusterSingleFilter']
 
 # Cell
 import alphaquant.diffquant_utils as aqutils
@@ -298,21 +299,127 @@ class ComplementedCluster():
 # Cell
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats
 
 
 class ComplementedClusterEvaluator():
-    def __init__(self, complemented_clusterloader):
-        self._complemented_clusters = complemented_clusterloader.complemented_clusters
+    def __init__(self, complemented_clusterloader, cluster_filterconfigs):
+        self._complemented_clusters = self._load_complemented_clusters(complemented_clusterloader, cluster_filterconfigs)
+        self._fcs_outliers = None
+        self._fcs_modpeps = None
+        self._assign_fold_change_lists()
+
 
     def compare_regulation_directions(self, ax):
-        opposite_regulation_overview = [x.has_opposite_regulation() for x in self._complemented_clusters]
+        opposite_regulation_overview = [int(x.has_opposite_regulation()) for x in self._complemented_clusters]
         self._plot_regulation_direction_histogram(ax, opposite_regulation_overview)
+
+    def scatter_fold_changes(self,ax):
+
+        num_opposite = sum([np.sign(x[0])==-np.sign(x[1]) for x in zip(self._fcs_outliers, self._fcs_modpeps)])
+        num_same = sum([np.sign(x[0])==np.sign(x[1]) for x in zip(self._fcs_outliers, self._fcs_modpeps)])
+        print(f"{num_same} same, {num_opposite} opposite")
+        sns.scatterplot(x =self._fcs_outliers, y=self._fcs_modpeps,ax=ax)
+        ax.set_xlabel("outliers")
+        ax.set_ylabel("modified_peptides")
+        self._set_axis_limits(ax)
+        self._draw_horizontal_vertical_line(ax)
+
+    def calculate_correlation(self):
+        r, p = scipy.stats.pearsonr(self._fcs_outliers, self._fcs_modpeps)
+        print(f"pval is {p}")
+        return r
+
+
+    def _assign_fold_change_lists(self):
+        self._fcs_outliers = list([x.outlier_peptide.protnormed_fc for x in self._complemented_clusters])
+        self._fcs_modpeps = list([x.modified_peptide.protnormed_fc for x in self._complemented_clusters])
+
+    def _set_axis_limits(self,ax):
+        all_lims = ax.get_xlim() + ax.get_ylim() #returns tuples with the lims
+        most_extreme_val =  max((abs(x) for x in all_lims))
+        ax.set_xlim(-most_extreme_val, most_extreme_val)
+        ax.set_ylim(-most_extreme_val, most_extreme_val)
+
+    def _draw_horizontal_vertical_line(self, ax):
+        ax.hlines(y=0, xmin=ax.get_xlim()[0], xmax=ax.get_xlim()[1], colors='black')
+        ax.vlines(x=0, ymin = ax.get_ylim()[0], ymax = ax.get_ylim()[1], colors='black')
+
+
+
+    @staticmethod
+    def _load_complemented_clusters(complemented_clusterloader, cluster_filterconfigs):
+        cfilterer = ComplementedClusterFilterer(complemented_clusterloader, cluster_filterconfigs)
+        return cfilterer.get_filtered_complemented_clusters()
+
     @staticmethod
     def _plot_regulation_direction_histogram(ax, opposite_regulation_overview):
         ax.hist(opposite_regulation_overview)
 
 
 
+class ComplementedClusterFilterer():
+    def __init__(self, complemented_clusterloader, clusterfilterconfigs):
+
+        self._complemented_clusters = complemented_clusterloader.complemented_clusters
+        self._clusterfilterconfigs = clusterfilterconfigs
+
+    def get_filtered_complemented_clusters(self):
+        if self._clusterfilterconfigs is None:
+            return self._complemented_clusters
+        else:
+            return self._filter_complemented_clusters()
+
+    def _filter_complemented_clusters(self):
+        individually_filtered = []
+        for filterconf in self._clusterfilterconfigs.filterconfigs:
+            filtered_cclusts = set(self._filter_to_property_quantile(filterconf))
+            individually_filtered.append(filtered_cclusts)
+        return list(set.intersection(*individually_filtered)) #we filter the quantile of the COMPLETE set for
+        #every condition and intersect in the end, alternatively one could successively filter the quantiles
 
 
+    def _filter_to_property_quantile(self, filterconf):#get the quantiles with the best property scores i.e. quality score
+        property_sorted = self._sort_complemented_clusters_by_score(filterconf.property_name)
+
+        if filterconf.quantile_starts_at_lowest:
+            number_to_retain = int(filterconf.quantile * len(property_sorted))
+            return property_sorted[:number_to_retain]
+        else:
+            number_to_discard = int((1-filterconf.quantile) * len(property_sorted))
+            return property_sorted[number_to_discard:]
+
+    def _sort_complemented_clusters_by_score(self, property_name):
+        return sorted(self._complemented_clusters, key = lambda x : getattr(x, property_name)())
+
+
+class ComplementedClusterFilterConfigs():
+    def __init__(self, min_abs_normfc_quantile = 1, ptm_abs_normfc_quantile = 1, outlier_abs_normfc_quantile = 1, ptm_absfc_quantile = 1,
+    modpep_quality_quantile = 1, outlier_quality_quantile = 1, number_mainclustpeps_quantile = 1):
+        self.filterconfigs = []
+        self._min_abs_normfc_quantile =min_abs_normfc_quantile
+        self._ptm_abs_normfc_quantile=ptm_abs_normfc_quantile
+        self._number_mainclustpeps_quantile = number_mainclustpeps_quantile
+        self._outlier_abs_normfc_quantile= outlier_abs_normfc_quantile
+        self._ptm_absfc_quantile=ptm_absfc_quantile
+        self._outlier_quality_quantile=outlier_quality_quantile
+        self._modpep_quality_quantile = modpep_quality_quantile
+        self._number_mainclustpeps_quantile = number_mainclustpeps_quantile
+        self._initialize_filter_configs()
+
+    def _initialize_filter_configs(self):
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_min_abs_normfc", self._min_abs_normfc_quantile, False))
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_ptm_abs_normfc", self._ptm_abs_normfc_quantile, False))
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_ptm_abs_fc", self._ptm_absfc_quantile, False))
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_outlier_abs_normfc", self._outlier_abs_normfc_quantile, False))
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_outlier_quality_score", self._outlier_quality_quantile, True))
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_modpep_quality_score", self._modpep_quality_quantile, True))
+        self.filterconfigs.append(ComplementedClusterSingleFilter("get_number_mainclust_peptides", self._number_mainclustpeps_quantile, False))
+
+class ComplementedClusterSingleFilter():
+    def __init__(self, property_name, quantile, quantile_starts_at_lowest):
+        self.property_name = property_name
+        self.quantile = quantile
+        self.quantile_starts_at_lowest = quantile_starts_at_lowest
 
