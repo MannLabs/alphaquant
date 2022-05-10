@@ -7,19 +7,20 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'foldchange_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
            'get_heatmapplot_ckg', 'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix',
            'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
-           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
-           'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe',
-           'initialize_sample2cond', 'plot_volcano_plotly', 'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly',
-           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'get_color2ions', 'convert_to_plotly_color_format',
-           'IonFoldChangeCalculator', 'IonFoldChangePlotter', 'make_mz_fc_boxplot', 'assign_mz_cathegory',
-           'plot_fc_histogram_ml_filtered', 'plot_log_loss_score', 'scatter_ml_regression_perturbation_aware',
-           'plot_perturbation_histogram', 'plot_perturbed_unperturbed_fcs', 'plot_ml_fc_histograms',
-           'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs', 'plot_beeswarm_plot_log2fcs', 'get_longformat_df',
-           'plot_feature_importances', 'filter_sort_top_n', 'visualize_gaussian_mixture_fit',
-           'visualize_gaussian_nomix_subfit', 'visualize_filtered_non_filtered_precursors', 'plot_fcs_node',
-           'plot_predictability_roc_curve', 'plot_predictability_precision_recall_curve', 'plot_outlier_fraction',
-           'get_true_false_to_predscores', 'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set',
-           'plot_roc_curve', 'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
+           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'reformat_dataframe_header',
+           'get_diffresult_dataframe', 'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition',
+           'get_normed_peptides_dataframe', 'initialize_sample2cond', 'plot_volcano_plotly',
+           'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly', 'beeswarm_ion_plot_plotly',
+           'foldchange_ion_plot_plotly', 'get_color2ions', 'convert_to_plotly_color_format', 'IonFoldChangeCalculator',
+           'IonFoldChangePlotter', 'make_mz_fc_boxplot', 'assign_mz_cathegory', 'plot_fc_histogram_ml_filtered',
+           'plot_log_loss_score', 'scatter_ml_regression_perturbation_aware', 'plot_perturbation_histogram',
+           'plot_perturbed_unperturbed_fcs', 'plot_ml_fc_histograms', 'plot_fc_intensity_scatter',
+           'plot_violin_plots_log2fcs', 'plot_beeswarm_plot_log2fcs', 'get_longformat_df', 'plot_feature_importances',
+           'filter_sort_top_n', 'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
+           'visualize_filtered_non_filtered_precursors', 'plot_fcs_node', 'plot_predictability_roc_curve',
+           'plot_predictability_precision_recall_curve', 'plot_outlier_fraction', 'get_true_false_to_predscores',
+           'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set', 'plot_roc_curve',
+           'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
            'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter',
            'PeptideIntensityDataframeGetter']
 
@@ -73,6 +74,12 @@ class IonPlotColorGetter():
         name2color_seventy = self.__map_ionname_to_color(self._color_palette(1), idx_start=idx_fifty_percent, idx_end=idx_seventy_percent)
         name2color_rest = self.__map_ionname_to_color(self._color_palette(0), idx_start=idx_seventy_percent, idx_end=len(sorted_scores))
         name2color_all = self.__merge_dictionaries([name2color_fifty, name2color_seventy, name2color_rest])
+        if set_nonmainclust_elems_whiter:
+            name2color_all = self.__make_nonmainclust_elems_whiter(name2color_all)
+        return name2color_all
+
+    def get_single_color_colormap(self, set_nonmainclust_elems_whiter = True):
+        name2color_all = self.__map_ionname_to_color(self._color_palette(0), idx_start = 0, idx_end = len(self._sorted_map_df.index))
         if set_nonmainclust_elems_whiter:
             name2color_all = self.__make_nonmainclust_elems_whiter(name2color_all)
         return name2color_all
@@ -802,6 +809,14 @@ def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"),
 
     return result_df
 
+def reformat_dataframe_header(df):
+    header_genes = [x.split("_")[0] for x in df.columns]
+    header_proteins = [x.split("_")[1] for x in df.columns]
+    header_sitenums = [x.split("_")[2] for x in df.columns]
+
+    header_df = pd.DataFrame.from_dict(data= {'gene_name': header_genes, 'protein' : header_proteins, 'site_id': header_sitenums}, columns=df.columns, orient='index')
+    return pd.concat([header_df, df])
+
 # Cell
 import pandas as pd
 import os
@@ -1387,6 +1402,13 @@ class IonFoldChangePlotter():
         self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
         return ax
 
+    def plot_fcs_predscore_unicolor(self, set_nonmainclust_elems_white = True, ax = None):
+        if ax is None:
+            ax = plt.subplot()
+        colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
+        colormap_relative_strength_all = colorgetter.get_single_color_colormap(set_nonmainclust_elems_whiter=set_nonmainclust_elems_white)
+        self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
+        return ax
 
     def plot_fcs_with_specified_color_scheme(self, colormap, ax):
 
