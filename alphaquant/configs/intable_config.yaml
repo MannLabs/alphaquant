@@ -563,3 +563,41 @@ diann_wideformat:
           - Precursor.Charge
   ml_level: SEQ
   use_iontree: False
+
+
+diann_fragion_isotopes_gene_level:
+  format: longtable
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Raw
+    #Fragment.Quant.Raw
+    ms1iso: Ms1.Area
+  protein_cols:
+   - Genes
+  split_cols:
+    Fragment.Quant.Raw: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        FRGION: 
+         - Fragment.Quant.Raw
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        MS1ISOTOPES:
+         - Precursor.Charge
+  use_iontree: True
+  ml_level: CHARGE
