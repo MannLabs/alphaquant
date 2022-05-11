@@ -22,7 +22,7 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set', 'plot_roc_curve',
            'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
            'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter',
-           'PeptideIntensityDataframeGetter']
+           'PeptideIntensityDataframeGetter', 'ProteinClusterPlotter']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -36,10 +36,10 @@ import matplotlib.pyplot as plt
 
 class AlphaPeptColorMap():
     def __init__(self):
-        map = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
-        map = [matplotlib.colors.to_rgba(x) for x in map]
-        self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",map)
-        self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",map, N=5)
+        colorlist = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
+        self.colorlist = [matplotlib.colors.to_rgba(x) for x in colorlist]
+        self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist)
+        self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist, N=5)
 
 
 class IonPlotColorGetter():
@@ -78,10 +78,8 @@ class IonPlotColorGetter():
             name2color_all = self.__make_nonmainclust_elems_whiter(name2color_all)
         return name2color_all
 
-    def get_single_color_colormap(self, set_nonmainclust_elems_whiter = True):
-        name2color_all = self.__map_ionname_to_color(self._color_palette(0), idx_start = 0, idx_end = len(self._sorted_map_df.index))
-        if set_nonmainclust_elems_whiter:
-            name2color_all = self.__make_nonmainclust_elems_whiter(name2color_all)
+    def get_single_color_colormap(self, color):
+        name2color_all = self.__map_ionname_to_color(color, idx_start = 0, idx_end = len(self._sorted_map_df.index))
         return name2color_all
 
 
@@ -1402,12 +1400,12 @@ class IonFoldChangePlotter():
         self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
         return ax
 
-    def plot_fcs_predscore_unicolor(self, set_nonmainclust_elems_white = True, ax = None):
+    def plot_fcs_predscore_unicolor(self, color, ax = None):
         if ax is None:
             ax = plt.subplot()
         colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
-        colormap_relative_strength_all = colorgetter.get_single_color_colormap(set_nonmainclust_elems_whiter=set_nonmainclust_elems_white)
-        self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
+        colormap_single_color = colorgetter.get_single_color_colormap(color)
+        self.plot_fcs_with_specified_color_scheme(colormap_single_color, ax)
         return ax
 
     def plot_fcs_with_specified_color_scheme(self, colormap, ax):
@@ -2049,3 +2047,55 @@ class PeptideIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
 
 
 
+
+
+# Cell
+import alphaquant.diffquant_utils as aqutils
+import anytree
+
+class ProteinClusterPlotter():
+    def __init__(self, protein_node, condpair, peptide_intensity_df_getter : PeptideIntensityDataframeGetter,level = 'seq'):
+        self._protein_node = protein_node
+        self._level = level
+        self._axes = None
+        self._condpair = condpair
+        self._pepdf_getter = peptide_intensity_df_getter
+        self._colormap = AlphaPeptColorMap().colorlist
+
+    def plot_all_clusters_for_protein(self):
+        level_nodes = self._load_level_nodes()
+        cluster_sorted_groups_of_peptide_nodes = self._get_cluster_sorted_groups_of_peptide_nodes(level_nodes)
+        num_clusters = len(cluster_sorted_groups_of_peptide_nodes)
+        self._prepare_axes(cluster_sorted_groups_of_peptide_nodes)
+
+        for idx in range(num_clusters):
+            peptides_to_plot = self._get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, idx)
+            melted_plot_df = self._pepdf_getter.get_melted_ion_intensity_table_peptide_subset(self._protein_node.name,peptides_to_plot,specified_level=self._level)
+            fcplotter = IonFoldChangePlotter(melted_df=melted_plot_df, condpair = self._condpair)
+            fcplotter.plot_fcs_predscore_unicolor(ax=self._axes[idx], color=self._get_color_from_list(idx))
+        plt.show()
+
+    @staticmethod
+    def _get_cluster_sorted_groups_of_peptide_nodes(peptide_nodes):
+        cluster2nodes = {}
+        for peptide_node in peptide_nodes:
+            cluster2nodes[peptide_node.cluster] = cluster2nodes.get(peptide_node.cluster, [])+ [peptide_node]
+        return [cluster2nodes.get(x) for x in sorted(cluster2nodes.keys())]
+
+    def _prepare_axes(self, cluster_sorted_groups_of_peptide_nodes):
+        num_clusters = len(cluster_sorted_groups_of_peptide_nodes)
+        width_list = [len(x) for x in cluster_sorted_groups_of_peptide_nodes] #adjust width of each subplot according to peptide number
+        factor = 0.3
+        total_number_of_peptides = sum(width_list)
+        _, self._axes = plt.subplots(1, num_clusters,figsize = (total_number_of_peptides*factor,10),sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list})
+
+    def _load_level_nodes(self):
+        return anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._level))
+
+    @staticmethod
+    def _get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, cluster_idx):
+        return [x.name for x in cluster_sorted_groups_of_peptide_nodes[cluster_idx]]
+
+    def _get_color_from_list(self, idx):
+        modulo_idx = idx % (len(self._colormap)) #if idx becomes larger than the list length, start at 0 again
+        return self._colormap[modulo_idx]
