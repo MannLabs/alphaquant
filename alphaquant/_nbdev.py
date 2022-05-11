@@ -442,7 +442,9 @@ index = {"ConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "ComplementedClusterFilterer": "15_outlier_scoring.ipynb",
          "ComplementedClusterFilterConfigs": "15_outlier_scoring.ipynb",
          "DiffClusterFilterer": "15_outlier_scoring.ipynb",
-         "DiffClusterFilterConfig": "15_outlier_scoring.ipynb"}
+         "DiffClusterFilterConfig": "15_outlier_scoring.ipynb",
+         "OutlierPeptideFilterer": "15_outlier_scoring.ipynb",
+         "OutlierPeptideFilterConfigs": "15_outlier_scoring.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",

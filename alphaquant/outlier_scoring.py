@@ -5,7 +5,7 @@ __all__ = ['OutlierHandler', 'ProtnodeClusterChecker', 'ClusterInfo', 'ClusterDi
            'ModifiedPeptideLoader', 'PeptideWithSpecificModification', 'ComplementedClusterLoader',
            'ComplementedCluster', 'ComplementedClusterEvaluator', 'QuantileFilterer', 'FilterConfig',
            'ComplementedClusterFilterer', 'ComplementedClusterFilterConfigs', 'DiffClusterFilterer',
-           'DiffClusterFilterConfig']
+           'DiffClusterFilterConfig', 'OutlierPeptideFilterer', 'OutlierPeptideFilterConfigs']
 
 # Cell
 import alphaquant.diffquant_utils as aqutils
@@ -498,3 +498,27 @@ class DiffClusterFilterConfig(FilterConfig):
         self.filterconfigs.append(FilterConfig("get_num_outlierclust_peptides", self._num_outlierclust_peptides_quantile, False))
 
 
+
+
+# Cell
+
+class OutlierPeptideFilterer(QuantileFilterer):
+    def __init__(self, outlier_peptide_list, outlierpeptide_filterconfigs):
+        super().__init__(outlier_peptide_list, outlierpeptide_filterconfigs)
+
+    def get_filtered_outlier_peptide_list(self):
+        return self.get_filtered_list_of_objects()
+
+
+class OutlierPeptideFilterConfigs(FilterConfig):
+    def __init__(self, quality_score_quantile = 1, num_mainclust_peptides_quantile = 1, protnormed_fc_quantile = 1):
+        self.filterconfigs = []
+        self._quality_score_quantile = quality_score_quantile
+        self._num_mainclust_peptides_quantile = num_mainclust_peptides_quantile
+        self._protnormed_fc_quantile = protnormed_fc_quantile
+        self._initialize_filter_configs()
+
+    def _initialize_filter_configs(self):
+        self.filterconfigs.append(FilterConfig("quality_score", self._quality_score_quantile, True))
+        self.filterconfigs.append(FilterConfig("num_mainclust_peptides", self._num_mainclust_peptides_quantile, False))
+        self.filterconfigs.append(FilterConfig("protnormed_fc", self._protnormed_fc_quantile, False))
