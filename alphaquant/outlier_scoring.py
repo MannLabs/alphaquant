@@ -74,10 +74,10 @@ class ClusterInfo():
         self.cluster_number = list({x.cluster for x in peptide_nodes})[0]
         self.peptide_names = [x.name for x in peptide_nodes]
         self.median_fc = np.median(np.array([x.fc for x in peptide_nodes]))
-        self.quality_score = self._get_minimum_predscore(peptide_nodes)
+        self.quality_score = self._get_quality_score(peptide_nodes)
 
     @staticmethod
-    def _get_minimum_predscore(peptide_nodes):
+    def _get_quality_score(peptide_nodes):
         if hasattr(peptide_nodes[0], 'predscore'):
             return min([abs(x.predscore) for x in peptide_nodes])
         else:
