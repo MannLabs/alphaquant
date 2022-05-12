@@ -187,7 +187,7 @@ class OutlierPeptideInfo(ProteinInfo):
         if has_predscore:
             return abs(peptide_node.predscore)
         else:
-            return peptide_node.fraction_consistent
+            return 1/peptide_node.fraction_consistent
 
     def _calc_protnormed_fc(self):
         self.protnormed_fc = self.fc - self.protein_fc
