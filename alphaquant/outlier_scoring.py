@@ -184,7 +184,7 @@ class OutlierPeptideInfo(ProteinInfo):
 
     def _get_quality_score(self, peptide_node):
         has_predscore = hasattr(peptide_node, 'predscore')
-        if hasattr(peptide_node, 'predscore'):
+        if has_predscore:
             return abs(peptide_node.predscore)
         else:
             return peptide_node.fraction_consistent
