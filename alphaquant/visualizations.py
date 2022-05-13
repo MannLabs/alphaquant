@@ -2058,6 +2058,7 @@ class ProteinClusterPlotter():
         self._protein_node = protein_node
         self._level = level
         self._axes = None
+        self._fig = None
         self._condpair = condpair
         self._pepdf_getter = peptide_intensity_df_getter
         self._colormap = AlphaPeptColorMap().colorlist
@@ -2067,12 +2068,14 @@ class ProteinClusterPlotter():
         cluster_sorted_groups_of_peptide_nodes = self._get_cluster_sorted_groups_of_peptide_nodes(level_nodes)
         num_clusters = len(cluster_sorted_groups_of_peptide_nodes)
         self._prepare_axes(cluster_sorted_groups_of_peptide_nodes)
+        self._label_x_and_y()
 
         for idx in range(num_clusters):
             peptides_to_plot = self._get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, idx)
             melted_plot_df = self._pepdf_getter.get_melted_ion_intensity_table_peptide_subset(self._protein_node.name,peptides_to_plot,specified_level=self._level)
             fcplotter = IonFoldChangePlotter(melted_df=melted_plot_df, condpair = self._condpair)
             fcplotter.plot_fcs_predscore_unicolor(ax=self._axes[idx], color=self._get_color_from_list(idx))
+            self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         plt.show()
 
     @staticmethod
@@ -2085,9 +2088,9 @@ class ProteinClusterPlotter():
     def _prepare_axes(self, cluster_sorted_groups_of_peptide_nodes):
         num_clusters = len(cluster_sorted_groups_of_peptide_nodes)
         width_list = [len(x) for x in cluster_sorted_groups_of_peptide_nodes] #adjust width of each subplot according to peptide number
-        factor = 0.3
+        factor = 0.5
         total_number_of_peptides = sum(width_list)
-        _, self._axes = plt.subplots(1, num_clusters,figsize = (total_number_of_peptides*factor,10),sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list})
+        self._fig, self._axes = plt.subplots(1, num_clusters,figsize = (total_number_of_peptides*factor,10),sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list})
 
     def _load_level_nodes(self):
         return anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._level))
@@ -2099,3 +2102,29 @@ class ProteinClusterPlotter():
     def _get_color_from_list(self, idx):
         modulo_idx = idx % (len(self._colormap)) #if idx becomes larger than the list length, start at 0 again
         return self._colormap[modulo_idx]
+
+    def _label_x_and_y(self):
+        self._fig.supylabel("log2FC")
+
+    def _set_title_of_subplot(self, ax, peptide_nodes, first_subplot):
+        title_text = self._get_subplot_title_text(peptide_nodes, first_subplot)
+        ax.set_title(title_text)
+
+    def _get_subplot_title_text(self, peptide_nodes, first_subplot):
+        median_fc = np.median([x.fc for x in peptide_nodes])
+        min_quality_score = min([self._get_quality_score(x) for x in peptide_nodes])
+        fc_string = f"{median_fc:.2}"[:4]
+        quality_string = f"{min_quality_score:.2}"[:4]
+        if first_subplot:
+            return f"fc {fc_string}\nquality {quality_string}"
+        else:
+            return f"{fc_string}\n{quality_string}"
+
+    def _get_quality_score(self, peptide_node):
+        has_predscore = hasattr(peptide_node, 'predscore')
+        if has_predscore:
+            return abs(peptide_node.predscore)
+        else:
+            return 1/peptide_node.fraction_consistent
+
+
