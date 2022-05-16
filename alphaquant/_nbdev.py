@@ -444,7 +444,9 @@ index = {"ConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "DiffClusterFilterer": "15_outlier_scoring.ipynb",
          "DiffClusterFilterConfig": "15_outlier_scoring.ipynb",
          "OutlierPeptideFilterer": "15_outlier_scoring.ipynb",
-         "OutlierPeptideFilterConfigs": "15_outlier_scoring.ipynb"}
+         "OutlierPeptideFilterConfigs": "15_outlier_scoring.ipynb",
+         "ResultstableLocalizer": "16_results_file_handling.ipynb",
+         "ResultsFiles": "16_results_file_handling.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -459,7 +461,8 @@ modules = ["diff_analysis_manager.py",
            "benchmarking.py",
            "testfile_handling.py",
            "protein_ptm_normalization.py",
-           "outlier_scoring.py"]
+           "outlier_scoring.py",
+           "results_file_handling.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 
