@@ -348,6 +348,7 @@ index = {"ConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "get_node_level_from_dfhandler": "10_classify_ions.ipynb",
          "add_quality_scores_to_node": "10_classify_ions.ipynb",
          "test_fc_name_mapping": "10_classify_ions.ipynb",
+         "StepWiseRegulationOverview": "11_multi_condition_analysis.ipynb",
          "get_tps_fps": "12_benchmarking.ipynb",
          "annotate_dataframe": "12_benchmarking.ipynb",
          "compare_to_reference": "12_benchmarking.ipynb",
@@ -445,8 +446,14 @@ index = {"ConfigOfRunPipeline": "01_diff_analysis_manager.ipynb",
          "DiffClusterFilterConfig": "15_outlier_scoring.ipynb",
          "OutlierPeptideFilterer": "15_outlier_scoring.ipynb",
          "OutlierPeptideFilterConfigs": "15_outlier_scoring.ipynb",
-         "ResultstableLocalizer": "16_results_file_handling.ipynb",
-         "ResultsFiles": "16_results_file_handling.ipynb"}
+         "QuantifiedMultiConditionComparison": "16_diffresults_handling.ipynb",
+         "QuantifiedProteinMultiCondition": "16_diffresults_handling.ipynb",
+         "QuantifiedProteinInCondpair": "16_diffresults_handling.ipynb",
+         "QuantifiedProteinCanditateInCondpair": "16_diffresults_handling.ipynb",
+         "ResultsDirectoryReader": "16_diffresults_handling.ipynb",
+         "ResultsTableReader": "16_diffresults_handling.ipynb",
+         "ResultstableLocalizer": "16_diffresults_handling.ipynb",
+         "ResultsFiles": "16_diffresults_handling.ipynb"}
 
 modules = ["diff_analysis_manager.py",
            "normalization.py",
@@ -458,11 +465,12 @@ modules = ["diff_analysis_manager.py",
            "doublediff_analysis.py",
            "cluster_ions.py",
            "classify_ions.py",
+           "multi_condition_analysis.py",
            "benchmarking.py",
            "testfile_handling.py",
            "protein_ptm_normalization.py",
            "outlier_scoring.py",
-           "results_file_handling.py"]
+           "diffresults_handling.py"]
 
 doc_url = "https://ammarcsj.github.io/alphaquant/"
 
