@@ -353,7 +353,7 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
         node.cutoff = childs[0].cutoff
         node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
 
-def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = np.float):
+def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
