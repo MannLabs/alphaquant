@@ -223,7 +223,6 @@ def exclude_node(node):
         descendant.is_included = False
 
 # Cell
-import pickle
 import pandas as pd
 def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
     #typefilter object specifies filtering and clustering of the nodes
@@ -354,7 +353,7 @@ def assign_vals_to_node(node, only_use_mainclust, use_fewpeps_per_protein):
         node.cutoff = childs[0].cutoff
         node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
 
-def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = np.float):
+def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
@@ -362,7 +361,7 @@ def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
     pepnode2pval2numleaves = []
     for pepnode in peptide_nodes:
-        pepleaves = [x for x in pepnode.leaves if "seq" in x.inclusion_levels]
+        pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
         pepnode2pval2numleaves.append((pepnode, pepnode.p_val,len(pepleaves)))
     pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True) #sort with highest p-val (least significant) first
 

@@ -29,7 +29,7 @@ import alphaquant.ptmsite_mapping as aqptm
 import multiprocess
 
 
-def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
+def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
 min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.05, cluster_threshold_fcfc = 0, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
 use_iontree_if_possible = None, write_out_results_tree = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
 annotation_file = None, protein_subset_for_normalization_file = None):
@@ -49,9 +49,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
         input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
 
     if "aq_reformat.tsv" not in input_file:
-        input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = None)
-
-
+        input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use)
 
 
     #use runconfig object to store the parameters
@@ -59,9 +57,10 @@ annotation_file = None, protein_subset_for_normalization_file = None):
     runconfig.use_iontree_if_possible = determine_if_ion_tree_is_used(runconfig)
 
     #store method parameters for reproducibility
+    aqutils.remove_old_method_parameters_file_if_exists(results_dir)
     aqutils.store_method_parameters(locals(), results_dir)
 
-    if runconfig.use_iontree_if_possible & use_ml:
+    if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:
         reformat_and_save_ml_dataframe(results_dir, samplemap_df)
 
     if condpair_combinations == None:
@@ -284,13 +283,15 @@ def analyze_condpair(*,runconfig, condpair):
     if use_ion_tree:
         if runconfig.use_ml:
             ml_performance_dict = {}
+            ml_successfull = True
             aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
             fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
-            if ml_performance_dict["r2_score"] >0.05: #only use the ml score, if it is meaningful
+
+
+            if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
                 aqclust.update_nodes_w_ml_score(protnodes)
                 update_quantified_proteins_w_tree_results(quantified_proteins, protnodes)
-            if runconfig.write_out_results_tree:
-                aqclust.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
+
 
     add_fdr(quantified_proteins)
     add_fdr(quantified_peptides)
@@ -303,6 +304,9 @@ def analyze_condpair(*,runconfig, condpair):
         aqviz.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
 
     if runconfig.results_dir!=None:
+
+        if runconfig.write_out_results_tree:
+            aqclust.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
         if runconfig.annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(runconfig.annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)

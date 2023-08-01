@@ -347,7 +347,7 @@ import os
 def get_uniprot_path(database_tsv, organism= "human"):
     return get_path_to_database(database_tsv, "uniprot_mapping.tsv.zip",organism)
 
-def get_swissprot_path(database_tsv, organism = "human"):
+def get_swissprot_path(database_tsv = None, organism = "human"):
     return get_path_to_database(database_tsv, "swissprot_mapping.tsv.zip",organism)
 
 def get_path_to_database(database_path, database_name, organism):
@@ -355,7 +355,7 @@ def get_path_to_database(database_path, database_name, organism):
         if os.path.exists(database_path):
             return database_path
     else:
-        database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "..", "reference_databases", organism, database_name)
+        database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "reference_databases", organism, database_name)
         return database_path
 
 
@@ -441,7 +441,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     input_df_it = pd.read_csv(sorted_reduced_input, sep = "\t", chunksize = 1000_000, encoding ='latin1')
     for input_df in input_df_it:
 
-        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
         organism = organism)
 
 

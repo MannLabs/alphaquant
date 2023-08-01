@@ -7,20 +7,22 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'foldchange_ion_plot', 'get_normalization_overview_heatmap', 'get_protein_regulation_heatmap',
            'get_heatmapplot_ckg', 'compare_direction', 'compare_correlation', 'get_condensed_distance_matrix',
            'clustersort_numerical_arrays', 'compare_direction', 'compare_correlation', 'clustersort_numerical_arrays',
-           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'get_diffresult_dataframe',
-           'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition', 'get_normed_peptides_dataframe',
-           'initialize_sample2cond', 'plot_volcano_plotly', 'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly',
-           'beeswarm_ion_plot_plotly', 'foldchange_ion_plot_plotly', 'get_color2ions', 'convert_to_plotly_color_format',
-           'IonFoldChangeCalculator', 'IonFoldChangePlotter', 'make_mz_fc_boxplot', 'assign_mz_cathegory',
-           'plot_fc_histogram_ml_filtered', 'plot_log_loss_score', 'scatter_ml_regression_perturbation_aware',
-           'plot_perturbation_histogram', 'plot_perturbed_unperturbed_fcs', 'plot_ml_fc_histograms',
-           'plot_fc_intensity_scatter', 'plot_violin_plots_log2fcs', 'plot_beeswarm_plot_log2fcs', 'get_longformat_df',
-           'plot_feature_importances', 'filter_sort_top_n', 'visualize_gaussian_mixture_fit',
-           'visualize_gaussian_nomix_subfit', 'visualize_filtered_non_filtered_precursors', 'plot_fcs_node',
-           'plot_predictability_roc_curve', 'plot_predictability_precision_recall_curve', 'plot_outlier_fraction',
-           'get_true_false_to_predscores', 'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set',
-           'plot_roc_curve', 'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
-           'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter']
+           'get_clustered_dataframe', 'get_sample_overview_dataframe', 'reformat_dataframe_header',
+           'get_diffresult_dataframe', 'get_diffresult_dict_ckg_format', 'subset_normed_peptides_df_to_condition',
+           'get_normed_peptides_dataframe', 'initialize_sample2cond', 'plot_volcano_plotly',
+           'plot_withincond_fcs_plotly', 'plot_betweencond_fcs_plotly', 'beeswarm_ion_plot_plotly',
+           'foldchange_ion_plot_plotly', 'get_color2ions', 'convert_to_plotly_color_format', 'IonFoldChangeCalculator',
+           'IonFoldChangePlotter', 'make_mz_fc_boxplot', 'assign_mz_cathegory', 'plot_fc_histogram_ml_filtered',
+           'plot_log_loss_score', 'scatter_ml_regression_perturbation_aware', 'plot_perturbation_histogram',
+           'plot_perturbed_unperturbed_fcs', 'plot_ml_fc_histograms', 'plot_fc_intensity_scatter',
+           'plot_violin_plots_log2fcs', 'plot_beeswarm_plot_log2fcs', 'get_longformat_df', 'plot_feature_importances',
+           'filter_sort_top_n', 'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
+           'visualize_filtered_non_filtered_precursors', 'plot_fcs_node', 'plot_predictability_roc_curve',
+           'plot_predictability_precision_recall_curve', 'plot_outlier_fraction', 'get_true_false_to_predscores',
+           'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set', 'plot_roc_curve',
+           'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
+           'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter',
+           'PeptideIntensityDataframeGetter', 'ProteinClusterPlotter']
 
 # Cell
 import alphaquant.diffquant_utils as utils
@@ -34,10 +36,10 @@ import matplotlib.pyplot as plt
 
 class AlphaPeptColorMap():
     def __init__(self):
-        map = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
-        map = [matplotlib.colors.to_rgba(x) for x in map]
-        self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",map)
-        self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",map, N=5)
+        colorlist = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
+        self.colorlist = [matplotlib.colors.to_rgba(x) for x in colorlist]
+        self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist)
+        self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist, N=5)
 
 
 class IonPlotColorGetter():
@@ -74,6 +76,10 @@ class IonPlotColorGetter():
         name2color_all = self.__merge_dictionaries([name2color_fifty, name2color_seventy, name2color_rest])
         if set_nonmainclust_elems_whiter:
             name2color_all = self.__make_nonmainclust_elems_whiter(name2color_all)
+        return name2color_all
+
+    def get_single_color_colormap(self, color):
+        name2color_all = self.__map_ionname_to_color(color, idx_start = 0, idx_end = len(self._sorted_map_df.index))
         return name2color_all
 
 
@@ -801,6 +807,14 @@ def get_sample_overview_dataframe(results_folder = os.path.join(".", "results"),
 
     return result_df
 
+def reformat_dataframe_header(df):
+    header_genes = [x.split("_")[0] for x in df.columns]
+    header_proteins = [x.split("_")[1] for x in df.columns]
+    header_sitenums = [x.split("_")[2] for x in df.columns]
+
+    header_df = pd.DataFrame.from_dict(data= {'gene_name': header_genes, 'protein' : header_proteins, 'site_id': header_sitenums}, columns=df.columns, orient='index')
+    return pd.concat([header_df, df])
+
 # Cell
 import pandas as pd
 import os
@@ -1348,8 +1362,9 @@ class IonFoldChangeCalculator():
 
 
 class IonFoldChangePlotter():
-    def __init__(self, ionfc_calculated, property_column = "predscore", is_included_column="is_included"):
+    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included"):
 
+        ionfc_calculated = IonFoldChangeCalculator(melted_df, condpair)
         self._property_column = property_column
         self._is_included_column = is_included_column
         self.precursors = ionfc_calculated.precursors
@@ -1377,7 +1392,21 @@ class IonFoldChangePlotter():
         axs[0][1].set_xticks([], [])
         return fig
 
+    def plot_fcs_predscore_relative_strength(self, set_nonmainclust_elems_white = True, ax = None):
+        if ax is None:
+            ax = plt.subplot()
+        colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
+        colormap_relative_strength_all = colorgetter.get_predscore_relative_strength_colormap(set_nonmainclust_elems_whiter=set_nonmainclust_elems_white)
+        self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
+        return ax
 
+    def plot_fcs_predscore_unicolor(self, color, ax = None):
+        if ax is None:
+            ax = plt.subplot()
+        colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
+        colormap_single_color = colorgetter.get_single_color_colormap(color)
+        self.plot_fcs_with_specified_color_scheme(colormap_single_color, ax)
+        return ax
 
     def plot_fcs_with_specified_color_scheme(self, colormap, ax):
 
@@ -1866,6 +1895,7 @@ class CondpairQuantificationInfo():
         return sample2cond
 
 
+import pandas as pd
 class ProteinIntensityDataFrameGetter():
 
     def __init__(self, quantification_info, ion_header = 'ion'):
@@ -1873,27 +1903,26 @@ class ProteinIntensityDataFrameGetter():
         self.__assign_relevant_data(quantification_info)
 
     def get_melted_protein_ion_intensity_table(self, protein, specified_level = "mod_seq_charge"):
-
-        samples = self.__get_samples_of_condpair()
-        protein_df = self.__subset_dataframe_to_protein(protein)
-        df_melted = self.__melt_protein_dataframe(protein_df, samples)
+        samples = self.__get_samples_of_condpair__()
+        protein_df = self.__subset_dataframe_to_protein__(protein)
+        df_melted = self.__melt_protein_dataframe__(protein_df, samples)
 
         #if ion clustering has been performed, add cluster information
         if self._condpair_root_node != None:
-            df_melted = self.__annotate_cluster_information(df_melted, protein, specified_level)
+            df_melted = self._annotate_cluster_information(df_melted, protein, specified_level)
 
         return df_melted
 
     def get_protein_diffresults(self, protein):
         return self._diffresults_df.loc[protein]
 
-    def __get_samples_of_condpair(self):
+    def __get_samples_of_condpair__(self):
         return set.intersection(set(self._normed_df.columns), set(self._sample2cond.keys()))
 
-    def __subset_dataframe_to_protein(self, protein):
+    def __subset_dataframe_to_protein__(self, protein):
         return self._normed_df.xs(protein, level = 0)
 
-    def __melt_protein_dataframe(self, protein_df, samples):
+    def __melt_protein_dataframe__(self, protein_df, samples):
         df_melted = pd.melt(protein_df.reset_index(), value_vars= samples, id_vars=[self._ion_header], value_name="intensity", var_name="sample")
         df_melted["condition"] = [self._sample2cond.get(x) for x in df_melted["sample"]]
         return df_melted
@@ -1905,14 +1934,20 @@ class ProteinIntensityDataFrameGetter():
         self._samplemap_df = quantification_info.samplemap_df
         self._sample2cond = quantification_info.sample2cond
 
-
-
-    def __annotate_cluster_information(self, df_melted, protein, specified_level): #mod_seq_charge
-        protein_node = anytree.findall_by_attr(self._condpair_root_node, protein, maxlevel=2)[0]
+    def _annotate_cluster_information(self, df_melted, protein, specified_level): #mod_seq_charge
+        protein_node = self.__get_protein_node__(protein)
         protnode_ions = [x.name for x in protein_node.leaves]
-        self.__test_that_diffresult_ions_are_in_tree_ions(df_melted, protnode_ions)
+        self.__test_that_diffresult_ions_are_in_tree_ions__(df_melted, protnode_ions)
 
         #annotate properties
+        self.__annotate_properties_to_tables__(protein_node, df_melted, specified_level)
+
+        return df_melted
+
+    def __get_protein_node__(self, protein_name):
+        return anytree.findall_by_attr(self._condpair_root_node, protein_name, maxlevel=2)[0]
+
+    def __annotate_properties_to_tables__(self, protein_node, df_melted, specified_level):
         ion2is_included = self.__get_ionmap_dict(protein_node, self.__assign_if_node_at_level_is_included, specified_level)
         df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted["ion"]]
 
@@ -1921,7 +1956,6 @@ class ProteinIntensityDataFrameGetter():
 
         ion2precursor = self.__get_ionmap_dict(protein_node, self.__assign_name_of_node_at_level, specified_level)
         df_melted["specified_level"] = [ion2precursor.get(x) for x in df_melted["ion"]]
-
         return df_melted
 
     @staticmethod
@@ -1932,22 +1966,165 @@ class ProteinIntensityDataFrameGetter():
     def __assign_if_node_at_level_is_included( leaf, ion_level):
         node_at_level = aqutils.find_node_parent_at_level(leaf, ion_level)
         return aqutils.check_if_node_is_included(node_at_level)
+
     @staticmethod
     def __assign_predscore_of_node_at_level( leaf, ion_level):
         level_node = aqutils.find_node_parent_at_level(leaf, ion_level)
         if not hasattr(level_node, "predscore"):
             return 0.5
         return abs(level_node.predscore)
+
     @staticmethod
     def __assign_name_of_node_at_level(leaf, ion_level):
         return aqutils.find_node_parent_at_level(leaf, ion_level).name
 
-
-
-    def __test_that_diffresult_ions_are_in_tree_ions(self, df_melted, protnode_ions):
+    def __test_that_diffresult_ions_are_in_tree_ions__(self, df_melted, protnode_ions):
         ions_in_df = set(df_melted["ion"]) - set(protnode_ions)
         if len(ions_in_df)>0:
-            Exception("Clustered ions and observed ions differ!")
+            Exception("Clustered ions are not entirely contained in  observed ions!")
 
+
+
+from .outlier_scoring import ClusterDiffInfo
+
+class ProteoformIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
+    def __init__(self, quantification_info):
+        super().__init__(quantification_info)
+
+    def get_melted_protein_ion_intensity_table(self, clusterdiff_handler :ClusterDiffInfo, specified_level = "seq"):
+
+        samples = self.__get_samples_of_condpair__()
+        protein_df = self.__subset_dataframe_to_protein__(clusterdiff_handler.protein_name)
+        df_melted = self.__melt_protein_dataframe__(protein_df, samples)
+        clusterdiff_protein_node = self.__get_clusterdiff_protein_node__(clusterdiff_handler=clusterdiff_handler)
+
+        df_melted_reduced = self.__reduce_dataframe_to_clusterdiff_ions__(df_melted=df_melted,clusterdiff_protein_node=clusterdiff_protein_node)
+        df_melted_reduced = self.__annotate_cluster_information__(df_melted_reduced, clusterdiff_protein_node, specified_level)
+
+        return df_melted_reduced
+
+    def __get_clusterdiff_protein_node__(self,clusterdiff_handler):
+        protein_node = self.__get_protein_node__(protein_name=clusterdiff_handler.protein_name)
+        return clusterdiff_handler.get_clusterdiff_protnode(protein_node)
+
+    @staticmethod
+    def __reduce_dataframe_to_clusterdiff_ions__(df_melted, clusterdiff_protein_node):
+
+        ions_used = {x.name  for x in clusterdiff_protein_node.leaves}
+        return df_melted[[x in ions_used for x in df_melted["ion"]]]
+
+
+    def __annotate_cluster_information__(self, df_melted, protein_node, specified_level):
+        protnode_ions = [x.name for x in protein_node.leaves]
+        self.__test_that_diffresult_ions_are_in_tree_ions__(df_melted, protnode_ions)
+
+        #annotate properties
+        self.__annotate_properties_to_tables__(protein_node, df_melted, specified_level)
+
+        return df_melted
+
+
+
+class PeptideIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
+    def __init__(self, quantification_info):
+        super().__init__(quantification_info)
+
+    def get_melted_ion_intensity_table_peptide_subset(self, protein, peptides_to_plot, specified_level = "mod_seq_charge"):
+        samples = self.__get_samples_of_condpair__()
+        protein_df = self.__subset_dataframe_to_protein__(protein)
+        df_melted = self.__melt_protein_dataframe__(protein_df, samples)
+        df_melted = self._annotate_cluster_information(df_melted, protein, specified_level)
+        df_melted = self._subset_melted_df_to_peptides(df_melted, peptides_to_plot)
+
+        return df_melted
+
+    def _subset_melted_df_to_peptides(self, df_melted, peptides_to_plot):
+        df_melted_subsetted = df_melted[[x in peptides_to_plot for x in df_melted["specified_level"]]]
+        return df_melted_subsetted
+
+
+
+
+
+
+
+
+# Cell
+import alphaquant.diffquant_utils as aqutils
+import anytree
+
+class ProteinClusterPlotter():
+    def __init__(self, protein_node, condpair, peptide_intensity_df_getter : PeptideIntensityDataframeGetter,level = 'seq'):
+        self._protein_node = protein_node
+        self._level = level
+        self._axes = None
+        self._fig = None
+        self._condpair = condpair
+        self._pepdf_getter = peptide_intensity_df_getter
+        self._colormap = AlphaPeptColorMap().colorlist
+
+    def plot_all_clusters_for_protein(self):
+        level_nodes = self._load_level_nodes()
+        cluster_sorted_groups_of_peptide_nodes = self._get_cluster_sorted_groups_of_peptide_nodes(level_nodes)
+        num_clusters = len(cluster_sorted_groups_of_peptide_nodes)
+        self._prepare_axes(cluster_sorted_groups_of_peptide_nodes)
+        self._label_x_and_y()
+
+        for idx in range(num_clusters):
+            peptides_to_plot = self._get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, idx)
+            melted_plot_df = self._pepdf_getter.get_melted_ion_intensity_table_peptide_subset(self._protein_node.name,peptides_to_plot,specified_level=self._level)
+            fcplotter = IonFoldChangePlotter(melted_df=melted_plot_df, condpair = self._condpair)
+            fcplotter.plot_fcs_predscore_unicolor(ax=self._axes[idx], color=self._get_color_from_list(idx))
+            self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
+        plt.show()
+
+    @staticmethod
+    def _get_cluster_sorted_groups_of_peptide_nodes(peptide_nodes):
+        cluster2nodes = {}
+        for peptide_node in peptide_nodes:
+            cluster2nodes[peptide_node.cluster] = cluster2nodes.get(peptide_node.cluster, [])+ [peptide_node]
+        return [cluster2nodes.get(x) for x in sorted(cluster2nodes.keys())]
+
+    def _prepare_axes(self, cluster_sorted_groups_of_peptide_nodes):
+        num_clusters = len(cluster_sorted_groups_of_peptide_nodes)
+        width_list = [len(x) for x in cluster_sorted_groups_of_peptide_nodes] #adjust width of each subplot according to peptide number
+        factor = 0.5
+        total_number_of_peptides = sum(width_list)
+        self._fig, self._axes = plt.subplots(1, num_clusters,figsize = (total_number_of_peptides*factor,10),sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list})
+
+    def _load_level_nodes(self):
+        return anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._level))
+
+    @staticmethod
+    def _get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, cluster_idx):
+        return [x.name for x in cluster_sorted_groups_of_peptide_nodes[cluster_idx]]
+
+    def _get_color_from_list(self, idx):
+        modulo_idx = idx % (len(self._colormap)) #if idx becomes larger than the list length, start at 0 again
+        return self._colormap[modulo_idx]
+
+    def _label_x_and_y(self):
+        self._fig.supylabel("log2FC")
+
+    def _set_title_of_subplot(self, ax, peptide_nodes, first_subplot):
+        title_text = self._get_subplot_title_text(peptide_nodes, first_subplot)
+        ax.set_title(title_text)
+
+    def _get_subplot_title_text(self, peptide_nodes, first_subplot):
+        median_fc = np.median([x.fc for x in peptide_nodes])
+        min_quality_score = min([self._get_quality_score(x) for x in peptide_nodes])
+        fc_string = f"{median_fc:.2}"[:4]
+        quality_string = f"{min_quality_score:.2}"[:4]
+        if first_subplot:
+            return f"fc {fc_string}\nquality {quality_string}"
+        else:
+            return f"{fc_string}\n{quality_string}"
+
+    def _get_quality_score(self, peptide_node):
+        has_predscore = hasattr(peptide_node, 'predscore')
+        if has_predscore:
+            return abs(peptide_node.predscore)
+        else:
+            return 1/peptide_node.fraction_consistent
 
 

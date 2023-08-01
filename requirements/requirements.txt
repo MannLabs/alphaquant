@@ -10,7 +10,7 @@ seaborn
 dash
 plotly
 bokeh
-panel
+panel==0.12.4
 anytree
 graphviz
 click
@@ -21,3 +21,4 @@ multiprocess
 pyopenms
 pyfasta
 openpyxl
+scikit-learn

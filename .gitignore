@@ -159,12 +159,25 @@ logs
 #tests
 tests/ptmsite_mapping/results
 tests/ratio_tests/tissue_example.ipynb
+tests/ratio_tests/outlier_scoring_phosphatase_set.ipynb
 tests/sensitivity_tests/sensitivity_phospho_peptides.ipynb
 tests/sensitivity_tests/single_cell_comparison.ipynb
+tests/sensitivity_tests/plexDIA_set.ipynb
 test_data/system_tests
 test_data/unit_tests/results
 tests/sensitivity_tests/check_peptide_selection_for_significance.ipynb
+tests/sensitivity_tests/quicktest_dia_set.ipynb
+test_data/unit_tests/input_table_formats/mq_peptides.txt.maxquant_peptides.aq_reformat.tsv
+test_data/unit_tests/input_table_formats/plexdia_diann_subset_v1.tsv
+test_data/unit_tests/input_table_formats/plexdia_diann_subset_v1.tsv.diann_fragion_isotopes_plexDIA.aq_reformat.tsv
+test_data/unit_tests/input_table_formats/plexdia_diann_v1_control_ions.tsv
+test_data/unit_tests/input_table_formats/spectronaut_frgion.tsv.spectronaut_fragion_isotopes.aq_reformat.tsv
 
+test_data/unit_tests/protein_ptm_normalization/toy_data
+test_data/unit_tests/results_file_handling
+tests/outliers
 
+#bash scripts
+misc/bumpversion.sh
 #figures
 figures/

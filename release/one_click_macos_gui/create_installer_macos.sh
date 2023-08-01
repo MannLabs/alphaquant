@@ -20,10 +20,10 @@ python setup.py sdist bdist_wheel
 
 # Setting up the local package
 cd release/one_click_macos_gui
-pip install "../../dist/alphaquant-0.0.5-py3-none-any.whl[stable]"
+pip install "../../dist/alphaquant-0.0.6-py3-none-any.whl[stable]"
 
 # Creating the stand-alone pyinstaller folder
-pip install pyinstaller==4.2
+pip install pyinstaller==4.10
 pyinstaller ../pyinstaller/alphaquant.spec -y
 conda deactivate
 
@@ -40,5 +40,5 @@ cp ../../LICENSE Resources/LICENSE
 cp ../logos/alpha_logo.png Resources/alpha_logo.png
 chmod 777 scripts/*
 
-pkgbuild --root dist/alphaquant --identifier de.mpg.biochem.alphaquant.app --version 0.0.5 --install-location /Applications/alphaquant.app --scripts scripts alphaquant.pkg
+pkgbuild --root dist/alphaquant --identifier de.mpg.biochem.alphaquant.app --version 0.0.6 --install-location /Applications/alphaquant.app --scripts scripts alphaquant.pkg
 productbuild --distribution distribution.xml --resources Resources --package-path alphaquant.pkg dist/alphaquant_gui_installer_macos.pkg
