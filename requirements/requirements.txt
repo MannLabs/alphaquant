@@ -21,3 +21,4 @@ multiprocess
 pyopenms
 pyfasta
 openpyxl
+scikit-learn
