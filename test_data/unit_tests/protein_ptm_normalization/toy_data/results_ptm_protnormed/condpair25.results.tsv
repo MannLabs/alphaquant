@@ -1,0 +1,4 @@
+protein	log2fc	fdr	swissprot
+genename_name9_ptmsite	1.5	4.055708829595617e-05	name9
+genename_name32_ptmsite	1.5	0.4562027555393619	name32
+genename_name44_ptmsite	1.5	0.0002749317620957	name44
