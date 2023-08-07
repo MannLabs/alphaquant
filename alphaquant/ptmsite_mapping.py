@@ -282,10 +282,14 @@ def get_site_prob_overview(modpeps, refprot, refgene):
         sample2probs = site2sample2probs.get(site)
         header = list(sample2probs.keys())
         probs = [np.mean(sample2probs.get(x)) for x in header]
-        site_series = pd.Series(probs, index=header)
-        site_series = site_series.append(pd.Series([int(site)], index=["site"]))
-        site_series = site_series.append(pd.Series(refprot, index= ["REFPROT"]))
-        site_series = site_series.append(pd.Series(refgene, index= ["gene"]))
+        # site_series = pd.Series(probs, index=header)
+        # site_series = site_series.append(pd.Series([int(site)], index=["site"]))
+        # site_series = site_series.append(pd.Series(refprot, index= ["REFPROT"]))
+        # site_series = site_series.append(pd.Series(refgene, index= ["gene"]))
+
+        site_series_idxs = header + ["site"] + ["REFPROT"] + ["gene"]
+        site_series_values = probs + [int(site)] + [refprot] + [refgene]
+        site_series = pd.Series(site_series_values, index = site_series_idxs)
         series_collected.append(site_series)
 
     return series_collected
