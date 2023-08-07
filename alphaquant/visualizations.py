@@ -2090,7 +2090,8 @@ class ProteinClusterPlotter():
         width_list = [len(x) for x in cluster_sorted_groups_of_peptide_nodes] #adjust width of each subplot according to peptide number
         factor = 0.5
         total_number_of_peptides = sum(width_list)
-        self._fig, self._axes = plt.subplots(1, num_clusters,figsize = (total_number_of_peptides*factor,10),sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list})
+        self._fig, self._axes = plt.subplots(1, num_clusters,figsize = (total_number_of_peptides*factor,10),sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list}, squeeze=False)
+        self._axes = self._axes[0] #the squeeze=False option always returns a 2D array, even if there is only one subplot
 
     def _load_level_nodes(self):
         return anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._level))
