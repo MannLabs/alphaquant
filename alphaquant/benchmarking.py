@@ -301,7 +301,10 @@ def cluster_selected_proteins(protnames, quant_df, normed_c1, normed_c2, pval_th
 import alphaquant.normalization as aqnorm
 def create_background_dists_from_prepared_files(samplemap_file, quant_file, cond1, cond2):
 
-    quant_df = pd.read_csv(quant_file, sep = "\t",index_col='ion')
+    try:
+        quant_df = pd.read_csv(quant_file, sep = "\t",index_col='quant_id')
+    except:
+        quant_df = pd.read_csv(quant_file, sep = ",",index_col='ion')
     samplemap_df = aqutils.load_samplemap(samplemap_file)
 
     df_c1, df_c2, c1_samples, c2_samples = get_c1_c2_dfs(quant_df, samplemap_df, [cond1, cond2])
@@ -340,7 +343,10 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
     samplemap_df = aqutils.load_samplemap(samplemap_file)
     fragion_df = pd.read_csv(input_file, sep = "\t")
     _, samplemap_df = aqutils.prepare_loaded_tables(fragion_df, samplemap_df)
-    fragion_df = fragion_df.set_index('ion')
+    try:
+        fragion_df = fragion_df.set_index('quant_id')
+    except:
+        fragion_df = fragion_df.set_index('ion')
 
     df_c1, df_c2, c1_samples, c2_samples = format_condpair_input(samplemap_df = samplemap_df, input_file=input_file,condpair = ('S1', 'S2'), minrep= 4)
     #df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
@@ -517,7 +523,11 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
         fragion_df_only_filt.reset_index().to_csv("filtered_fragions.tsv", sep = "\t", index = None)
     else:
         protnodes_filt = aqutils.read_condpair_tree("S1_filtered", "S2_filtered", results_dir).children
-        fragion_df_only_filt = pd.read_csv(input_file_filtered, sep = "\t",index_col='ion')
+        try:
+            fragion_df_only_filt = pd.read_csv("filtered_fragions.tsv", sep = "\t",index_col='quant_id')
+        except:
+            fragion_df_only_filt = pd.read_csv("filtered_fragions.tsv", sep = "\t",index_col='ion')
+
 
     #add perturbations to the filtered proteins
     if (not os.path.exists(f"{results_dir_perturbed}/S1_annot_VS_S2_annot.iontrees.json") or (input_file_perturbed == None)):
@@ -529,7 +539,10 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
         fragion_df_perturbed.reset_index().to_csv("perturbed_fragions.tsv", sep = "\t", index = None)
     else:
         protnodes_filt = aqutils.read_condpair_tree("S1_annot", "S2_annot", results_dir_perturbed).children
-        fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col='ion')
+        try:
+            fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col='quant_id')
+        except:
+            fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col='ion')
 
     if run_filtered:
         aqmgr.run_pipeline(fragion_df_only_filt, samplemap, condpair_combinations=condpair_combinations, minrep = 9, normalize=True, runtime_plots=runtime_plots, use_iontree_if_possible=False, results_dir= results_dir_filtered)
