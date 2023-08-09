@@ -29,6 +29,7 @@ __all__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_sample
 # Cell
 import os
 import pathlib
+from .variables import QUANT_ID
 if "__file__" in globals():#only run in the translated python file, as __file__ is not defined with ipython
     INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs", "intable_config.yaml") #the yaml config is located one directory below the python library files
 
@@ -38,6 +39,36 @@ if "__file__" in globals():#only run in the translated python file, as __file__ 
 def get_samples_used_from_samplemap_file(samplemap_file, cond1, cond2):
     samplemap_df = load_samplemap(samplemap_file)
     return get_samples_used_from_samplemap_df(samplemap_df, cond1, cond2)
+
+import pandas as pd
+
+def load_samplemap(samplemap_file):
+    file_ext = os.path.splitext(samplemap_file)[-1]
+    if file_ext=='.csv':
+        sep=','
+    if (file_ext=='.tsv') | (file_ext=='.txt'):
+        sep='\t'
+
+    if 'sep' not in locals():
+        print(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {samplemap_file}! Trying with tab separation. In the case that it fails, please add the appropriate extension to your file name.")
+        sep = "\t"
+
+    return pd.read_csv(samplemap_file, sep = sep, encoding ='latin1', dtype='str')
+
+# Cell
+def prepare_loaded_tables(data_df, samplemap_df):
+    """
+    Integrates information from the peptide/ion data and the samplemap, selects the relevant columns and log2 transforms intensities.
+    """
+    samplemap_df = samplemap_df[samplemap_df["condition"]!=""] #remove rows that have no condition entry
+    filtvec_not_in_data = [(x in data_df.columns) for x in samplemap_df["sample"]] #remove samples that are not in the dataframe
+    samplemap_df = samplemap_df[filtvec_not_in_data]
+    headers = ['protein'] + samplemap_df["sample"].to_list()
+    data_df = data_df.set_index(QUANT_ID)
+    for sample in samplemap_df["sample"]:
+        data_df[sample] = np.log2(data_df[sample].replace(0, np.nan))
+    return data_df[headers], samplemap_df
+
 
 
 def get_samples_used_from_samplemap_df(samplemap_df, cond1, cond2):
@@ -55,7 +86,7 @@ def get_samplenames_from_input_df(data):
     """extracts the names of the samples of the AQ input dataframe"""
     names = list(data.columns)
     names.remove('protein')
-    names.remove('ion')
+    names.remove(QUANT_ID)
     return names
 
 # Cell
@@ -212,96 +243,6 @@ def write_chunk_to_file(chunk, filepath ,write_header):
     """write chunk of pandas dataframe to a file"""
     chunk.to_csv(filepath, header=write_header, mode='a', sep = "\t", index = None)
 
-# Cell
-import logging
-import os
-import sys
-
-
-def set_logger(
-    *,log_path = None,
-    log_file_name="",
-    stream: bool = True,
-    log_level: int = logging.INFO,
-    overwrite: bool = False,
-) -> str:
-    """Set the log stream and file.
-    All previously set handlers will be disabled with this command.
-    Parameters
-    ----------
-    log_file_name : str, None
-        The file name to where the log is written.
-        Folders are automatically created if needed.
-        This is relative to the current path. When an empty string is provided,
-        a log is written to the AlphaTims "logs" folder with the name
-        "log_yymmddhhmmss" (reversed timestamp year to seconds).
-        If None, no log file is saved.
-        Default is "".
-    stream : bool
-        If False, no log data is sent to stream.
-        If True, all logging can be tracked with stdout stream.
-        Default is True.
-    log_level : int
-        The logging level. Usable values are defined in Python's "logging"
-        module.
-        Default is logging.INFO.
-    overwrite : bool
-        If True, overwrite the log_file if one exists.
-        If False, append to this log file.
-        Default is False.
-    Returns
-    -------
-    : str
-        The file name to where the log is written.
-    """
-    import time
-    global PROGRESS_CALLBACK
-    log_path = os.path.join(BASE_PATH, "logs")
-    root = logging.getLogger()
-    formatter = logging.Formatter(
-        '%(asctime)s> %(message)s', "%Y-%m-%d %H:%M:%S"
-    )
-    root.setLevel(log_level)
-    while root.hasHandlers():
-        root.removeHandler(root.handlers[0])
-    if stream:
-        stream_handler = logging.StreamHandler(sys.stdout)
-        stream_handler.setLevel(log_level)
-        stream_handler.setFormatter(formatter)
-        root.addHandler(stream_handler)
-    if log_file_name is not None:
-        if log_file_name == "":
-            if not os.path.exists(log_path):
-                os.makedirs(log_path)
-            log_file_name = log_path
-        log_file_name = os.path.abspath(log_file_name)
-        if os.path.isdir(log_file_name):
-            current_time = time.localtime()
-            current_time = "".join(
-                [
-                    f'{current_time.tm_year:04}',
-                    f'{current_time.tm_mon:02}',
-                    f'{current_time.tm_mday:02}',
-                    f'{current_time.tm_hour:02}',
-                    f'{current_time.tm_min:02}',
-                    f'{current_time.tm_sec:02}',
-                ]
-            )
-            log_file_name = os.path.join(
-                log_file_name,
-                f"log_{current_time}.txt"
-            )
-        directory = os.path.dirname(log_file_name)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        if overwrite:
-            file_handler = logging.FileHandler(log_file_name, mode="w")
-        else:
-            file_handler = logging.FileHandler(log_file_name, mode="a")
-        file_handler.setLevel(log_level)
-        file_handler.setFormatter(formatter)
-        root.addHandler(file_handler)
-    return log_file_name
 
 # Cell
 import yaml
@@ -318,6 +259,11 @@ def remove_old_method_parameters_file_if_exists(results_dir):
 def load_method_parameters(results_dir):
     params_file = f"{results_dir}/aq_parameters.yaml"
     return load_config(params_file)
+
+def load_config(config_yaml):
+    stream = open(config_yaml, 'r')
+    config_all = yaml.safe_load(stream)
+    return config_all
 
 def store_method_parameters(local_vars_dict, results_dir):
     method_params = get_methods_dict_from_local_vars(local_vars_dict)
@@ -362,436 +308,7 @@ def get_path_to_unformatted_file(input_file_name):
     return cleaned_filename
 
 
-# Cell
-import yaml
-import itertools
 
-def get_relevant_columns(protein_cols, ion_cols, sample_ID, quant_ID, filter_dict):
-    filtcols = []
-    for filtconf in filter_dict.values():
-        filtcols.append(filtconf.get('param'))
-    relevant_cols = protein_cols + ion_cols + [sample_ID] + [quant_ID] + filtcols
-    relevant_cols = list(set(relevant_cols)) # to remove possible redudancies
-    return relevant_cols
-
-
-def get_relevant_columns_config_dict(config_typedict):
-    filtcols = []
-    dict_ioncols = []
-    for filtconf in config_typedict.get('filters', {}).values():
-        filtcols.append(filtconf.get('param'))
-
-    if 'ion_hierarchy' in config_typedict.keys():
-        for headr in config_typedict.get('ion_hierarchy').values():
-            ioncols = list(itertools.chain.from_iterable(headr.get("mapping").values()))
-            dict_ioncols.extend(ioncols)
-
-    quant_ids = get_quant_ids_from_config_dict(config_typedict)
-    sample_ids = get_sample_ids_from_config_dict(config_typedict)
-    channel_ids = get_channel_ids_from_config_dict(config_typedict)
-    relevant_cols = config_typedict.get("protein_cols") + config_typedict.get("ion_cols", []) + sample_ids + quant_ids + filtcols + dict_ioncols + channel_ids
-    relevant_cols = list(set(relevant_cols)) # to remove possible redudancies
-    return relevant_cols
-
-def get_quant_ids_from_config_dict(config_typedict):
-    quantID = config_typedict.get("quant_ID")
-    if type(quantID) ==type("string"):
-        return [config_typedict.get("quant_ID")]
-    if quantID == None:
-        return[]
-    else:
-        return list(config_typedict.get("quant_ID").values())
-
-def get_sample_ids_from_config_dict(config_typedict):
-    sampleID = config_typedict.get("sample_ID")
-    if type(sampleID) ==type("string"):
-        return [config_typedict.get("sample_ID")]
-    if sampleID == None:
-        return []
-    else:
-        return config_typedict.get("sample_ID")
-
-def get_channel_ids_from_config_dict(config_typedict):
-    return config_typedict.get("channel_ID", [])
-
-
-
-def load_config(config_yaml):
-    stream = open(config_yaml, 'r')
-    config_all = yaml.safe_load(stream)
-    return config_all
-
-def get_type2relevant_cols(config_all):
-    type2relcols = {}
-    for type in config_all.keys():
-        config_typedict = config_all.get(type)
-        relevant_cols = get_relevant_columns_config_dict(config_typedict)
-        type2relcols[type] = relevant_cols
-    return type2relcols
-
-# Cell
-
-def filter_input(filter_dict, input):
-    if filter_dict == None:
-        return input
-    for filtname,filterconf in filter_dict.items():
-        param = filterconf.get('param')
-        comparator = filterconf.get('comparator')
-        value = filterconf.get('value')
-
-        if comparator not in [">",">=", "<", "<=", "==", "!="]:
-            raise TypeError(f"cannot identify the filter comparator of {filtname} given in the longtable config yaml!")
-
-        if comparator=="==":
-            input = input[input[param] ==value]
-            continue
-        try:
-            input = input.astype({f"{param}" : "float"})
-        except:
-            pass
-
-        if comparator==">":
-            input = input[input[param].astype(type(value)) >value]
-
-        if comparator==">=":
-            input = input[input[param].astype(type(value)) >=value]
-
-        if comparator=="<":
-            input = input[input[param].astype(type(value)) <value]
-
-        if comparator=="<=":
-            input = input[input[param].astype(type(value)) <=value]
-
-        if comparator=="!=":
-            input = input[input[param].astype(type(value)) !=value]
-
-    return input
-
-# Cell
-def merge_protein_and_ion_cols(input_df, config_dict):
-    protein_cols =  config_dict.get("protein_cols")
-    ion_cols = config_dict.get("ion_cols")
-    input_df['protein'] = input_df.loc[:, protein_cols].astype('string').sum(axis=1)
-    input_df['ion'] = input_df.loc[:, ion_cols].astype('string').sum(axis=1)
-    input_df = input_df.rename(columns = {config_dict.get('quant_ID') : "quant_val"})
-    return input_df
-
-# Cell
-import copy
-def merge_protein_cols_and_ion_dict(input_df, config_dict):
-    """[summary]
-
-    Args:
-        input_df ([pandas dataframe]): longtable containing peptide intensity data
-        confid_dict ([dict[String[]]]): nested dict containing the parse information. derived from yaml file
-
-    Returns:
-        pandas dataframe: longtable with newly assigned "protein" and "ion" columns
-    """
-    protein_cols = config_dict.get("protein_cols")
-    ion_hierarchy = config_dict.get("ion_hierarchy")
-    splitcol2sep = config_dict.get('split_cols')
-    quant_id_dict = config_dict.get('quant_ID')
-
-    ion_dfs = []
-    input_df['protein'] = input_df.loc[:, protein_cols].astype('string').sum(axis=1)
-
-    input_df = input_df.drop(columns = [x for x in protein_cols if x!='protein'])
-    for hierarchy_type in ion_hierarchy.keys():
-        df_subset = input_df.copy()
-        ion_hierarchy_local = ion_hierarchy.get(hierarchy_type).get("order")
-        ion_headers_merged, ion_headers_grouped = get_ionname_columns(ion_hierarchy.get(hierarchy_type).get("mapping"), ion_hierarchy_local) #ion headers merged is just a helper to select all relevant rows, ionheaders grouped contains the sets of ionstrings to be merged into a list eg [[SEQ, MOD], [CH]]
-        quant_columns = get_quantitative_columns(df_subset, hierarchy_type, config_dict, ion_headers_merged)
-        headers = list(set(ion_headers_merged + quant_columns + ['protein']))
-        if "sample_ID" in config_dict.keys():
-            headers+=[config_dict.get("sample_ID")]
-        df_subset = df_subset[headers].drop_duplicates()
-
-        if splitcol2sep is not None:
-            if quant_columns[0] in splitcol2sep.keys(): #in the case that quantitative values are stored grouped in one column (e.g. msiso1,msiso2,msiso3, etc.), reformat accordingly
-                df_subset = split_extend_df(df_subset, splitcol2sep)
-            ion_headers_grouped = adapt_headers_on_extended_df(ion_headers_grouped, splitcol2sep)
-
-        #df_subset = df_subset.set_index(quant_columns)
-
-        df_subset = add_merged_ionnames(df_subset, ion_hierarchy_local, ion_headers_grouped, quant_id_dict, hierarchy_type)
-        ion_dfs.append(df_subset)
-    input_df = pd.concat(ion_dfs, ignore_index=True)
-    return input_df
-
-
-def get_quantitative_columns(input_df, hierarchy_type, config_dict, ion_headers_merged):
-    naming_columns = ion_headers_merged + ['protein']
-    if config_dict.get("format") == 'longtable':
-        quantcol = config_dict.get("quant_ID").get(hierarchy_type)
-        return [quantcol]
-
-    if config_dict.get("format") == 'widetable':
-        quantcolumn_candidates = [x for x in input_df.columns if x not in naming_columns]
-        if "quant_prefix" in config_dict.keys():
-            return [x for x in quantcolumn_candidates if x.startswith(config_dict.get("quant_prefix"))] # in the case that the quantitative columns have a prefix (like "Intensity " in MQ peptides.txt), only columns with the prefix are filtered
-        else:
-            return quantcolumn_candidates #in this case, we assume that all non-ionname/proteinname columns are quantitative columns
-
-
-def get_ionname_columns(ion_dict, ion_hierarchy_local):
-    ion_headers_merged = []
-    ion_headers_grouped = []
-    for lvl in ion_hierarchy_local:
-        vals = ion_dict.get(lvl)
-        ion_headers_merged.extend(vals)
-        ion_headers_grouped.append(vals)
-    return ion_headers_merged, ion_headers_grouped
-
-
-def adapt_headers_on_extended_df(ion_headers_grouped, splitcol2sep):
-    #in the case that one column has been split, we need to designate the "naming" column
-    ion_headers_grouped_copy = copy.deepcopy(ion_headers_grouped)
-    for vals in ion_headers_grouped_copy:
-        if splitcol2sep is not None:
-            for idx in range(len(vals)):
-                if vals[idx] in splitcol2sep.keys():
-                    vals[idx] = vals[idx] + "_idxs"
-    return ion_headers_grouped_copy
-
-def split_extend_df(input_df, splitcol2sep, value_threshold=10):
-    """reformats data that is stored in a condensed way in a single column. For example isotope1_intensity;isotope2_intensity etc. in Spectronaut
-
-    Args:
-        input_df ([type]): [description]
-        splitcol2sep ([type]): [description]
-        value_threshold([type]): [description]
-
-    Returns:
-        Pandas Dataframe: Pandas dataframe with the condensed items expanded to long format
-    """
-    if splitcol2sep==None:
-        return input_df
-
-    for split_col, separator in splitcol2sep.items():
-        idx_name = f"{split_col}_idxs"
-        split_col_series = input_df[split_col].str.split(separator)
-        input_df = input_df.drop(columns = [split_col])
-
-        input_df[idx_name] = [list(range(len(x))) for x in split_col_series]
-        exploded_input = input_df.explode(idx_name)
-        exploded_split_col_series = split_col_series.explode()
-
-        exploded_input[split_col] = exploded_split_col_series.replace('', 0) #the column with the intensities has to come after to column with the idxs
-
-        exploded_input = exploded_input.astype({split_col: float})
-        exploded_input = exploded_input[exploded_input[split_col]>value_threshold]
-        #exploded_input = exploded_input.rename(columns = {'var1': split_col})
-    return exploded_input
-
-
-
-def add_merged_ionnames(df_subset, ion_hierarchy_local, ion_headers_grouped, quant_id_dict, hierarchy_type):
-    """puts together the hierarchical ion names as a column in a given input dataframe"""
-    all_ion_headers = list(itertools.chain.from_iterable(ion_headers_grouped))
-    columns_to_index = [x for x in df_subset.columns if x not in all_ion_headers]
-    df_subset = df_subset.set_index(columns_to_index)
-
-    rows = df_subset[all_ion_headers].to_numpy()
-    ions = []
-
-    for row in rows: #iterate through dataframe
-        count = 0
-        ionstring = ""
-        for lvl_idx in range(len(ion_hierarchy_local)):
-            ionstring += f"{ion_hierarchy_local[lvl_idx]}"
-            for sublvl in ion_headers_grouped[lvl_idx]:
-                ionstring+= f"_{row[count]}_"
-                count+=1
-        ions.append(ionstring)
-    df_subset['ion'] = ions
-    df_subset = df_subset.reset_index()
-    if quant_id_dict!= None:
-        df_subset = df_subset.rename(columns = {quant_id_dict.get(hierarchy_type) : "quant_val"})
-    return df_subset
-
-# Cell
-import os.path
-def reformat_and_write_longtable_according_to_config(input_file, outfile_name, config_dict_for_type, sep = "\t",decimal = ".", enforce_largefile_processing = False, chunksize =1000_000):
-    """Reshape a long format proteomics results table (e.g. Spectronaut or DIA-NN) to a wide format table.
-    :param file input_file: long format proteomic results table
-    :param string input_type: the configuration key stored in the config file (e.g. "diann_precursor")
-    """
-    filesize = os.path.getsize(input_file)/(1024**3) #size in gigabyte
-    file_is_large = (filesize>10 and str(input_file).endswith(".zip")) or filesize>50 or enforce_largefile_processing
-
-    if file_is_large:
-        tmpfile_large = f"{input_file}.tmp.longformat.columnfilt.tsv" #only needed when file is large
-        #remove potential leftovers from previous processings
-        if os.path.exists(tmpfile_large):
-            os.remove(tmpfile_large)
-        if os.path.exists(outfile_name):
-            os.remove(outfile_name)
-
-    relevant_cols = get_relevant_columns_config_dict(config_dict_for_type)
-    input_df_it = pd.read_csv(input_file, sep = sep, decimal=decimal, usecols = relevant_cols, encoding ='latin1', chunksize = chunksize)
-    input_df_list = []
-    header = True
-    for input_df_subset in input_df_it:
-        input_df_subset = adapt_subtable(input_df_subset, config_dict_for_type)
-        if file_is_large:
-            write_chunk_to_file(input_df_subset,tmpfile_large, header)
-        else:
-            input_df_list.append(input_df_subset)
-        header = False
-
-    if file_is_large:
-        process_with_dask(tmpfile_columnfilt=tmpfile_large , outfile_name = outfile_name, config_dict_for_type=config_dict_for_type)
-    else:
-        input_df = pd.concat(input_df_list)
-        input_reshaped = reshape_input_df(input_df, config_dict_for_type)
-        input_reshaped.to_csv(outfile_name, sep = "\t", index = None)
-
-
-def adapt_subtable(input_df_subset, config_dict):
-    input_df_subset = filter_input(config_dict.get("filters", {}), input_df_subset)
-    if "ion_hierarchy" in config_dict.keys():
-        return merge_protein_cols_and_ion_dict(input_df_subset, config_dict)
-    else:
-        return merge_protein_and_ion_cols(input_df_subset, config_dict)
-
-
-# Cell
-import dask.dataframe as dd
-import pandas as pd
-import glob
-import os
-import shutil
-
-def process_with_dask(*, tmpfile_columnfilt, outfile_name, config_dict_for_type):
-    df = dd.read_csv(tmpfile_columnfilt, sep = "\t")
-    allcols = df[config_dict_for_type.get("sample_ID")].drop_duplicates().compute() # the columns of the output table are the sample IDs
-    allcols = extend_sample_allcolumns_for_plexdia_case(allcols_samples=allcols, config_dict_for_type=config_dict_for_type)
-    allcols = ['protein', 'ion'] + sorted(allcols)
-    df = df.set_index('protein')
-    sorted_filedir = f"{tmpfile_columnfilt}_sorted"
-    df.to_csv(sorted_filedir, sep = "\t")
-    #now the files are sorted and can be pivoted chunkwise (multiindex pivoting at the moment not possible in dask)
-    files_dask = glob.glob(f"{sorted_filedir}/*part")
-    header = True
-    for file in files_dask:
-        input_df = pd.read_csv(file, sep = "\t")
-        if len(input_df.index) <2:
-            continue
-        input_reshaped = reshape_input_df(input_df, config_dict_for_type)
-        input_reshaped = sort_and_add_columns(input_reshaped, allcols)
-        write_chunk_to_file(input_reshaped, outfile_name, header)
-        header = False
-    os.remove(tmpfile_columnfilt)
-    shutil.rmtree(sorted_filedir)
-
-def reshape_input_df(input_df, config_dict):
-    input_df = input_df.astype({'quant_val': 'float'})
-    input_df = adapt_input_df_columns_in_case_of_plexDIA(input_df=input_df, config_dict_for_type=config_dict)
-    input_reshaped = pd.pivot_table(input_df, index = ['protein', 'ion'], columns = config_dict.get("sample_ID"), values = 'quant_val', fill_value=0)
-    if input_reshaped.iloc[:,0].replace(0, np.nan).median() <100: #when values are small, rescale by a constant factor to prevent rounding errors in the subsequent aq analyses
-        input_reshaped = input_reshaped *10000
-
-    input_reshaped = input_reshaped.reset_index()
-    return input_reshaped
-
-
-def sort_and_add_columns(input_reshaped, allcols):
-    missing_cols = set(allcols) - set(input_reshaped.columns)
-    input_reshaped[list(missing_cols)] = 0
-    input_reshaped = input_reshaped[allcols]
-    return input_reshaped
-
-
-def extend_sample_allcolumns_for_plexdia_case(allcols_samples, config_dict_for_type):
-    if is_plexDIA_table(config_dict_for_type):
-        new_allcols = []
-        channels = ['mTRAQ-n-0', 'mTRAQ-n-4', 'mTRAQ-n-8']
-        for channel in channels:
-            for sample in allcols_samples:
-                new_allcols.append(merge_channel_and_sample_string(sample, channel))
-        return new_allcols
-    else:
-        return allcols_samples
-
-
-# Cell
-#PLEXDIA case
-
-def adapt_input_df_columns_in_case_of_plexDIA(input_df,config_dict_for_type):
-    if is_plexDIA_table(config_dict_for_type):
-        input_df = extend_sampleID_column_for_plexDIA_case(input_df, config_dict_for_type)
-        input_df = set_mtraq_reduced_ion_column_into_dataframe(input_df)
-        return input_df
-    else:
-        return input_df
-
-
-def extend_sampleID_column_for_plexDIA_case(input_df,config_dict_for_type):
-    channels_per_peptide = parse_channel_from_peptide_column(input_df)
-    return merge_sample_id_and_channels(input_df, channels_per_peptide, config_dict_for_type)
-
-
-def set_mtraq_reduced_ion_column_into_dataframe(input_df):
-    new_ions = remove_mtraq_modifications_from_ion_ids(input_df['ion'])
-    input_df['ion'] = new_ions
-    return input_df
-
-def remove_mtraq_modifications_from_ion_ids(ions):
-    new_ions = []
-    all_mtraq_tags = ["(mTRAQ-K-0)", "(mTRAQ-K-4)", "(mTRAQ-K-8)", "(mTRAQ-n-0)", "(mTRAQ-n-4)", "(mTRAQ-n-8)"]
-    for ion in ions:
-        for tag in all_mtraq_tags:
-            ion = ion.replace(tag, "")
-        new_ions.append(ion)
-    return new_ions
-
-
-def is_plexDIA_table(config_dict_for_type):
-    return config_dict_for_type.get('channel_ID') == ['Channel.0', 'Channel.4', 'Channel.8']
-
-
-import re
-def parse_channel_from_peptide_column(input_df):
-    channels = []
-    for pep in input_df['Modified.Sequence']:
-        pattern = "(.*)(\(mTRAQ-n-.\))(.*)"
-        matched = re.match(pattern, pep)
-        num_appearances = pep.count("mTRAQ-n-")
-        if matched and num_appearances==1:
-            channels.append(matched.group(2))
-        else:
-            channels.append("NA")
-    return channels
-
-def merge_sample_id_and_channels(input_df, channels, config_dict_for_type):
-    sample_id = config_dict_for_type.get("sample_ID")
-    sample_ids = list(input_df[sample_id])
-    input_df[sample_id] = [merge_channel_and_sample_string(sample_ids[idx], channels[idx]) for idx in range(len(sample_ids))]
-    return input_df
-
-def merge_channel_and_sample_string(sample, channel):
-    return f"{sample}_{channel}"
-
-
-# Cell
-def reformat_and_write_wideformat_table(peptides_tsv, outfile_name, config_dict):
-    input_df = pd.read_csv(peptides_tsv,sep="\t", encoding ='latin1')
-    filter_dict = config_dict.get("filters")
-    protein_cols = config_dict.get("protein_cols")
-    ion_cols = config_dict.get("ion_cols")
-    input_df = filter_input(filter_dict, input_df)
-    #input_df = merge_protein_and_ion_cols(input_df, config_dict)
-    input_df = merge_protein_cols_and_ion_dict(input_df, config_dict)
-    if 'quant_prefix' in config_dict.keys():
-        quant_prefix = config_dict.get('quant_prefix')
-        headers = ['protein', 'ion'] + list(filter(lambda x: x.startswith(quant_prefix), input_df.columns))
-        input_df = input_df[headers]
-        input_df = input_df.rename(columns = lambda x : x.replace(quant_prefix, ""))
-
-    input_df = input_df.reset_index()
-
-    input_df.to_csv(outfile_name, sep = '\t', index = None)
 
 # Cell
 from anytree.importer import JsonImporter
@@ -826,6 +343,8 @@ import pandas as pd
 import os
 import pathlib
 
+import alphabase.quantification.quant_reader.quant_reader_manager as qrm
+
 def import_data(input_file, input_type_to_use = None, samples_subset = None, results_dir = None):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
@@ -835,128 +354,22 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None, res
     :param file results_folder: the folder where the AlphaQuant outputs are stored
     """
 
-    samples_subset = add_ion_protein_headers_if_applicable(samples_subset)
-    if "aq_reformat" in input_file:
-        file_to_read = input_file
-    else:
-        file_to_read = reformat_and_save_input_file(input_file=input_file, input_type_to_use=input_type_to_use)
-
-    input_reshaped = pd.read_csv(file_to_read, sep = "\t", encoding = 'latin1', usecols=samples_subset)
-    input_reshaped = input_reshaped.drop_duplicates(subset='ion')
-    return input_reshaped
+    return qrm.import_data(input_file = input_file, input_type_to_use = input_type_to_use, samples_subset = samples_subset, results_dir = results_dir)
 
 
-def reformat_and_save_input_file(input_file, input_type_to_use = None):
-
-    input_type, config_dict_for_type, sep = get_input_type_and_config_dict(input_file, input_type_to_use)
-    print(f"using input type {input_type}")
-    format = config_dict_for_type.get('format')
-    outfile_name = f"{input_file}.{input_type}.aq_reformat.tsv"
-
-    if format == "longtable":
-        reformat_and_write_longtable_according_to_config(input_file, outfile_name,config_dict_for_type, sep = sep)
-    elif format == "widetable":
-        reformat_and_write_wideformat_table(input_file, outfile_name, config_dict_for_type)
-    else:
-        raise Exception('Format not recognized!')
-    return outfile_name
-
-
+def reformat_and_save_input_file(input_file, input_type_to_use):
+    return qrm.reformat_and_save_input_file( input_file=input_file, input_type_to_use=input_type_to_use, use_alphaquant_format=True)
 
 
 def add_ion_protein_headers_if_applicable(samples_subset):
     if samples_subset is not None:
-        return samples_subset + ["ion", "protein"]
+        return samples_subset + [QUANT_ID, "protein"]
     else:
         return None
 
 
 
 
-
-
-# Cell
-import pandas as pd
-import os.path
-import pathlib
-
-def get_input_type_and_config_dict(input_file, input_type_to_use = None):
-    #parse the type of input (e.g. Spectronaut Fragion+MS1Iso) out of the input file
-
-
-    config_dict = load_config(INTABLE_CONFIG)
-    type2relevant_columns = get_type2relevant_cols(config_dict)
-
-    if "aq_reformat.tsv" in input_file:
-        input_file = get_original_file_from_aq_reformat(input_file)
-
-    filename = str(input_file)
-    if '.csv' in filename:
-        sep=','
-    if '.tsv' in filename:
-        sep='\t'
-    if '.txt' in filename:
-        sep='\t'
-
-    if 'sep' not in locals():
-        raise TypeError(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {input_file}! Your filename has to contain one of these extensions. Please modify your file name accordingly.")
-
-
-
-    uploaded_data_columns = set(pd.read_csv(input_file, sep=sep, nrows=1, encoding ='latin1').columns)
-
-    for input_type in type2relevant_columns.keys():
-        if (input_type_to_use is not None) and (input_type!=input_type_to_use):
-            continue
-        relevant_columns = type2relevant_columns.get(input_type)
-        relevant_columns = [x for x in relevant_columns if x] #filter None values
-        if set(relevant_columns).issubset(uploaded_data_columns):
-            config_dict_type =  config_dict.get(input_type)
-            return input_type, config_dict_type, sep
-    raise TypeError("format not specified in intable_config.yaml!")
-
-import re
-def get_original_file_from_aq_reformat(input_file):
-    matched = re.match("(.*)(\..*\.)(aq_reformat\.tsv)",input_file)
-    return matched.group(1)
-
-# Cell
-def import_config_dict():
-    config_dict = load_config(INTABLE_CONFIG)
-    return config_dict
-
-# Cell
-
-import pandas as pd
-
-def load_samplemap(samplemap_file):
-    file_ext = os.path.splitext(samplemap_file)[-1]
-    if file_ext=='.csv':
-        sep=','
-    if (file_ext=='.tsv') | (file_ext=='.txt'):
-        sep='\t'
-
-    if 'sep' not in locals():
-        print(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {samplemap_file}! Trying with tab separation. In the case that it fails, please add the appropriate extension to your file name.")
-        sep = "\t"
-
-    return pd.read_csv(samplemap_file, sep = sep, encoding ='latin1', dtype='str')
-
-# Cell
-def prepare_loaded_tables(data_df, samplemap_df):
-    """
-    Integrates information from the peptide/ion data and the samplemap, selects the relevant columns and log2 transforms intensities.
-    """
-    samplemap_df = samplemap_df[samplemap_df["condition"]!=""] #remove rows that have no condition entry
-    filtvec_not_in_data = [(x in data_df.columns) for x in samplemap_df["sample"]] #remove samples that are not in the dataframe
-    samplemap_df = samplemap_df[filtvec_not_in_data]
-    headers = ['protein'] + samplemap_df["sample"].to_list()
-    data_df = data_df.set_index("ion")
-    for sample in samplemap_df["sample"]:
-        data_df[sample] = np.log2(data_df[sample].replace(0, np.nan))
-    return data_df[headers], samplemap_df
-
-# Cell
 
 
 #export
@@ -1055,6 +468,7 @@ class AcquisitionTableHandler():
             os.remove(output_file_name)
             print(f"removed pre existing {output_file_name}")
 
+import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
 
 class AcquisitionTableInfo():
     def __init__(self, results_dir, sep = "\t", decimal = "."):
@@ -1086,7 +500,7 @@ class AcquisitionTableInfo():
             original_file = self.__get_location_of_original_file__()
         else:
             original_file = self._input_file
-        input_type, config_dict, _ = get_input_type_and_config_dict(original_file)
+        input_type, config_dict, _ = abconfigloader.get_input_type_and_config_dict(original_file)
         return input_type, config_dict
 
     def __get_location_of_original_file__(self):
@@ -1112,7 +526,7 @@ class AcquisitionTableInfo():
 
 
 
-
+import itertools
 class AcquisitionTableHeaders():
     def __init__(self, acquisition_table_info):
 
@@ -1183,7 +597,7 @@ class AcquisitionTableOutputPaths():
     def __get_method_parameters_yaml_path__(self):
         return f"{self._table_info._results_dir}/aq_parameters.yaml"
 
-
+import alphabase.quantification.quant_reader.table_reformatter as abtable_reformatter
 class AcquisitionTableReformater(LongTableReformater):
     def __init__(self, table_infos, header_infos, samples, dataframe_already_preformated = False):
 
@@ -1201,7 +615,7 @@ class AcquisitionTableReformater(LongTableReformater):
         input_df_subset = input_df_subset.drop_duplicates()
         input_df_subset = self.__filter_reformated_df_if_necessary__(input_df_subset)
         if not self._dataframe_already_preformated:
-            input_df_subset = add_merged_ionnames(input_df_subset, self._header_infos._included_levelnames, self._header_infos._ion_headers_grouped, None, None)
+            input_df_subset = abtable_reformatter.add_index_and_metadata_columns(input_df_subset, self._header_infos._included_levelnames, self._header_infos._ion_headers_grouped, None, None)
         return input_df_subset
 
     def __filter_reformated_df_if_necessary__(self, reformatted_df):
@@ -1220,7 +634,7 @@ class AcquisitionTableReformater(LongTableReformater):
     def __get_cols_to_use__(self):
         cols_to_use = self._header_infos._relevant_headers
         if self._dataframe_already_preformated:
-            return cols_to_use+['ion']
+            return cols_to_use + [QUANT_ID]
         else:
             return cols_to_use
 
@@ -1249,12 +663,14 @@ class AcquisitionTableHeaderFilter():
 def merge_acquisition_df_parameter_df(acquisition_df, parameter_df, groupby_merge_type = 'mean'):
     """acquisition df contains details on the acquisition, parameter df are the parameters derived from the tree
     """
-    merged_df = parameter_df.merge(acquisition_df, how = 'left', on = 'ion')
+
+    merged_df = parameter_df.merge(acquisition_df, how = 'left', on = QUANT_ID)
+
     if groupby_merge_type == 'mean':
-        merged_df = merged_df.groupby('ion').mean().reset_index()
+        merged_df = merged_df.groupby(QUANT_ID).mean().reset_index()
     if groupby_merge_type == 'min':
-        merged_df = merged_df.groupby('ion').min().reset_index()
+        merged_df = merged_df.groupby(QUANT_ID).min().reset_index()
     if groupby_merge_type == 'max':
-        merged_df = merged_df.groupby('ion').max().reset_index()
+        merged_df = merged_df.groupby(QUANT_ID).max().reset_index()
     merged_df = merged_df.dropna(axis=1, how='all')
     return merged_df

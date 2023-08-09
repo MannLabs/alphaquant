@@ -17,6 +17,8 @@ __all__ = ['collect_node_parameters', 'get_param2val', 'get_dataframe', 'calc_cl
 import numpy as np
 import pandas as pd
 import scipy.stats
+from alphaquant.variables import QUANT_ID
+
 def collect_node_parameters(all_nodes, w_annot = True):
     ion2param2val = {}
     all_headers = set()
@@ -24,7 +26,7 @@ def collect_node_parameters(all_nodes, w_annot = True):
 
         param2val = get_param2val(node)
         if w_annot:
-            param2val.update({"ion" : node.name})
+            param2val.update({QUANT_ID : node.name})
         if node.type == 'mod_seq_charge':
             if len(node.children) ==2:
                 fcfc_diff = abs(node.children[0].fc - node.children[1].fc)
@@ -169,8 +171,8 @@ def generate_ml_input(c1, c2, neg_thresholds =[1.5, 3], pos_threshold =  0.2, fe
 
     df_precursor_features = balance_classes(df_precursor_features)
     #df_precursor_features = df_precursor_features.dropna()
-    ionnames = df_precursor_features["ion"]
-    df_precursor_features = df_precursor_features.drop(columns = "ion")
+    ionnames = df_precursor_features[QUANT_ID]
+    df_precursor_features = df_precursor_features.drop(columns = QUANT_ID)
     df_precursor_features = df_precursor_features.astype('float')
     df_precursor_features = df_precursor_features.replace(np.nan, -1)
 
@@ -327,9 +329,9 @@ def generate_ml_input_regression(df_precursor_features, nodes, replace_nans = Fa
         df_precursor_features = replace_nans_feature_dependent(df_precursor_features)
     else:
         df_precursor_features = df_precursor_features.dropna()
-    df_precursor_features = df_precursor_features[[(x in ion2fc.keys()) for x in df_precursor_features["ion"]]]
-    ionnames = list(df_precursor_features["ion"])
-    df_precursor_features = df_precursor_features.drop(columns=["ion"])
+    df_precursor_features = df_precursor_features[[(x in ion2fc.keys()) for x in df_precursor_features[QUANT_ID]]]
+    ionnames = list(df_precursor_features[QUANT_ID])
+    df_precursor_features = df_precursor_features.drop(columns=[QUANT_ID])
     X = df_precursor_features.to_numpy()
     y = np.array([ion2fc.get(ion) for ion in ionnames])
     featurenames = list(df_precursor_features.columns)
@@ -822,8 +824,8 @@ def add_quality_scores_to_node(acquisition_info_df, nodes):
     else:
         return
 
-    df_avged = acquisition_info_df.groupby("ion").mean().reset_index()
-    ion2param = dict(zip(df_avged["ion"], df_avged[param]))
+    df_avged = acquisition_info_df.groupby(QUANT_ID).mean().reset_index()
+    ion2param = dict(zip(df_avged[QUANT_ID], df_avged[param]))
 
     for node in nodes:
         node.default_quality_score = ion2param.get(node.name)

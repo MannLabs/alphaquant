@@ -27,6 +27,8 @@ import alphaquant.visualizations as aqviz
 
 import alphaquant.ptmsite_mapping as aqptm
 import multiprocess
+import alphaquant.variables as aqvariables
+import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
 
 
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
@@ -38,6 +40,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
     """
 
     check_input_consistency(input_file, samplemap_file, samplemap_df)
+    aqvariables.determine_variables(input_file)
 
 
 
@@ -49,7 +52,7 @@ annotation_file = None, protein_subset_for_normalization_file = None):
         input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type)
 
     if "aq_reformat.tsv" not in input_file:
-        input_file = aqutils.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use)
+        input_file = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use, use_alphaquant_format=True)
 
 
     #use runconfig object to store the parameters
@@ -135,7 +138,7 @@ def get_unnormed_df_condpair(input_file:str, samplemap_df:pd.DataFrame, condpair
 
     samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df=samplemap_df, cond1 = condpair[0], cond2 = condpair[1])
     used_samples = samples_c1+samples_c2
-    unnormed_df = aqutils.import_data(input_file,samples_subset=used_samples)
+    unnormed_df = abquantreader.import_data(input_file,samples_subset=used_samples, use_alphaquant_format=True)
     unnormed_df, _ = aqutils.prepare_loaded_tables(unnormed_df, samplemap_df)
     return unnormed_df
 
@@ -169,10 +172,11 @@ def get_minrep_for_cond(c_samples, minrep):
 
 # Cell
 import alphaquant.diffquant_utils as aqutils
+import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
 def determine_if_ion_tree_is_used(runconfig):
     if runconfig.use_iontree_if_possible is not None:
         return runconfig.use_iontree_if_possible
-    _, config_dict, _ =  aqutils.get_input_type_and_config_dict(runconfig.input_file)
+    _, config_dict, _ =  abconfigloader.get_input_type_and_config_dict(runconfig.input_file)
     return config_dict.get("use_iontree")
 
 
@@ -237,7 +241,7 @@ def analyze_condpair(*,runconfig, condpair):
         prot_ions = prot2diffions.get(protein, list())
         prot_ions.append(diffIon)
         prot2diffions[protein] = prot_ions
-        quantified_peptide = QuantifiedResult(kwargs = {'ion' : ion, 'pval' : diffIon.p_val, 'log2fc' : diffIon.fc, 'protein' : protein, 'condpair' : aqutils.get_condpairname(condpair)})
+        quantified_peptide = QuantifiedResult(kwargs = {aqvariables.QUANT_ID : ion, 'pval' : diffIon.p_val, 'log2fc' : diffIon.fc, 'protein' : protein, 'condpair' : aqutils.get_condpairname(condpair)})
         quantified_peptides.append(quantified_peptide)
 
 
@@ -318,7 +322,7 @@ def analyze_condpair(*,runconfig, condpair):
 
 
         if runconfig.get_ion2clust:
-            ion2clust_df = pd.DataFrame(ion2clust.items(), columns=['ion', 'cluster'])
+            ion2clust_df = pd.DataFrame(ion2clust.items(), columns=['quant_id', 'cluster'])
             ion2clust_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.ion2clust.tsv", sep = "\t", index=None)
 
         res_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
@@ -387,10 +391,10 @@ def read_tables(peptides_tsv, samplemap_tsv, pepheader = None, protheader = None
     peps = pd.read_csv(peptides_tsv,sep="\t")
 
     if pepheader != None:
-        peps = peps.rename(columns = {pepheader : "ion"})
+        peps = peps.rename(columns = {pepheader : aqvariables.QUANT_ID})
     if protheader != None:
         peps = peps.rename(columns = {protheader: "protein"})
-    peps = peps.set_index("ion")
+    peps = peps.set_index(aqvariables.QUANT_ID)
     headers = ['protein'] + samplemap["sample"].to_list()
 
     for sample in samplemap["sample"]:

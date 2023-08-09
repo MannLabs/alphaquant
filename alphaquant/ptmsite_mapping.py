@@ -14,6 +14,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
 
 # Cell
 import alphaquant.diffquant_utils as utils
+from alphaquant.variables import *
 
 
 # Cell
@@ -309,7 +310,7 @@ def add_ptmsite_infos_spectronaut(input_df, ptm_ids_df):
 # Cell
 def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
     delimiter = pd.Series(["_" for x in range(len(ptm_annotated_input.index))])
-    ptm_annotated_input["ion"] = ptm_annotated_input["PEP.StrippedSequence"] + delimiter + ptm_annotated_input["FG.PrecMz"].astype('str') + delimiter + ptm_annotated_input["FG.Charge"].astype('str') + delimiter + ptm_annotated_input["REFPROT"] + delimiter +ptm_annotated_input["site"].astype('str')
+    ptm_annotated_input[QUANT_ID] = ptm_annotated_input["PEP.StrippedSequence"] + delimiter + ptm_annotated_input["FG.PrecMz"].astype('str') + delimiter + ptm_annotated_input["FG.Charge"].astype('str') + delimiter + ptm_annotated_input["REFPROT"] + delimiter +ptm_annotated_input["site"].astype('str')
     ptm_annotated_input.gene.fillna('', inplace=True)
     ptm_annotated_input["site_id"] = ptm_annotated_input["gene"].astype('str')+delimiter+ptm_annotated_input["REFPROT"].astype('str') + delimiter +ptm_annotated_input["site"].astype('str')
     return ptm_annotated_input

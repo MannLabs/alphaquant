@@ -23,6 +23,7 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
 
 # Cell
 from .diff_analysis_manager import run_pipeline
+from .variables import QUANT_ID
 
 # Cell
 import pandas as pd
@@ -185,8 +186,8 @@ def generate_random_input(num_pep,sample2cond_df , simulate_nas = False):
     randarrays = np.concatenate((randarrays1, randarrays2), axis = 1)
     df_intens = pd.DataFrame(randarrays, columns= sample2cond_df["sample"].tolist())
     df_intens.insert(1,"protein", protnames)
-    df_intens.insert(0, "ion", pepnames )
-    df_intens = df_intens.set_index("ion")
+    df_intens.insert(0, QUANT_ID, pepnames )
+    df_intens = df_intens.set_index(QUANT_ID)
     return df_intens
 
 def generate_peptide_list(num_peps, levels ):
@@ -301,10 +302,8 @@ def cluster_selected_proteins(protnames, quant_df, normed_c1, normed_c2, pval_th
 import alphaquant.normalization as aqnorm
 def create_background_dists_from_prepared_files(samplemap_file, quant_file, cond1, cond2):
 
-    try:
-        quant_df = pd.read_csv(quant_file, sep = "\t",index_col='quant_id')
-    except:
-        quant_df = pd.read_csv(quant_file, sep = ",",index_col='ion')
+
+    quant_df = pd.read_csv(quant_file, sep = "\t",index_col= QUANT_ID)
     samplemap_df = aqutils.load_samplemap(samplemap_file)
 
     df_c1, df_c2, c1_samples, c2_samples = get_c1_c2_dfs(quant_df, samplemap_df, [cond1, cond2])
@@ -343,10 +342,8 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
     samplemap_df = aqutils.load_samplemap(samplemap_file)
     fragion_df = pd.read_csv(input_file, sep = "\t")
     _, samplemap_df = aqutils.prepare_loaded_tables(fragion_df, samplemap_df)
-    try:
-        fragion_df = fragion_df.set_index('quant_id')
-    except:
-        fragion_df = fragion_df.set_index('ion')
+    fragion_df = fragion_df.set_index(QUANT_ID)
+
 
     df_c1, df_c2, c1_samples, c2_samples = format_condpair_input(samplemap_df = samplemap_df, input_file=input_file,condpair = ('S1', 'S2'), minrep= 4)
     #df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
@@ -523,10 +520,8 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
         fragion_df_only_filt.reset_index().to_csv("filtered_fragions.tsv", sep = "\t", index = None)
     else:
         protnodes_filt = aqutils.read_condpair_tree("S1_filtered", "S2_filtered", results_dir).children
-        try:
-            fragion_df_only_filt = pd.read_csv("filtered_fragions.tsv", sep = "\t",index_col='quant_id')
-        except:
-            fragion_df_only_filt = pd.read_csv("filtered_fragions.tsv", sep = "\t",index_col='ion')
+
+        fragion_df_only_filt = pd.read_csv("filtered_fragions.tsv", sep = "\t",index_col=QUANT_ID)
 
 
     #add perturbations to the filtered proteins
@@ -539,10 +534,8 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
         fragion_df_perturbed.reset_index().to_csv("perturbed_fragions.tsv", sep = "\t", index = None)
     else:
         protnodes_filt = aqutils.read_condpair_tree("S1_annot", "S2_annot", results_dir_perturbed).children
-        try:
-            fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col='quant_id')
-        except:
-            fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col='ion')
+        fragion_df_perturbed = pd.read_csv(input_file_perturbed, sep = "\t",index_col=QUANT_ID)
+
 
     if run_filtered:
         aqmgr.run_pipeline(fragion_df_only_filt, samplemap, condpair_combinations=condpair_combinations, minrep = 9, normalize=True, runtime_plots=runtime_plots, use_iontree_if_possible=False, results_dir= results_dir_filtered)
@@ -807,8 +800,8 @@ def get_top_percentile_node_df(nodes, percentile, node_filterfunction = None):
 
 def filter_top_qualityscore_percentiles(df_original, df_nodes, nodes_precursors, percentile, method, node_filterfunction = None):
     top_precursors_aqscore, top_precursors_default_quality_score = get_top_percentile_peptides(nodes_precursors=nodes_precursors, percentile = percentile, method = method, node_filterfunction = node_filterfunction)
-    df_original = df_original[[x in top_precursors_default_quality_score for x in df_original["ion"]]]
-    df_nodes = df_nodes[[x in top_precursors_aqscore for x in df_nodes["ion"]]]
+    df_original = df_original[[x in top_precursors_default_quality_score for x in df_original[QUANT_ID]]]
+    df_nodes = df_nodes[[x in top_precursors_aqscore for x in df_nodes[QUANT_ID]]]
 
     return df_original, df_nodes
 
@@ -873,7 +866,7 @@ def correct_fcs_to_expected(specnaut_reformat, expected_log2fc):
 
 
 def get_node_df(nodes_precursors):
-    node_info_dict = {'ion': [x.name for x in nodes_precursors], 'log2fc' : [x.fc for x in nodes_precursors], "median_intensity" : [x.min_intensity for x in nodes_precursors]}
+    node_info_dict = {QUANT_ID: [x.name for x in nodes_precursors], 'log2fc' : [x.fc for x in nodes_precursors], "median_intensity" : [x.min_intensity for x in nodes_precursors]}
     node_df = pd.DataFrame(node_info_dict)
     return node_df
 
@@ -926,7 +919,7 @@ def filter_score_from_original_df(original_input_file, input_type, c1, c2, sampl
     #retrieve ions used by AlphaQuant
     aq_df = aqbench.import_input_file_in_specified_format(input_file = original_input_file, input_type= input_type)
     aq_df = aqutils.filter_df_to_minrep(aq_df, samples_c1, samples_c2, minrep)
-    ions_used_aq = set(aq_df["ion"])
+    ions_used_aq = set(aq_df[QUANT_ID])
 
     samplemap = samplemap[[x == c1 or x == c2 for x in samplemap["condition"]]] #only the condition samples remain
     condition_samples = set(samplemap["sample"])

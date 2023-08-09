@@ -15,6 +15,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import time
+from alphaquant.variables import QUANT_ID
 
 def get_normfacts_withincond(samples):##row is the sample column is the features
 
@@ -409,7 +410,7 @@ def plot_withincond_normalization(df_c1, df_c2):
 
 def use_benchmark_prenormed_file(prenormed_file, minrep, c1_samples, c2_samples):
     print("using pre-normalized data - skipping normalization")
-    df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = "ion")
+    df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = QUANT_ID)
     df_c1_normed = df_prenormed[c1_samples].dropna(thresh=minrep, axis=0)
     df_c2_normed = df_prenormed[c2_samples].dropna(thresh=minrep, axis=0)
     df_c2_normed = df_c2_normed +0.18
