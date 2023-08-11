@@ -26,7 +26,7 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
 
 # Cell
 import alphaquant.diffquant_utils as utils
-from .variables import QUANT_ID
+import alphaquant.variables as aqvars
 
 # Cell
 import pandas as pd
@@ -468,7 +468,7 @@ def get_betweencond_fcs_table(melted_df, c1, c2, ion_header = "quant_id"):
     t_start = time.time()
     has_clust_info = "is_included" in melted_df.columns
     melted_df = melted_df.set_index(["condition"])
-    sorted_ions = melted_df[QUANT_ID]
+    sorted_ions = melted_df[aqvars.QUANT_ID]
     c1_df = melted_df.loc[c1]
     c2_df = melted_df.loc[c2]
     ions = set(c1_df[ion_header]).intersection(set(c2_df[ion_header]))
@@ -510,10 +510,10 @@ def beeswarm_ion_plot(df_melted, diffresults_protein, only_boxplot = False,savel
 
     #searborn standard functions
     if only_boxplot:
-        ax = sns.boxplot(x=QUANT_ID, y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)
+        ax = sns.boxplot(x=aqvars.QUANT_ID, y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)
     else:
-        ax = sns.boxplot(x=QUANT_ID, y="intensity", hue="condition", data=df_melted, palette=pal2)
-        ax = sns.stripplot(x=QUANT_ID, y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
+        ax = sns.boxplot(x=aqvars.QUANT_ID, y="intensity", hue="condition", data=df_melted, palette=pal2)
+        ax = sns.stripplot(x=aqvars.QUANT_ID, y="intensity", hue="condition", data=df_melted, palette="Set2", dodge=True)#size = 10/len(protein_df.index)
 
     #annotate and format
     handles, labels = ax.get_legend_handles_labels()
@@ -539,7 +539,7 @@ import matplotlib.pyplot as plt
 
 def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     """takes pre-formatted long-format dataframe which contains all between condition fold changes. All ions of a given protein
-    are visualized, the columns are QUANT_ID and "log2fc".  Also takes results of the protein differential analysis as a series
+    are visualized, the columns are aqvars.QUANT_ID and "log2fc".  Also takes results of the protein differential analysis as a series
       to annotate the plot"""
     #get annotations from diffresults
     fdr = float(diffresults_protein.at["fdr"])
@@ -549,11 +549,11 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     pal2 = [(0.94, 0.94, 0.94),(1.0, 1.0, 1.0)]
 
     #specify color for included proteins
-    my_pal = {row[QUANT_ID]: "lightblue" if row["is_included"] else "grey" for _,row in df_melted.iterrows()}
+    my_pal = {row[aqvars.QUANT_ID]: "lightblue" if row["is_included"] else "grey" for _,row in df_melted.iterrows()}
 
     #plot with seaborn standard functions
-    ax = sns.boxplot(x=QUANT_ID, y="log2fc", data=df_melted, color = "white")
-    ax = sns.stripplot(x=QUANT_ID, y="log2fc", data=df_melted, palette= my_pal)
+    ax = sns.boxplot(x=aqvars.QUANT_ID, y="log2fc", data=df_melted, color = "white")
+    ax = sns.stripplot(x=aqvars.QUANT_ID, y="log2fc", data=df_melted, palette= my_pal)
 
     #annotate and format
     handles, labels = ax.get_legend_handles_labels()
@@ -881,7 +881,7 @@ def get_normed_peptides_dataframe(cond1, cond2, results_folder = os.path.join(".
     numeric_cols = list(normed_peptides.select_dtypes(include=np.number).columns)
     #available_vals = list(set(samplemap_df["sample"].values).intersection(set(normed_peptides.columns)))
     normed_peptides[numeric_cols] = np.log2(normed_peptides[numeric_cols].replace(0, np.nan))
-    normed_peptides = normed_peptides.set_index(["protein", QUANT_ID])
+    normed_peptides = normed_peptides.set_index(["protein", aqvars.QUANT_ID])
     return normed_peptides
 
 # Cell
@@ -1249,7 +1249,7 @@ def foldchange_ion_plot_plotly(
         clust2col, clust2ions = get_color2ions(protein_node, level)
     else:
         clust2col = {-1 : 'lightblue'}
-        clust2ions = {-1 : [x for x in df_melted[QUANT_ID].drop_duplicates()]}
+        clust2ions = {-1 : [x for x in df_melted[aqvars.QUANT_ID].drop_duplicates()]}
 
 
 
@@ -1257,7 +1257,7 @@ def foldchange_ion_plot_plotly(
         ions = clust2ions.get(clust)
         color = clust2col.get(clust)
 
-        df_subset = df_melted[[x in ions for x in df_melted[QUANT_ID]]]
+        df_subset = df_melted[[x in ions for x in df_melted[aqvars.QUANT_ID]]]
 
         fig.add_trace(
             go.Box(
@@ -1343,7 +1343,7 @@ class IonFoldChangeCalculator():
 
     def __calculate_precursors_and_fcs_from_melted_df(self):
 
-        multiindex_df = self.melted_df.set_index(["condition", QUANT_ID])
+        multiindex_df = self.melted_df.set_index(["condition", aqvars.QUANT_ID])
 
 
         df_c1 = multiindex_df.loc[self._condpair[0]]
@@ -1431,7 +1431,7 @@ import seaborn as sns
 def make_mz_fc_boxplot(merged_df, ion_nodes):
     merged_df = merged_df.copy()
     ion2fc = {node.name:node.fc for node in ion_nodes}
-    merged_df["log2fc"] = [ion2fc.get(ion) for ion in merged_df[QUANT_ID]]
+    merged_df["log2fc"] = [ion2fc.get(ion) for ion in merged_df[aqvars.QUANT_ID]]
     #merged_df = merged_df[merged_df["log2fc"] >0]
     #merged_df = merged_df[merged_df["EG.ApexRT"] <80]
     transf_fc = list(2**merged_df["log2fc"])
@@ -1952,13 +1952,13 @@ class ProteinIntensityDataFrameGetter():
 
     def __annotate_properties_to_tables__(self, protein_node, df_melted, specified_level):
         ion2is_included = self.__get_ionmap_dict(protein_node, self.__assign_if_node_at_level_is_included, specified_level)
-        df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted[QUANT_ID]]
+        df_melted["is_included"] = [ion2is_included.get(x) for x in df_melted[aqvars.QUANT_ID]]
 
         ion2predscore = self.__get_ionmap_dict(protein_node, self.__assign_predscore_of_node_at_level, specified_level)
-        df_melted["predscore"] = [ion2predscore.get(x) for x in df_melted[QUANT_ID]]
+        df_melted["predscore"] = [ion2predscore.get(x) for x in df_melted[aqvars.QUANT_ID]]
 
         ion2precursor = self.__get_ionmap_dict(protein_node, self.__assign_name_of_node_at_level, specified_level)
-        df_melted["specified_level"] = [ion2precursor.get(x) for x in df_melted[QUANT_ID]]
+        df_melted["specified_level"] = [ion2precursor.get(x) for x in df_melted[aqvars.QUANT_ID]]
         return df_melted
 
     @staticmethod
@@ -1982,7 +1982,7 @@ class ProteinIntensityDataFrameGetter():
         return aqutils.find_node_parent_at_level(leaf, ion_level).name
 
     def __test_that_diffresult_ions_are_in_tree_ions__(self, df_melted, protnode_ions):
-        ions_in_df = set(df_melted[QUANT_ID]) - set(protnode_ions)
+        ions_in_df = set(df_melted[aqvars.QUANT_ID]) - set(protnode_ions)
         if len(ions_in_df)>0:
             Exception("Clustered ions are not entirely contained in  observed ions!")
 
@@ -2014,7 +2014,7 @@ class ProteoformIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
     def __reduce_dataframe_to_clusterdiff_ions__(df_melted, clusterdiff_protein_node):
 
         ions_used = {x.name  for x in clusterdiff_protein_node.leaves}
-        return df_melted[[x in ions_used for x in df_melted[QUANT_ID]]]
+        return df_melted[[x in ions_used for x in df_melted[aqvars.QUANT_ID]]]
 
 
     def __annotate_cluster_information__(self, df_melted, protein_node, specified_level):
@@ -2029,8 +2029,8 @@ class ProteoformIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
 
 
 class PeptideIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
-    def __init__(self, quantification_info):
-        super().__init__(quantification_info)
+    def __init__(self, quantification_info, ion_header = 'quant_id'):
+        super().__init__(quantification_info, ion_header=ion_header)
 
     def get_melted_ion_intensity_table_peptide_subset(self, protein, peptides_to_plot, specified_level = "mod_seq_charge"):
         samples = self.__get_samples_of_condpair__()
