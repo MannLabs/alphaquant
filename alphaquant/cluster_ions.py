@@ -16,7 +16,7 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
 import scipy.spatial.distance as distance
 import scipy.cluster.hierarchy as hierarchy
 
-def find_fold_change_clusters(typenode, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
+def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
     """Compares the fold changes of the ions corresponding to the nodes that are compared and returns the set of ions with consistent fold changes.
 
     Args:
@@ -31,10 +31,10 @@ def find_fold_change_clusters(typenode, diffions, normed_c1, normed_c2, ion2diff
     """
 
     if len(diffions)==1:
-        typenode.num_clusters = 1
-        typenode.num_mainclusts = 1
-        typenode.frac_mainclust = 1
-        return [(typenode.children[0], 0)]
+        type_node.num_clusters = 1
+        type_node.num_mainclusts = 1
+        type_node.frac_mainclust = 1
+        return [(type_node.children[0], 0)]
 
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = get_fcs_ions(diffions)
@@ -43,14 +43,18 @@ def find_fold_change_clusters(typenode, diffions, normed_c1, normed_c2, ion2diff
     after_clust = hierarchy.complete(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
     clustered = exchange_cluster_idxs(clustered)
-    typenode.num_clusters = len(set(clustered))
-    typenode.num_mainclusts = sum([x==0 for x in clustered])
-    typenode.frac_mainclust = typenode.num_mainclusts/len(clustered)
+    assign_clusterstats_to_type_node(type_node, clustered)
 
-    childnode2clust = [(typenode.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
+    childnode2clust = [(type_node.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
     childnode2clust = sorted(childnode2clust, key = lambda x : x[0].name) #sort list for reproducibility
 
     return childnode2clust
+
+
+def assign_clusterstats_to_type_node(type_node, clustered):
+    type_node.num_clusters = len(set(clustered))
+    type_node.num_mainclusts = sum([x==0 for x in clustered])
+    type_node.frac_mainclust = type_node.num_mainclusts/len(clustered)
 
 # Cell
 def exchange_cluster_idxs(fclust_output_array):
