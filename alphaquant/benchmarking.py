@@ -337,7 +337,7 @@ import alphaquant.background_distributions as aqbg
 import pandas as pd
 
 
-def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
+def load_real_example_ions(input_file, samplemap_file, num_ions = 20, condpair = ('S1', 'S2'), minrep = 4):
     p2z = {}
     samplemap_df = aqutils.load_samplemap(samplemap_file)
     fragion_df = pd.read_csv(input_file, sep = "\t")
@@ -345,7 +345,7 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20):
     fragion_df = fragion_df.set_index(QUANT_ID)
 
 
-    df_c1, df_c2, c1_samples, c2_samples = format_condpair_input(samplemap_df = samplemap_df, input_file=input_file,condpair = ('S1', 'S2'), minrep= 4)
+    df_c1, df_c2, c1_samples, c2_samples = format_condpair_input(samplemap_df = samplemap_df, input_file=input_file,condpair = condpair, minrep= minrep)
     #df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep=4, runtime_plots = False)
     normed_c1 = aqbg.ConditionBackgrounds(df_c1, p2z)
     normed_c2 = aqbg.ConditionBackgrounds(df_c2, p2z)
