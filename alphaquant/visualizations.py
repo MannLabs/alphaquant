@@ -1365,11 +1365,12 @@ class IonFoldChangeCalculator():
 
 
 class IonFoldChangePlotter():
-    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included"):
+    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included", add_stripplot = False):
 
         ionfc_calculated = IonFoldChangeCalculator(melted_df, condpair)
         self._property_column = property_column
         self._is_included_column = is_included_column
+        self._add_stripplot = add_stripplot
         self.precursors = ionfc_calculated.precursors
         self.fcs = ionfc_calculated.fcs
         self._melted_df = ionfc_calculated.melted_df
@@ -1386,7 +1387,6 @@ class IonFoldChangePlotter():
 
         colormap_quantiles_all = colorgetter.get_predscore_quantile_colormap(set_nonmainclust_elems_whiter=False)
         self.plot_fcs_with_specified_color_scheme(colormap_quantiles_all, axs[0][1])
-
 
         colormap_quantiles_mainclust = colorgetter.get_predscore_quantile_colormap(set_nonmainclust_elems_whiter=True)
         self.plot_fcs_with_specified_color_scheme(colormap_quantiles_mainclust, axs[1][1])
@@ -1412,12 +1412,24 @@ class IonFoldChangePlotter():
         return ax
 
     def plot_fcs_with_specified_color_scheme(self, colormap, ax):
-
         if type(colormap) == type(dict()):
             colormap = {idx: colormap.get(self.precursors[idx]) for idx in range(len(self.precursors))}
-        sns.boxplot(data = self.fcs, ax=ax, palette=colormap)
+        
+        if self._add_stripplot:
+            self._plot_fcs_with_swarmplot(colormap, ax)
+        else:
+            self._plot_fcs_with_boxplot(colormap, ax)
+
         idxs = list(range(len(self.precursors)))
         ax.set_xticks(idxs, labels = self.precursors, rotation = 'vertical')
+    
+    def _plot_fcs_with_swarmplot(self, colormap, ax):
+        sns.stripplot(data = self.fcs, ax=ax, palette=colormap)
+        sns.boxplot(data = self.fcs, ax=ax, 
+            boxprops=dict(facecolor="none", edgecolor="black"))
+
+    def _plot_fcs_with_boxplot(self, colormap, ax):
+        sns.boxplot(data = self.fcs, ax=ax, palette=colormap)
 
     def __get_fig_width(self):
         num_ions = len(self.precursors)
@@ -2057,9 +2069,10 @@ import alphaquant.diffquant_utils as aqutils
 import anytree
 
 class ProteinClusterPlotter():
-    def __init__(self, protein_node, condpair, peptide_intensity_df_getter : PeptideIntensityDataframeGetter,level = 'seq'):
+    def __init__(self, protein_node, condpair, peptide_intensity_df_getter : PeptideIntensityDataframeGetter,level = 'seq', add_stripplot = False):
         self._protein_node = protein_node
         self._level = level
+        self._add_stripplot = add_stripplot
         self._axes = None
         self._fig = None
         self._condpair = condpair
@@ -2076,7 +2089,7 @@ class ProteinClusterPlotter():
         for idx in range(num_clusters):
             peptides_to_plot = self._get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, idx)
             melted_plot_df = self._pepdf_getter.get_melted_ion_intensity_table_peptide_subset(self._protein_node.name,peptides_to_plot,specified_level=self._level)
-            fcplotter = IonFoldChangePlotter(melted_df=melted_plot_df, condpair = self._condpair)
+            fcplotter = IonFoldChangePlotter(melted_df=melted_plot_df, condpair = self._condpair, add_stripplot=self._add_stripplot)
             fcplotter.plot_fcs_predscore_unicolor(ax=self._axes[idx], color=self._get_color_from_list(idx))
             self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         plt.show()
