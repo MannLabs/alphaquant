@@ -410,19 +410,10 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     root_node = create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions)
     #print(anytree.RenderTree(root_node))
     root_node_clust = cluster_along_specified_levels(globally_initialized_typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
-    #print(anytree.RenderTree(root_node_clust))
+
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
 
-    # for idx in range(0, len(level_sorted_nodes)):
-    #     nodes = level_sorted_nodes[idx]
-    #     if idx==0:
-    #         assign_fcs_to_base_ions(nodes, name2diffion)
-    #         continue
-    #     for node in nodes:
-    #         if not node.is_included:
-    #             continue
-    #         assign_vals_to_node(node, idx, name2diffion)
     root_node_lvl = level_sorted_nodes[-1]
     if len(root_node_lvl)!=1:
         Exception("there should be only one root node!")
