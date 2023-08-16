@@ -29,6 +29,7 @@ import alphaquant.ptmsite_mapping as aqptm
 import multiprocess
 import alphaquant.variables as aqvariables
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
+import alphaquant.cluster_utils as aqclust_utils
 
 
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
@@ -264,7 +265,7 @@ def analyze_condpair(*,runconfig, condpair):
             #if not clustered_root_node.is_included:
              #   continue
             protnodes.append(clustered_root_node)
-            pval, fc, consistency_score, ions_included = aqclust.get_diffresults_from_clust_root_node(clustered_root_node)
+            pval, fc, consistency_score, ions_included = aqclust_utils.get_diffresults_from_clust_root_node(clustered_root_node)
             num_peptides = len(anytree.findall(clustered_root_node, filter_ = lambda x : x.type == 'seq'))
             if num_peptides < runconfig.minpep:
                 continue
@@ -310,7 +311,7 @@ def analyze_condpair(*,runconfig, condpair):
     if runconfig.results_dir!=None:
 
         if runconfig.write_out_results_tree:
-            aqclust.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
+            aqclust_utils.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
         if runconfig.annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(runconfig.annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)
