@@ -33,7 +33,7 @@ import alphaquant.cluster_utils as aqclust_utils
 
 
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
-min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.05, cluster_threshold_fcfc = 0, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
+min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.2, cluster_threshold_fcfc = 0, fcdiff_cutoff_clustermerge = 0.5, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
 use_iontree_if_possible = None, write_out_results_tree = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
 annotation_file = None, protein_subset_for_normalization_file = None):
 
@@ -260,7 +260,9 @@ def analyze_condpair(*,runconfig, condpair):
             continue
         diffprot = aqdiff.DifferentialProtein(prot, ions, runconfig.median_offset, runconfig.dia_fragment_selection)
         if use_ion_tree:
-            clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc, take_median_ion=runconfig.take_median_ion)
+            clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, 
+                                                                          pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc, 
+                                                                          take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge)
             #print(anytree.RenderTree(clustered_root_node))
             #if not clustered_root_node.is_included:
              #   continue
