@@ -137,10 +137,11 @@ def assign_cluster_number(type_node, childnode2clust):
         node.cluster = clustid
 
 
-def assign_clusterstats_to_type_node(type_node, clustered):
-    type_node.num_clusters = len(set(clustered))
-    type_node.num_mainclusts = sum([x==0 for x in clustered])
-    type_node.frac_mainclust = type_node.num_mainclusts/len(clustered)
+def assign_clusterstats_to_type_node(type_node, childnode2clust):
+    clust_nums = list(childnode2clust.values())
+    type_node.num_clusters = len(set(clust_nums))
+    type_node.num_mainclusts = sum([x==0 for x in clust_nums])
+    type_node.frac_mainclust = type_node.num_mainclusts/len(clust_nums)
 
 
 import scipy.stats
@@ -188,6 +189,9 @@ import anytree
 from anytree.exporter import JsonExporter
 import alphaquant.diffquant_utils as aqutils
 
+from numpy import int64
+from anytree import Node, iterators
+
 def export_roots_to_json(rootlist, condpair, results_dir):
     """exports all base roots for a given condition pair to a json file"""
     condpairname = aqutils.get_condpairname(condpair)
@@ -195,6 +199,15 @@ def export_roots_to_json(rootlist, condpair, results_dir):
     for root in rootlist:
         root.parent = condpair_node
     results_file = f"{results_dir}/{condpairname}.iontrees.json"
+
+
+    # Assuming 'root' is the root of your anytree object
+    nodes = list(iterators.PreOrderIter(root))
+    for node in nodes:
+        for var in vars(node):
+            value = getattr(node, var)
+            if isinstance(value, int64):
+                print(f"Node {node.name} has an {var} with value {value} of type int64")
 
     j_exporter = JsonExporter(indent=2, sort_keys=True)
     filehandle = open(results_file, "w")
