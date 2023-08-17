@@ -178,6 +178,14 @@ def invert_dictionary(my_map):
         inv_map[v] = inv_map.get(v, []) + [k]
     return inv_map
 
+from collections import defaultdict
+def invert_tuple_list_w_nonunique_values(tuple_list):
+    inverted_dict = defaultdict(list)
+    for key, value in tuple_list:
+        inverted_dict[value].append(key)
+    return inverted_dict
+
+
 # Cell
 import statistics
 
