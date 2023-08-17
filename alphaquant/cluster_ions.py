@@ -9,15 +9,18 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
            'get_median_peptides', 'select_predscore_with_minimum_absval', 'get_diffresults_from_clust_root_node',
            'get_scored_clusterselected_ions', 'assign_fcs_to_base_ions', 'update_nodes_w_ml_score',
            're_order_depending_on_predscore', 're_order_clusters_by_predscore', 'TypeFilter',
-           'globally_initialized_typefilter', 'NodeProperties', 'regex_frgions_only', 'regex_frgions_isotopes',
+           'globally_initialized_typefilter', 'NodeProperties', 'regex_frgions_only', 'REGEX_FRGIONS_ISOTOPES',
            'export_roots_to_json']
 
 # Cell
 import scipy.spatial.distance as distance
 import scipy.cluster.hierarchy as hierarchy
 import alphaquant.cluster_utils as aqcluster_utils
+import alphaquant.diffquant_utils as aqutils
 
-regex_frgions_isotopes = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
+REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
+FCDIFF_CUTOFF_CLUSTERMERGE = 0.5
+
 
 
 import numpy as np
@@ -30,10 +33,15 @@ class TypeFilter():
 globally_initialized_typefilter = TypeFilter()
 
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
+
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion,
+                                    fcdiff_cutoff_clustermerge):
     #typefilter = TypeFilter('successive')
 
-    regex_patterns = regex_frgions_isotopes
+    regex_patterns = REGEX_FRGIONS_ISOTOPES
+    global FCDIFF_CUTOFF_CLUSTERMERGE
+    FCDIFF_CUTOFF_CLUSTERMERGE = fcdiff_cutoff_clustermerge
+
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions)
     #print(anytree.RenderTree(root_node))
@@ -90,17 +98,30 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             continue
         for type_node in type_nodes:
             child_nodes = type_node.children
-            leaflist = aqcluster_utils.get_mainclust_leaves(child_nodes, ionname2diffion)
-            if len(leaflist)==0:
+            diffions = aqcluster_utils.get_mainclust_leaves(child_nodes, ionname2diffion)
+            if len(diffions)==0:
                 exclude_node(type_node)
                 continue
-            childnode2clust = find_fold_change_clusters(type_node,leaflist, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
-            childnode2clust = decide_cluster_order(type_node,childnode2clust)
+            
+            if len(diffions)==1:
+                childnode2clust = get_childnode2clust_for_single_ion(type_node)
+            else:
+                childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
+                childnode2clust = merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
+                childnode2clust = decide_cluster_order(type_node,childnode2clust)
+            
+            aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
             aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
             aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
             aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
     return root_node
+
+def get_childnode2clust_for_single_ion(type_node):
+    type_node.num_clusters = 1
+    type_node.num_mainclusts = 1
+    type_node.frac_mainclust = 1
+    return {type_node.children[0]: 0}
 
 
 def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):
@@ -117,12 +138,6 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
         pval_threshold_basis (float, optional): [description]. Defaults to 0.05.
     """
 
-    if len(diffions)==1:
-        type_node.num_clusters = 1
-        type_node.num_mainclusts = 1
-        type_node.frac_mainclust = 1
-        return [(type_node.children[0], 0)]
-
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
@@ -130,12 +145,54 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     after_clust = hierarchy.complete(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
-    aqcluster_utils.assign_clusterstats_to_type_node(type_node, clustered)
 
     childnode2clust = [(type_node.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
     childnode2clust = sorted(childnode2clust, key = lambda x : x[0].name) #sort list for reproducibility
 
     return childnode2clust
+
+
+def merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge = 0.5):
+    clust2childnodes = aqutils.invert_tuple_list_w_nonunique_values(childnode2clust)
+
+    if len(clust2childnodes.keys())==1:
+        return childnode2clust
+
+    clust2fc = {}
+    for clust, childnodes in clust2childnodes.items():
+        clust2fc[clust] = np.median([x.fc for x in childnodes])
+
+    clusters = list(clust2fc.keys())
+    clust_idxs = [[x] for x in range(len(clusters))]
+
+    condensed_distance_matrix = distance.pdist(clust_idxs, lambda idx1, idx2: compare_fcdistance(clusters, idx1, idx2, clust2fc))
+    after_clust = hierarchy.complete(condensed_distance_matrix)
+    clustered = hierarchy.fcluster(after_clust, fcdiff_cutoff_clustermerge, criterion='distance')
+
+    childnode2clust = update_childnode2clust(childnode2clust, clusters, clustered)
+
+    return childnode2clust
+
+
+def compare_fcdistance(clusters, idx1, idx2, clust2fc):
+    clust1 = clusters[idx1[0]]
+    clust2 = clusters[idx2[0]]
+
+    fc1 = clust2fc.get(clust1)
+    fc2 = clust2fc.get(clust2)
+
+    return abs(fc1-fc2)
+
+
+
+def update_childnode2clust(childnode2clust, old_clusters, new_clusters):
+    old2new = dict(zip(old_clusters, new_clusters))
+    childnode2clust_new = []
+    for childnode, old_clust in childnode2clust:
+        new_clust = old2new[old_clust]
+        childnode2clust_new.append((childnode, new_clust))
+    return childnode2clust_new
+    
 
 
 # Cell
@@ -257,4 +314,3 @@ def re_order_clusters_by_predscore(nodes):
     clust2newclust = { clusters[x] :x for x in range(len(clusters))}
     for node in nodes:
         node.cluster =clust2newclust.get(node.cluster)
-
