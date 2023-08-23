@@ -317,8 +317,8 @@ import scipy.stats
 
 
 class ComplementedClusterEvaluator():
-    def __init__(self, complemented_clusterloader, cluster_filterconfigs):
-        self._complemented_clusters = self._load_complemented_clusters(complemented_clusterloader, cluster_filterconfigs)
+    def __init__(self, complmented_clusters):
+        self._complemented_clusters = complmented_clusters
         self._fcs_outliers = None
         self._fcs_modpeps = None
         self._assign_fold_change_lists()
@@ -361,10 +361,6 @@ class ComplementedClusterEvaluator():
 
 
 
-    @staticmethod
-    def _load_complemented_clusters(complemented_clusterloader, cluster_filterconfigs):
-        cfilterer = ComplementedClusterFilterer(complemented_clusterloader, cluster_filterconfigs)
-        return cfilterer.get_filtered_complemented_clusters()
 
     @staticmethod
     def _plot_regulation_direction_histogram(ax, opposite_regulation_overview):
