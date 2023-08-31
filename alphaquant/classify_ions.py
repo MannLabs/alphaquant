@@ -19,6 +19,64 @@ import pandas as pd
 import scipy.stats
 from alphaquant.variables import QUANT_ID
 
+
+import alphaquant.diffquant_utils as aqutils
+import alphaquant.visualizations as aqplot
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, 
+                                 replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}):
+
+    #add predictability scores to each precursor
+    #prepare the input table with all the relevant features for machine learning
+    dfhandler = aqutils.AcquisitionTableHandler(results_dir=results_dir,samples=samples_used)
+    acquisition_info_df = dfhandler.get_acquisition_info_df()
+    node_level = get_node_level_from_dfhandler(dfhandler)
+    protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
+    normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo)
+    df_precursor_features = collect_node_parameters(normalized_precursors)
+    merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
+
+    #transform into ML input
+    X, y, featurenames, ionnames = generate_ml_input_regression(merged_df, normalized_precursors, replace_nans=replace_nans)
+
+    test_fc_name_mapping(y, ionnames, normalized_precursors)
+
+    #predict the subset of peptides that is accessible to protein shifting (only the ones with at least 2 peps per protein)
+    regr = RandomForestRegressor()
+    y_test_cp, y_pred_cp, ionnames_cp, regr = random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr)
+    print("performed RF prediction")
+    performance_metrics["r2_score"] = r2_score(y_test_cp, y_pred_cp)
+    test_fc_name_mapping(y_test_cp, ionnames_cp, normalized_precursors)
+
+    #define plot outdir
+    results_dir_plots =f"{results_dir}/{name}"
+    aqutils.make_dir_w_existcheck(results_dir_plots)
+    if plot_predictor_performance:
+        plt.hist(y_test_cp, 60, density=True, histtype='stepfilled',cumulative=False, alpha = 0.5)
+        plt.xlim(-1.8, 1.8)
+        plt.show()
+
+        aqplot.scatter_ml_regression_perturbation_aware(y_test=y_test_cp, y_pred = y_pred_cp, ionnames=ionnames_cp, nodes=normalized_precursors, results_dir=results_dir_plots)
+        aqplot.plot_ml_fc_histograms(y_test_cp, y_pred_cp, 0.5, results_dir_plots)
+        aqplot.plot_feature_importances(regr.feature_importances_,featurenames, 10, results_dir_plots)
+
+    #mean, cutoff_neg, cutoff_pos = find_mean_and_cutoffs(y_pred_cp, visualize= plot_predictor_performance)
+    mean, cutoff_neg, cutoff_pos = fit_gaussian_to_subdist(y_pred_cp, visualize=plot_predictor_performance,results_dir = results_dir_plots)
+    #use the trained model to predict the remaining ions and stitch together with the already predicted ions
+    y_pred_total, ionnames_total = predict_remaining_dataset(all_precursors, regr, y_pred_cp, ionnames_cp, acquisition_info_df)
+
+    y_pred_normed = y_pred_total-mean
+
+    #add quality scores to nodes
+
+    add_quality_scores_to_node(acquisition_info_df, all_precursors)
+
+    #annotate the precursor nodes
+    annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
+
+
 def collect_node_parameters(all_nodes, w_annot = True):
     ion2param2val = {}
     all_headers = set()
@@ -754,60 +812,6 @@ def calculate_log_loss_scores_for_prediction(y_test, y_pred):
     return loss_scores
 
 # Cell
-import alphaquant.diffquant_utils as aqutils
-import alphaquant.visualizations as aqplot
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-
-def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}):
-
-    #add predictability scores to each precursor
-    #prepare the input table with all the relevant features for machine learning
-    dfhandler = aqutils.AcquisitionTableHandler(results_dir=results_dir,samples=samples_used)
-    acquisition_info_df = dfhandler.get_acquisition_info_df()
-    node_level = get_node_level_from_dfhandler(dfhandler)
-    protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
-    normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo)
-    df_precursor_features = collect_node_parameters(normalized_precursors)
-    merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
-
-    #transform into ML input
-    X, y, featurenames, ionnames = generate_ml_input_regression(merged_df, normalized_precursors, replace_nans=replace_nans)
-
-    test_fc_name_mapping(y, ionnames, normalized_precursors)
-
-    #predict the subset of peptides that is accessible to protein shifting (only the ones with at least 2 peps per protein)
-    regr = RandomForestRegressor()
-    y_test_cp, y_pred_cp, ionnames_cp, regr = random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr)
-    print("performed RF prediction")
-    performance_metrics["r2_score"] = r2_score(y_test_cp, y_pred_cp)
-    test_fc_name_mapping(y_test_cp, ionnames_cp, normalized_precursors)
-
-    #define plot outdir
-    results_dir_plots =f"{results_dir}/{name}"
-    aqutils.make_dir_w_existcheck(results_dir_plots)
-    if plot_predictor_performance:
-        plt.hist(y_test_cp, 60, density=True, histtype='stepfilled',cumulative=False, alpha = 0.5)
-        plt.xlim(-1.8, 1.8)
-        plt.show()
-
-        aqplot.scatter_ml_regression_perturbation_aware(y_test=y_test_cp, y_pred = y_pred_cp, ionnames=ionnames_cp, nodes=normalized_precursors, results_dir=results_dir_plots)
-        aqplot.plot_ml_fc_histograms(y_test_cp, y_pred_cp, 0.5, results_dir_plots)
-        aqplot.plot_feature_importances(regr.feature_importances_,featurenames, 10, results_dir_plots)
-
-    #mean, cutoff_neg, cutoff_pos = find_mean_and_cutoffs(y_pred_cp, visualize= plot_predictor_performance)
-    mean, cutoff_neg, cutoff_pos = fit_gaussian_to_subdist(y_pred_cp, visualize=plot_predictor_performance,results_dir = results_dir_plots)
-    #use the trained model to predict the remaining ions and stitch together with the already predicted ions
-    y_pred_total, ionnames_total = predict_remaining_dataset(all_precursors, regr, y_pred_cp, ionnames_cp, acquisition_info_df)
-
-    y_pred_normed = y_pred_total-mean
-
-    #add quality scores to nodes
-
-    add_quality_scores_to_node(acquisition_info_df, all_precursors)
-
-    #annotate the precursor nodes
-    annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
 
 
 from .cluster_ions import globally_initialized_typefilter
