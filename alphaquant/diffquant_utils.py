@@ -322,6 +322,12 @@ def get_path_to_unformatted_file(input_file_name):
 from anytree.importer import JsonImporter
 import os
 
+def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
+
+    tree_sn = read_condpair_tree(cond1, cond2, results_folder=results_folder)
+    tree_sn.type = "asd"
+    return anytree.findall(tree_sn, filter_= lambda x : (x.type == node_type))
+
 def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
     """reads the merged and clustered iontree for a given condpair"""
     condpairname = get_condpairname([cond1, cond2])
