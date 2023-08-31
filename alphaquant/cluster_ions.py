@@ -298,7 +298,7 @@ def re_order_depending_on_predscore(protnode, typefilter):
             child_nodes = type_node.children
             had_predscore = hasattr(child_nodes[0], 'predscore')
             if had_predscore:
-                aqcluster_utils.re_order_clusters_by_predscore(child_nodes)
+                re_order_clusters_by_predscore(child_nodes)
                 aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
 
