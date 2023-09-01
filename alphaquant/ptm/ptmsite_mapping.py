@@ -17,6 +17,8 @@ import alphaquant.diffquant.diffutils as utils
 from alphaquant.config.variables import *
 
 
+#helper classes
+
 # Cell
 import numpy as np
 class ModifiedPeptide():
@@ -59,7 +61,11 @@ class ModifiedPeptide():
         self.encoded_probs = None
 
 
-# Cell
+# Helper Functions
+
+## Group ions and reduce redundancies
+
+
 
 import copy
 def merge_samecond_modpeps(ions, sample2cond, id_thresh, excl_thresh):
@@ -141,7 +147,7 @@ def retrieve_probabilities_diann(localisation_probability):
         raise ValueError(f"The case of localisation probability {localisation_probability} in type {type(localisation_probability)} is not yet implemented for DIANN type input!")
     return np.array([localisation_probability])
 
-# Cell
+## Compare and cluster ions
 
 def cluster_ions(ions):
     res = []
@@ -217,7 +223,7 @@ def get_condensed_matrix(seqs, encoded):
             count+=1
     return res
 
-# Cell
+## Read and reformat input files
 import pandas as pd
 
 def read_df_spectronaut_reduce_cols(input_file, modification_type):
@@ -360,11 +366,12 @@ def get_path_to_database(database_path, database_name, organism):
         if os.path.exists(database_path):
             return database_path
     else:
-        database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "reference_databases", organism, database_name)
+        database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "..","resources","reference_databases", organism, database_name)
         return database_path
 
+# Workflow
+## Assign all ions for a given protein
 
-# Cell
 import pandas as pd
 import numpy as np
 
@@ -406,7 +413,8 @@ def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
 
     return id2groupid, id2normedid
 
-# Cell
+## Iterate through dataset
+
 def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
 sequence_file=None, input_type = "Spectronaut", organism = "human"):
     if input_type == "Spectronaut":
@@ -579,7 +587,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     return mapped_df, siteprob_df
 
 
-# Cell
+## Create ptm mapped input tables
 
 import numpy as np
 import alphaquant.diffquant.diffutils as aqutils
@@ -637,7 +645,8 @@ def get_ptmid_mappings(mapped_df):
 
 
 
-# Cell
+# Detect Changes in site occupancy
+
 import pandas as pd
 import numpy as np
 
