@@ -35,7 +35,7 @@ import alphaquant.cluster_utils as aqclust_utils
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", condpair_combinations = None, minrep = 2,
 min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.2, cluster_threshold_fcfc = 0, fcdiff_cutoff_clustermerge = 0.5, use_ml = True, take_median_ion = True,outlier_correction = True, normalize = True,
 use_iontree_if_possible = None, write_out_results_tree = True, get_ion2clust = False, median_offset = False, pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
-annotation_file = None, protein_subset_for_normalization_file = None):
+annotation_file = None, protein_subset_for_normalization_file = None, protnorm_peptides = True):
 
     """Run the differential analyses.
     """
@@ -291,8 +291,10 @@ def analyze_condpair(*,runconfig, condpair):
         if runconfig.use_ml:
             ml_performance_dict = {}
             ml_successfull = True
-            aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
-            fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, replace_nans=True, performance_metrics=ml_performance_dict)
+            aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
+                                                 samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
+            fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, 
+            replace_nans=True, performance_metrics=ml_performance_dict, protnorm_peptides=runconfig.protnorm_peptides)
 
 
             if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
