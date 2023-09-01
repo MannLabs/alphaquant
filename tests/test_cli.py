@@ -5,7 +5,7 @@
 import unittest
 
 # local
-import alphaquant.cli
+import alphaquant.ui.cli
 
 if __name__ == "__main__":
     unittest.main()
