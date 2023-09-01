@@ -26,7 +26,8 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
 def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, 
-                                 replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}):
+                                 replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}, protnorm_peptides = True):
+    #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
     #add predictability scores to each precursor
     #prepare the input table with all the relevant features for machine learning
@@ -34,7 +35,7 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     acquisition_info_df = dfhandler.get_acquisition_info_df()
     node_level = get_node_level_from_dfhandler(dfhandler)
     protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
-    normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo)
+    normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo, protnorm_peptides=protnorm_peptides)
     df_precursor_features = collect_node_parameters(normalized_precursors)
     merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
 
@@ -75,6 +76,30 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
 
     #annotate the precursor nodes
     annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
+
+
+def generate_ml_input_regression(df_precursor_features, nodes, replace_nans = False):
+    ion2fc = {x.name: x.fc for x in nodes}
+    if replace_nans:
+        df_precursor_features = replace_nans_feature_dependent(df_precursor_features)
+    else:
+        df_precursor_features = df_precursor_features.dropna()
+    df_precursor_features = df_precursor_features[[(x in ion2fc.keys()) for x in df_precursor_features[QUANT_ID]]]
+    ionnames = list(df_precursor_features[QUANT_ID])
+    df_precursor_features = df_precursor_features.drop(columns=[QUANT_ID])
+    X = df_precursor_features.to_numpy()
+    y = np.array([ion2fc.get(ion) for ion in ionnames])
+    featurenames = list(df_precursor_features.columns)
+    return X, y, featurenames, ionnames
+
+def replace_nans_feature_dependent(df_precursor_features):
+    colums_lower_is_worse = [x for x in  df_precursor_features.columns if 'frac_mainclust' in x]
+    columns_higher_is_worse = [x for x in df_precursor_features.columns if x not in colums_lower_is_worse]
+    df_precursor_features[colums_lower_is_worse] = df_precursor_features[colums_lower_is_worse].replace(np.nan, 0)
+    df_precursor_features[columns_higher_is_worse] = df_precursor_features[columns_higher_is_worse].replace(np.nan, 10)
+
+    return df_precursor_features
+
 
 
 def collect_node_parameters(all_nodes, w_annot = True):
@@ -331,13 +356,13 @@ import anytree
 import copy
 import random
 import numpy as np
-def get_fc_normalized_nodes(nodes_fclevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = np.inf):
+def get_fc_normalized_nodes(nodes_protlevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = np.inf, protnorm_peptides = True):
     """"get nodes of type lowerlevel which are normalized by the fclevel fold change"""
     randnr_generator = random.Random(42)
     normalized_lowerlevels = [] #the normalized lowerlevels are copied values used for training, better change to different variable names to be used
     all_lowerlevels = []
     count_precursors = 0
-    for prot in nodes_fclevel:
+    for prot in nodes_protlevel:
         precursors = anytree.findall(prot, filter_= lambda x : (x.type == type_lowerlevel))
         all_lowerlevels.extend(precursors)
         if len(precursors)<min_nums_lowerlevel:
@@ -347,7 +372,9 @@ def get_fc_normalized_nodes(nodes_fclevel, type_lowerlevel, min_nums_lowerlevel 
             continue
         for precursor in precursors: #shift every peptide by the protein fold change, this should make peptides from different proteins comparable and enable analyses/ml on this dataset
             precursor = copy.copy(precursor)
-            precursor.fc = precursor.fc - fc_prot
+            if protnorm_peptides: #protnorm peptides should always be true, except when the dataset run tests different injection amounts
+                precursor.fc = precursor.fc - fc_prot
+            
             if count_precursors%distort_precursor_modulo==0:
                 perturbation = randnr_generator.uniform(-2, 2)
                 precursor.fc=precursor.fc + perturbation
@@ -370,30 +397,11 @@ def get_intersect_sn_diann_precursors(cond1, cond2, sn_folder, diann_folder):
     return intersect
 
 # Cell
-def replace_nans_feature_dependent(df_precursor_features):
-    colums_lower_is_worse = [x for x in  df_precursor_features.columns if 'frac_mainclust' in x]
-    columns_higher_is_worse = [x for x in df_precursor_features.columns if x not in colums_lower_is_worse]
-    df_precursor_features[colums_lower_is_worse] = df_precursor_features[colums_lower_is_worse].replace(np.nan, 0)
-    df_precursor_features[columns_higher_is_worse] = df_precursor_features[columns_higher_is_worse].replace(np.nan, 10)
-
-    return df_precursor_features
 
 
 # Cell
 
-def generate_ml_input_regression(df_precursor_features, nodes, replace_nans = False):
-    ion2fc = {x.name: x.fc for x in nodes}
-    if replace_nans:
-        df_precursor_features = replace_nans_feature_dependent(df_precursor_features)
-    else:
-        df_precursor_features = df_precursor_features.dropna()
-    df_precursor_features = df_precursor_features[[(x in ion2fc.keys()) for x in df_precursor_features[QUANT_ID]]]
-    ionnames = list(df_precursor_features[QUANT_ID])
-    df_precursor_features = df_precursor_features.drop(columns=[QUANT_ID])
-    X = df_precursor_features.to_numpy()
-    y = np.array([ion2fc.get(ion) for ion in ionnames])
-    featurenames = list(df_precursor_features.columns)
-    return X, y, featurenames, ionnames
+
 
 # Cell
 import matplotlib.pyplot as plt
