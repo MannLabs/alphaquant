@@ -84,7 +84,7 @@ import math
 import statistics
 
 import numpy as np
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 class DifferentialProtein():
 
     def __init__(self, name, ion_diffresults, median_offset, dia_fragment_selection = False):

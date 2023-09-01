@@ -20,7 +20,7 @@ import scipy.stats
 from alphaquant.config.variables import QUANT_ID
 
 
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.viz.visualizations as aqplot
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
@@ -341,7 +341,7 @@ def get_precursor2fc(cond1, cond2, results_folder):
     return result_dict
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
 
@@ -564,7 +564,7 @@ def get_trained_predictor_and_predicted_trainset(X, y, ionnames, number_splits, 
     return y_test_all, y_pred_all, ionnames_all, regr
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 def predict_remaining_dataset(all_precursors, regr, y_pred_cp, ionnames_cp, acquisition_info_df):
     precursors_to_predict = [x for x in all_precursors if x.name not in ionnames_cp]

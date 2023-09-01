@@ -16,7 +16,7 @@ __all__ = ['find_fold_change_clusters', 'exchange_cluster_idxs', 'decide_cluster
 import scipy.spatial.distance as distance
 import scipy.cluster.hierarchy as hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
 FCDIFF_CUTOFF_CLUSTERMERGE = 0.5
@@ -247,7 +247,7 @@ def reformat_to_childnode2clust(id2score2childnodes):
 
 # Cell
 import statistics
-import alphaquant.diff.doublediff_analysis as aqdd
+import alphaquant.diffquant.doublediff_analysis as aqdd
 import numpy as np
 def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold,  take_median_ion):
     ions1 = [x.name for x in diffions[idx1]]

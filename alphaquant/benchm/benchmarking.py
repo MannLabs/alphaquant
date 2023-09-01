@@ -328,7 +328,7 @@ def get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
 import alphaquant.run_alphaquant as aqmgr
 import alphaquant.norm.normalization as aqnorm
 import alphaquant.cluster_ions as aqclust
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import anytree
 import math
 import os
@@ -551,7 +551,7 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
 
 # Cell
 import alphaquant.viz.visualizations as aqviz
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import sklearn.metrics
 
 
@@ -706,7 +706,7 @@ def decide_filter_function(input_table):
 
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import seaborn as sns
 import alphaquant.viz.visualizations as aqplot
 import os.path
@@ -974,7 +974,7 @@ import alphaquant.benchm.benchmarking as aqbench
 import alphaquant.viz.visualizations as aqplot
 import numpy as np
 import alphaquant.classify.classify_ions as aqclass
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster_ions as aqclust
 import anytree
 

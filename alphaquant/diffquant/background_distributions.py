@@ -7,7 +7,7 @@ __all__ = ['ConditionBackgrounds', 'BackGroundDistribution', 'SubtractedBackgrou
 # Cell
 from time import time
 import numpy as np
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 class ConditionBackgrounds():
 
     def __init__(self, normed_condition_df, p2z):

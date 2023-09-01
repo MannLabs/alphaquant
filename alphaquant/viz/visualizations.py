@@ -25,7 +25,7 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'PeptideIntensityDataframeGetter', 'ProteinClusterPlotter']
 
 # Cell
-import alphaquant.diff.diffutils as utils
+import alphaquant.diffquant.diffutils as utils
 import alphaquant.config.variables as aqvars
 
 # Cell
@@ -841,7 +841,7 @@ def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "r
     return diffprots
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import numpy as np
 
 def get_diffresult_dict_ckg_format(cond1, cond2, results_folder = os.path.join(".", "results")):
@@ -1304,7 +1304,7 @@ def foldchange_ion_plot_plotly(
 
     return fig
 
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 def get_color2ions(protein_node, level):
     clust2ions = {}
 
@@ -1739,7 +1739,7 @@ import numpy as np
 from sklearn import metrics
 import random
 import seaborn as sns
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 
 
@@ -1853,7 +1853,7 @@ def plot_precision_recall_curve(true_falses, scores, name, ax):
 
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.viz.visualizations as aqviz
 import anytree
 import matplotlib.pyplot as plt
@@ -1877,7 +1877,7 @@ def compare_fcs_unperturbed_vs_perturbed_and_clustered(results_dir_unperturbed, 
 # Cell
 import pandas as pd
 import anytree
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 
 class CondpairQuantificationInfo():
@@ -2065,7 +2065,7 @@ class PeptideIntensityDataframeGetter(ProteinIntensityDataFrameGetter):
 
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import anytree
 
 class ProteinClusterPlotter():

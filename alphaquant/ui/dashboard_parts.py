@@ -9,7 +9,7 @@ from scipy import stats
 import alphaquant.gui_textfields as gui_textfields
 
 # alphaquant important
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.run_alphaquant as diffmgr
 import alphaquant.viz.visualizations as aqplot
 

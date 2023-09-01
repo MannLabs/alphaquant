@@ -22,7 +22,7 @@ from itertools import combinations
 import numpy as np
 import statsmodels.stats.multitest as mt
 from time import time
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.viz.visualizations as aqviz
 
 import alphaquant.ptm.ptmsite_mapping as aqptm
@@ -133,7 +133,7 @@ def check_input_consistency(input_file, samplemap_file, samplemap_df):
     return True
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 def get_unnormed_df_condpair(input_file:str, samplemap_df:pd.DataFrame, condpair:str) -> pd.DataFrame:
 
 
@@ -172,7 +172,7 @@ def get_minrep_for_cond(c_samples, minrep):
 
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
 def determine_if_ion_tree_is_used(runconfig):
     if runconfig.use_iontree_if_possible is not None:
@@ -188,7 +188,7 @@ import alphaquant.background_distributions as aqbg
 import alphaquant.diff_analysis as aqdiff
 import alphaquant.norm.normalization as aqnorm
 import alphaquant.viz.visualizations as aqviz
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import anytree

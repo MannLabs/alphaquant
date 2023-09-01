@@ -8,7 +8,7 @@ __all__ = ['OutlierHandler', 'ProtnodeClusterChecker', 'ClusterInfo', 'ClusterDi
            'DiffClusterFilterConfig', 'OutlierPeptideFilterer', 'OutlierPeptideFilterConfigs']
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import numpy as np
 import copy
 import anytree

@@ -13,7 +13,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
            'initialize_ptmsite_df', 'detect_site_occupancy_change', 'check_site_occupancy_changes_all_diffresults']
 
 # Cell
-import alphaquant.diff.diffutils as utils
+import alphaquant.diffquant.diffutils as utils
 from alphaquant.config.variables import *
 
 
@@ -582,7 +582,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
 # Cell
 
 import numpy as np
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 import os
 
 def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes', chunksize = 100_000):

@@ -4,7 +4,7 @@ __all__ = ['PTMResultsNormalizer', 'PTMtableLocalizer', 'PTMFiles', 'PTMtableNor
            'RegulationInfos', 'FDRDamper']
 
 # Cell
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 class PTMResultsNormalizer():
     def __init__(self, results_dir_ptm, results_dir_proteome):

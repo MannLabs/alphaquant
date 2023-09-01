@@ -2,7 +2,7 @@
 # Cell
 import anytree
 import alphaquant.diff_analysis as aqdiff
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 from statistics import NormalDist
 import statistics
 import numpy as np
@@ -187,7 +187,7 @@ def get_diffresults_from_clust_root_node(root_node):
 
 import anytree
 from anytree.exporter import JsonExporter
-import alphaquant.diff.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqutils
 
 from numpy import int64
 from anytree import Node, iterators
