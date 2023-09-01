@@ -1,7 +1,7 @@
 
 # Cell
 import anytree
-import alphaquant.diff_analysis as aqdiff
+import alphaquant.diffquant.diff_analysis as aqdiff
 import alphaquant.diffquant.diffutils as aqutils
 from statistics import NormalDist
 import statistics

@@ -822,7 +822,7 @@ def calculate_log_loss_scores_for_prediction(y_test, y_pred):
 # Cell
 
 
-from .cluster_ions import globally_initialized_typefilter
+from alphaquant.cluster.cluster_ions import globally_initialized_typefilter
 def get_node_level_from_dfhandler(dfhandler):
     return globally_initialized_typefilter.mapping_dict.get(dfhandler._table_infos.last_ion_level_to_use)
 

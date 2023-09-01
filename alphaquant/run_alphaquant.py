@@ -184,12 +184,12 @@ def determine_if_ion_tree_is_used(runconfig):
 
 
 # Cell
-import alphaquant.background_distributions as aqbg
-import alphaquant.diff_analysis as aqdiff
+import alphaquant.diffquant.background_distributions as aqbg
+import alphaquant.diffquant.diff_analysis as aqdiff
 import alphaquant.norm.normalization as aqnorm
 import alphaquant.viz.visualizations as aqviz
 import alphaquant.diffquant.diffutils as aqutils
-import alphaquant.cluster_ions as aqclust
+import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import anytree
 

@@ -327,13 +327,13 @@ def get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
 # Cell
 import alphaquant.run_alphaquant as aqmgr
 import alphaquant.norm.normalization as aqnorm
-import alphaquant.cluster_ions as aqclust
+import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.diffquant.diffutils as aqutils
 import anytree
 import math
 import os
 import alphaquant.run_alphaquant as aqdiffmgr
-import alphaquant.background_distributions as aqbg
+import alphaquant.diffquant.background_distributions as aqbg
 import pandas as pd
 
 
@@ -413,7 +413,7 @@ def filter_check_protnode(protnode):
         return list(check_nodes)[0]
 
 
-import alphaquant.diff_analysis as aqdiff
+import alphaquant.diffquant.diff_analysis as aqdiff
 
 def get_subset_of_diffions(normed_c1, normed_c2, num_ions):
     ion2diffDist = {}
@@ -975,7 +975,7 @@ import alphaquant.viz.visualizations as aqplot
 import numpy as np
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.diffquant.diffutils as aqutils
-import alphaquant.cluster_ions as aqclust
+import alphaquant.cluster.cluster_ions as aqclust
 import anytree
 
 

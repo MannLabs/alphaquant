@@ -4,7 +4,7 @@ __all__ = ['calc_per_peppair_z_and_fcfc', 'calculate_pairpair_overlap_factor', '
            'calc_doublediff_score', 'get_indexes_present_in_both_ions']
 
 # Cell
-import alphaquant.background_distributions as aqbg
+import alphaquant.diffquant.background_distributions as aqbg
 from numba import njit
 
 @njit
@@ -81,7 +81,7 @@ def calculate_scaled_pval(z_sum, firstterm_variance, secondterm_variance):
 
 
 # Cell
-import alphaquant.background_distributions as aqbg
+import alphaquant.diffquant.background_distributions as aqbg
 import numpy as np
 
 
