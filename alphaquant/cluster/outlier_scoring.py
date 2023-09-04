@@ -8,7 +8,7 @@ __all__ = ['OutlierHandler', 'ProtnodeClusterChecker', 'ClusterInfo', 'ClusterDi
            'DiffClusterFilterConfig', 'OutlierPeptideFilterer', 'OutlierPeptideFilterConfigs']
 
 # Cell
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.cluster.cluster_utils as aqclustutils
 import numpy as np
 import copy
 import anytree
@@ -18,7 +18,7 @@ class OutlierHandler():
         self._protnodes = self.__load_protein_nodes__(results_dir, cond1, cond2)
 
     def __load_protein_nodes__(self, results_dir, cond1, cond2):
-        return aqutils.read_condpair_tree(results_folder=results_dir, cond1=cond1, cond2 = cond2).children
+        return aqclustutils.read_condpair_tree(results_folder=results_dir, cond1=cond1, cond2 = cond2).children
 
     def get_diffclust_overview_list(self):
         """_summary_
@@ -168,7 +168,7 @@ class ProteinInfo():
         self.protein_fc = self._get_protein_fc(peptide_node)
 
     def _get_protein_fc(self, peptide_node):
-        return aqutils.find_node_parent_at_level(peptide_node, "gene").fc
+        return aqclustutils.find_node_parent_at_level(peptide_node, "gene").fc
 
 
 class OutlierPeptideInfo(ProteinInfo):
@@ -241,11 +241,11 @@ class PeptideWithSpecificModification(OutlierPeptideInfo):
         return specific_modification in self.modified_sequence
 
     def _get_peptide_sequence(self, node_modpeptide):
-        pepnode = aqutils.find_node_parent_at_level(node_modpeptide, level='seq')
+        pepnode = aqclustutils.find_node_parent_at_level(node_modpeptide, level='seq')
         return pepnode.name
 
     def _get_protein_name(self, node_modpeptide):
-        pepnode = aqutils.find_node_parent_at_level(node_modpeptide, level='gene')
+        pepnode = aqclustutils.find_node_parent_at_level(node_modpeptide, level='gene')
         return pepnode.name
 
 # Cell
