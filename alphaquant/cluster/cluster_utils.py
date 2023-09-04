@@ -194,6 +194,7 @@ def export_roots_to_json(rootlist, condpair, results_dir):
     """exports all base roots for a given condition pair to a json file"""
     condpairname = aqutils.get_condpairname(condpair)
     condpair_node = anytree.Node(condpair) #set the condpair as node and export the whole condpair as one tree
+    condpair_node.type = "condpair"
     for root in rootlist:
         root.parent = condpair_node
     results_file = f"{results_dir}/{condpairname}.iontrees.json"
