@@ -228,7 +228,8 @@ def generate_protein_list(pepnames):
     return res
 
 
-# Cell
+# Utility functions to compare against other methods
+
 def annotate_fcs_to_wideformat_table(wideformat_df, columns_intens_c1, columns_intens_c2, num_reps = None):
     wideformat_df[columns_intens_c1+columns_intens_c2] = wideformat_df[columns_intens_c1+columns_intens_c2].replace(0, np.nan)
     prots_c1 = wideformat_df[columns_intens_c1]
@@ -265,7 +266,7 @@ def prepare_mq_table(mq_df, columns_intens_c1, columns_intens_c2):
     mq_df["method"] = ["MaxQuant" for x in range(len(mq_df.index))]
     return mq_df
 
-# Cell
+# System-wide benchmark
 
 def cluster_selected_proteins(protnames, quant_df, normed_c1, normed_c2, pval_threshold_basis = 0.05, fcfc_threshold = 0, take_median_ion=False):
     pep2prot = dict(zip(quant_df.index, quant_df['protein']))
@@ -600,7 +601,8 @@ def eval_clustered_results(results_perturbed):
 
 
 
-# Cell
+# Prepare Benchmarking Sets
+
 from pyopenms import ProteaseDigestion, AASequence
 import pyfasta
 import pandas as pd
@@ -705,7 +707,7 @@ def decide_filter_function(input_table):
     return software_filter_function
 
 
-# Cell
+# Spike-in Benchmarks
 import alphaquant.diffquant.diffutils as aqutils
 import seaborn as sns
 import alphaquant.viz.visualizations as aqplot
@@ -1038,7 +1040,10 @@ def get_benchmark_setting_name(condpair, replace_nan, distort_number, diann_inte
 
     return name
 
-# Cell
+# Ratio Comparisons
+
+## Classification tests
+
 import pandas as pd
 import functools
 
