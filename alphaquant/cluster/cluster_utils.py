@@ -1,8 +1,6 @@
 
 # Cell
 import anytree
-import alphaquant.diffquant.diff_analysis as aqdiff
-import alphaquant.diffquant.diffutils as aqutils
 from statistics import NormalDist
 import statistics
 import numpy as np
@@ -213,3 +211,54 @@ def export_roots_to_json(rootlist, condpair, results_dir):
     filehandle = open(results_file, "w")
     j_exporter.write(condpair_node, filehandle)
     filehandle.close()
+
+
+
+
+from anytree.importer import JsonImporter
+import os
+
+def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
+
+    tree_sn = read_condpair_tree(cond1, cond2, results_folder=results_folder)
+    tree_sn.type = "asd"
+    return anytree.findall(tree_sn, filter_= lambda x : (x.type == node_type))
+
+def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
+    """reads the merged and clustered iontree for a given condpair"""
+    condpairname = aqutils.get_condpairname([cond1, cond2])
+    tree_file =os.path.join(results_folder, f"{condpairname}.iontrees.json")
+    if not os.path.isfile(tree_file):
+        return None
+    importer = JsonImporter()
+    filehandle = open(tree_file, 'r')
+    jsontree = importer.read(filehandle)
+    filehandle.close()
+    return jsontree
+
+
+def get_levelnodes_from_nodeslist(nodeslist, level):
+    levelnodes = []
+    for node in nodeslist:
+        precursors = anytree.findall(node, filter_= lambda x : (x.type == level))
+        levelnodes.extend(precursors)
+    return levelnodes
+
+
+def find_node_parent_at_level(node, level):
+    if node.type == level:
+        return node
+    while node.parent is not None:
+        node = node.parent
+        if node.type == level:
+            return node
+
+# Cell
+
+def check_if_node_is_included(node):
+    while node.type != "gene":
+        if node.cluster != 0:
+            return False
+        node = node.parent
+
+    return True
