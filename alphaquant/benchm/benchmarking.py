@@ -168,12 +168,11 @@ def test_run_pipeline():
     res_df, pep_df = run_pipeline(unnormed_df, sample2cond_df, 2, False)
     plot_pvals(pep_df)
 
-def generate_random_input(num_pep,sample2cond_df , simulate_nas = False):
+def generate_random_input(num_pep,sample2cond_df , simulate_nas = False, systematic_offset = 0):
     pepnames = generate_peptide_list(num_pep, [2, 3, 5, 3]) #gives uuid strings for each peptide
-    print(len(pepnames))
     protnames = generate_protein_list(pepnames)
-    nrep_1 = 3
-    nrep_2 = 12
+    nrep_1 = get_num_samples_for_cond(sample2cond_df, "A")
+    nrep_2 = get_num_samples_for_cond(sample2cond_df, "B")
     randarrays1 = 10+ 1.5*np.random.randn(len(pepnames),nrep_1)
     randarrays2 = 10+ 3.5*np.random.randn(len(pepnames),nrep_2)
 
@@ -189,6 +188,9 @@ def generate_random_input(num_pep,sample2cond_df , simulate_nas = False):
     df_intens.insert(0, QUANT_ID, pepnames )
     df_intens = df_intens.set_index(QUANT_ID)
     return df_intens
+
+def get_num_samples_for_cond(sample2cond_df, cond):
+    return len(sample2cond_df[sample2cond_df["condition"]==cond])
 
 def generate_peptide_list(num_peps, levels ):
     """levels is list of ints, each int inidcates, how many potential possibilities there are on this level"""
