@@ -7,77 +7,6 @@ __all__ = ['calc_per_peppair_z_and_fcfc', 'calculate_pairpair_overlap_factor', '
 import alphaquant.diffquant.background_distributions as aqbg
 from numba import njit
 
-@njit
-def calc_per_peppair_z_and_fcfc(*,overlapping_c1_idx, overlapping_c2_idx, ion1_c1_ints, ion1_c2_ints, ion2_c1_ints, ion2_c2_ints, fc_conversion_factor, fc_resolution_factor, min_fc, cumulative, max_z, zscores):
-    fcfc_res = 0
-    count_fcfcs = 0
-    z_summed = 0
-
-
-    for idx1 in overlapping_c1_idx:
-        for idx2 in overlapping_c2_idx:
-            fc_ion1 = ion1_c1_ints[idx1] - ion1_c2_ints[idx2]
-            fc_ion2 = ion2_c1_ints[idx1] - ion2_c2_ints[idx2]
-            fcfc_idxpair = fc_ion1 - fc_ion2
-            z_idxpair = aqbg._calc_zscore_from_fc(fc = fcfc_idxpair,fc_conversion_factor=fc_conversion_factor, fc_resolution_factor=fc_resolution_factor, min_fc=min_fc, cumulative=cumulative, max_z=max_z, zscores=zscores)
-            fcfc_res += fcfc_idxpair
-            z_summed += z_idxpair
-            count_fcfcs+=1
-    if count_fcfcs==0:
-        raise Exception("no idx overlap even though filtering has happened!")
-
-    return z_summed, fcfc_res/count_fcfcs
-
-
-
-
-
-def calculate_pairpair_overlap_factor(all_ionpairs, ion2pairs, ionpair2idx_ols, normed_c1, normed_c2, ion2diffdist, p2z):
-
-    secondterm_variance = 0
-
-    for ionpair in all_ionpairs:
-        for ion in ionpair:
-            compare_pairs = ion2pairs.get(ion)
-            compare_pairs.remove(ionpair)
-
-            for comp_ionpair in compare_pairs:
-
-                comp_ion = comp_ionpair[0]
-
-                idxs_ionpair = ionpair2idx_ols.get(ionpair)
-                idxs_comp_ionpair = ionpair2idx_ols.get(comp_ionpair)
-
-                n_sameidx_first = len(set(idxs_ionpair[0]).intersection(set(idxs_comp_ionpair[0])))
-                n_sameidx_second = len(set(idxs_ionpair[1]).intersection(set(idxs_comp_ionpair[1])))
-
-
-                eed_ion_c1 = normed_c1.ion2background.get(ion)
-                eed_ion_c2 = normed_c2.ion2background.get(ion)
-
-                eed_comp_ion_c1 = normed_c1.ion2background.get(comp_ion)
-                eed_comp_ion_c2 = normed_c2.ion2background.get(comp_ion)
-
-                deed1 = aqbg.get_subtracted_bg(ion2diffdist, eed_ion_c1, eed_ion_c2, p2z)
-                deed2 = aqbg.get_subtracted_bg(ion2diffdist, eed_comp_ion_c1, eed_comp_ion_c2, p2z)
-
-
-
-                correlation_normfact = deed1.SD * deed2.SD
-
-                var_overlap = len(idxs_ionpair[1])*len(idxs_comp_ionpair[1]) * n_sameidx_first * eed_ion_c1.var + len(idxs_ionpair[0])*len(idxs_comp_ionpair[0]) * n_sameidx_second * eed_ion_c2.var
-                secondterm_variance += var_overlap/correlation_normfact
-
-    return secondterm_variance
-
-
-from statistics import NormalDist
-
-def calculate_scaled_pval(z_sum, firstterm_variance, secondterm_variance):
-    scaled_SD = np.sqrt((firstterm_variance+secondterm_variance))
-    p_val = 2.0 * (1.0 -  NormalDist(mu=0, sigma= scaled_SD).cdf(abs(z_sum)))
-    return p_val
-
 
 
 # Cell
@@ -89,7 +18,7 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
     """Gives a p-value for the null hypothesis: No change between the foldchanges of the ions1 in comparison to the ions2
 
     Args:
-        ions1 (list[String]): list of ions1 to compared to ions1
+        ions1 (list[String]): list of ions1 to be compared to ions1
         ions2 (list[String]): list of ions2  to be compared to ions1
         normed_c1 (ConditionBackground): Condition background ions1
         normed_c2 (ConditionBackground): Condition background ions2
@@ -171,6 +100,80 @@ def calc_doublediff_score(ions1, ions2, normed_c1, normed_c2, ion2diffDist, p2z,
     pval = calculate_scaled_pval(z_total, firstterm_variance, secondterm_variance)
 
     return fcfc, pval
+
+@njit
+def calc_per_peppair_z_and_fcfc(*,overlapping_c1_idx, overlapping_c2_idx, ion1_c1_ints, ion1_c2_ints, ion2_c1_ints, ion2_c2_ints, fc_conversion_factor, fc_resolution_factor, min_fc, cumulative, max_z, zscores):
+    fcfc_res = 0
+    count_fcfcs = 0
+    z_summed = 0
+
+
+    for idx1 in overlapping_c1_idx:
+        for idx2 in overlapping_c2_idx:
+            fc_ion1 = ion1_c1_ints[idx1] - ion1_c2_ints[idx2]
+            fc_ion2 = ion2_c1_ints[idx1] - ion2_c2_ints[idx2]
+            fcfc_idxpair = fc_ion1 - fc_ion2
+            z_idxpair = aqbg._calc_zscore_from_fc(fc = fcfc_idxpair,fc_conversion_factor=fc_conversion_factor, fc_resolution_factor=fc_resolution_factor, min_fc=min_fc, cumulative=cumulative, max_z=max_z, zscores=zscores)
+            fcfc_res += fcfc_idxpair
+            z_summed += z_idxpair
+            count_fcfcs+=1
+    if count_fcfcs==0:
+        raise Exception("no idx overlap even though filtering has happened!")
+
+    return z_summed, fcfc_res/count_fcfcs
+
+
+
+
+
+def calculate_pairpair_overlap_factor(all_ionpairs, ion2pairs, ionpair2idx_ols, normed_c1, normed_c2, ion2diffdist, p2z):
+
+    secondterm_variance = 0
+
+    for ionpair in all_ionpairs:
+        for ion in ionpair:
+            compare_pairs = ion2pairs.get(ion)
+            compare_pairs.remove(ionpair)
+
+            for comp_ionpair in compare_pairs:
+
+                comp_ion = comp_ionpair[0]
+
+                idxs_ionpair = ionpair2idx_ols.get(ionpair)
+                idxs_comp_ionpair = ionpair2idx_ols.get(comp_ionpair)
+
+                n_sameidx_first = len(set(idxs_ionpair[0]).intersection(set(idxs_comp_ionpair[0])))
+                n_sameidx_second = len(set(idxs_ionpair[1]).intersection(set(idxs_comp_ionpair[1])))
+
+
+                eed_ion_c1 = normed_c1.ion2background.get(ion)
+                eed_ion_c2 = normed_c2.ion2background.get(ion)
+
+                eed_comp_ion_c1 = normed_c1.ion2background.get(comp_ion)
+                eed_comp_ion_c2 = normed_c2.ion2background.get(comp_ion)
+
+                deed1 = aqbg.get_subtracted_bg(ion2diffdist, eed_ion_c1, eed_ion_c2, p2z)
+                deed2 = aqbg.get_subtracted_bg(ion2diffdist, eed_comp_ion_c1, eed_comp_ion_c2, p2z)
+
+
+
+                correlation_normfact = deed1.SD * deed2.SD
+
+                var_overlap = len(idxs_ionpair[1])*len(idxs_comp_ionpair[1]) * n_sameidx_first * eed_ion_c1.var + len(idxs_ionpair[0])*len(idxs_comp_ionpair[0]) * n_sameidx_second * eed_ion_c2.var
+                secondterm_variance += var_overlap/correlation_normfact
+
+    return secondterm_variance
+
+
+from statistics import NormalDist
+
+def calculate_scaled_pval(z_sum, firstterm_variance, secondterm_variance):
+    scaled_SD = np.sqrt((firstterm_variance+secondterm_variance))
+    p_val = 2.0 * (1.0 -  NormalDist(mu=0, sigma= scaled_SD).cdf(abs(z_sum)))
+    return p_val
+
+
+
 
 @njit
 def get_indexes_present_in_both_ions(*,nrep, ion1_ints, ion2_ints):
