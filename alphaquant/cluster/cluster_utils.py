@@ -216,26 +216,15 @@ def export_roots_to_json(rootlist, condpair, results_dir):
 
 
 
-from anytree.importer import JsonImporter
+
 import os
 
 def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
 
-    tree_sn = read_condpair_tree(cond1, cond2, results_folder=results_folder)
+    tree_sn = aqutils.read_condpair_tree(cond1, cond2, results_folder=results_folder)
     tree_sn.type = "asd"
     return anytree.findall(tree_sn, filter_= lambda x : (x.type == node_type))
 
-def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
-    """reads the merged and clustered iontree for a given condpair"""
-    condpairname = aqutils.get_condpairname([cond1, cond2])
-    tree_file =os.path.join(results_folder, f"{condpairname}.iontrees.json")
-    if not os.path.isfile(tree_file):
-        return None
-    importer = JsonImporter()
-    filehandle = open(tree_file, 'r')
-    jsontree = importer.read(filehandle)
-    filehandle.close()
-    return jsontree
 
 
 def get_levelnodes_from_nodeslist(nodeslist, level):
