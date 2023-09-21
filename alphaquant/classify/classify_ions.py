@@ -246,38 +246,6 @@ def get_node2fc(precursor2fc, nodes):
 
 # Cell
 import alphaquant.viz.visualizations as aqplot
-def generate_ml_input(c1, c2, neg_thresholds =[1.5, 3], pos_threshold =  0.2, features_to_exclude = [], precursor2fc = None, results_folder="results_renamed"):
-    tree = aqplot.read_condpair_tree(c1, c2, results_folder)
-    pos_negs = get_tp_fp_nodes(tree, 'mod_seq_charge', neg_thresholds, pos_threshold, precursor2fc)
-    df_precursor_features = aqclass.collect_node_parameters(pos_negs)
-    df_precursor_features = df_precursor_features.drop(columns = features_to_exclude)
-
-    df_precursor_features = balance_classes(df_precursor_features)
-    #df_precursor_features = df_precursor_features.dropna()
-    ionnames = df_precursor_features[QUANT_ID]
-    df_precursor_features = df_precursor_features.drop(columns = QUANT_ID)
-    df_precursor_features = df_precursor_features.astype('float')
-    df_precursor_features = df_precursor_features.replace(np.nan, -1)
-
-    X_outliers = df_precursor_features.drop(columns=["positive_example"]).to_numpy()
-    print("shapes:")
-    print(X_outliers.shape)
-    y_outliers = df_precursor_features["positive_example"]
-    print(y_outliers.shape)
-    featurenames = list(df_precursor_features.drop(columns=["positive_example"]).columns)
-    return X_outliers, y_outliers, featurenames, ionnames
-
-# Cell
-import anytree
-def ml_filter_and_plot_fcs(ml_classifier, threshold_for_negative_classification, c1, c2, results_folder="results_renamed"):
-    results_df = aqplot.get_diffresult_dataframe(c1, c2, results_folder=results_folder)
-    tree = aqplot.read_condpair_tree(c1, c2, results_folder)
-    tree.type = "condpair"
-    nodes = anytree.findall(tree, filter_= lambda x : x.type == 'mod_seq_charge')
-    ion2isincluded = get_ion2classification(ml_classifier, nodes, threshold_for_negative_classification)
-    results_df = results_df[[ion2isincluded.get(x) for x in results_df["protein"]]]
-
-    aqplot.volcano_plot(results_df)
 
 # Cell
 def get_ion2classification(ml_classifier, nodes, threshold_for_positive_classification):
@@ -306,13 +274,7 @@ def balance_classes(df_precursor_features):
 # Cell
 import numpy as np
 
-from sklearn.utils import resample
-def load_feature_df(c1, c2, neg_thresholds =[1.5, 3], pos_threshold =  0.2, features_to_exclude = []):
-    tree = aqplot.read_condpair_tree(c1, c2, results_folder="results")
-    pos_negs = get_tp_fp_nodes(tree, 'mod_seq_charge', neg_thresholds, pos_threshold)
-    df_precursor_features = aqclass.collect_node_parameters(pos_negs)
-    df_precursor_features = df_precursor_features.drop(columns = features_to_exclude)
-    return df_precursor_features
+
 
 # Cell
 from sklearn.metrics import precision_recall_curve
@@ -341,7 +303,7 @@ def get_precursor2fc(cond1, cond2, results_folder):
     return result_dict
 
 # Cell
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.utils.utils as aqutils
 
 def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
 
