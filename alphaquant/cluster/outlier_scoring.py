@@ -9,6 +9,7 @@ __all__ = ['OutlierHandler', 'ProtnodeClusterChecker', 'ClusterInfo', 'ClusterDi
 
 # Cell
 import alphaquant.cluster.cluster_utils as aqclustutils
+import alphaquant.utils.utils as aqutils
 import numpy as np
 import copy
 import anytree
@@ -18,7 +19,7 @@ class OutlierHandler():
         self._protnodes = self.__load_protein_nodes__(results_dir, cond1, cond2)
 
     def __load_protein_nodes__(self, results_dir, cond1, cond2):
-        return aqclustutils.read_condpair_tree(results_folder=results_dir, cond1=cond1, cond2 = cond2).children
+        return aqutils.read_condpair_tree(results_folder=results_dir, cond1=cond1, cond2 = cond2).children
 
     def get_diffclust_overview_list(self):
         """_summary_
