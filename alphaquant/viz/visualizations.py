@@ -759,7 +759,8 @@ def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "r
     return diffprots
 
 # Cell
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.utils.utils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import numpy as np
 
 def get_diffresult_dict_ckg_format(cond1, cond2, results_folder = os.path.join(".", "results")):
@@ -1222,7 +1223,6 @@ def foldchange_ion_plot_plotly(
 
     return fig
 
-import alphaquant.diffquant.diffutils as aqutils
 def get_color2ions(protein_node, level):
     clust2ions = {}
 
@@ -1548,7 +1548,6 @@ import numpy as np
 from sklearn import metrics
 import random
 import seaborn as sns
-import alphaquant.diffquant.diffutils as aqutils
 
 
 
@@ -1587,8 +1586,8 @@ def plot_outlier_fraction(node_df, reference_df, expected_log2fc, outlier_thresh
     reference_fractions = []
     for threshold in outlier_thresholds:
         thresholds.append(threshold)
-        aq_fractions.append(aqutils.count_fraction_outliers_from_expected_fc(node_df,threshold, expected_log2fc))
-        reference_fractions.append(aqutils.count_fraction_outliers_from_expected_fc(reference_df, threshold,expected_log2fc))
+        aq_fractions.append(aqdiffutils.count_fraction_outliers_from_expected_fc(node_df,threshold, expected_log2fc))
+        reference_fractions.append(aqdiffutils.count_fraction_outliers_from_expected_fc(reference_df, threshold,expected_log2fc))
     df = pd.DataFrame({'threshold' :thresholds, 'AlphaQuant' : aq_fractions, 'reference' : reference_fractions})
     df_unpiv = df.melt(id_vars = ['threshold'])
     sns.barplot(x = "threshold", y = 'value', hue = 'variable', data = df_unpiv, ax = ax)
@@ -1662,8 +1661,8 @@ def plot_precision_recall_curve(true_falses, scores, name, ax):
 
 
 # Cell
-import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.viz.visualizations as aqviz
+
 import anytree
 import matplotlib.pyplot as plt
 
