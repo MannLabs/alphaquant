@@ -307,7 +307,7 @@ def create_background_dists_from_prepared_files(samplemap_file, quant_file, cond
 
 
     quant_df = pd.read_csv(quant_file, sep = "\t",index_col= QUANT_ID)
-    samplemap_df = aqutils.load_samplemap(samplemap_file)
+    samplemap_df = aqdiffutils.load_samplemap(samplemap_file)
 
     df_c1, df_c2, c1_samples, c2_samples = get_c1_c2_dfs(quant_df, samplemap_df, [cond1, cond2])
 
@@ -331,7 +331,8 @@ def get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
 import alphaquant.run_alphaquant as aqmgr
 import alphaquant.norm.normalization as aqnorm
 import alphaquant.cluster.cluster_ions as aqclust
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
+import alphaquant.utils.utils as aqutils
 import anytree
 import math
 import os
@@ -342,9 +343,9 @@ import pandas as pd
 
 def load_real_example_ions(input_file, samplemap_file, num_ions = 20, condpair = ('S1', 'S2'), minrep = 4):
     p2z = {}
-    samplemap_df = aqutils.load_samplemap(samplemap_file)
+    samplemap_df = aqdiffutils.load_samplemap(samplemap_file)
     fragion_df = pd.read_csv(input_file, sep = "\t")
-    _, samplemap_df = aqutils.prepare_loaded_tables(fragion_df, samplemap_df)
+    _, samplemap_df = aqdiffutils.prepare_loaded_tables(fragion_df, samplemap_df)
     fragion_df = fragion_df.set_index(QUANT_ID)
 
 
@@ -359,7 +360,7 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20, condpair =
 
 def format_condpair_input(samplemap_df, condpair, minrep, input_file):
     print(condpair)
-    samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
+    samples_c1, samples_c2 = aqdiffutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
     input_df_local = aqdiffmgr.get_unnormed_df_condpair(input_file = input_file, samplemap_df = samplemap_df, condpair = condpair)
     df_c1, df_c2 = aqdiffmgr.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
     return df_c1, df_c2, samples_c1, samples_c2
@@ -505,14 +506,14 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
     results_dir_filtered = "results_filtered"
     results_dir_perturbed = "results_perturbed"
     results_dir_perturbed_unclustered = "results_perturbed_unclustered"
-    fragion_df = aqutils.import_data(input_file)
-    samplemap = aqutils.load_samplemap(samplemap)
-    fragion_df, samplemap = aqutils.prepare_loaded_tables(fragion_df, samplemap)
+    fragion_df = aqdiffutils.import_data(input_file)
+    samplemap = aqdiffutils.load_samplemap(samplemap)
+    fragion_df, samplemap = aqdiffutils.prepare_loaded_tables(fragion_df, samplemap)
 
 
     #run the diffanalysis of the basic dataset
     if run_diffanalysis_benchm_set:
-        aqutils.store_method_parameters({'input_file': str(input_file)}, results_dir)
+        aqdiffutils.store_method_parameters({'input_file': str(input_file)}, results_dir)
         aqmgr.run_pipeline(fragion_df, samplemap, condpair_combinations=condpair_combinations, minrep = 9, runtime_plots=runtime_plots, cluster_threshold_pval=0.05, cluster_threshold_fcfc=0,results_dir=results_dir)
 
     #filter the analyzed results for consistent, low-FC proteins
@@ -554,7 +555,7 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
 
 # Cell
 import alphaquant.viz.visualizations as aqviz
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import sklearn.metrics
 
 
@@ -710,7 +711,7 @@ def decide_filter_function(input_table):
 
 
 # Spike-in Benchmarks
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import seaborn as sns
 import alphaquant.viz.visualizations as aqplot
 import os.path
@@ -722,7 +723,7 @@ import numpy as np
 def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_used, name, original_input_file, samplemap,quant_level_aq, quant_level_reference, tolerance_interval, xlim_lower, xlim_upper, savedir, predscore_cutoff, ml_exclude, percentile_to_retain, num_reps):
 
     fig, ax = plt.subplots(nrows = 3, ncols = 3, figsize=(15,15))
-    fig.suptitle(f"{software_used}, {aqutils.get_condpairname(condpair)}")
+    fig.suptitle(f"{software_used}, {aqdiffutils.get_condpairname(condpair)}")
     nodes_precursors = generate_precursor_nodes_from_protein_nodes(protein_nodes, type=quant_level_aq)
     shift_to_expected_fc(nodes_precursors, expected_log2fc)
 
@@ -752,10 +753,10 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
         doublecheck_df_reformat = filter_score_from_original_df(original_input_file=original_input_file, input_type= quant_level_reference, c1 = condpair[0], c2 = condpair[1], samplemap_file=samplemap,percentile_to_use= rough_tpr_cutoff,minrep=num_reps)
 
 
-    frac_outliers = aqutils.count_fraction_outliers_from_expected_fc(original_df_reformat, tolerance_interval, expected_log2fc)
+    frac_outliers = aqdiffutils.count_fraction_outliers_from_expected_fc(original_df_reformat, tolerance_interval, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(original_df_reformat, f"{software_used} ({frac_outliers:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][0])
     aqplot.plot_fc_intensity_scatter(doublecheck_df_reformat, f"{software_used} doublecheck", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][2])
-    frac_outliers_aq = aqutils.count_fraction_outliers_from_expected_fc(node_df, tolerance_interval, expected_log2fc)
+    frac_outliers_aq = aqdiffutils.count_fraction_outliers_from_expected_fc(node_df, tolerance_interval, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(node_df, f"AlphaQuant ({frac_outliers_aq:.2f})", expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper, ax = ax[1][1])
 
 
@@ -835,9 +836,9 @@ def get_top_percentile_peptides(nodes_precursors, percentile, method, node_filte
 def compare_aq_w_method(nodes_precursors, c1, c2, spectronaut_file, samplemap_file, expected_log2fc = None, threshold = 0.5, input_type = "spectronaut_precursor", num_reps = None, method_name = "Spectronaut", tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5):
     specnaut_reformat = get_original_input_df( c1 = c1, c2 = c2, input_file = spectronaut_file, samplemap_file = samplemap_file, input_type = input_type, num_reps = num_reps, expected_log2fc=expected_log2fc)
     node_df = get_node_df(nodes_precursors = nodes_precursors)
-    aqutils.count_fraction_outliers_from_expected_fc(specnaut_reformat, threshold, expected_log2fc)
+    aqdiffutils.count_fraction_outliers_from_expected_fc(specnaut_reformat, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(specnaut_reformat, method_name, expected_log2fc = expected_log2fc, tolerance_interval = tolerance_interval, xlim_lower=xlim_lower, xlim_upper = xlim_upper)
-    aqutils.count_fraction_outliers_from_expected_fc(node_df, threshold, expected_log2fc)
+    aqdiffutils.count_fraction_outliers_from_expected_fc(node_df, threshold, expected_log2fc)
     aqplot.plot_fc_intensity_scatter(node_df, "AlphaQuant", expected_log2fc = expected_log2fc)
 
 def import_input_file_in_specified_format(input_file, input_type):
@@ -846,12 +847,12 @@ def import_input_file_in_specified_format(input_file, input_type):
     if os.path.isfile(reformat_file):
         specnaut_reformat = pd.read_csv(reformat_file, sep = "\t", encoding ='latin1')
     else:
-        specnaut_reformat = aqutils.import_data(input_file, input_type_to_use=input_type)
+        specnaut_reformat = aqdiffutils.import_data(input_file, input_type_to_use=input_type)
     return specnaut_reformat
 
 def get_original_input_df(c1, c2, input_file, samplemap_file, num_reps, expected_log2fc  = None,input_type = "spectronaut_precursor"):
     specnaut_reformat = import_input_file_in_specified_format(input_file=input_file, input_type=input_type)
-    samplemap_df = aqutils.load_samplemap(samplemap_file)
+    samplemap_df = aqdiffutils.load_samplemap(samplemap_file)
     c1_samples = list(samplemap_df[samplemap_df["condition"]==c1]["sample"])
     c2_samples = list(samplemap_df[samplemap_df["condition"]==c2]["sample"])
     specnaut_reformat = annotate_fcs_to_wideformat_table(specnaut_reformat,c1_samples, c2_samples, num_reps = num_reps)
@@ -909,20 +910,20 @@ def convert_tree_ionname_to_simple_ionname_diann(nodes):
 # Cell
 
 def filter_score_from_original_df(original_input_file, input_type, c1, c2, samplemap_file, percentile_to_use, minrep):
-    _, config_dict, _ = aqutils.get_input_type_and_config_dict(input_file=original_input_file, input_type_to_use=input_type)
+    _, config_dict, _ = aqdiffutils.get_input_type_and_config_dict(input_file=original_input_file, input_type_to_use=input_type)
 
     sample_id = config_dict.get("sample_ID")
     precursor_id = config_dict.get("ion_cols")[0]
 
 
     #load samples
-    samplemap = aqutils.load_samplemap(samplemap_file)
+    samplemap = aqdiffutils.load_samplemap(samplemap_file)
     samples_c1 = list(samplemap[[x ==c1 for x in samplemap["condition"]]]["sample"])
     samples_c2 = list(samplemap[[x ==c2 for x in samplemap["condition"]]]["sample"])
 
     #retrieve ions used by AlphaQuant
     aq_df = aqbench.import_input_file_in_specified_format(input_file = original_input_file, input_type= input_type)
-    aq_df = aqutils.filter_df_to_minrep(aq_df, samples_c1, samples_c2, minrep)
+    aq_df = aqdiffutils.filter_df_to_minrep(aq_df, samples_c1, samples_c2, minrep)
     ions_used_aq = set(aq_df[QUANT_ID])
 
     samplemap = samplemap[[x == c1 or x == c2 for x in samplemap["condition"]]] #only the condition samples remain
@@ -937,10 +938,10 @@ def filter_score_from_original_df(original_input_file, input_type, c1, c2, sampl
 
     reference_df = pd.concat(reference_dfs, ignore_index=True)
 
-    quality_id = aqutils.get_quality_score_column(reference_df)
+    quality_id = aqdiffutils.get_quality_score_column(reference_df)
 
     reference_df_filtered = filter_top_percentile_reference_df(reference_df, precursor_id, quality_id, percentile_to_use)
-    filename = f"{original_input_file}_{aqutils.get_condpairname((c1, c2))}_scorefilt_{percentile_to_use :.2f}.tsv"
+    filename = f"{original_input_file}_{aqdiffutils.get_condpairname((c1, c2))}_scorefilt_{percentile_to_use :.2f}.tsv"
     reference_df_filtered.to_csv(filename, sep = "\t", index = None)
     reformated_df = read_reformat_filtered_df(filtered_file=filename, input_type_to_use=input_type, samplemap_file=samplemap_file, c1 = c1, c2 = c2, num_rep= minrep)
 
@@ -963,9 +964,9 @@ def filter_top_percentile_reference_df(reference_df, precursor_id, quality_id, p
 
 
 def read_reformat_filtered_df(filtered_file, input_type_to_use, samplemap_file, c1, c2, num_rep):
-    samplemap_df = aqutils.load_samplemap(samplemap_file)
-    input_df = aqutils.import_data(filtered_file, input_type_to_use=input_type_to_use)
-    #input_df, samplemap_df = aqutils.prepare_loaded_tables(input_df, samplemap_df)
+    samplemap_df = aqdiffutils.load_samplemap(samplemap_file)
+    input_df = aqdiffutils.import_data(filtered_file, input_type_to_use=input_type_to_use)
+    #input_df, samplemap_df = aqdiffutils.prepare_loaded_tables(input_df, samplemap_df)
 
     c1_samples = list(samplemap_df[samplemap_df["condition"]==c1]["sample"])
     c2_samples = list(samplemap_df[samplemap_df["condition"]==c2]["sample"])
@@ -978,7 +979,7 @@ import alphaquant.benchm.benchmarking as aqbench
 import alphaquant.viz.visualizations as aqplot
 import numpy as np
 import alphaquant.classify.classify_ions as aqclass
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.cluster.cluster_ions as aqclust
 import anytree
 
@@ -1008,7 +1009,7 @@ predscore_cutoff = None, ml_exclude = False, percentile_to_retain = 0.7, num_rep
 
 def load_tree_assign_predscores(c1, c2, samplemap,name,results_folder, re_run_assignment  = False, results_folder_diann = None, replace_nans = False, distort_precursor_modulo = np.inf, num_splits_ml_set = 5):
     """retrieve the predictability scores from a previously run differential analysis. Re-run the predictability score analysis in case they are not available, or if specified"""
-    s1, s2 = aqutils.get_samples_used_from_samplemap_file(samplemap, c1, c2)
+    s1, s2 = aqdiffutils.get_samples_used_from_samplemap_file(samplemap, c1, c2)
     cpair_tree = aqutils.read_condpair_tree(c1, c2, results_folder=results_folder)
     cpair_tree.type = "asd"
     protnodes = anytree.findall(cpair_tree, filter_= lambda x : (x.type == "gene"),maxlevel=2)
