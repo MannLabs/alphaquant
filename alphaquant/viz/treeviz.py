@@ -2,8 +2,9 @@
 # Cell
 import pandas as pd
 import anytree
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.cluster.cluster_utils as aqclustutils
+import alphaquant.utils.utils as aqutils
 import alphaquant.viz.visualizations as aqviz
 import alphaquant.config.variables as aqvars
 
@@ -23,8 +24,8 @@ class CondpairQuantificationInfo():
         diffresults_df = aqviz.get_diffresult_dataframe(cond1, cond2, results_folder= results_dir)
         self.diffresults_df = diffresults_df.set_index("protein")
         self.normed_df = aqviz.get_normed_peptides_dataframe(cond1, cond2, results_folder= results_dir)
-        self.condpair_root_node = aqclustutils.read_condpair_tree(cond1, cond2, results_folder= results_dir)
-        self.samplemap_df = aqutils.load_samplemap(samplemap)
+        self.condpair_root_node = aqutils.read_condpair_tree(cond1, cond2, results_folder= results_dir)
+        self.samplemap_df = aqdiffutils.load_samplemap(samplemap)
         self.sample2cond = self.__get_sample2cond(self.samplemap_df)
         return self
 
@@ -181,11 +182,11 @@ class ProteinQuantDfProteoformSubsetter():
 
 
 # Cell
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import anytree
 
 
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import anytree
 
 class ProteinClusterPlotter():
