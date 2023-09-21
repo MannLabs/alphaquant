@@ -9,7 +9,8 @@ from scipy import stats
 import alphaquant.gui_textfields as gui_textfields
 
 # alphaquant important
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.utils.utils as aqutils
+import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.run_alphaquant as diffmgr
 import alphaquant.viz.visualizations as aqplot
 
@@ -317,12 +318,12 @@ class RunPipeline(BaseWidget):
             )
 
     def import_exp_data(self):
-        self.data = aqutils.import_data(
+        self.data = aqdiffutils.import_data(
             input_file=self.path_analysis_file.value
         )
 
     def extract_sample_names(self):
-        sample_names = aqutils.get_samplenames_from_input_df(self.data)
+        sample_names = aqdiffutils.get_samplenames_from_input_df(self.data)
         self.samplemap_table.value = pd.DataFrame(
             data={'sample': self.natural_sort(sample_names), 'condition': str()}
         )
@@ -348,7 +349,7 @@ class RunPipeline(BaseWidget):
     def run_pipeline(self, *args):
         self.run_pipeline_progress.active = True
 
-        data_processed, samplemap_df_processed = aqutils.prepare_loaded_tables(
+        data_processed, samplemap_df_processed = aqdiffutils.prepare_loaded_tables(
             self.data,
             self.samplemap_table.value
         )
