@@ -185,7 +185,7 @@ def get_diffresults_from_clust_root_node(root_node):
 
 import anytree
 from anytree.exporter import JsonExporter
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.utils.utils as aqutils
 
 from numpy import int64
 from anytree import Node, iterators
