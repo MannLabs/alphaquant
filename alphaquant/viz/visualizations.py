@@ -37,8 +37,9 @@ import matplotlib.pyplot as plt
 
 class AlphaPeptColorMap():
     def __init__(self):
-        colorlist = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
-        self.colorlist = [matplotlib.colors.to_rgba(x) for x in colorlist]
+        self.colorlist_hex  = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
+        self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
+        
         self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist)
         self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist, N=5)
 
