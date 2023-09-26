@@ -19,6 +19,7 @@ import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.diffquant.diffutils as aqutils
 
 REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
+LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 FCDIFF_CUTOFF_CLUSTERMERGE = 0.5
 
 
@@ -38,12 +39,12 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
                                     fcdiff_cutoff_clustermerge):
     #typefilter = TypeFilter('successive')
 
-    regex_patterns = REGEX_FRGIONS_ISOTOPES
     global FCDIFF_CUTOFF_CLUSTERMERGE
     FCDIFF_CUTOFF_CLUSTERMERGE = fcdiff_cutoff_clustermerge
 
     name2diffion = {x.name : x for x in diffions}
-    root_node = create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions)
+    root_node = create_hierarchical_ion_grouping(REGEX_FRGIONS_ISOTOPES, LEVEL_NAMES,gene_name, diffions)
+    add_reduced_names_to_root(root_node)
     #print(anytree.RenderTree(root_node))
     root_node_clust = cluster_along_specified_levels(globally_initialized_typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
 
@@ -60,31 +61,41 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
 
 import anytree
 import re
-def create_hierarchical_ion_grouping(regex_patterns, gene_name, diffions):
+def create_hierarchical_ion_grouping(regex_patterns, level_names, gene_name, diffions):
     #regex patterns sorted from bottom to top in the following way list(list(tuple(pattern, name))): first instance of list represents the level of the tree, second instance represents the different nodes available on this level (for example FRgIon, MS1 are on the same level)
 
-    nodes = [anytree.Node(x.name, type = "base", cluster = -1, is_included = True) for x in diffions]
+    nodes = [anytree.Node(x.name, type = "base", level = "base",cluster = -1, is_included = True) for x in diffions]
 
-    for level in regex_patterns:
+    for level_idx, level in enumerate(regex_patterns):
         name2node = {}
         for pattern2name in level:
             for node in nodes:
                 if (re.match(pattern2name[0], node.name)):
+                    level_name = level_names[level_idx]
                     m = re.match(pattern2name[0], node.name)
                     matching_name = m.group(1)
-                    name2node[matching_name] = name2node.get(matching_name, anytree.Node(matching_name,  type = pattern2name[1], cluster = -1, is_included = True))
+                    name2node[matching_name] = name2node.get(matching_name, anytree.Node(matching_name,  type = pattern2name[1], level = level_name,cluster = -1, is_included = True))
                     parent_node = name2node.get(matching_name)
                     node.parent = parent_node
 
         if len(name2node.keys())>0:
             nodes = list(name2node.values())
 
-    root_node = anytree.Node(gene_name, type = "gene", cluster = -1, is_included = True)
+    root_node = anytree.Node(gene_name, type = "gene", level = "gene",cluster = 0, is_included = True)
 
     for node in nodes:
         node.parent = root_node
 
     return root_node
+
+def add_reduced_names_to_root(node):
+    for child in node.children:
+        add_reduced_names_to_root(child)
+    if node.parent:
+        node.name_reduced = node.name.replace(node.parent.name, "")
+    else:
+        node.name_reduced = node.name
+    
 
 import pandas as pd
 def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
@@ -141,7 +152,8 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z,deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion))
+    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
+                                                                                                   deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion))
     after_clust = hierarchy.complete(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
