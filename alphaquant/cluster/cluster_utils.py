@@ -2,8 +2,9 @@
 # Cell
 import anytree
 from statistics import NormalDist
-import statistics
 import numpy as np
+import copy
+import collections
 
 def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein):
     """Goes through the children and summarizes their properties to the node
@@ -252,3 +253,32 @@ def check_if_node_is_included(node):
         node = node.parent
 
     return True
+
+def shorten_root_to_level(root, parent_level):
+    root = copy.deepcopy(root)
+    for node in anytree.PreOrderIter(root):
+        if node.level == parent_level:
+            for child in node.children:
+                child.children = tuple()
+    return root
+
+
+
+def get_parent2children_dict(tree, parent_level):
+    parent2children = {}
+    parent_nodes = anytree.search.findall(tree, filter_=lambda node:  node.level == parent_level)
+    for parent_node in parent_nodes:
+        parent2children[parent_node.name] = [child.name for child in parent_node.children]
+    return parent2children
+
+def get_parent2leaves_dict(protein):
+    parent2children = collections.defaultdict(list)
+    for leave in protein.leaves:
+        parent2children[leave.parent.name].append(leave.name)
+    
+    return dict(parent2children)
+
+def find_max_depth( node, depth=0):
+    if not node.children:
+        return depth
+    return max(find_max_depth(child, depth+1) for child in node.children)
