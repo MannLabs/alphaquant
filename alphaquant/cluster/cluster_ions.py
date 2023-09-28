@@ -155,7 +155,7 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
                                                                                                    deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion))
     after_clust = hierarchy.complete(condensed_distance_matrix)
-    clustered = hierarchy.fcluster(after_clust, 0.1, criterion='distance')
+    clustered = hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
 
     childnode2clust = [(type_node.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
@@ -268,7 +268,7 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
     fc2 = fcs[idx2]
 
     if abs((fc1-fc2)) < fcfc_threshold:
-        return 0
+        return 0.99 #
 
     if take_median_ion:
         fcs_ions1 = [x.fc for x in diffions[idx1]]
@@ -279,11 +279,7 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
         ions2 = [ions2[idx_ions2]]
 
     fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
-    if (pval<pval_threshold_basis) & (abs(fcfc) > fcfc_threshold):
-        return 1
-    else:
-        return 0
-
+    return 1/(pval + 1e-17)
 
 # Cell
 import anytree
