@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.viz.visualizations as aqviz
 import alphaquant.viz.fcviz as aqfcviz
+import copy
 
 class CombinedTreeAndFCPlotter():
     def __init__(self, protein, parent_level, condpair, intensitydfgetter, add_stripplot = False, label_rotation = 0):
@@ -24,7 +25,6 @@ class CombinedTreeAndFCPlotter():
         self._intensitydfgetter = intensitydfgetter
         self._add_stripplot = add_stripplot
         self._label_rotation = label_rotation
-        
         self._shorten_protein_to_level()
         self._define_fig_and_ax()
         self._plot_tree()
@@ -32,6 +32,7 @@ class CombinedTreeAndFCPlotter():
         #self._format_fig()
     
     def _shorten_protein_to_level(self):
+        self._protein = aqcluster_utils.clone_tree(self._protein)
         self._protein = aqcluster_utils.shorten_root_to_level(self._protein, self._parent_level)
 
     def _define_fig_and_ax(self):
