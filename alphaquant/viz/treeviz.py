@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.viz.visualizations as aqviz
 import alphaquant.viz.fcviz as aqfcviz
-import copy
 
 class CombinedTreeAndFCPlotter():
     def __init__(self, protein, parent_level, condpair, intensitydfgetter, add_stripplot = False, label_rotation = 0):
