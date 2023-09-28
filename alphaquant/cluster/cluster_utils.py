@@ -3,8 +3,12 @@
 import anytree
 from statistics import NormalDist
 import numpy as np
-import copy
 import collections
+
+TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
+LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
+TYPE2LEVEL = dict(zip(TYPES, LEVELS))
+
 
 def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein):
     """Goes through the children and summarizes their properties to the node
@@ -255,7 +259,6 @@ def check_if_node_is_included(node):
     return True
 
 def shorten_root_to_level(root, parent_level):
-    root = copy.deepcopy(root)
     for node in anytree.PreOrderIter(root):
         if node.level == parent_level:
             for child in node.children:
@@ -282,3 +285,24 @@ def find_max_depth( node, depth=0):
     if not node.children:
         return depth
     return max(find_max_depth(child, depth+1) for child in node.children)
+
+
+
+def add_level_name_to_root(anynode):
+    anynode.level = TYPE2LEVEL[anynode.type]
+    for child in anynode.children:
+        add_level_name_to_root(child)
+
+
+
+def clone_tree(node):
+    attrs = {k: v for k, v in node.__dict__.items() if not k.startswith("_")}
+    
+    cloned_node = anytree.Node(**attrs)
+    
+    for child in node.children:
+        cloned_child = clone_tree(child)
+        cloned_child.parent = cloned_node
+    
+    return cloned_node
+
