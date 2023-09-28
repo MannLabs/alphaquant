@@ -358,6 +358,16 @@ def load_real_example_ions(input_file, samplemap_file, num_ions = 20, condpair =
 
 
 
+def get_grouped_diffions_for_node(type_node, diffions):
+    name2diffion = {x.name : x for x in diffions}
+    grouped_diffions = []
+    for child in type_node.children:
+        all_diffion_names_for_child = [x.name for x in child.leaves]
+        diffions_for_child = [name2diffion.get(x) for x in all_diffion_names_for_child]
+        grouped_diffions.append(diffions_for_child)
+    return grouped_diffions
+
+
 def format_condpair_input(samplemap_df, condpair, minrep, input_file):
     print(condpair)
     samples_c1, samples_c2 = aqdiffutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
