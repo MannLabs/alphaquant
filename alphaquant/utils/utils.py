@@ -16,4 +16,7 @@ def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results
     jsontree = importer.read(filehandle)
     filehandle.close()
     return jsontree
-    
+
+
+def cut_trailing_parts_seqstring(seqstring):
+    return seqstring.replace("SEQ_", "").rstrip("_")
