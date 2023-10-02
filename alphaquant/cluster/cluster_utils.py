@@ -4,6 +4,7 @@ import anytree
 from statistics import NormalDist
 import numpy as np
 import collections
+import alphamap.organisms_data
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
@@ -306,3 +307,35 @@ def clone_tree(node):
     
     return cloned_node
 
+
+def get_pyteomics_fasta(organism = 'Human'):
+        return alphamap.organisms_data.import_fasta(organism)
+
+
+def get_sorted_peptides_by_position_in_protein_seq(protein_node, pyteomics_fasta):
+    protein_sequence = get_protein_sequence(protein_node, pyteomics_fasta)
+    if protein_sequence is None:
+        return None
+    peptides = protein_node.children
+    return sorted(peptides, key=lambda x: get_sequence_position(protein_sequence, x.name))
+
+
+def get_protein_sequence(protein_node, pyteomics_fasta):
+    for id in protein_node.name.split(";"):
+        try:
+            return pyteomics_fasta.get_by_id(id).sequence
+        except:
+            continue
+    return None
+
+
+def get_sequence_position(protein_seq, peptide_seq):
+    return protein_seq.find(peptide_seq)
+
+
+def get_sorted_peptides_by_cluster(protein_node):
+    sorted_by_name = sorted(protein_node.children, key=lambda x: x.name)
+    return sorted(sorted_by_name, key=lambda x: x.cluster)
+
+def get_sorted_peptides_by_name(protein_node):
+    return sorted(protein_node.children, key=lambda x: x.name)
