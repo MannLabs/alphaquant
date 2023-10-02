@@ -176,7 +176,7 @@ class BackGroundDistribution:
         Returns:
             np.array: cumulative distribution of fold changes encoded in 1d array
         """
-        cumulative = np.zeros(self.max_fc - self.min_fc +1).astype(np.long)
+        cumulative = np.zeros(self.max_fc - self.min_fc +1).astype(np.int64)
 
         for entry in self.fc2counts.items():
             cumulative[int(entry[0]-self.min_fc)] +=entry[1]
