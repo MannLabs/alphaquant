@@ -9,6 +9,25 @@ import alphaquant.viz.visualizations as aqviz
 import alphaquant.config.variables as aqvars
 
 
+
+class PlotConfig():
+    def __init__(self):
+        self.label_rotation = 0
+        self.add_stripplot = False
+        self.narrowing_factor_for_fcplot = 1/14
+        self.rescale_factor_x = 1.0
+        self.rescale_factor_y = 1.0
+        self.pyteomics_fasta = None
+
+        self._order_peptides_along_protein_sequence = False
+        self._order_by_cluster = True
+    
+    def set_config_to_order_along_protein_sequence(self, organism = 'Human'):
+        self.pyteomics_fasta = aqclustutils.get_pyteomics_fasta(organism)
+        self._order_peptides_along_protein_sequence = True
+        self._order_by_cluster = False
+
+
 class CondpairQuantificationInfo():
 
     def init_from_loaded_tables(self, diffresults_df, normed_df, condpair_root_node, samplemap_df):
@@ -92,6 +111,8 @@ class ProteinIntensityDfFormatter():
         df_melted["condition"] = [self._quantification_info.sample2cond.get(x) for x in df_melted["sample"]]
         return df_melted
     
+
+
 
 
 import pandas as pd
@@ -186,10 +207,10 @@ import anytree
 
 
 class ProteinClusterPlotter():
-    def __init__(self, protein_node, condpair, protein_intensity_df_getter : ProteinIntensityDataFrameGetter,parent_level = 'seq', add_stripplot = False):
+    def __init__(self, protein_node, condpair, protein_intensity_df_getter : ProteinIntensityDataFrameGetter, parent_level ,plotconfig : PlotConfig):
         self._protein_node = protein_node
         self._parent_level = parent_level
-        self._add_stripplot = add_stripplot
+        self._plotconfig = plotconfig
         self._condpair = condpair
         self._fig = None
         self._axes = None
@@ -197,17 +218,18 @@ class ProteinClusterPlotter():
 
     def plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
         parent2elements = self._get_parent2elements(parent2elements)
+        self._sort_parent2elements(parent2elements)
         self._define_fig_and_axes(fig, axes, parent2elements)
 
         for idx, (_, elements) in enumerate(parent2elements.items()):
             melted_df_subset = self._subset_to_elements(self._melted_df, elements)
             colormap = ClusterColorMapper().get_element2color(melted_df_subset)
-            fcplotter = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._condpair, add_stripplot=self._add_stripplot)
+            fcplotter = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._condpair, plotconfig=self._plotconfig)
             fcplotter.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
             #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         self._set_yaxes_to_same_scale()
         plt.show()
-
+        
     
     def _init_melted_df(self, protein_intensity_df_getter):
         return protein_intensity_df_getter.get_melted_df_all(self._protein_node.name,self._parent_level)
@@ -247,9 +269,23 @@ class ProteinClusterPlotter():
             return parent2elements
         else:
             return self._melted_df.groupby('parent_level')['specified_level'].apply(lambda x: list(x.unique())).to_dict()
+        
+    def _sort_parent2elements(self, parent2elements):
+        sorted_parent2elements = {}
+        
+        for parent_name, elements in parent2elements.items():
+            
+            parent_node = anytree.search.find(self._protein_node, lambda node: node.name == parent_name)
 
+            ordered_children_names = [child.name for child in parent_node.children]
+            
+            sorted_elements = sorted(elements, key=lambda x: ordered_children_names.index(x))
+            
+            sorted_parent2elements[parent_name] = sorted_elements
 
+        return sorted_parent2elements
 
+    
     def _load_level_nodes(self):
         all_child_nodes = []
         nodes_at_level =  anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._parent_level))
@@ -322,12 +358,12 @@ import matplotlib.pyplot as plt
 
 
 class IonFoldChangePlotter():
-    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included", add_stripplot = False):
+    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included", plotconfig = PlotConfig()):
 
         ionfc_calculated = IonFoldChangeCalculator(melted_df, condpair)
         self._property_column = property_column
         self._is_included_column = is_included_column
-        self._add_stripplot = add_stripplot
+        self._add_stripplot = plotconfig.add_stripplot
         self.precursors = ionfc_calculated.precursors
         self.fcs = ionfc_calculated.fcs
         self._melted_df = ionfc_calculated.melted_df
