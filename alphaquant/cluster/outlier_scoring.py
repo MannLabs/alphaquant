@@ -15,11 +15,8 @@ import copy
 import anytree
 
 class OutlierHandler():
-    def __init__(self, results_dir, cond1, cond2):
-        self._protnodes = self.__load_protein_nodes__(results_dir, cond1, cond2)
-
-    def __load_protein_nodes__(self, results_dir, cond1, cond2):
-        return aqutils.read_condpair_tree(results_folder=results_dir, cond1=cond1, cond2 = cond2).children
+    def __init__(self, condpair_tree):
+        self._protnodes = condpair_tree.children
 
     def get_diffclust_overview_list(self):
         """_summary_
