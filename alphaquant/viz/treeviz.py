@@ -10,58 +10,57 @@ import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.viz.visualizations as aqviz
 import alphaquant.viz.fcviz as aqfcviz
 
-class CombinedTreeAndFCPlotter():
-    def __init__(self, protein, parent_level, condpair, intensitydfgetter, add_stripplot = False, label_rotation = 0):
+
+class TreeSorter():
+    def __init__(self, plotconfig, protein):
+        self._plotconfig = plotconfig
         self._protein = protein
+        self._protein_sequence = None
+        self._define_protein_sequence_if_applicable()
+        
 
-        self.fig = None
-        self.ax_tree = None
-        self.axes_fcs = None
+    def get_sorted_tree(self):
+        self._sort_tree(self._protein)
+        return self._protein
 
+    def _sort_tree(self, node):
+        self._reorder_children(node)
+        for child in node.children:
+            self._sort_tree(child)
 
-        self._parent_level = parent_level
-        self._condpair = condpair
-        self._intensitydfgetter = intensitydfgetter
-        self._add_stripplot = add_stripplot
-        self._label_rotation = label_rotation
-        self._shorten_protein_to_level()
-        self._define_fig_and_ax()
-        self._plot_tree()
-        self._plot_fcs()
-        #self._format_fig()
-    
-    def _shorten_protein_to_level(self):
-        self._protein = aqcluster_utils.clone_tree(self._protein)
-        self._protein = aqcluster_utils.shorten_root_to_level(self._protein, self._parent_level)
+    def _reorder_children(self, parent_node):
+        # Get and sort children
+        sorted_children = self._get_sorted_children_according_to_plotconfig(parent_node)
 
-    def _define_fig_and_ax(self):
-        axis_creator = TreePlotAxisCreator(self._protein)
-        axis_creator.define_combined_tree_fc_fig_and_axes()
-        self.fig = axis_creator.fig
-        self.ax_tree = axis_creator.ax_tree
-        self.axes_fcs = axis_creator.axes_fcs
+        for child in sorted_children:
+            child.parent = None  
+            child.parent = parent_node
 
-    def _plot_tree(self):
-        GraphCreator(self._protein, self.ax_tree, self._label_rotation)
+    def _get_sorted_children_according_to_plotconfig(self, protein):
+        if self._plotconfig._order_peptides_along_protein_sequence and self._protein.type == 'gene' and self._protein_sequence is not None:
+            return aqcluster_utils.get_sorted_peptides_by_position_in_protein_seq(protein, self._protein_sequence)
+        
+        else:
+            return aqcluster_utils.get_sorted_peptides_by_cluster(protein)
+        
+        # else:
+        #     return aqcluster_utils.get_sorted_peptides_by_name(protein)
+        
+    def _define_protein_sequence_if_applicable(self):
+        if self._plotconfig._order_peptides_along_protein_sequence:
+            self._protein_sequence = aqcluster_utils.get_protein_sequence(self._protein, self._plotconfig.pyteomics_fasta)
 
-    def _plot_fcs(self):
-        pcplotter = aqfcviz.ProteinClusterPlotter(self._protein, self._condpair, self._intensitydfgetter, parent_level = self._parent_level, add_stripplot = self._add_stripplot)
-        parent2leaves = aqcluster_utils.get_parent2leaves_dict(self._protein)
-        pcplotter.plot_all_child_elements(parent2elements= parent2leaves, fig=self.fig, axes=self.axes_fcs)
-    
-    def _format_fig(self):
-        self.fig.tight_layout()
 
 
 class TreePlotter():
-    def __init__(self, protein, parent_level, fig = None, ax = None, label_rotation = 0):
+    def __init__(self, protein, parent_level, fig = None, ax = None, plotconfig = aqfcviz.PlotConfig()):
         self.protein = protein
 
         self.fig = fig
         self.ax = ax
 
         self._parent_level = parent_level
-        self._label_rotation = label_rotation
+        self._plotconfig = plotconfig
         
         self._shorten_protein_to_level()
         self._define_fig_and_ax()
@@ -69,7 +68,7 @@ class TreePlotter():
     
     def _define_fig_and_ax(self):
         if self.fig is None or self.ax is None:
-            axis_creator = TreePlotAxisCreator(self.protein)
+            axis_creator = TreePlotAxisCreator(self.protein, self._plotconfig)
             axis_creator.define_tree_fig_and_ax()
             self.fig = axis_creator.fig
             self.ax = axis_creator.ax_tree
@@ -79,35 +78,41 @@ class TreePlotter():
 
 
     def _create_graph(self):
-        GraphCreator(self.protein, self.ax, self._label_rotation)
+        GraphCreator(self.protein, self.ax, self._plotconfig)
+
+
 
 
 class GraphCreator():
     
-    def __init__(self, protein, ax, label_rotation = 0):
+    def __init__(self, protein, ax, plotconfig):
         self.graph = nx.DiGraph()
         self._protein = protein
         self._ax = ax
-        self._label_rotation = label_rotation
+        self._plotconfig = plotconfig
         self._graph_parameters = GraphParameters()
         self._id2anytree_node = dict()
-        self._colorlist = aqviz.AlphaPeptColorMap().colorlist_hex
+        self._colorlist_hex = None
 
         self._add_edges(protein)
         self._define_id2anytree_node()
+        self._define_colorlist()
         self._format_graph()
     
     def _add_edges(self, protein):
-        children_sorted = sorted(protein.children, key=lambda x: x.name_reduced)
-        for child in children_sorted:
+        for child in protein.children:
             self.graph.add_edge(id(protein), id(child))
             self.graph.nodes[id(protein)]['label'] = protein.name_reduced
             self.graph.nodes[id(child)]['label'] = child.name_reduced
             self._add_edges(child)
+
         
     def _define_id2anytree_node(self):
         for node in anytree.PreOrderIter(self._protein):
             self._id2anytree_node[id(node)] = node
+
+    def _define_colorlist(self):
+        self._colorlist_hex = [aqviz.rgb_to_hex(x) for x in self._plotconfig.colorlist]
 
     def _format_graph(self):
         pos = nx.drawing.nx_agraph.graphviz_layout(self.graph, **self._graph_parameters.layout_params)
@@ -125,12 +130,13 @@ class GraphCreator():
         for node, (x, y) in pos.items():
             labelstring = label_dict[node]
             labelstring = TreeLabelFormatter.format_label_string(labelstring)
-            self._ax.text(x, y, labelstring, verticalalignment='center', horizontalalignment='center', fontsize=10, family='monospace', weight = "bold", rotation = self._label_rotation)
+            self._ax.text(x, y, labelstring, verticalalignment='center', horizontalalignment='center', fontsize=10, family='monospace', 
+                          weight = "bold", rotation = self._plotconfig.label_rotation)
 
         nx.draw_networkx_edges(self.graph, pos, ax=self._ax, **self._graph_parameters.edge_options)
     
     def _determine_cluster_color(self, anynode):
-        return self._colorlist[anynode.cluster]
+        return self._colorlist_hex[anynode.cluster]
 
 
     
@@ -197,12 +203,13 @@ class TreeLabelFormatter:
 
 class TreePlotAxisCreator():
 
-    def __init__(self, protein):
+    def __init__(self, protein, plotconfig):
         self.fig = None
         self.ax_tree = None
         self.axes_fcs = None
         
         self._protein = protein
+        self._plotconfig = plotconfig
 
     def define_combined_tree_fc_fig_and_axes(self):
         parent2leaves = aqcluster_utils.get_parent2leaves_dict(self._protein)
@@ -212,12 +219,12 @@ class TreePlotAxisCreator():
         num_leaves = len(self._protein.leaves)
         max_depth = aqcluster_utils.find_max_depth(self._protein)
         
-        fig_width = min(max(8, num_leaves * 1.3), 100)
-        fig_height = max(8, max_depth * 4)
+        fig_width = min(max(8, num_leaves * 1.3), 100) * self._plotconfig.rescale_factor_x
+        fig_height = max(8, max_depth * 4) * self._plotconfig.rescale_factor_y
         
         self.fig = plt.figure(figsize=(fig_width, fig_height))
         
-        small_width = fig_width/14  
+        small_width = fig_width * self._plotconfig.narrowing_factor_for_fcplot 
         width_ratios = [small_width] + width_list + [small_width]
         
         gs = gridspec.GridSpec(2, num_independent_plots + 2, height_ratios=[1, 1], width_ratios=width_ratios)

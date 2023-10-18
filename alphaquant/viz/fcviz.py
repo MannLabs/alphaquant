@@ -10,6 +10,8 @@ import alphaquant.config.variables as aqvars
 
 
 
+
+
 class PlotConfig():
     def __init__(self):
         self.label_rotation = 0
@@ -18,6 +20,8 @@ class PlotConfig():
         self.rescale_factor_x = 1.0
         self.rescale_factor_y = 1.0
         self.pyteomics_fasta = None
+        self.parent_level = 'gene'
+        self.colorlist = aqviz.ClusterColorMap().colorlist
 
         self._order_peptides_along_protein_sequence = False
         self._order_by_cluster = True
@@ -29,29 +33,33 @@ class PlotConfig():
 
 
 class CondpairQuantificationInfo():
+    def __init__(self, condpair, results_dir, samplemap):
+        """CondpairQuantificationInfo bundles all static information needed for the foldchangeplots
+        """
+        self.condpair = condpair
+        cond1 = condpair[0]
+        cond2 = condpair[1]
+        self.normed_intensity_df = aqviz.get_normed_peptides_dataframe(cond1, cond2, results_folder= results_dir)
+        self.sample2cond = self._get_sample2cond(samplemap)
+        self.relevant_samples = self._get_relevant_samples()
+        self.diffresults_df = self._get_diffresults_df(cond1, cond2, results_dir)
 
-    def init_from_loaded_tables(self, diffresults_df, normed_df, condpair_root_node, samplemap_df):
-        self.diffresults_df = diffresults_df
-        self.diffresults_df = self.diffresults_df.set_index('protein')
-        self.normed_df = normed_df
-        self.condpair_root_node = condpair_root_node
-        self.samplemap_df = samplemap_df
-        self.sample2cond = self.__get_sample2cond(samplemap_df)
-        return self
-
-    def init_by_loading_tables(self, cond1, cond2, results_dir, samplemap):
-        diffresults_df = aqviz.get_diffresult_dataframe(cond1, cond2, results_folder= results_dir)
-        self.diffresults_df = diffresults_df.set_index("protein")
-        self.normed_df = aqviz.get_normed_peptides_dataframe(cond1, cond2, results_folder= results_dir)
-        self.condpair_root_node = aqutils.read_condpair_tree(cond1, cond2, results_folder= results_dir)
-        self.samplemap_df = aqdiffutils.load_samplemap(samplemap)
-        self.sample2cond = self.__get_sample2cond(self.samplemap_df)
-        return self
-
-    @staticmethod
-    def __get_sample2cond(samplemap_df):
+    def _get_sample2cond(self, samplemap):
+        samplemap_df = pd.read_csv(samplemap, sep = "\t")
         sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
         return sample2cond
+
+    def _get_relevant_samples(self):
+        relevant_samples = []
+
+        for sample, cond in self.sample2cond.items():
+            if cond in self.condpair:
+                relevant_samples.append(sample)
+        return relevant_samples
+
+    
+    def _get_diffresults_df(self, cond1, cond2, results_dir):
+        return aqviz.get_diffresult_dataframe(cond1, cond2, results_folder= results_dir).set_index("protein")
 
 
 
@@ -59,14 +67,14 @@ class CondpairQuantificationInfo():
 import pandas as pd
 class ProteinIntensityDataFrameGetter():
 
-    def __init__(self, quantification_info, ion_header = 'quant_id'):
-        self._quantification_info = quantification_info
+    def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, ion_header = 'quant_id'):
+        self._protein_node = protein_node
+        self._quantification_info= quantification_info
         self._ion_header = ion_header
 
-    def get_melted_df_all(self, protein_id, specified_level):
-        protein_node = self._get_protein_node(protein_id)
-        melted_df = ProteinIntensityDfFormatter(self._quantification_info,  protein_id,ion_header = self._ion_header).get_melted_protein_ion_intensity_table()
-        melted_df = ProteinQuantDfAnnotator(self._quantification_info, protein_node, specified_level).get_annotated_melted_df(melted_df)
+    def get_melted_df_all(self, specified_level):
+        melted_df = ProteinIntensityDfFormatter( self._protein_node, self._quantification_info, self._ion_header).get_melted_protein_ion_intensity_table()                                                
+        melted_df = ProteinQuantDfAnnotator(self._protein_node, specified_level).get_annotated_melted_df(melted_df)
         return melted_df
 
     def get_melted_df_selected_peptides(self, protein_id, selected_peptides, specified_level):
@@ -74,10 +82,9 @@ class ProteinIntensityDataFrameGetter():
         melted_df = melted_df[[x in selected_peptides for x in melted_df["specified_level"]]]
         return melted_df
     
-    def get_melted_df_clusterdiffinfo(self, protein_id, clusterdiffinfo, specified_level):
-        protein_node = self._get_protein_node(protein_id)
-        melted_df = self.get_melted_df_all(protein_id, specified_level)
-        melted_df =  ProteinQuantDfProteoformSubsetter(melted_df, protein_node, clusterdiffinfo).subset_melted_df_to_clusterdiffinfo()
+    def get_melted_df_clusterdiffinfo(self, clusterdiffinfo, specified_level):
+        melted_df = self.get_melted_df_all(specified_level)
+        melted_df =  ProteinQuantDfProteoformSubsetter(melted_df, self._protein_node, clusterdiffinfo).subset_melted_df_to_clusterdiffinfo()
         return melted_df
 
     def get_protein_diffresults(self, protein_id):
@@ -87,28 +94,28 @@ class ProteinIntensityDataFrameGetter():
         return anytree.findall_by_attr(self._quantification_info.condpair_root_node, protein_id, maxlevel=2)[0]
 
 
-
+    
 class ProteinIntensityDfFormatter():
-    def __init__(self, quantification_info, protein_id, ion_header = 'quant_id'):
+    def __init__(self, protein_node, quantification_info, ion_header):
+        self._protein_node = protein_node
         self._ion_header = ion_header
-        self._protein_id = protein_id
-        self._quantification_info = quantification_info
-
-
+        self._normed_intensity_df = quantification_info.normed_intensity_df
+        self._relevant_samples = quantification_info.relevant_samples
+        self._sample2cond = quantification_info.sample2cond
+        
+    
     def get_melted_protein_ion_intensity_table(self):
-        samples = self._get_samples_of_condpair()
         protein_df = self._subset_dataframe_to_protein()
-        return self._melt_protein_dataframe(protein_df, samples)
-
-    def _get_samples_of_condpair(self):
-        return set.intersection(set(self._quantification_info.normed_df.columns), set(self._quantification_info.sample2cond.keys()))
+        return self._melt_protein_dataframe(protein_df)
+        
 
     def _subset_dataframe_to_protein(self):
-        return self._quantification_info.normed_df.xs(self._protein_id, level = 0)
-
-    def _melt_protein_dataframe(self, protein_df, samples):
-        df_melted = pd.melt(protein_df.reset_index(), value_vars= samples, id_vars=[self._ion_header], value_name="intensity", var_name="sample")
-        df_melted["condition"] = [self._quantification_info.sample2cond.get(x) for x in df_melted["sample"]]
+        return self._normed_intensity_df.xs(self._protein_node.name, level = 0)
+    
+    
+    def _melt_protein_dataframe(self, protein_df):
+        df_melted = pd.melt(protein_df.reset_index(), value_vars = self._relevant_samples, id_vars=[self._ion_header], value_name="intensity", var_name="sample")
+        df_melted["condition"] = [self._sample2cond.get(x) for x in df_melted["sample"]]
         return df_melted
     
 
@@ -116,10 +123,11 @@ class ProteinIntensityDfFormatter():
 
 
 import pandas as pd
+import re
+
 class ProteinQuantDfAnnotator():
 
-    def __init__(self, quantification_info, protein_node, specified_level):
-        self._quantification_info = quantification_info
+    def __init__(self, protein_node, specified_level):
         self._protein_node = protein_node
         self._specified_level = specified_level
 
@@ -132,8 +140,34 @@ class ProteinQuantDfAnnotator():
     
     def get_annotated_melted_df(self, melted_df):
         IonConsistencyTester.ensure_that_diffresult_ions_are_in_tree_ions(melted_df, self._protein_node)
+        self._add_leafname_column(melted_df)
         self._fill_ion_mapping_dicts()
+        
         return self._annotate_properties_to_melted_df(melted_df)
+    
+    def _add_leafname_column(self, melted_df):#in case the tree has been shortened, the names of the leaves 
+        #in the tree are not the same as the ones in the melted df and need to be adapted
+        parentlevel2regex = {
+            "gene": r"(SEQ_[^_]+_)",
+            "seq": r"(SEQ_[^_]+_MOD__[^_]+__)",
+            "mod_seq": r"(SEQ_[^_]+_MOD__[^_]+__CHARGE_\d+_)",
+            "mod_seq_charge": r"(SEQ_[^_]+_MOD__[^_]+__CHARGE_\d+_(?:FRG|MS1))",
+            "ion_type": r"(SEQ_.+)"
+        }
+        if self._specified_level not in parentlevel2regex.keys():
+            melted_df["leafname"] = melted_df[aqvars.QUANT_ID]
+        
+        else:
+            pattern = parentlevel2regex[self._specified_level]
+            melted_df["leafname"] = [self._get_new_leafname(pattern, x) for x in melted_df[aqvars.QUANT_ID]]
+
+
+    def _get_new_leafname(self, pattern, base_ion_name):
+        match = re.search(pattern, base_ion_name)
+        if match:
+            return match.group(1)
+        else: 
+            raise Exception(f"Could not parse {base_ion_name} at level {self._specified_level}")
 
 
     def _fill_ion_mapping_dicts(self):
@@ -148,13 +182,21 @@ class ProteinQuantDfAnnotator():
                     self._ion2cluster[leaf.name] = child.cluster
 
     def _annotate_properties_to_melted_df(self, melted_df):
-        melted_df["is_included"] = [self._ion2is_included.get(x, np.nan) for x in melted_df[aqvars.QUANT_ID]]
-        melted_df["predscore"] = [self._ion2predscore.get(x, np.nan) for x in melted_df[aqvars.QUANT_ID]]
-        melted_df["specified_level"] = [self._ion2level.get(x,np.nan) for x in melted_df[aqvars.QUANT_ID]]
-        melted_df["parent_level"] = [self._ion2parent.get(x,np.nan) for x in melted_df[aqvars.QUANT_ID]]
-        melted_df["cluster"] = [self._ion2cluster.get(x,np.nan) for x in melted_df[aqvars.QUANT_ID]]
+        melted_df["is_included"] = [self._ion2is_included.get(x, np.nan) for x in melted_df["leafname"]]
+        melted_df["predscore"] = [self._ion2predscore.get(x, np.nan) for x in melted_df["leafname"]]
+        melted_df["specified_level"] = [self._ion2level.get(x,np.nan) for x in melted_df["leafname"]]
+        melted_df["parent_level"] = [self._ion2parent.get(x,np.nan) for x in melted_df["leafname"]]
+        melted_df["cluster"] = [self._ion2cluster.get(x,np.nan) for x in melted_df["leafname"]]
 
-        melted_df = melted_df.dropna(subset=["is_included", "predscore", "specified_level", "cluster"])
+        columns_to_check = ["is_included", "predscore", "specified_level", "cluster"]
+
+        rows_with_na = melted_df[melted_df[columns_to_check].isna().any(axis=1)]
+
+        if not rows_with_na.empty:
+            print("Rows with NA values in the specified columns:")
+            print(rows_with_na)
+            raise ValueError("NA values detected in the specified columns.")
+        
         return melted_df
 
     @staticmethod
@@ -177,7 +219,7 @@ class IonConsistencyTester():
 from alphaquant.cluster.outlier_scoring import ClusterDiffInfo
 
 class ProteinQuantDfProteoformSubsetter():
-    def __init__(self, melted_df, protein_node,clusterdiffinfo : ClusterDiffInfo):
+    def __init__(self, melted_df, protein_node, clusterdiffinfo : ClusterDiffInfo):
         self._melted_df = melted_df
         self._protein_node = protein_node
         self._clusterdiffinfo = clusterdiffinfo
@@ -207,37 +249,40 @@ import anytree
 
 
 class ProteinClusterPlotter():
-    def __init__(self, protein_node, condpair, protein_intensity_df_getter : ProteinIntensityDataFrameGetter, parent_level ,plotconfig : PlotConfig):
+    def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, plotconfig : PlotConfig):
+        
         self._protein_node = protein_node
-        self._parent_level = parent_level
         self._plotconfig = plotconfig
-        self._condpair = condpair
+        self._quantification_info = quantification_info
+
         self._fig = None
         self._axes = None
-        self._melted_df = self._init_melted_df(protein_intensity_df_getter)
+        self._melted_df = None
+        
+        self._init_melted_df()
 
     def plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
         parent2elements = self._get_parent2elements(parent2elements)
-        self._sort_parent2elements(parent2elements)
+        #self._sort_parent2elements(parent2elements)
         self._define_fig_and_axes(fig, axes, parent2elements)
 
         for idx, (_, elements) in enumerate(parent2elements.items()):
+            
             melted_df_subset = self._subset_to_elements(self._melted_df, elements)
-            colormap = ClusterColorMapper().get_element2color(melted_df_subset)
-            fcplotter = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._condpair, plotconfig=self._plotconfig)
+            colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
+            fcplotter = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._quantification_info.condpair, plotconfig=self._plotconfig)
             fcplotter.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
             #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         self._set_yaxes_to_same_scale()
         plt.show()
         
-    
-    def _init_melted_df(self, protein_intensity_df_getter):
-        return protein_intensity_df_getter.get_melted_df_all(self._protein_node.name,self._parent_level)
-
+    def _init_melted_df(self):
+        protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
+        self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
 
     @staticmethod
     def _subset_to_elements(df_melted, elements):
-        return df_melted[[x in elements for x in df_melted["specified_level"]]]
+        return df_melted.set_index("specified_level").loc[elements].reset_index()
     
     def _define_fig_and_axes(self, fig, axes, parent2elements):
         if fig is None or axes is None:
@@ -268,8 +313,9 @@ class ProteinClusterPlotter():
         if parent2elements is not None:
             return parent2elements
         else:
-            return self._melted_df.groupby('parent_level')['specified_level'].apply(lambda x: list(x.unique())).to_dict()
-        
+            return aqclustutils.get_parent2leaves_dict(self._protein_node)
+
+
     def _sort_parent2elements(self, parent2elements):
         sorted_parent2elements = {}
         
@@ -329,18 +375,18 @@ class ProteinClusterPlotter():
 import pandas as pd
 
 class ClusterColorMapper():
-    def __init__(self):
-        self._colormap = aqviz.AlphaPeptColorMap().colorlist
+    def __init__(self, colorlist = aqviz.AlphaPeptColorMap().colorlist):
+        self._colorlist = colorlist
     
     def get_element2color(self, melted_df):
         unique_clusters = melted_df['cluster'].unique()
 
         cluster2color = {}
         
-        num_colors = len(self._colormap)
+        num_colors = len(self._colorlist)
         
         for idx, cluster in enumerate(unique_clusters):
-            cluster2color[cluster] = self._colormap[idx % num_colors]
+            cluster2color[cluster] = self._colorlist[idx % num_colors]
         
         element2color = melted_df.set_index('specified_level')['cluster'].map(cluster2color).to_dict()
         
@@ -432,9 +478,9 @@ class IonFoldChangeCalculator():
     def __init__(self, melted_df, condpair):
         self.melted_df = melted_df
         self._condpair = condpair
-        self.__calculate_precursors_and_fcs_from_melted_df()
+        self._calculate_precursors_and_fcs_from_melted_df()
 
-    def __calculate_precursors_and_fcs_from_melted_df(self):
+    def _calculate_precursors_and_fcs_from_melted_df(self):
 
         multiindex_df = self.melted_df.set_index(["condition", aqvars.QUANT_ID])
 
@@ -452,7 +498,6 @@ class IonFoldChangeCalculator():
             precursor2fcs[precursor] = precursor2fcs.get(precursor, []) + fcs
 
         precfc_tuples = [(x, y) for x,y in precursor2fcs.items()]
-        precfc_tuples = sorted(precfc_tuples, key = lambda x : x[0])
         self.precursors = [x[0] for x in precfc_tuples]
         self.fcs = [x[1] for x in precfc_tuples]
 
