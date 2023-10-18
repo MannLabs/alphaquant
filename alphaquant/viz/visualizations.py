@@ -43,6 +43,21 @@ class AlphaPeptColorMap():
         self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist)
         self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist, N=5)
 
+class ClusterColorMap():
+    def __init__(self):
+        self.colorlist_hex = [    "#D32F2F",  # Crimson Red
+                    "#FFA000",  # Burnt Orange
+                    "#FFEB3B",  # Golden Yellow
+                    "#4CAF50",  # Grass Green
+                    "#00BCD4",  # Cyan Blue
+                    "#303F9F",  # Cobalt Blue
+                    "#7B1FA2",  # Deep Purple
+                    "#E91E63",  # Rose Pink
+                    "#795548",  # Mocha Brown
+                    "#607D8B"   # Slate Grey 
+                    ]
+        self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
+
 
 
 # Cell
@@ -1680,5 +1695,13 @@ def compare_fcs_unperturbed_vs_perturbed_and_clustered(results_dir_unperturbed, 
     plt.legend()
     plt.show()
 
+
+def rgb_to_hex(rgb):
+    if len(rgb) == 3:
+        return "#{:02x}{:02x}{:02x}".format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255))
+    elif len(rgb) == 4:
+        return "#{:02x}{:02x}{:02x}{:02x}".format(int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255), int(rgb[3] * 255))
+    else:
+        raise ValueError("RGB input not recognized")
 
 
