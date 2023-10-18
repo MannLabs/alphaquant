@@ -3,6 +3,9 @@ import os
 def get_condpairname(condpair):
     return f"{condpair[0]}_VS_{condpair[1]}"
 
+def get_condpair_from_condpairname(condpairname):
+    return condpairname.split("_VS_")
+
 
 from anytree.importer import JsonImporter
 def read_condpair_tree(cond1, cond2, results_folder = os.path.join(".", "results")):
