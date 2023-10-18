@@ -276,6 +276,8 @@ def get_parent2children_dict(tree, parent_level):
     return parent2children
 
 def get_parent2leaves_dict(protein):
+    """Returns a dict that maps the parent node name to the names of the leaves of the parent node
+    """
     parent2children = collections.defaultdict(list)
     for leave in protein.leaves:
         parent2children[leave.parent.name].append(leave.name)
@@ -312,12 +314,9 @@ def get_pyteomics_fasta(organism = 'Human'):
         return alphamap.organisms_data.import_fasta(organism)
 
 
-def get_sorted_peptides_by_position_in_protein_seq(protein_node, pyteomics_fasta):
-    protein_sequence = get_protein_sequence(protein_node, pyteomics_fasta)
-    if protein_sequence is None:
-        return None
+def get_sorted_peptides_by_position_in_protein_seq(protein_node, protein_sequence):
     peptides = protein_node.children
-    return sorted(peptides, key=lambda x: get_sequence_position(protein_sequence, x.name))
+    return sorted(peptides, key=lambda x: get_sequence_position(protein_sequence, aqutils.cut_trailing_parts_seqstring(x.name_reduced)))
 
 
 def get_protein_sequence(protein_node, pyteomics_fasta):
