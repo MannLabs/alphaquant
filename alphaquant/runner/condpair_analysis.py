@@ -7,10 +7,12 @@ import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.config.variables as aqvariables
 import anytree
-import alphabase.quantification.quant_reader as abquantreader
+
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import statsmodels.stats.multitest as mt
 from time import time
+import pandas as pd
+import numpy as np
 
 def analyze_condpair(*,runconfig, condpair):
     t_zero = time()
@@ -23,7 +25,7 @@ def analyze_condpair(*,runconfig, condpair):
     quantified_proteins = []
 
 
-    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file, samplemap_df=runconfig.samplemap_df, condpair=condpair)
+    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file, samplemap_df=runconfig.samplemap_df, condpair=condpair, file_has_alphaquant_format = runconfig.file_has_alphaquant_format)
     pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
@@ -157,12 +159,12 @@ def analyze_condpair(*,runconfig, condpair):
     return res_df, pep_df
 
 import alphaquant.diffquant.diffutils as aqutils
-def get_unnormed_df_condpair(input_file:str, samplemap_df:pd.DataFrame, condpair:str) -> pd.DataFrame:
+def get_unnormed_df_condpair(input_file:str, samplemap_df:pd.DataFrame, condpair:str, file_has_alphaquant_format: bool) -> pd.DataFrame:
 
 
     samples_c1, samples_c2 = aqutils.get_samples_used_from_samplemap_df(samplemap_df=samplemap_df, cond1 = condpair[0], cond2 = condpair[1])
     used_samples = samples_c1+samples_c2
-    unnormed_df = abquantreader.import_data(input_file,samples_subset=used_samples, use_alphaquant_format=True)
+    unnormed_df = aqutils.import_data(input_file, samples_subset=used_samples, file_has_alphaquant_format = file_has_alphaquant_format)
     unnormed_df, _ = aqutils.prepare_loaded_tables(unnormed_df, samplemap_df)
     return unnormed_df
 
