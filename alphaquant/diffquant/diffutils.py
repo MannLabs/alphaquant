@@ -310,22 +310,52 @@ import pandas as pd
 import os
 import pathlib
 
-import alphabase.quantification.quant_reader.quant_reader_manager as qrm
+import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
+import alphabase.quantification.quant_reader.longformat_reader as ablongformatreader
+import alphabase.quantification.quant_reader.wideformat_reader as abwideformatreader
 
-def import_data(input_file, input_type_to_use = None, samples_subset = None, results_dir = None):
+
+
+def import_data(input_file, input_type_to_use = None, samples_subset = None, results_dir = None, file_has_alphaquant_format = False):
     """
     Function to import peptide level data. Depending on available columns in the provided file,
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
     and returns a generic wide-format dataframe
     :param file input_file: quantified peptide/ion -level data
-    :param file results_folder: the folder where the AlphaQuant outputs are stored
+    :param file results_folder: the folder where the directlfq outputs are stored
     """
 
-    return qrm.import_data(input_file = input_file, input_type_to_use = input_type_to_use, samples_subset = samples_subset, results_dir = results_dir)
+    samples_subset = add_ion_protein_headers_if_applicable(samples_subset)
+    if "aq_reformat" in input_file or file_has_alphaquant_format:
+        file_to_read = input_file
+    else:
+        file_to_read = reformat_and_save_input_file(input_file=input_file, input_type_to_use=input_type_to_use, use_alphaquant_format = True)
+    
+    input_reshaped = pd.read_csv(file_to_read, sep = "\t", encoding = 'latin1', usecols=samples_subset)
+    input_reshaped = input_reshaped.drop_duplicates(subset='quant_id')
+    return input_reshaped
 
+def add_ion_protein_headers_if_applicable(samples_subset):
+    if samples_subset is not None:
+        return samples_subset + ["quant_id", "protein"]
+    else:
+        return None
 
-def reformat_and_save_input_file(input_file, input_type_to_use):
-    return qrm.reformat_and_save_input_file( input_file=input_file, input_type_to_use=input_type_to_use, use_alphaquant_format=True)
+def reformat_and_save_input_file(input_file, input_type_to_use = None, use_alphaquant_format = False):
+    
+    input_type, config_dict_for_type, sep = abconfigdictloader.get_input_type_and_config_dict(input_file, input_type_to_use)
+    print(f"using input type {input_type}")
+    format = config_dict_for_type.get('format')
+    outfile_name = f"{input_file}.{input_type}.aq_reformat.tsv"
+
+    if format == "longtable":
+        ablongformatreader.reformat_and_write_longtable_according_to_config(input_file, outfile_name,config_dict_for_type, sep = sep, use_alphaquant_format=use_alphaquant_format)
+    elif format == "widetable":
+        abwideformatreader.reformat_and_write_wideformat_table(input_file, outfile_name, config_dict_for_type)
+    else:
+        raise Exception('Format not recognized!')
+    return outfile_name
+
 
 
 def add_ion_protein_headers_if_applicable(samples_subset):
@@ -385,8 +415,8 @@ import os
 import re
 
 class AcquisitionTableHandler():
-    def __init__(self, results_dir, samples):
-        self._table_infos = AcquisitionTableInfo(results_dir=results_dir)
+    def __init__(self, table_infos, samples):
+        self._table_infos = table_infos
         self._header_infos = AcquisitionTableHeaders(self._table_infos)
         self._samples = self.__reformat_samples_if_necessary(samples)
 
@@ -443,39 +473,43 @@ class AcquisitionTableInfo():
         self._sep = sep
         self._decimal = decimal
         self._method_params_dict = load_method_parameters(results_dir)
-        self._input_file = self.__get_input_file__()
+        self._input_file = self._get_input_file()
         self._file_ending_of_formatted_table = ".ml_info_table.tsv"
-        self.already_formatted =  self.__check_if_input_file_is_already_formatted__()
-        self._input_type, self._config_dict = self.__get_input_type_and_config_dict__()
-        self._sample_column = self.__get_sample_column__()
-        self.last_ion_level_to_use = self.__get_last_ion_level_to_use__()
+        self.already_formatted =  self._check_if_input_file_is_already_formatted()
+        try:
+            self._input_type, self._config_dict = self._get_input_type_and_config_dict()
+            self._sample_column = self._get_sample_column()
+            self.last_ion_level_to_use = self._get_last_ion_level_to_use()
+            self.file_exists = True
+        except:
+            self.file_exists = False
 
-    def __get_input_file__(self):
+    def _get_input_file(self):
         if self._method_params_dict.get('ml_input_file') is None:
-            return self.__get_location_of_original_file__()
+            return self._get_location_of_original_file()
         else:
             return self._method_params_dict.get('ml_input_file')
 
-    def __check_if_input_file_is_already_formatted__(self):
+    def _check_if_input_file_is_already_formatted(self):
         if self._file_ending_of_formatted_table in self._input_file:
             return True
         else:
             return False
 
-    def __get_input_type_and_config_dict__(self):
+    def _get_input_type_and_config_dict(self):
         if self.already_formatted:
-            original_file = self.__get_location_of_original_file__()
+            original_file = self._get_location_of_original_file()
         else:
             original_file = self._input_file
         input_type, config_dict, _ = abconfigloader.get_input_type_and_config_dict(original_file)
         return input_type, config_dict
 
-    def __get_location_of_original_file__(self):
+    def _get_location_of_original_file(self):
         input_file = self._method_params_dict.get('input_file')
-        return self.__get_original_filename_from_input_file__(input_file)
+        return self._get_original_filename_from_input_file(input_file)
 
     @staticmethod
-    def __get_original_filename_from_input_file__(input_file):
+    def _get_original_filename_from_input_file(input_file):
         pattern = "(.*\.tsv|.*\.csv|.*\.txt)(\..*)(.aq_reformat.tsv)"
         m = re.match(pattern=pattern, string=input_file)
         if m:
@@ -484,10 +518,10 @@ class AcquisitionTableInfo():
             return input_file
 
 
-    def __get_sample_column__(self):
+    def _get_sample_column(self):
         return self._config_dict.get("sample_ID")
 
-    def __get_last_ion_level_to_use__(self):
+    def _get_last_ion_level_to_use(self):
         return self._config_dict["ml_level"]
 
 
