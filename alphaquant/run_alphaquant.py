@@ -30,7 +30,7 @@ import alphaquant.runner.multi_condition_analysis as aqmulticond
 
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", multicond_median_analysis = False,
                  condpair_combinations = None, file_has_alphaquant_format = False,minrep = 2, min_num_ions = 1, minpep = 1, cluster_threshold_pval = 0.2, cluster_threshold_fcfc = 0, fcdiff_cutoff_clustermerge = 0.5, use_ml = True, take_median_ion = True,
-                 outlier_correction = True, normalize = True, use_iontree_if_possible = None, write_out_results_tree = True, get_ion2clust = False, median_offset = False, 
+                 outlier_correction = True, normalize = True, use_iontree_if_possible = True, write_out_results_tree = True, get_ion2clust = False, median_offset = False, 
                  pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, volcano_fcthresh = 0.5,
                  annotation_file = None, protein_subset_for_normalization_file = None, protnorm_peptides = True):
 
@@ -56,7 +56,6 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
-    runconfig.use_iontree_if_possible = determine_if_ion_tree_is_used(runconfig)
 
     #store method parameters for reproducibility
     aqutils.remove_old_method_parameters_file_if_exists(results_dir)
@@ -81,9 +80,11 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
 def reformat_and_save_ml_dataframe(results_dir, samplemap_df):
     all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
-    dfhandler = aqutils.AcquisitionTableHandler(results_dir=results_dir,samples=all_samples)
-    dfhandler.save_dataframe_as_new_acquisition_dataframe()
-    dfhandler.update_ml_file_location_in_method_parameters_yaml()
+    dfinfos = aqutils.AcquisitionTableInfo(results_dir=results_dir)
+    if dfinfos.file_exists:
+        dfhandler = aqutils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
+        dfhandler.save_dataframe_as_new_acquisition_dataframe()
+        dfhandler.update_ml_file_location_in_method_parameters_yaml()
 
 def get_num_cores_to_use(use_multiprocessing):
     num_cores = multiprocess.cpu_count() if use_multiprocessing else 1
