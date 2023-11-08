@@ -31,7 +31,8 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
 
     #add predictability scores to each precursor
     #prepare the input table with all the relevant features for machine learning
-    dfhandler = aqutils.AcquisitionTableHandler(results_dir=results_dir,samples=samples_used)
+    dfinfo = aqutils.AcquisitionTableInfo(results_dir=results_dir)
+    dfhandler = aqutils.AcquisitionTableHandler(table_infos=dfinfo, samples=samples_used)
     acquisition_info_df = dfhandler.get_acquisition_info_df()
     node_level = get_node_level_from_dfhandler(dfhandler)
     protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
