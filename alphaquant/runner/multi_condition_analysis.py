@@ -1,15 +1,42 @@
 import pandas as pd
 
 
+class MedianConditionManager():
+    def __init__(self, input_file, samplemap_file):
 
-def add_and_save_median_condition(input_file, samplemap_file):
-    input_df = pd.read_csv(input_file, sep = "\t")
-    samplemap_df = pd.read_csv(samplemap_file, sep = "\t")
+        self._input_file = input_file
+        self._samplemap_file = samplemap_file
+        self._samplemap_filename_adapted = None
 
-    median_condition_creator = MedianConditionCreator(samplemap_df, input_df)
+        self.input_filename_adapted = None
+        self._median_condition_creator = None
+        self.samplemap_df_adapted = None
 
-    median_condition_creator.extended_input_df.to_csv(input_file, sep = "\t")
-    median_condition_creator.extended_samplemap_df.to_csv(samplemap_file, sep = "\t", index = None)
+        self._define_median_condition_creator()
+        self._define_adapted_filenames()
+        self._save_adapted_files()
+        self._define_adapted_samplemap_df()
+    
+    def _define_median_condition_creator(self):
+
+        input_df = pd.read_csv(self._input_file, sep = "\t")
+        samplemap_df = pd.read_csv(self._samplemap_file, sep = "\t")
+        self._median_condition_creator = MedianConditionCreator(samplemap_df, input_df)
+    
+    def _define_adapted_filenames(self):
+        self._samplemap_filename_adapted = self._adapt_filename(self._samplemap_file)
+        self.input_filename_adapted = self._adapt_filename(self._input_file)
+
+    @staticmethod
+    def _adapt_filename(filename):
+        return filename.replace(".tsv", "_w_median.tsv")
+    
+    def _save_adapted_files(self):
+        self._median_condition_creator.extended_input_df.to_csv(self.input_filename_adapted, sep = "\t")
+        self._median_condition_creator.extended_samplemap_df.to_csv(self._samplemap_filename_adapted, sep = "\t", index = None)
+
+    def _define_adapted_samplemap_df(self):
+        self.samplemap_df_adapted = self._median_condition_creator.extended_samplemap_df
 
 
 
@@ -54,3 +81,9 @@ class MedianConditionCreator():
     def _define_extended_samplemap_df(self):
         df_to_extend = pd.DataFrame({'sample' : [f"median_rep{idx}" for idx in range(self._number_replicates)] , 'condition' : ['median_reference' for idx in range(self._number_replicates)]})
         return pd.concat([self._samplemap_df, df_to_extend], axis="rows")
+    
+
+def get_all_conds_relative_to_median(samplemap_df):
+    conds = samplemap_df["condition"].unique()
+    condpair_combinations = [(x, "median_reference") for x in conds]
+    return condpair_combinations

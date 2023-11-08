@@ -50,9 +50,11 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         input_file = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use, use_alphaquant_format=True)
 
     if multicond_median_analysis:
-        condpair_combinations = get_all_conds_relative_to_median(samplemap_df)
-        aqmulticond.add_and_save_median_condition(input_file, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
-
+        condpair_combinations = aqmulticond.get_all_conds_relative_to_median(samplemap_df)
+        median_manager =aqmulticond.MedianConditionManager(input_file, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
+        input_file = median_manager.input_filename_adapted
+        samplemap_df = median_manager.samplemap_df_adapted
+        del median_manager #delete the object as it needs not be in the runconfig
     
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
@@ -62,7 +64,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     aqutils.store_method_parameters(locals(), results_dir)
 
     if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:
-        reformat_and_save_ml_dataframe(results_dir, samplemap_df)
+        generate_and_save_ml_infos_if_possible(runconfig)
 
     if condpair_combinations == None:
         conds = samplemap_df["condition"].unique()
@@ -78,13 +80,17 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
 
 
-def reformat_and_save_ml_dataframe(results_dir, samplemap_df):
+def generate_and_save_ml_infos_if_possible(runconfig):
+    results_dir = runconfig.results_dir
+    samplemap_df = runconfig.samplemap_df
     all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
     dfinfos = aqutils.AcquisitionTableInfo(results_dir=results_dir)
     if dfinfos.file_exists:
         dfhandler = aqutils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
         dfhandler.save_dataframe_as_new_acquisition_dataframe()
         dfhandler.update_ml_file_location_in_method_parameters_yaml()
+    else:
+        runconfig.use_ml = False
 
 def get_num_cores_to_use(use_multiprocessing):
     num_cores = multiprocess.cpu_count() if use_multiprocessing else 1
@@ -138,7 +144,4 @@ def determine_if_ion_tree_is_used(runconfig):
     return config_dict.get("use_iontree")
 
 
-def get_all_conds_relative_to_median(samplemap_df):
-    conds = samplemap_df["condition"].unique()
-    condpair_combinations = [(x, "median_reference") for x in conds]
-    return condpair_combinations
+
