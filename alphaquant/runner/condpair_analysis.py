@@ -13,6 +13,7 @@ import statsmodels.stats.multitest as mt
 from time import time
 import pandas as pd
 import numpy as np
+import os
 
 def analyze_condpair(*,runconfig, condpair):
     t_zero = time()
@@ -31,7 +32,8 @@ def analyze_condpair(*,runconfig, condpair):
 
     try:
         df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, runconfig.minrep)
-    except:
+    except Exception as e:
+        print(e)
         return
 
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, minrep = runconfig.minrep, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
@@ -78,6 +80,8 @@ def analyze_condpair(*,runconfig, condpair):
         ions = prot2diffions.get(prot)
         if len(ions)<runconfig.min_num_ions:
             continue
+        diffprot = aqdiff.DifferentialProtein(prot, ions, runconfig.median_offset, runconfig.dia_fragment_selection)
+
         if use_ion_tree:
             clustered_root_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, 
                                                                           pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc, 
@@ -92,7 +96,6 @@ def analyze_condpair(*,runconfig, condpair):
                 continue
 
         else:
-            diffprot = aqdiff.DifferentialProtein(prot, ions, runconfig.median_offset, runconfig.dia_fragment_selection)
             pval, fc, consistency_score, ions_included = diffprot.pval, diffprot.fc, np.nan,diffprot.ions
 
         if runconfig.get_ion2clust:
@@ -204,10 +207,6 @@ def get_results_df(quantfied_results):
     res_df = pd.DataFrame(quantified_results_dicts)
     return res_df
 
-
-# Cell
-import numpy as np
-import os
 def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpair):
     merged_df = normed_df_1.merge(normed_df_2, left_index = True, right_index = True)
     merged_df = 2**merged_df
@@ -217,25 +216,6 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpai
         os.makedirs(f"{results_dir}/")
     merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
-# Cell
-import pandas as pd
-import numpy as np
-
-#read in proteomics datafiles, log the intensities
-def read_tables(peptides_tsv, samplemap_tsv, pepheader = None, protheader = None):
-    samplemap = pd.read_csv(samplemap_tsv, sep="\t")
-    peps = pd.read_csv(peptides_tsv,sep="\t")
-
-    if pepheader != None:
-        peps = peps.rename(columns = {pepheader : aqvariables.QUANT_ID})
-    if protheader != None:
-        peps = peps.rename(columns = {protheader: "protein"})
-    peps = peps.set_index(aqvariables.QUANT_ID)
-    headers = ['protein'] + samplemap["sample"].to_list()
-
-    for sample in samplemap["sample"]:
-        peps[sample] = np.log2(peps[sample].replace(0, np.nan))
-    return peps[headers], samplemap
 
 def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep):
 
