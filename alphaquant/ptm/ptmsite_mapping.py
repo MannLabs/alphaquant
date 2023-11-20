@@ -15,6 +15,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
 # Cell
 import alphaquant.diffquant.diffutils as utils
 from alphaquant.config.variables import *
+import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
 
 
 #helper classes
@@ -595,9 +596,9 @@ import os
 
 def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes', chunksize = 100_000):
     #load configs, determine
-    config_dict = aqutils.import_config_dict()
+    config_dict = abconfigdictloader.import_config_dict()
     config_dict_ptm = config_dict.get(ptm_type_config_dict)
-    relevant_columns = aqutils.get_relevant_columns_config_dict(config_dict_ptm)#the columns that will be relevant in the ptm table
+    relevant_columns = abconfigdictloader.get_relevant_columns_config_dict(config_dict_ptm)#the columns that will be relevant in the ptm table
     relevant_columns_spectronaut = list(set(relevant_columns).intersection(set(pd.read_csv(spectronaut_file, sep = "\t", nrows=2).columns)))# the relevant columsn in the spectronaut table ()
     relevant_columns_spectronaut = relevant_columns_spectronaut+["EG.ModifiedSequence"]
     file_modified = spectronaut_file.replace(".tsv", "")
