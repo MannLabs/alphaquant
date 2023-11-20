@@ -7,8 +7,8 @@ __all__ = ['PTMResultsNormalizer', 'PTMtableLocalizer', 'PTMFiles', 'PTMtableNor
 import alphaquant.diffquant.diffutils as aqutils
 
 class PTMResultsNormalizer():
-    def __init__(self, results_dir_ptm, results_dir_proteome):
-        self._table_localizer = PTMtableLocalizer(results_dir_ptm, results_dir_proteome)
+    def __init__(self, results_dir_ptm, results_dir_proteome, organism = "human"):
+        self._table_localizer = PTMtableLocalizer(results_dir_ptm, results_dir_proteome, organism)
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
 
@@ -30,8 +30,8 @@ class PTMResultsNormalizer():
 
 
 class PTMtableLocalizer():
-    def __init__(self, results_dir_ptm, results_dir_proteome):
-        self._files = PTMFiles(results_dir_ptm=results_dir_ptm, results_dir_proteome=results_dir_proteome)
+    def __init__(self, results_dir_ptm, results_dir_proteome, organism = "human"):
+        self._files = PTMFiles(results_dir_ptm=results_dir_ptm, results_dir_proteome=results_dir_proteome, organism=organism)
         self._name2ptmfile = self.__get_name2ptmfile__()
         self._name2protfile = self.__get_name2protfile__()
 
@@ -66,21 +66,23 @@ class PTMtableLocalizer():
 
 import alphaquant.ptm.ptmsite_mapping as aqptm
 class PTMFiles():
-    def __init__(self, results_dir_ptm, results_dir_proteome):
+    def __init__(self, results_dir_ptm, results_dir_proteome, organism = "human"):
         self._results_dir_ptm = results_dir_ptm
         self._results_dir_proteome = results_dir_proteome
-        self.ptm_result_files = self.__get_ptm_result_files__()
-        self.proteome_result_files = self.__get_proteome_result_files__()
-        self.swissprot_reference = self.__get_swissprot_reference__()
+        self._organism = organism
+        
+        self.ptm_result_files = self._get_ptm_result_files()
+        self.proteome_result_files = self._get_proteome_result_files()
+        self.swissprot_reference = self._get_swissprot_reference()
 
-    def __get_ptm_result_files__(self):
+    def _get_ptm_result_files(self):
         return glob.glob(f'{self._results_dir_ptm}/*.results.tsv')
 
-    def __get_proteome_result_files__(self):
+    def _get_proteome_result_files(self):
         return glob.glob(f'{self._results_dir_proteome}/*.results.tsv')
 
-    def __get_swissprot_reference__(self):
-        return aqptm.get_swissprot_path()
+    def _get_swissprot_reference(self):
+        return aqptm.get_swissprot_path(organism=self._organism)
 
 class PTMtableNormalizer():
     def __init__(self,  ptm_file, proteome_file):
