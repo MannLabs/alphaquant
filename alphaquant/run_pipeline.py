@@ -25,7 +25,7 @@ import multiprocess
 import alphaquant.config.variables as aqvariables
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
 import alphaquant.runner.condpair_analysis as aqcondpair
-import alphaquant.runner.multi_condition_analysis as aqmulticond
+import alphaquant.multicond.multi_condition_analysis as aqmulticond
 
 
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", multicond_median_analysis = False,
@@ -51,7 +51,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
     if multicond_median_analysis:
         condpair_combinations = aqmulticond.get_all_conds_relative_to_median(samplemap_df)
-        median_manager =aqmulticond.MedianConditionManager(input_file, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
+        median_manager = aqmulticond.MedianConditionManager(input_file, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
         input_file = median_manager.input_filename_adapted
         samplemap_df = median_manager.samplemap_df_adapted
         del median_manager #delete the object as it needs not be in the runconfig
@@ -77,6 +77,8 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
     else:
         run_analysis_multiprocess(condpair_combinations=condpair_combinations, runconfig=runconfig, num_cores=num_cores)
+    
+
 
 
 
