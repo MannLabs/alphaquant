@@ -181,3 +181,5 @@ tests/outliers
 misc/bumpversion.sh
 #figures
 figures/
+
+example_nbs/data/subset_mouse_tissues/results_*
