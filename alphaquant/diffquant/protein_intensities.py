@@ -9,7 +9,7 @@ from .diff_analysis import *
 from ..viz.visualizations import *
 from ..benchm.benchmarking import *
 from .diffutils import *
-from ..run_alphaquant import read_tables
+from ..run_pipeline import read_tables
 
 # Cell
 import pandas as pd

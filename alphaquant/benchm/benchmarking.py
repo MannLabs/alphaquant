@@ -22,7 +22,7 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'MergedResultsTable', 'SpeciesAnnotator', 'ClassificationBenchmarker']
 
 # Cell
-from ..run_alphaquant import run_pipeline
+from ..run_pipeline import run_pipeline
 from ..config.variables import QUANT_ID
 
 # Cell
@@ -328,7 +328,7 @@ def get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
 
 
 # Cell
-import alphaquant.run_alphaquant as aqmgr
+import alphaquant.run_pipeline as aqmgr
 import alphaquant.norm.normalization as aqnorm
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.diffquant.diffutils as aqdiffutils
@@ -336,7 +336,7 @@ import alphaquant.utils.utils as aqutils
 import anytree
 import math
 import os
-import alphaquant.run_alphaquant as aqdiffmgr
+import alphaquant.run_pipeline as aqdiffmgr
 import alphaquant.diffquant.background_distributions as aqbg
 import pandas as pd
 
