@@ -6,13 +6,13 @@ import anytree
 import pandas as pd
 import numpy as np
 from scipy import stats
-import alphaquant.gui_textfields as gui_textfields
+import alphaquant.ui.gui_textfields as gui_textfields
 
 # alphaquant important
 import alphaquant.utils.utils as aqutils
 import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.run_pipeline as diffmgr
-import alphaquant.viz.visualizations as aqplot
+import alphaquant.plotting.visualizations as aqplot
 
 # visualization
 import panel as pn

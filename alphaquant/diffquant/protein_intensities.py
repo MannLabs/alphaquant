@@ -6,7 +6,7 @@ __all__ = ['run_protein_normalization', 'estimate_protein_intensities', 'plot_li
 from .background_distributions import *
 from ..norm.normalization import *
 from .diff_analysis import *
-from ..viz.visualizations import *
+from ..plotting.visualizations import *
 from ..benchm.benchmarking import *
 from .diffutils import *
 from ..run_pipeline import read_tables

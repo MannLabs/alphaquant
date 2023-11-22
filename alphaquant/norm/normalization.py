@@ -306,7 +306,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 
 # Cell
 import pandas as pd
-import alphaquant.viz.visualizations as aqviz
+import alphaquant.plotting.visualizations as aqviz
 def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
 
