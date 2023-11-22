@@ -7,10 +7,10 @@ def analyze_and_write_median_condition_results(results_dir):
     condpair2tree = MedianRefResultLoader(results_dir).condpair2tree
     peptide_resolved_proteoform_df = MedianRefConditionCombiner(condpair2tree).peptide_resolved_proteoform_df
     combined_proteoform_df_formatter = CombinedProteoformDfFormatter(peptide_resolved_proteoform_df)
-    combined_proteoform_df_formatter.peptide_resolved_proteoform_df.to_csv(f"{results_dir}/medianref_peptide_resolved_proteoform_df.tsv", sep = "\t", index = None)
-    combined_proteoform_df_formatter.proteoform_df.to_csv(f"{results_dir}/medianref_proteoform_df.tsv", sep = "\t", index = None)
-    combined_proteoform_df_formatter.protein_df_average.to_csv(f"{results_dir}/medianref_protein_df_average.tsv", sep = "\t", index = None)
-    combined_proteoform_df_formatter.protein_df_pform0.to_csv(f"{results_dir}/medianref_protein_df_pform0.tsv", sep = "\t", index = None)
+    combined_proteoform_df_formatter.peptide_resolved_proteoform_df.to_csv(f"{results_dir}/medianref_peptides.tsv", sep = "\t", index = None)
+    combined_proteoform_df_formatter.proteoform_df.to_csv(f"{results_dir}/medianref_proteoforms.tsv", sep = "\t", index = None)
+    combined_proteoform_df_formatter.protein_df_average.to_csv(f"{results_dir}/medianref_protein_avg.tsv", sep = "\t", index = None)
+    combined_proteoform_df_formatter.protein_df_pform0.to_csv(f"{results_dir}/medianref_protein_alphaquant.tsv", sep = "\t", index = None)
 
 class MedianRefResultLoader():
     def __init__(self, results_dir):
@@ -144,7 +144,7 @@ class ProteoformDfCreator():
     def _get_row_of_proteoform_df(self, group_of_peptides, idx):
         row = self._peptide_fc_df.loc[group_of_peptides, :]
         row.insert(0,"proteoform_id",f"{self._protein_name}_{idx}")
-        row.insert(0, "protein_name", self._protein_name)
+        row.insert(0, "protein", self._protein_name)
         row.insert(0, "peptides", ";".join(group_of_peptides))
         return row
 
@@ -186,6 +186,8 @@ class ProteoformConditionAligner():
         return row.map(mapping_dict)
 
 
+import numpy as np
+from scipy.stats import pearsonr
 
 class CombinedProteoformDfFormatter():
     """takes the peptide resolved proteoform df an formats it to proteoform and protein level"""
@@ -195,21 +197,45 @@ class CombinedProteoformDfFormatter():
         self.protein_df_average = None
         self.protein_df_pform0 = None
 
-        self._define_proteoform_df()
         self._define_protein_df_average()
         self._define_protein_df_pform0()
-    
-    
-    def _define_proteoform_df(self):
-        aggregation_dict = {x: "mean" for x in self.peptide_resolved_proteoform_df.columns if x not in ["protein_name", "proteoform_id", "peptides"]}
-        aggregation_dict = {"protein_name" : 'first', "peptides" : "first", **aggregation_dict}
-        self.proteoform_df = self.peptide_resolved_proteoform_df.groupby('proteoform_id').agg(aggregation_dict).reset_index()
+        self._define_proteoform_df()
     
     def _define_protein_df_average(self):
-        self.protein_df_average = self.peptide_resolved_proteoform_df.groupby('protein_name').mean().reset_index()
+        self.protein_df_average = self.peptide_resolved_proteoform_df.groupby('protein').mean().reset_index()
     
     def _define_protein_df_pform0(self):
         is_first_proteoform = [x.endswith("_0") for x in self.peptide_resolved_proteoform_df["proteoform_id"]]
-        self.protein_df_pform0 = self.peptide_resolved_proteoform_df[is_first_proteoform].groupby('protein_name').mean().reset_index()
+        self.protein_df_pform0 = self.peptide_resolved_proteoform_df[is_first_proteoform].groupby('protein').mean().reset_index()
+    
+    def _define_proteoform_df(self):
+        aggregation_dict1 = {"protein" : 'first', "peptides" : "first"}
+        aggregation_dict2 = {x: "mean" for x in self.peptide_resolved_proteoform_df.columns if x not in ["protein", "proteoform_id", "peptides"]}
+        aggregation_dict = {**aggregation_dict1, **aggregation_dict2}
+        proteoform_df = self.peptide_resolved_proteoform_df.groupby('proteoform_id').agg(aggregation_dict).reset_index()
+        proteoform_df = self._add_proteoform_info_columns(proteoform_df)
+        self.proteoform_df = proteoform_df
+
+    def _add_proteoform_info_columns(self, proteoform_df):
+        list_of_sub_dfs = []
+        for protein, sub_df in proteoform_df.groupby('protein'):
+            sub_df.insert(0, 'number_of_peptides', [len(peptides.split(';')) for peptides in sub_df['peptides']])
+            sub_df = sub_df.set_index(['proteoform_id', 'peptides', 'number_of_peptides'])
+            # Separating the reference proteoform
+            ref_proteoform = sub_df.iloc[0, 1:]
+
+            corr_to_ref = [1]
+            is_ref = [True]
+            for idx in range(1, len(sub_df.index)):
+                row1 = sub_df.iloc[idx, 1:]
+                corr, _ = pearsonr(row1, ref_proteoform)
+                corr_to_ref.append(corr)
+                is_ref.append(False)
+            
+            sub_df.insert(0, 'corr_to_ref', corr_to_ref)
+            sub_df.insert(1, 'is_reference', is_ref)
+            list_of_sub_dfs.append(sub_df)
+        
+        return pd.concat(list_of_sub_dfs).reset_index()
 
 
