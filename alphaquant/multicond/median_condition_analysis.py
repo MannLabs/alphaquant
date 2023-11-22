@@ -54,10 +54,18 @@ class MedianRefConditionCombiner():
 
     def _define_combined_dataframe(self):
         list_of_proteoform_dfs = []
-        for protein, nodes in self.protein2nodes.items():
-            proteoform_df = ProteoformConditionAligner(nodes).proteoform_df
+        for protein, nodes_same_protein_different_conditions in self.protein2nodes.items():
+            proteoform_df = ProteoformConditionAligner(nodes_same_protein_different_conditions).proteoform_df
+            proteoform_df = self._add_pvalue_column(proteoform_df, nodes_same_protein_different_conditions)
             list_of_proteoform_dfs.append(proteoform_df)
         self.peptide_resolved_proteoform_df = pd.concat(list_of_proteoform_dfs)
+    
+    def _add_pvalue_column(self, proteoform_df, nodes_same_protein_different_conditions):
+        bf_corrected_pvalue = min([x.p_val for x in nodes_same_protein_different_conditions])*len(nodes_same_protein_different_conditions)
+        bf_corrected_pvalue = min(bf_corrected_pvalue, 1)
+        proteoform_df["p_value"] = bf_corrected_pvalue
+        return proteoform_df
+        
     
 
 
@@ -148,42 +156,8 @@ class ProteoformDfCreator():
         row.insert(0, "peptides", ";".join(group_of_peptides))
         return row
 
-
         
 
-
-class ProteoformConditionAligner():
-    def __init__(self, nodes_same_protein_different_conditions):
-        self._nodes_same_protein_different_conditions = nodes_same_protein_different_conditions
-
-        self.proteoform_df = None
-
-        self._define_proteoform_df()
-
-    def _define_proteoform_df(self):
-        info_df_creator = ProteoformPeptideDfCreator(self._nodes_same_protein_different_conditions)
-        groups_of_peptide_clusters = self._define_groups_of_peptide_clusters(info_df_creator.peptide_cluster_df)
-        protein_name = self._nodes_same_protein_different_conditions[0].name
-        proteoform_df_creator = ProteoformDfCreator(groups_of_peptide_clusters, info_df_creator.peptide_fc_df, protein_name)
-        self.proteoform_df = proteoform_df_creator.proteoform_df
-
-    def _define_groups_of_peptide_clusters(self, peptide_cluster_df):
-        reordered_df = peptide_cluster_df.apply(self.reorder_clusternames, axis=1)
-        groups = reordered_df.groupby(list(reordered_df.columns)).groups
-        groups_of_peptide_clusters = [list(values) for key, values in groups.items()]
-        return sorted(groups_of_peptide_clusters, key=lambda x: len(x), reverse=True)
-
-    @staticmethod
-    def reorder_clusternames(row):
-        """We want to make sure that if peptides have the same pattern of cluster idxs, they 
-        should be grouped together. In particualr, if a peptides has clusters for example
-        [0, 0, 1, 0] and another one has [1, 1, 0, 1], they should still be grouped together.
-        This functions aligns the cluster idxs of the peptides according to the order of the
-        appearance.
-        """
-        unique_entries = pd.unique(row)
-        mapping_dict = {val: idx for idx, val in enumerate(unique_entries)}
-        return row.map(mapping_dict)
 
 
 import numpy as np
@@ -200,6 +174,9 @@ class CombinedProteoformDfFormatter():
         self._define_protein_df_average()
         self._define_protein_df_pform0()
         self._define_proteoform_df()
+        self._drop_pval_from_peptides()
+    
+
     
     def _define_protein_df_average(self):
         self.protein_df_average = self.peptide_resolved_proteoform_df.groupby('protein').mean().reset_index()
@@ -213,6 +190,7 @@ class CombinedProteoformDfFormatter():
         aggregation_dict2 = {x: "mean" for x in self.peptide_resolved_proteoform_df.columns if x not in ["protein", "proteoform_id", "peptides"]}
         aggregation_dict = {**aggregation_dict1, **aggregation_dict2}
         proteoform_df = self.peptide_resolved_proteoform_df.groupby('proteoform_id').agg(aggregation_dict).reset_index()
+        proteoform_df = proteoform_df.drop(columns=["p_value"])
         proteoform_df = self._add_proteoform_info_columns(proteoform_df)
         self.proteoform_df = proteoform_df
 
@@ -238,4 +216,5 @@ class CombinedProteoformDfFormatter():
         
         return pd.concat(list_of_sub_dfs).reset_index()
 
-
+    def _drop_pval_from_peptides(self):
+        self.peptide_resolved_proteoform_df = self.peptide_resolved_proteoform_df.drop(columns=["p_value"])
