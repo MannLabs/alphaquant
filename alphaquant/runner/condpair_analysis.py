@@ -1,7 +1,7 @@
 import alphaquant.diffquant.background_distributions as aqbg
 import alphaquant.diffquant.diff_analysis as aqdiff
 import alphaquant.norm.normalization as aqnorm
-import alphaquant.plotting.visualizations as aqviz
+import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
@@ -132,8 +132,8 @@ def analyze_condpair(*,runconfig, condpair):
     pep_df = get_results_df(quantified_peptides)
 
     if runconfig.runtime_plots:
-        aqviz.volcano_plot(res_df, significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
-        aqviz.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
+        aq_plot_pairwise.volcano_plot(res_df, significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
+        aq_plot_pairwise.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
 
     if runconfig.results_dir!=None:
 

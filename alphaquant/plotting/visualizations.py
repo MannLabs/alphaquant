@@ -137,27 +137,6 @@ def get_nodename(node):
 import matplotlib.pyplot as plt
 from scipy import stats
 
-def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples = True, cumulative = False):
-    """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
-
-    if merge_samples: #samples can be merged to median intensity
-        df_c1_normed = df_c1_normed.median(axis = 1, skipna = True).to_frame()
-        df_c2_normed = df_c2_normed.median(axis = 1, skipna = True).to_frame()
-
-    both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
-    df1 = df_c1_normed.loc[both_idx]
-    df2 = df_c2_normed.loc[both_idx]
-
-    for col1 in df1.columns:
-        for col2 in df2.columns:
-            diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy() #calculate fold changes by subtracting log2 intensities of both conditions
-
-            plt.axvline(0, color = 'red', linestyle = "dashed") #the data is normalized around 0, draw in helper line
-            cutoff = max(abs(np.nanquantile(diff_fcs,0.025)), abs(np.nanquantile(diff_fcs, 0.975))) #determine 2.5% - 97.5% interval, i.e. remove extremes
-
-            plt.hist(diff_fcs,80,density=True, histtype='step', range=(-cutoff,cutoff), cumulative=cumulative) #set the cutoffs to focus the visualization
-    plt.xlabel("log2(fc)")
-    plt.show()
 
 # Cell
 import matplotlib.pyplot as plt
@@ -339,32 +318,8 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-def volcano_plot(result_df, fc_header = "log2fc", fdr_header = "fdr", significance_cutoff = 0.05, log2fc_cutoff = 0.5,ybound = None, xbound =None):
-    result_df[fdr_header] = result_df[fdr_header].replace(0, np.min(result_df[fdr_header].replace(0, 1.0)))
-    fdrs = result_df[fdr_header].to_numpy()
-    fcs = result_df[fc_header].to_numpy()
-    sighits_down = sum((fdrs<significance_cutoff) & (fcs <= -log2fc_cutoff))
-    sighits_up = sum((fdrs<significance_cutoff) & (fcs >= log2fc_cutoff))
-    plt.title(f"{sighits_up} up, {sighits_down} down of {len(fcs)}")
-    plt.scatter(result_df[fc_header],-np.log10(result_df[fdr_header]),s=10, c='grey', alpha = 0.1)
-    plt.xlabel('log2 FC',fontsize = 14)
-    plt.ylabel('-log10 FDR',fontsize = 14)
 
-    if ybound==None:
-        plt.ylim(0,max(-np.log10(result_df[fdr_header]))+0.5)
-    else:
-        plt.ylim(ybound)
-    if significance_cutoff>0:
-        plt.axhline(y=-np.log10(significance_cutoff), color='g', linestyle='-')
-    if log2fc_cutoff >0:
-        plt.axvline(x=log2fc_cutoff, color='g', linestyle='-')
-        plt.axvline(x=-log2fc_cutoff, color='g', linestyle='-')
-    maxfc = max(abs(result_df[fc_header]))+0.5
-    if xbound==None:
-        plt.xlim(-maxfc,maxfc)
-    else:
-        plt.xlim(xbound)
-    plt.show()
+
 
 # Cell
 import anytree
