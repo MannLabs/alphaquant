@@ -42,5 +42,6 @@ def plot_proteoform_intensity_profiles(proteoform_df : pd.DataFrame):
     for i in range(n_plots, len(axes)):
         axes[i].axis('off')
     
+    fig.tight_layout()
     plt.show()
     return fig, axes
