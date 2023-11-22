@@ -12,7 +12,6 @@ click==8.1.2
 lmfit==1.0.3
 dask==2023.5.0
 multiprocess==0.70.12.2
-pyopenms==2.7.0
 pyfasta==0.5.2
 openpyxl==3.0.9
 scikit-learn==1.0.2
