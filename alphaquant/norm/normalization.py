@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import time
 from alphaquant.config.variables import QUANT_ID
+import alphaquant.plotting.pairwise as aq_plot_pairwise
 
 def get_normfacts_withincond(samples):##row is the sample column is the features
 
@@ -306,7 +307,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 
 # Cell
 import pandas as pd
-import alphaquant.plotting.visualizations as aqviz
+
 def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None,prenormed_file = None): #labelmap_df, unnormed_df,condpair,
 
 
@@ -320,7 +321,7 @@ def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normali
         print(f"normalized within conditions")
 
     if runtime_plots:
-        plot_withincond_normalization(df_c1, df_c2)
+        aq_plot_pairwise.plot_withincond_normalization(df_c1, df_c2)
 
     if normalize_between_conds:
         df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots = runtime_plots)
@@ -337,8 +338,8 @@ def get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_norma
     df_c2 = df_c2-shift_between_cond
     #compare_normalization("./test_data/normed_intensities.tsv", df_c1_normed, df_c2_normed)
     if runtime_plots:
-        aqviz.plot_betweencond_fcs(df_c1, df_c2, False)
-        aqviz.plot_betweencond_fcs(df_c1, df_c2, True)
+        aq_plot_pairwise.plot_betweencond_fcs(df_c1, df_c2, False)
+        aq_plot_pairwise.plot_betweencond_fcs(df_c1, df_c2, True)
     return df_c1, df_c2
 
 def normalize_within_cond(df_c, samples_c):
@@ -402,11 +403,7 @@ def calculate_fraction_with_no_NAs(df, df_nonnans):
     return len(df_nonnans.index)/len(df.index)
 
 
-def plot_withincond_normalization(df_c1, df_c2):
-    print("without missingvals (if applicable)")
-    aqviz.plot_betweencond_fcs(drop_nas_if_possible(df_c1), drop_nas_if_possible(df_c2), True)
-    print("complete dataset")
-    aqviz.plot_betweencond_fcs(df_c1, df_c2, True)
+
 
 def use_benchmark_prenormed_file(prenormed_file, minrep, c1_samples, c2_samples):
     print("using pre-normalized data - skipping normalization")
