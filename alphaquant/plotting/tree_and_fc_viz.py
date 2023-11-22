@@ -1,5 +1,5 @@
-import alphaquant.viz.fcviz as aqfcviz
-import alphaquant.viz.treeviz as aqtreeviz
+import alphaquant.plotting.fcviz as aqfcviz
+import alphaquant.plotting.treeviz as aqtreeviz
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 
 

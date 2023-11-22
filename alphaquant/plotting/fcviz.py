@@ -5,7 +5,7 @@ import anytree
 import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.cluster.cluster_utils as aqclustutils
 import alphaquant.utils.utils as aqutils
-import alphaquant.viz.visualizations as aqviz
+import alphaquant.plotting.visualizations as aqviz
 import alphaquant.config.variables as aqvars
 
 

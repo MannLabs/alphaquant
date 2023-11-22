@@ -7,8 +7,8 @@ import re
 from matplotlib import gridspec
 import matplotlib.pyplot as plt
 import alphaquant.cluster.cluster_utils as aqcluster_utils
-import alphaquant.viz.visualizations as aqviz
-import alphaquant.viz.fcviz as aqfcviz
+import alphaquant.plotting.visualizations as aqviz
+import alphaquant.plotting.fcviz as aqfcviz
 
 
 class TreeSorter():
