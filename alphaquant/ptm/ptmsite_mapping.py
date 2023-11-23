@@ -473,7 +473,7 @@ def clean_up_previous_processings(results_folder):
 
 # Cell
 import os
-import alphaquant.plotting.visualizations as aqviz
+import alphaquant.plotting.base_functions as aqviz
 def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
 sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
 
