@@ -6,6 +6,7 @@ import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.config.variables as aqvariables
+import alphaquant.diffquant.tablewriter as aq_diffquant_tablewriter
 import anytree
 
 import alphaquant.cluster.cluster_utils as aqclust_utils
@@ -138,7 +139,12 @@ def analyze_condpair(*,runconfig, condpair):
     if runconfig.results_dir!=None:
 
         if runconfig.write_out_results_tree:
-            aqclust_utils.export_roots_to_json(protnodes,condpair,runconfig.results_dir)
+            condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
+            aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
+            proteoform_df = aq_diffquant_tablewriter.ProteoFormTableCreator(condpair_tree= condpair_node).proteoform_df
+
+            proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
+
         if runconfig.annotation_file != None: #additional annotations can be added before saving
             annot_df = pd.read_csv(runconfig.annotation_file, sep = "\t")
             intersect_columns = annot_df.columns.intersection(pep_df.columns)

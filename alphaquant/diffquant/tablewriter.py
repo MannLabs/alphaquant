@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-class ProteoFormTableWriter():
+class ProteoFormTableCreator():
     def __init__(self, condpair_tree):
         self.condpair_tree = condpair_tree
     
@@ -19,6 +19,7 @@ class ProteoFormTableWriter():
 
     def _annotate_proteoform_df(self):
         self.proteoform_df = ProteoFormTableAnnotator(self.proteoform_df).proteoform_df
+        
         
     def _get_value_dict_for_protein(self, protein):
         if protein.name == 'Q9WVA2':
