@@ -196,29 +196,23 @@ import alphaquant.utils.utils as aqutils
 from numpy import int64
 from anytree import Node, iterators
 
-def export_roots_to_json(rootlist, condpair, results_dir):
+def export_condpairtree_to_json(condpair_node,  results_dir):
     """exports all base roots for a given condition pair to a json file"""
-    condpairname = aqutils.get_condpairname(condpair)
-    condpair_node = anytree.Node(condpair) #set the condpair as node and export the whole condpair as one tree
-    condpair_node.type = "condpair"
-    for root in rootlist:
-        root.parent = condpair_node
+    condpairname = aqutils.get_condpairname(condpair_node.name)
     results_file = f"{results_dir}/{condpairname}.iontrees.json"
-
-
-    # Assuming 'root' is the root of your anytree object
-    nodes = list(iterators.PreOrderIter(root))
-    for node in nodes:
-        for var in vars(node):
-            value = getattr(node, var)
-            if isinstance(value, int64):
-                print(f"Node {node.name} has an {var} with value {value} of type int64")
 
     j_exporter = JsonExporter(indent=2, sort_keys=True)
     filehandle = open(results_file, "w")
     j_exporter.write(condpair_node, filehandle)
     filehandle.close()
 
+
+def get_condpair_node(list_of_protein_nodes, condpair):
+    condpair_node = anytree.Node(condpair) #set the condpair as node and export the whole condpair as one tree
+    condpair_node.type = "condpair"
+    for root in list_of_protein_nodes:
+        root.parent = condpair_node
+    return condpair_node
 
 
 
