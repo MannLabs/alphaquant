@@ -14,11 +14,11 @@ import alphaquant.config.variables as aqvars
 
 class PlotConfig():
     def __init__(self):
-        self.label_rotation = 0
+        self.label_rotation = 90
         self.add_stripplot = False
         self.narrowing_factor_for_fcplot = 1/14
         self.rescale_factor_x = 1.0
-        self.rescale_factor_y = 1.0
+        self.rescale_factor_y = 2
         self.pyteomics_fasta = None
         self.parent_level = 'gene'
         self.colorlist = aqviz.ClusterColorMap().colorlist
