@@ -24,7 +24,7 @@ import alphaquant.ptm.ptmsite_mapping as aqptm
 import multiprocess
 import alphaquant.config.variables as aqvariables
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
-import alphaquant.runner.condpair_analysis as aqcondpair
+import alphaquant.diffquant.condpair_analysis as aqcondpair
 import alphaquant.multicond.median_condition_creation as aqmediancreation
 import alphaquant.multicond.median_condition_analysis as aqmediancond
 

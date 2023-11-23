@@ -98,7 +98,7 @@ def compare_normalization(ref_normalization_file, norm1_df, norm2_df):
 # Cell
 import pandas as pd
 import numpy as np
-import alphaquant.plotting.visualizations as aqviz
+import alphaquant.plotting.base_functions as aqviz
 
 def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_file, outdir):
     protein_ref = pd.read_csv(peptide_detail_file, sep="\t", usecols=["protein", "protein_pval", "protein_fc"]).drop_duplicates().rename(columns = {"protein_pval" : "pval_ref", "protein_fc": "log2fc_ref"})
@@ -564,7 +564,7 @@ def run_perturbation_test(input_file, samplemap, input_file_filtered = None, inp
 
 
 # Cell
-import alphaquant.plotting.visualizations as aqviz
+import alphaquant.plotting.base_functions as aqviz
 import alphaquant.diffquant.diffutils as aqdiffutils
 import sklearn.metrics
 
@@ -723,7 +723,7 @@ def decide_filter_function(input_table):
 # Spike-in Benchmarks
 import alphaquant.diffquant.diffutils as aqdiffutils
 import seaborn as sns
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 import os.path
 import anytree
 import copy
@@ -986,7 +986,7 @@ def read_reformat_filtered_df(filtered_file, input_type_to_use, samplemap_file, 
 
 # Cell
 import alphaquant.benchm.benchmarking as aqbench
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 import numpy as np
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.diffquant.diffutils as aqdiffutils

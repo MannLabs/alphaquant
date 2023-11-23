@@ -21,7 +21,7 @@ from alphaquant.config.variables import QUANT_ID
 
 
 import alphaquant.diffquant.diffutils as aqutils
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
@@ -246,7 +246,7 @@ def get_node2fc(precursor2fc, nodes):
     return node2fc
 
 # Cell
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 
 # Cell
 def get_ion2classification(ml_classifier, nodes, threshold_for_positive_classification):
@@ -314,7 +314,7 @@ def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'
 
 # Cell
 import alphaquant.classify.classify_ions as aqclass
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 import anytree
 import copy
 import random
@@ -369,7 +369,7 @@ def get_intersect_sn_diann_precursors(cond1, cond2, sn_folder, diann_folder):
 # Cell
 import matplotlib.pyplot as plt
 import numpy as np
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.model_selection import train_test_split
@@ -544,7 +544,7 @@ def predict_remaining_dataset(all_precursors, regr, y_pred_cp, ionnames_cp, acqu
 # Cell
 import scipy.stats
 from sklearn.mixture import GaussianMixture
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 import alphaquant.norm.normalization as aqnorm
 
 def find_nearest(array, values):
@@ -688,7 +688,7 @@ def annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_total, ionnames_tota
 
 
 # Cell
-import alphaquant.plotting.visualizations as aqplot
+import alphaquant.plotting.base_functions as aqplot
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt

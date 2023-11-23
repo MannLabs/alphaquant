@@ -1632,7 +1632,7 @@ def plot_precision_recall_curve(true_falses, scores, name, ax):
 
 
 # Cell
-import alphaquant.plotting.visualizations as aqviz
+import alphaquant.plotting.base_functions as aqviz
 
 import anytree
 import matplotlib.pyplot as plt
