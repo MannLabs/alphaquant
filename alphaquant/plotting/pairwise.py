@@ -1,6 +1,9 @@
 import alphaquant.norm.normalization as aqnorm
 import matplotlib.pyplot as plt
 import alphaquant.diffquant.diffutils as aq_diff_utils
+import numpy as np
+import pandas as pd
+
 
 
 
@@ -22,9 +25,6 @@ def plot_withincond_normalization(df_c1, df_c2):
     print("complete dataset")
     plot_betweencond_fcs(df_c1, df_c2, True)
 
-
-import matplotlib.pyplot as plt
-import numpy as np
 
 def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples=True, cumulative=False):
     """takes normalized intensity dataframes of each condition and plots the distribution of direct peptide fold changes between conditions"""
@@ -52,6 +52,30 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples=True, cumulat
 
     plt.show()
     return fig, axes
+
+
+def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed, cumulative=False):
+    """Plots the distribution of fold changes between each sample and the median across all samples."""
+
+    # Calculate the median across all samples from both conditions
+    combined_median = pd.concat([df_c1_normed, df_c2_normed], axis=1).median(axis=1, skipna=True)
+
+    fig, axes = plt.subplots()  # Create a new figure and axes
+
+    # Compare each sample against the combined median and plot
+    for df in [df_c1_normed, df_c2_normed]:
+        for col in df.columns:
+            diff_fcs = df[col].subtract(combined_median)
+
+            axes.axvline(0, color='red', linestyle="dashed")  # helper line at 0
+            cutoff = max(abs(np.nanquantile(diff_fcs, 0.025)), abs(np.nanquantile(diff_fcs, 0.975)))  # determine 2.5% - 97.5% interval
+
+            axes.hist(diff_fcs, 80, density=True, histtype='step', range=(-cutoff, cutoff), cumulative=cumulative)
+
+    axes.set_xlabel("log2(fc)")
+    plt.show()
+    return fig, axes
+
 
 
 def volcano_plot(result_df, fc_header="log2fc", fdr_header="fdr", significance_cutoff=0.05, log2fc_cutoff=0.5, ybound=None, xbound=None):
