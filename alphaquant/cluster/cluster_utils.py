@@ -4,7 +4,6 @@ import anytree
 from statistics import NormalDist
 import numpy as np
 import collections
-import alphamap.organisms_data
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
@@ -304,8 +303,7 @@ def clone_tree(node):
     return cloned_node
 
 
-def get_pyteomics_fasta(organism = 'Human'):
-        return alphamap.organisms_data.import_fasta(organism)
+
 
 
 def get_sorted_peptides_by_position_in_protein_seq(protein_node, protein_sequence):
