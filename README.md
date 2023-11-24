@@ -16,11 +16,9 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 * [**License**](#license)
 * [**Installation**](#installation)
   * [**One-click GUI**](#one-click-gui)
-<!---  * [**Pip installer**](#pip) -->
   * [**Developer installer**](#developer)
 * [**Usage**](#usage)
   * [**GUI**](#gui)
-<!---  * [**CLI**](#cli) -->
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
 * [**Troubleshooting**](#troubleshooting)
 * [**Citations**](#citations)
@@ -151,17 +149,11 @@ It is possible to get help about each function and their (required) parameters b
 
 ### Python and Jupyter notebooks
 
-AlphaQuant can be imported as a Python package into any Python script or notebook with the command `import alphaquant`.
-Running the standard analysis (with plots) can be done via the command:
-```bash
-import alphaquant.diff_analysis_manager as diffmgr
-
-diffmgr.run_pipeline(input_file=input_file, samplemap_file=samplemap_file, results_dir=results_dir, runtime_plots=True))
-```
-
-<!---
-A brief [Jupyter notebook tutorial](nbs/tutorial.ipynb) on how to use the API is also present in the [nbs folder](nbs).
--->
+We have compiled a set of Jupyter notebooks together with some example data in the [example_nbs folder](example_nbs). There, you can use very simple calls in order to:
+ * perform very sensitive differential expression analysis on a single condition, analyze and visualize proteoforms [here](example_nbs/differential_expression_analysis.ipynb)
+ * analyze multiple condition together and inspect proteoform profiles [here](example_nbs/multi_condition_analysis.ipynb)
+ * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_analysis_ptm.ipynb)
+ * combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
 
 
 ## Preparing input files
