@@ -22,8 +22,6 @@ class ProteoFormTableCreator():
         
         
     def _get_value_dict_for_protein(self, protein):
-        if protein.name == 'Q9WVA2':
-            print("debug")
         value_dict = {}
         cluster2peptides = self._get_cluster2peptides(protein)
         for cluster, peptides in cluster2peptides.items():
