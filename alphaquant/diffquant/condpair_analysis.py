@@ -112,7 +112,7 @@ def analyze_condpair(*,runconfig, condpair):
         quantified_proteins.append(quantified_protein)
 
     if use_ion_tree:
-        if runconfig.use_ml:
+        if runconfig.use_ml & len(protnodes)>100:
             ml_performance_dict = {}
             ml_successfull = True
             aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
