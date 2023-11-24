@@ -1,5 +1,5 @@
 import sys
-import alphaquant.testfile_handling
+import alphaquant.benchm.testfile_handling
 test_folder = "."
 links_yaml_all_testfiles = "../alphaquant/configs/download_links_for_testfiles_all.yaml"
 links_yaml_quicktest_files = "../alphaquant/configs/download_links_for_testfiles_quicktest.yaml"
@@ -18,5 +18,5 @@ if __name__ == '__main__':
     except:
         raise ValueError("specify if \'quicktest\' or \'all_tests\' on command line")
 
-    testfieldownloader = alphaquant.testfile_handling.TestFileDownloader(test_folder=test_folder, links_yaml=links_yaml)
+    testfieldownloader = alphaquant.benchm.testfile_handling.TestFileDownloader(test_folder=test_folder, links_yaml=links_yaml)
     testfieldownloader.download_missing_files()
