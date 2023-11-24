@@ -7,6 +7,7 @@ import alphaquant.cluster.cluster_utils as aqclustutils
 import alphaquant.utils.utils as aqutils
 import alphaquant.plotting.base_functions as aqviz
 import alphaquant.config.variables as aqvars
+import alphamap.organisms_data
 
 
 
@@ -27,10 +28,13 @@ class PlotConfig():
         self._order_by_cluster = True
     
     def set_config_to_order_along_protein_sequence(self, organism = 'Human'):
-        self.pyteomics_fasta = aqclustutils.get_pyteomics_fasta(organism)
+        self.pyteomics_fasta = get_pyteomics_fasta(organism)
         self._order_peptides_along_protein_sequence = True
         self._order_by_cluster = False
 
+
+def get_pyteomics_fasta(organism = 'Human'):
+        return alphamap.organisms_data.import_fasta(organism)
 
 class CondpairQuantificationInfo():
     def __init__(self, condpair, results_dir, samplemap):
