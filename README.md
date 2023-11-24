@@ -106,7 +106,7 @@ conda create --name alphaquant python=3.8 -y
 conda activate alphaquant
 ```
 
-Finally, AlphaQuant and needs to be installed:
+Finally, install AlphaQuant:
 
 ```bash
 pip install -e ./alphaquant
