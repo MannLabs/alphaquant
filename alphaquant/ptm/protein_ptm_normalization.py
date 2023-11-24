@@ -11,8 +11,10 @@ class PTMResultsNormalizer():
         self._table_localizer = PTMtableLocalizer(results_dir_ptm, results_dir_proteome, organism)
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
+        self._write_normalized_tables()
+        print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
-    def write_normalized_tables(self):
+    def _write_normalized_tables(self):
         for ptm_file, protfile in self._table_localizer.get_ptmfile2protfile().items():
             if protfile == None:
                 print(f"could not localize protfile for {ptm_file}, skipping")
