@@ -186,7 +186,7 @@ example_nbs/data/mouse_tissues/results_*
 example_nbs/data/phospho/results_*
 
 example_nbs/data/mouse_tissues/mouse_tissues_100prot_200ng.aq_reformat_w_median.tsv
-example_nbs/data/mouse_tissues/mouse_tissues_100prot_200ng.aq_reformat.tsv
+example_nbs/data/mouse_tissues/samplemap_200_w_median.tsv
 example_nbs/data/phospho/phospho_subset_ptmsite_mapped.tsv.ml_info_table.tsv
 example_nbs/data/phospho/phospho_subset.tsv.sorted_reduced.xz
 example_nbs/data/phospho/phospho_subset_ptmsite_mapped.tsv.spectronaut_ptm_fragion_isotopes.aq_reformat.tsv
