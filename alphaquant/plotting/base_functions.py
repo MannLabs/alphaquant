@@ -459,65 +459,6 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
 
     plt.show()
 
-# Cell
-
-import itertools
-import pandas as pd
-import numpy as np
-import holoviews as hv
-hv.extension('bokeh')
-
-
-def get_normalization_overview_heatmap(normed_peptides_df):
-    """Compares the normed intensities of the samples pairwise and clusters by sample similarity.
-    The sample similarity matrix is then visualized as a heatmap"""
-
-    samples = list(normed_peptides_df.columns)
-    #initialize matrix for sample similarities
-    result_2dnp = np.zeros((len(samples), len(samples)))
-
-    #go over each sample pair
-    for idxpair in itertools.combinations(range(len(samples)), 2):
-        s1 = samples[idxpair[0]]
-        s2 = samples[idxpair[1]]
-
-        #calculate fold changes for each ion by subtracting log2 intensities of both samples
-        difference_distrib = normed_peptides_df[s1].to_numpy() - normed_peptides_df[s2].to_numpy()
-
-        #take variance of fold change distribution as distance (high variance -> dissimilar samples)
-        distance = np.nanvar(difference_distrib)
-
-        #assign distances to the respective matrix elements (symmetric)
-        result_2dnp[idxpair[0]][idxpair[1]] = distance
-        result_2dnp[idxpair[1]][idxpair[0]] = distance
-
-    #annotate matrix
-    res_df = pd.DataFrame(result_2dnp, index=samples, columns=samples)
-
-    #cluster
-    clust_df = get_clustered_dataframe(res_df)
-    heatmap = hv.HeatMap(clust_df, label='Sample similarities')
-    #heatmap.opts(opts.HeatMap(tools=['hover'], colorbar=True, width=325, toolbar='above', clim=(-2, 2)))
-
-    return heatmap
-
-# Cell
-
-import os
-import holoviews as hv
-import pandas as pd
-hv.extension('bokeh')
-
-def get_protein_regulation_heatmap(overview_df, results_folder = os.path.join(".", "results")):
-    """Takes the overview dataframe, which annotates the proteins regulated for each condition. Index = condpair, column = protein.
-    Clusters and visualizes as heatmap."""
-    clustered_df = get_clustered_dataframe(overview_df).reset_index()
-    if results_folder != None:
-        clustered_df.to_csv(os.path.join(results_folder, "regulation_overview.tsv"), sep = "\t", index = None)
-    plot_df = pd.melt(clustered_df, id_vars='index')
-    heatmap = hv.HeatMap(plot_df, label='Regulation overview')
-    #heatmap.opts(opts.HeatMap(tools=['hover'], colorbar=True, width=325, toolbar='above', clim=(-2, 2)))
-    return heatmap
 
 # Cell
 from dash import dcc
