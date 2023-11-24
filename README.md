@@ -127,13 +127,14 @@ NOTE: The first time you use a fresh installation of AlphaQuant, it is often qui
 
 ### GUI
 
-If the GUI was not installed through a one-click GUI installer, it can be activate with the following `bash` command:
+The GUI is currently accessible through the one-click GUI installer. Currently it only does the pairwise analysis. Further functionalities can be accessed through python and jupyter notebooks.
+<!-- If the GUI was not installed through a one-click GUI installer, it can be activate with the following `bash` command:
 
 ```bash
 alphaquant gui
 ```
 
-Note that this needs to be prepended with a `!` when you want to run this from within a Jupyter notebook. When the command is run directly from the command-line, make sure you use the right environment (activate it with e.g. `conda activate alphaquant` or set an alias to the binary executable (can be obtained with `where alphaquant` or `which alphaquant`)).
+Note that this needs to be prepended with a `!` when you want to run this from within a Jupyter notebook. When the command is run directly from the command-line, make sure you use the right environment (activate it with e.g. `conda activate alphaquant` or set an alias to the binary executable (can be obtained with `where alphaquant` or `which alphaquant`)).     - [ ] Fix GUI-->
 
 <!---
 ### CLI
@@ -155,7 +156,7 @@ We have compiled a set of Jupyter notebooks together with some example data in t
  * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_analysis_ptm.ipynb)
  * combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
 
-
+    - [ ] Fix GUI    - [ ] Fix GUI
 ## Preparing input files
 
 ### Spectronaut
