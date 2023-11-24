@@ -51,7 +51,7 @@ There are currently two different types of installation possible:
 
 ### One-click GUI
 
-The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. Click on one of the links below to download the latest release for:
+The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. **It currently only supports comparison of two conditions**. Click on one of the links below to download the latest release for:
 
 * [**Windows**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_windows.exe)
 * [**macOS**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_macos.pkg)
@@ -106,15 +106,15 @@ conda create --name alphaquant python=3.8 -y
 conda activate alphaquant
 ```
 
-Finally, AlphaQuant and all its [dependancies](requirements) need to be installed. To take advantage of all features and allow development (with the `-e` flag), this is best done by also installing the [development dependencies](requirements/requirements_development.txt) instead of only the [core dependencies](requirements/requirements.txt):
+Finally, AlphaQuant and needs to be installed:
 
 ```bash
-pip install -e "./alphaquant[development]"
+pip install -e ./alphaquant
 ```
+By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant.
 
-By default this installs loose dependancies (no explicit versioning), although it is also possible to use stable dependencies (e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
+Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to use stable dependencies and/or install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
-***By using the editable flag `-e`, all modifications to the [alphaquant source code folder](alphaquant) are directly reflected when running AlphaQuant. Note that the AlphaQuant folder cannot be moved and/or renamed if an editable version is installed. In case of confusion, you can always retrieve the location of any Python module with e.g. the command `import module` followed by `module.__file__`.***
 
 ---
 ## Usage
@@ -164,7 +164,7 @@ A brief [Jupyter notebook tutorial](nbs/tutorial.ipynb) on how to use the API is
 -->
 
 
-## preparing input files
+## Preparing input files
 
 ### Spectronaut
 AlphaQuant takes a Spectronaut .tsv table as input. When exporting from Spectronaut, the correct columns need to be selected. These can be obtained by downloading one of the export schemes available below. We provide one export scheme for sprecursor quantification and one export scheme for fragment ion quantification. Fragment ion quantification shows slightly more accuracy, but the files are around 10 times larger.
@@ -176,10 +176,11 @@ Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide
 The data needs to be exported in the normal long format as .tsv file
 
 
-<a href="https://github.com/MannLabs/AlphaQuant/raw/development/alphaquant/config/spectronaut_tableconfig_precursor.rs" download>Download Spectronaut export scheme for precursor quantification</a>
+<a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_precursor.rs" download>Download Spectronaut export scheme for precursor quantification</a>
 
-<a href="https://github.com/MannLabs/AlphaQuant/raw/development/alphaquant/config/spectronaut_tableconfig_fragion.rs" download>Download Spectronaut export scheme for fragment ion quantification</a>
+<a href="https://github.com/MannLabs/alphaquant/blob/master/alphaquant/config/spectronaut_tableconfig_fragion.rs" download>Download Spectronaut export scheme for fragment ion quantification</a>
 
+<a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_ptm_fragion.rs" download>Download Spectronaut export scheme for fragment ion quantification WITH PTM </a>
 
 
 ### DIA-NN
