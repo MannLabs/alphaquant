@@ -249,7 +249,37 @@ class ProteinQuantDfProteoformSubsetter():
 
 # Cell
 import alphaquant.diffquant.diffutils as aqdiffutils
+import alphaquant.plotting.treeutils as aqtreeutils
 import anytree
+
+
+class FCPlotter():
+    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig):
+
+        self.fig = None
+        self.axes = None
+
+        self._protein_node = protein_node
+        self._quantification_info = quantification_info
+        self._plotconfig = plotconfig
+        self._shorten_protein_node_according_to_plotconfig()
+        self._sort_tree_according_to_plotconfig()
+        self._plot_fcs()
+    
+    def _shorten_protein_node_according_to_plotconfig(self):
+        self._protein_node = aqclustutils.clone_tree(self._protein_node)
+        self._protein_node = aqclustutils.shorten_root_to_level(self._protein_node,parent_level=self._plotconfig.parent_level)
+    
+    def _sort_tree_according_to_plotconfig(self):
+        self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
+    
+    def _plot_fcs(self):
+        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
+        pcplotter.plot_all_child_elements()
+        self.fig =  pcplotter._fig
+        self.axes = pcplotter._axes
+    
+
 
 
 class ProteinClusterPlotter():
@@ -280,9 +310,11 @@ class ProteinClusterPlotter():
         self._set_yaxes_to_same_scale()
         plt.show()
         
+
     def _init_melted_df(self):
         protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
         self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
+
 
     @staticmethod
     def _subset_to_elements(df_melted, elements):
@@ -293,8 +325,7 @@ class ProteinClusterPlotter():
             self._prepare_axes(parent2elements)
         else:
             self._fig = fig
-            self._axes = axes
-        
+            self._axes = axes    
 
 
     def _prepare_axes(self, parent2elements):

@@ -1,5 +1,6 @@
 import alphaquant.plotting.fcviz as aqfcviz
 import alphaquant.plotting.treeviz as aqtreeviz
+import alphaquant.plotting.treeutils as aqtreeutils
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 
 
@@ -27,7 +28,7 @@ class CombinedTreeAndFCPlotter():
         self._protein_node = aqcluster_utils.shorten_root_to_level(self._protein_node, self._plotconfig.parent_level)
     
     def _sort_tree_according_to_plotconfig(self):
-        self._protein_node = aqtreeviz.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
+        self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
 
     def _define_fig_and_ax(self):
         axis_creator = aqtreeviz.TreePlotAxisCreator(self._protein_node, self._plotconfig)
