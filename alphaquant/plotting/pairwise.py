@@ -15,8 +15,8 @@ def plot_normalization_overview(normed_df, samplemap_df):
     df_c1 = normed_df[[x for x in normed_df.columns if sample2cond.get(x) == conditions[0]]]
     df_c2 = normed_df[[x for x in normed_df.columns if sample2cond.get(x) == conditions[1]]]
 
-    plot_betweencond_fcs(df_c1, df_c2, False)
     plot_betweencond_fcs(df_c1, df_c2, True)
+    plot_betweencond_fcs(df_c1, df_c2, False)
 
 
 def plot_withincond_normalization(df_c1, df_c2):
