@@ -107,11 +107,11 @@ conda activate alphaquant
 Finally, install AlphaQuant:
 
 ```bash
-pip install -e ./alphaquant
+pip install -e "./alphaquant[stable]"
 ```
-By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant.
+We currently recommend using stable dependencies, therefore the `[stable]` tag in the call. By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant. We currently recommend the stable 
 
-Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to use stable dependencies and/or install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
+Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
 
 ---
