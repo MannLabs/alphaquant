@@ -151,12 +151,13 @@ It is possible to get help about each function and their (required) parameters b
 ### Python and Jupyter notebooks
 
 We have compiled a set of Jupyter notebooks together with some example data in the [example_nbs folder](example_nbs). There, you can use very simple calls in order to:
- * perform very sensitive differential expression analysis on a single condition, analyze and visualize proteoforms [here](example_nbs/differential_expression_analysis.ipynb)
+ * perform very sensitive differential expression analysis on a single condition, analyze and visualize proteoforms [here](example_nbs/differential_expression.ipynb)
  * analyze multiple condition together and inspect proteoform profiles [here](example_nbs/multi_condition_analysis.ipynb)
- * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_analysis_ptm.ipynb)
- * combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
+ * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_PTM.ipynb)
+ * **in preparation** combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
+ * visualize the tree structure of differential expression analysis [here](example_nbs/visualizing_tree_structure.ipynb)
 
-    - [ ] Fix GUI    - [ ] Fix GUI
+
 ## Preparing input files
 
 ### Spectronaut
