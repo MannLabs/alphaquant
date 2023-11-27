@@ -5,6 +5,8 @@ __all__ = ['PTMResultsNormalizer', 'PTMtableLocalizer', 'PTMFiles', 'PTMtableNor
 
 # Cell
 import alphaquant.diffquant.diffutils as aqutils
+import pathlib
+
 
 class PTMResultsNormalizer():
     def __init__(self, results_dir_ptm, results_dir_proteome, organism = "human"):
@@ -34,8 +36,8 @@ class PTMResultsNormalizer():
 class PTMtableLocalizer():
     def __init__(self, results_dir_ptm, results_dir_proteome, organism = "human"):
         self._files = PTMFiles(results_dir_ptm=results_dir_ptm, results_dir_proteome=results_dir_proteome, organism=organism)
-        self._name2ptmfile = self.__get_name2ptmfile__()
-        self._name2protfile = self.__get_name2protfile__()
+        self._name2ptmfile = self._get_name2ptmfile()
+        self._name2protfile = self._get_name2protfile()
 
     def get_ptmfile2protfile(self):
         phosfile2protfile = {self._name2ptmfile.get(x): self._name2protfile.get(x) for x in self._name2ptmfile.keys()}
@@ -47,22 +49,20 @@ class PTMtableLocalizer():
     def get_swissprot_reference(self):
         return self._files.swissprot_reference
 
-    def __get_name2ptmfile__(self):
-        return self.__get_name2file__(self._files.ptm_result_files)
+    def _get_name2ptmfile(self):
+        return self._get_name2file(self._files.ptm_result_files)
 
-    def __get_name2protfile__(self):
-        return self.__get_name2file__(self._files.proteome_result_files)
+    def _get_name2protfile(self):
+        return self._get_name2file(self._files.proteome_result_files)
 
     @staticmethod
-    def __get_name2file__(filenames):
-        pattern = "(.*\/|^)(results.*\/)(.*)(.results.tsv)"
+    def _get_name2file(filenames):
         name2file = {}
         for file in filenames:
-            matched = re.search(pattern, file)
-            if matched==None:
-                continue
-            name = matched.group(3)
-            name2file.update({name: file})
+            path = pathlib.Path(file)
+            if path.name.endswith('.results.tsv'):
+                name = path.name.replace('.results.tsv', '')
+                name2file.update({name: file})
         return name2file
 
 
