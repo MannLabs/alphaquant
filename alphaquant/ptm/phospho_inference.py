@@ -10,8 +10,9 @@ def get_inferred_phospho_peptides(results_dir, cond1, cond2):
     inferred_phospho_peptides = get_regulation_inferred_phosphoprone_peptides(predicted_phosphoprone_sequences, clusterdiff_list)
     return inferred_phospho_peptides
 
-def load_dl_predicted_phosphoprone_sequences():
-    database_path = os.path.join(pathlib.Path(__file__).parent.absolute(), "..","resources","phosphopred_databases", "human_uniprot_reviewed_phos_prob.tsv")
+def load_dl_predicted_phosphoprone_sequences(organism = "human"):
+    organism_map = {"human": "human_uniprot_reviewed_phos_prob.tsv"}
+    database_path = os.path.join(pathlib.Path(__file__).parent.absolute(), "..","resources","phosphopred_databases", organism_map[organism])
     df_phospho_predlib = pd.read_csv(database_path, sep='\t')
     df_phospho_predlib["sequence"] = [f"SEQ_{x}_" for x in df_phospho_predlib["sequence"]]
     return set(df_phospho_predlib[df_phospho_predlib['ptm_prob'] >= 0.5]["sequence"])

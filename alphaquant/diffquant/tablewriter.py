@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
+import alphaquant.ptm.phospho_inference as aq_phospho_inference
 
 class ProteoFormTableCreator():
-    def __init__(self, condpair_tree):
-        self.condpair_tree = condpair_tree
+    def __init__(self, condpair_tree, organism = None):
+        self._condpair_tree = condpair_tree
+        self._phospho_scorer = PhosphoScorer(organism)
     
         self.proteoform_df = None
 
@@ -12,15 +14,30 @@ class ProteoFormTableCreator():
 
     def _define_proteoform_df(self):
         combined_value_dicts = []
-        for protein in self.condpair_tree.children:
-            combined_value_dicts.append(self._get_value_dict_for_protein(protein))
+        for protein in self._condpair_tree.children:
+            value_dict = ValueDictCreator(protein, self._phospho_scorer).value_dict
+            combined_value_dicts.append(value_dict)
         combined_dict = self._merge_list_of_dicts(combined_value_dicts)
         self.proteoform_df = pd.DataFrame(combined_dict)
+    
+    @staticmethod
+    def _merge_list_of_dicts(dict_list):
+        combined_dict = {}
+        for d in dict_list:
+            for key, value in d.items():
+                combined_dict.setdefault(key, []).extend(value)
+        return combined_dict
 
     def _annotate_proteoform_df(self):
         self.proteoform_df = ProteoFormTableAnnotator(self.proteoform_df).proteoform_df
-        
-        
+
+
+class ValueDictCreator():
+    def __init__(self, protein, phospho_scorer):
+
+        self._phospho_scorer = phospho_scorer
+        self.value_dict = self._get_value_dict_for_protein(protein)
+    
     def _get_value_dict_for_protein(self, protein):
         value_dict = {}
         cluster2peptides = self._get_cluster2peptides(protein)
@@ -34,6 +51,8 @@ class ProteoFormTableCreator():
             value_dict["quality_score"] = value_dict.get("quality_score", []) + [self._get_proteoform_quality_score(peptides)]
             value_dict["log2fc"] = value_dict.get("log2fc", []) + [self._get_proteoform_log2fc(peptides)]
             value_dict["fraction_of_peptides"] =  value_dict.get("fraction_of_peptides", []) + [self._get_fraction_of_peptides(peptides, protein)]
+            if self._phospho_scorer.phospho_scoring_available:
+                value_dict["likely_phospho"] = value_dict.get("likely_phospho", []) + [self._phospho_scorer.check_if_cluster_likely_phospho(peptides)]
         return value_dict
 
     @staticmethod
@@ -42,7 +61,7 @@ class ProteoFormTableCreator():
         for peptide in protein.children:
             cluster2peptides[peptide.cluster] = cluster2peptides.get(peptide.cluster, []) + [peptide]
         return cluster2peptides
-
+    
     @staticmethod
     def _get_proetoform_peptides(peptides):
         return ";".join([peptide.name for peptide in peptides])
@@ -66,13 +85,43 @@ class ProteoFormTableCreator():
         fraction = len(peptides) / len(protein.children)
         return round(fraction, 2)
     
-    @staticmethod
-    def _merge_list_of_dicts(dict_list):
-        combined_dict = {}
-        for d in dict_list:
-            for key, value in d.items():
-                combined_dict.setdefault(key, []).extend(value)
-        return combined_dict
+
+    
+
+
+class PhosphoScorer():
+    def __init__(self, organism):
+        self._organism = organism
+        self._supported_organisms = ["human"]
+
+        self.phospho_scoring_available = False
+        self.phospo_peptide_database = None
+
+        self._check_if_scoring_available()
+        self._initialize_phospho_peptide_database()
+
+
+
+    def _check_if_scoring_available(self):
+        if self._organism in self._supported_organisms:
+            self.phospho_scoring_available = True
+    
+    def _initialize_phospho_peptide_database(self):
+        if self.phospho_scoring_available:
+            self.phospo_peptide_database = aq_phospho_inference.load_dl_predicted_phosphoprone_sequences(organism=self._organism)
+        
+    def check_if_cluster_likely_phospho(self, peptides):
+        number_of_likely_phospho = len(self.phospo_peptide_database.intersection({x.name for x in peptides}))
+        fraction_of_likely_phospho = number_of_likely_phospho / len(peptides)
+        if fraction_of_likely_phospho > 0.5:
+            return True
+        else:
+            return False
+
+
+            
+    
+    
 
 
 class ProteoFormTableAnnotator():

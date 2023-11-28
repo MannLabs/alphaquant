@@ -141,7 +141,7 @@ def analyze_condpair(*,runconfig, condpair):
         if runconfig.write_out_results_tree:
             condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
             aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
-            proteoform_df = aq_diffquant_tablewriter.ProteoFormTableCreator(condpair_tree= condpair_node).proteoform_df
+            proteoform_df = aq_diffquant_tablewriter.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism_for_phospho_inference).proteoform_df
 
             proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
 
