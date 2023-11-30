@@ -84,9 +84,6 @@ class ValueDictCreator():
     def _get_fraction_of_peptides(peptides, protein):
         fraction = len(peptides) / len(protein.children)
         return round(fraction, 2)
-    
-
-    
 
 
 class PhosphoScorer():
@@ -100,8 +97,6 @@ class PhosphoScorer():
         self._check_if_scoring_available()
         self._initialize_phospho_peptide_database()
 
-
-
     def _check_if_scoring_available(self):
         if self._organism in self._supported_organisms:
             self.phospho_scoring_available = True
@@ -113,15 +108,10 @@ class PhosphoScorer():
     def check_if_cluster_likely_phospho(self, peptides):
         number_of_likely_phospho = len(self.phospo_peptide_database.intersection({x.name for x in peptides}))
         fraction_of_likely_phospho = number_of_likely_phospho / len(peptides)
-        if fraction_of_likely_phospho > 0.5:
+        if fraction_of_likely_phospho > 0.2:
             return True
         else:
             return False
-
-
-            
-    
-    
 
 
 class ProteoFormTableAnnotator():
