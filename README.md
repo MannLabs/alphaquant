@@ -188,7 +188,7 @@ Provide the path to the "combined_ion.tsv" output table.
 
 
 ### generic input format
-In the case that you working with a search engine that is not supported by AlphaQuant, you can use the generic input format. This format is a tab-separated quantity matrix file with the following columns: "protein", "ion", "run_id1", "run_id2", ..,"run_idN". 
+In the case that you working with a search engine that is not supported by AlphaQuant, you can use the generic input format. This format is a tab-separated quantity matrix file with the following columns: "protein", "quant_id", "run_id1", "run_id2", ..,"run_idN". 
 Each row contains therefore all the ion intensities that were measured for an ion in each run (see examples below). The ion identifier only needs to be unique for each ion and can be on the level you want (peptide, charged peptide, or fragment ion). After reformatting your file into this format, save the file with the ending ".aq_reformat.tsv". Then you can simply give this file as input to AlphaQuant and it will automatically detect the generic input format.
 <img src="./release/images/example_input_format_mq.png" width="700" />
 <img src="./release/images/example_input_format_sn.png" width="700" />
