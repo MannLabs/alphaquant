@@ -160,6 +160,7 @@ We have compiled a set of Jupyter notebooks together with some example data in t
 
 ## Preparing input files
 
+**note: AlphaQuant is currently under development, mostly using DIA-NN and Spectronaut outputs. Other search engines and the generic format might cause problems.**
 ### Spectronaut
 AlphaQuant takes a Spectronaut .tsv table as input. When exporting from Spectronaut, the correct columns need to be selected. These can be obtained by downloading one of the export schemes available below. We provide one export scheme for sprecursor quantification and one export scheme for fragment ion quantification. Fragment ion quantification shows slightly more accuracy, but the files are around 10 times larger.
 
