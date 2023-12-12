@@ -15,8 +15,8 @@ def plot_normalization_overview(normed_df, samplemap_df):
     df_c1 = normed_df[[x for x in normed_df.columns if sample2cond.get(x) == conditions[0]]]
     df_c2 = normed_df[[x for x in normed_df.columns if sample2cond.get(x) == conditions[1]]]
 
-    plot_betweencond_fcs(df_c1, df_c2, True)
-    plot_betweencond_fcs(df_c1, df_c2, False)
+    plot_betweencond_fcs(df_c1, df_c2, merge_samples=True)
+    plot_sample_vs_median_fcs(df_c1, df_c2)
 
 
 def plot_withincond_normalization(df_c1, df_c2):
@@ -54,7 +54,7 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples=True, cumulat
     return fig, axes
 
 
-def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed, cumulative=False):
+def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed):
     """Plots the distribution of fold changes between each sample and the median across all samples."""
 
     # Calculate the median across all samples from both conditions
@@ -70,9 +70,12 @@ def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed, cumulative=False):
             axes.axvline(0, color='red', linestyle="dashed")  # helper line at 0
             cutoff = max(abs(np.nanquantile(diff_fcs, 0.025)), abs(np.nanquantile(diff_fcs, 0.975)))  # determine 2.5% - 97.5% interval
 
-            axes.hist(diff_fcs, 80, density=True, histtype='step', range=(-cutoff, cutoff), cumulative=cumulative)
+            axes.hist(diff_fcs, 80, density=True, histtype='step', range=(-cutoff, cutoff), label=col)  # set the cutoffs to focus the visualization
 
     axes.set_xlabel("log2(fc)")
+    axes.legend()
+    #place legend outside of plot
+    axes.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.show()
     return fig, axes
 
