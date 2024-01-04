@@ -161,7 +161,6 @@ class ProteoformDfCreator():
 
 
 import numpy as np
-from scipy.stats import pearsonr
 
 class CombinedProteoformDfFormatter():
     """takes the peptide resolved proteoform df an formats it to proteoform and protein level"""
@@ -205,8 +204,8 @@ class CombinedProteoformDfFormatter():
             corr_to_ref = [1]
             is_ref = [True]
             for idx in range(1, len(sub_df.index)):
-                row1 = sub_df.iloc[idx, 1:]
-                corr, _ = pearsonr(row1, ref_proteoform)
+                comparison_proteoform = sub_df.iloc[idx, 1:]
+                corr = self._calc_corr_to_reference(ref_proteoform, comparison_proteoform)
                 corr_to_ref.append(corr)
                 is_ref.append(False)
             
@@ -215,6 +214,15 @@ class CombinedProteoformDfFormatter():
             list_of_sub_dfs.append(sub_df)
         
         return pd.concat(list_of_sub_dfs).reset_index()
+
+    def _calc_corr_to_reference(self, ref_proteoform, comparison_proteoform):
+        arr1 = np.array(ref_proteoform)
+        arr2 = np.array(comparison_proteoform)
+        mask1 = ~np.isnan(arr1)
+        mask2 = ~np.isnan(arr2)
+        mask = mask1 & mask2
+        corr = np.corrcoef(arr1[mask], arr2[mask])[0,1]
+        return corr
 
     def _drop_pval_from_peptides(self):
         self.peptide_resolved_proteoform_df = self.peptide_resolved_proteoform_df.drop(columns=["p_value"])
