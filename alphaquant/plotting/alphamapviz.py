@@ -12,8 +12,8 @@ import alphamap.uniprot_integration
 
 
 class AlphaMapVisualizer:
-    def __init__(self, condpair_node, organism = 'Human'):
-        self._df_generator = AlphaMapDfGenerator(condpair_node, organism)
+    def __init__(self, condpair_node, organism = 'Human', trace_colors = []):
+        self._df_generator = AlphaMapDfGenerator(condpair_node, organism, trace_colors)
     
     def visualize_protein(self, protein):
         """returns fig object"""
@@ -24,15 +24,16 @@ class AlphaMapVisualizer:
                     uniprot=self._df_generator.human_uniprot,
                     selected_features=['CHAIN','DOMAIN','STRUCTURE', 'MOD_RES', 'TOPO_DOM'],
                     uniprot_feature_dict=alphamap.uniprot_integration.uniprot_feature_dict, 
-                    uniprot_color_dict=alphamap.sequenceplot.uniprot_color_dict)
-
-
+                    uniprot_color_dict=alphamap.sequenceplot.uniprot_color_dict,
+                    trace_colors = self._df_generator.trace_colors)
 
 
 class AlphaMapDfGenerator:
 
-    def __init__(self, condpair_node, organism = 'Human'):
+    def __init__(self, condpair_node, organism = 'Human', trace_colors = []):
         self._condpair_node = condpair_node
+
+        self.trace_colors = trace_colors
         self.cluster_dfs = []
         self.cluster_names = []
 
