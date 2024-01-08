@@ -150,16 +150,6 @@ def calc_pseudo_intensities(ions, normed_c2, log2fc):
 # Cell
 import re
 import numpy as np
-# class DifferentialIon():
-
-#     def __init__(self,name, fc):
-#         self.usable = False
-#         self.name = name
-#         self.fc = fc
-# ions= ["_LRTDETLR_.2_b6", "_LRTDETLR_.2_y6","_LTGNPELSSLDEVLAK_.2_y10","_LTGNPELSSLDEVLAK_.2_y12","_LTGNPELSSLDEVLAK_.2_y9","_IFALVFSSNER_.2_b3","_IFALVFSSNER_.2_y5","_IFALVFSSNER_.2_y6","_YFFWLQEK_.2_y3","_YFFWLQEK_.2_y4","_KVTQMTPAPK_.2_b8","_KVTQMTPAPK_.2_y4","_KVTQMTPAPK_.2_y8","_KVTQMTPAPK_.2_y9","_VTQMTPAPK_.2_y4"]
-# fcs = np.random.rand(len(ions))
-
-# diffions = [DifferentialIon(ions[x], fcs[x]) for x in range(len(ions))]
 
 def select_representative_DIA_fragions(diffions):
     filtered_ions = []
@@ -190,5 +180,3 @@ def group_ions_by_precursor(diffions):
             precursor2ions[precursor] = list()
         precursor2ions[precursor].append(ion)
     return precursor2ions
-
-#select_representative_DIA_fragions(diffions)
