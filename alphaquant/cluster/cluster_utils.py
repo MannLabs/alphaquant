@@ -181,12 +181,6 @@ def get_fcs_ions(diffions):
     return fcs
 
 
-def get_diffresults_from_clust_root_node(root_node):
-    pval = root_node.p_val
-    fc = root_node.fc
-    ions_included = [x.name for x in root_node.leaves if x.is_included]
-    consistency_score = root_node.fraction_consistent * len(root_node.leaves)
-    return pval, fc, consistency_score, ions_included
 
 import anytree
 from anytree.exporter import JsonExporter
