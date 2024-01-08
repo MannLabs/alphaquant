@@ -120,9 +120,6 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
 
 
 
-
-import alphaquant.ptm.ptmsite_mapping as aqptm
-
 def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
     try:
         aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
