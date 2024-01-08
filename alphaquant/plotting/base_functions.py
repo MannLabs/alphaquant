@@ -663,7 +663,7 @@ def get_diffresult_dataframe(cond1, cond2, results_folder = os.path.join(".", "r
     except:
         print(f"no quantfiles found for {condpair}!")
         return None
-    diffprots = diffprots[(diffprots["condpair"] == condpair)]
+    diffprots = diffprots[(diffprots["condition_pair"] == condpair)]
 
     diffprots["-log10fdr"] = -np.log10(diffprots["fdr"])
     #diffprots = diffprots.set_index("protein")

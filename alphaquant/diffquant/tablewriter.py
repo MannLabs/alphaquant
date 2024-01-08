@@ -1,6 +1,143 @@
 import pandas as pd
 import numpy as np
 import alphaquant.ptm.phospho_inference as aq_phospho_inference
+import anytree
+import statsmodels.stats.multitest as mt
+import os
+import alphaquant.utils.utils as aqutils
+
+
+class TableFromNodeCreator():
+    def __init__(self, condpair_tree, type = "gene", min_num_peptides = 1):
+        self.results_df = None
+
+        self._type = type
+        self._min_num_peptides = min_num_peptides
+        self._condpair_tree = condpair_tree
+        self._list_of_nodes = self._get_list_of_nodes()
+        self._condpair_name_table = self._get_condpair_name()
+
+        self._define_results_df()
+        self._filter_annotate_results_df()
+
+    def _get_list_of_nodes(self):
+        return anytree.findall(self._condpair_tree, filter_ = lambda x : x.type == self._type)
+
+    def _get_condpair_name(self):
+        return aqutils.get_condpairname(self._condpair_tree.name)
+
+    def _define_results_df(self):
+        list_of_dicts = []
+        for node in self._list_of_nodes:
+            list_of_dicts.append(self._get_node_dict(node))
+        self.results_df = pd.DataFrame(list_of_dicts)
+        
+    def _get_node_dict(self, node):
+        typename_dict = {"gene": "protein", "seq": "sequence", "mod_seq" : "modified_sequence"} #map the short name in the node to a more descriptive name. "gene" to "protein" is a bit confusing, I plan to change everything to "gene" in the future
+        type_name  = typename_dict.get(self._type, self._type)
+        node_dict = {}
+        node_dict["condition_pair"] = self._condpair_name_table
+        node_dict[type_name] = node.name
+        node_dict["p_value"] = node.p_val
+        node_dict["log2fc"] = node.fc
+        node_dict["number_of_ions"] = len(node.leaves)
+        if hasattr(node, "predscore"):
+            node_dict["quality_score"] = node.predscore
+        else:
+            node_dict["quality_score"] = node.fraction_consistent * len(node.leaves)
+
+        if hasattr(node, "summed_intensity"):
+            node_dict["summed_intensity"] = node.summed_intensity
+
+        if self._type == "gene":
+            node_dict["num_peptides"] = len(node.children)
+        
+        return node_dict
+    
+    def _filter_annotate_results_df(self):
+        self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodes, self._min_num_peptides).results_df
+    
+
+class TableAnnotatorFilterer():
+
+    def __init__(self, results_df, list_of_nodes, min_num_peptides):
+
+        self.results_df = results_df
+
+        self._example_node = list_of_nodes[0]
+        self._min_num_peptides = min_num_peptides
+
+        self._filter_annotate_results_df()
+    
+    def _filter_annotate_results_df(self):
+        if self._example_node.type == "gene":
+            self.results_df = self.filter_num_peptides()
+        self.results_df = self.add_fdr()
+        self.results_df = self.normalize_quality_score()
+        self.results_df = self.invert_quality_score_if_ml()
+    
+    def filter_num_peptides(self):
+        return self.results_df[self.results_df["num_peptides"] >= self._min_num_peptides]
+
+    def add_fdr(self):
+        pvals = self.results_df["p_value"].tolist()
+        fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+        self.results_df["fdr"] = fdrs
+        return self.results_df
+    
+    def normalize_quality_score(self):
+        scores = self.results_df['quality_score'].values
+
+        # Z-Score Normalization
+        mean = np.mean(scores)
+        std_dev = np.std(scores)
+        scores_standardized = (scores - mean) / std_dev
+
+        # Min-Max Scaling
+        min_val = np.min(scores_standardized)
+        max_val = np.max(scores_standardized)
+        scores_min_max_scaled = (scores_standardized - min_val) / (max_val - min_val)
+
+        # Assigning the normalized scores back to the DataFrame
+        self.results_df['quality_score'] = scores_min_max_scaled
+
+        return self.results_df
+
+    def invert_quality_score_if_ml(self):
+        if hasattr(self._example_node, "predscore"):
+            self.results_df["quality_score"] = 1 - self.results_df["quality_score"]
+        return self.results_df
+
+
+class RunConfigTableCreator():
+    def __init__(self, runconfig):
+        self._runconfig = runconfig
+
+        self.runconfig_df = None
+
+        self._define_results_df()
+
+    def _define_results_df(self):
+        method_params = self._get_methods_dict_from_runconfig()
+        self.runconfig_df = pd.Series(method_params)
+
+    def _get_methods_dict_from_runconfig(self):
+        method_params = {}
+        local_vars = self._runconfig.__dict__
+        for x in local_vars.keys():
+            if local_vars[x] is None:
+                continue
+            if isinstance(local_vars[x], pd.DataFrame):
+                continue
+
+            if (("_df" not in x) and ('condpair' not in x) and ('sys'!=x) and ('runconfig' != x)):
+                if ("input_file" in x) or ("results_dir" in x):
+                    method_params[x] = os.path.abspath(local_vars[x])
+                else:
+                    method_params[x] = local_vars[x]
+        return method_params
+
+
 
 class ProteoFormTableCreator():
     def __init__(self, condpair_tree, organism = None):
@@ -129,5 +266,3 @@ class ProteoFormTableAnnotator():
                 row["fcdiff"] = abs(row["log2fc"] - ref_fc)
                 all_rows.append(row)
         self.proteoform_df = pd.DataFrame(all_rows)
-            
-
