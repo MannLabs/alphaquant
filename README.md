@@ -194,6 +194,19 @@ Each row contains therefore all the ion intensities that were measured for an io
 <img src="./release/images/example_input_format_sn.png" width="700" />
 
 
+## Output tables
+
+### results.tsv
+
+* *condition_pair:* the names of the two conditions that are compared against each other (condition1 _VS_ condition2).  The log2 fold change is calculated as condition1 - condition2
+* *p_value:* the uncorrected(!) p-value of the differential expression analysis. It tests the null hypothesis: 'no change between condition1 and condition2'. Lower values mean higher significance.
+* *fdr:* the multiple testing corrected p-value with the Benjamini-Hochberg method
+* *log2fc:* the estimated log 2 fold change.
+* *number_of_ions:* number of raw datapoints used for protein intensity estimation.
+* *quality_score:* a quantitative score indicating the quality of quantification. Higher scores mean higher quality.
+* *summed_intensity:* the summed (non-log) intensities of all base ions
+
+
 ---
 ## Troubleshooting
 
