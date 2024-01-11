@@ -4,6 +4,7 @@ import anytree
 from statistics import NormalDist
 import numpy as np
 import collections
+import alphaquant.config.variables as aqvariables
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
@@ -45,12 +46,9 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
     p_z = set_bounds_for_p_if_too_extreme(p_z)
     z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z)
-    if z_normed <-8.3:
-        Exception("not in alignment with bounded pval")
-    if z_normed > 8.3:
-        Exception("not in alignment with bounded pval")
 
-    p_val = max(1e-16, 2.0 * (1.0 - NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(abs(z_sum))))
+    p_val = 2.0 * (1.0 - NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(abs(z_sum)))
+    p_val = set_bounds_for_p_if_too_extreme(p_val)
 
     node.z_val = z_normed
     node.p_val = p_val
@@ -80,12 +78,15 @@ def filter_fewpeps_per_protein(peptide_nodes):
 
     return get_median_peptides(pepnode2pval2numleaves)
 
+from decimal import localcontext
+from decimal import Decimal
+
 
 def set_bounds_for_p_if_too_extreme(p_val):
-    if p_val <1e-16:
-        return 1e-16
-    elif p_val > 1-(1e-16):
-        return 1- (1e-16)
+    if p_val <aqvariables.MIN_PVAL:
+        return aqvariables.MIN_PVAL
+    elif p_val > 1-(aqvariables.MIN_PVAL):
+        return 1- (aqvariables.MIN_PVAL)
     else:
         return p_val
 
