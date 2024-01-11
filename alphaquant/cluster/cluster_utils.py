@@ -78,9 +78,6 @@ def filter_fewpeps_per_protein(peptide_nodes):
 
     return get_median_peptides(pepnode2pval2numleaves)
 
-from decimal import localcontext
-from decimal import Decimal
-
 
 def set_bounds_for_p_if_too_extreme(p_val):
     if p_val <aqvariables.MIN_PVAL:
