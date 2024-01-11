@@ -56,6 +56,7 @@ class TableFromNodeCreator():
     
     def _filter_annotate_results_df(self):
         self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodes, self._min_num_peptides).results_df
+        self.results_df = QualityScoreNormalizer(self.results_df, self._list_of_nodes).results_df
     
 
 class TableAnnotatorFilterer():
@@ -71,41 +72,29 @@ class TableAnnotatorFilterer():
     
     def _filter_annotate_results_df(self):
         if self._example_node.type == "gene":
-            self.results_df = self.filter_num_peptides()
-        self.results_df = self.add_fdr()
-        self.results_df = self.normalize_quality_score()
-        self.results_df = self.invert_quality_score_if_ml()
+            self.results_df = self._filter_num_peptides()
+        self.results_df = self._scatter_pvals()
+        self.results_df = self._add_fdr()
     
-    def filter_num_peptides(self):
+    def _filter_num_peptides(self):
         return self.results_df[self.results_df["num_peptides"] >= self._min_num_peptides]
 
-    def add_fdr(self):
+    def _scatter_pvals(self): #add some scatter to the pvalues that are 1.00E-16, which is the lowest possible pvalue. This allows for a better visualization as there are less overlapping points. 
+        #Scatter is added by adding a very small random number, therefore minimally reducing significance (i.e. not artificially making significance stronger)
+        number_of_cut_pvals = (self.results_df['p_value'] == 1.00E-16).sum()
+        random_scatter = np.random.uniform(-14.3, -16, size=number_of_cut_pvals)
+        random_scatter = 10**random_scatter
+
+        row_has_cut_pval = self.results_df['p_value'] == 1.00E-16
+        self.results_df.loc[row_has_cut_pval, 'p_value'] += random_scatter
+        return self.results_df
+
+
+
+    def _add_fdr(self):
         pvals = self.results_df["p_value"].tolist()
         fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
         self.results_df["fdr"] = fdrs
-        return self.results_df
-    
-    def normalize_quality_score(self):
-        scores = self.results_df['quality_score'].values
-
-        # Z-Score Normalization
-        mean = np.mean(scores)
-        std_dev = np.std(scores)
-        scores_standardized = (scores - mean) / std_dev
-
-        # Min-Max Scaling
-        min_val = np.min(scores_standardized)
-        max_val = np.max(scores_standardized)
-        scores_min_max_scaled = (scores_standardized - min_val) / (max_val - min_val)
-
-        # Assigning the normalized scores back to the DataFrame
-        self.results_df['quality_score'] = scores_min_max_scaled
-
-        return self.results_df
-
-    def invert_quality_score_if_ml(self):
-        if hasattr(self._example_node, "predscore"):
-            self.results_df["quality_score"] = 1 - self.results_df["quality_score"]
         return self.results_df
 
 
@@ -148,6 +137,7 @@ class ProteoFormTableCreator():
 
         self._define_proteoform_df()
         self._annotate_proteoform_df()
+        
 
     def _define_proteoform_df(self):
         combined_value_dicts = []
@@ -156,6 +146,7 @@ class ProteoFormTableCreator():
             combined_value_dicts.append(value_dict)
         combined_dict = self._merge_list_of_dicts(combined_value_dicts)
         self.proteoform_df = pd.DataFrame(combined_dict)
+        self.proteoform_df = QualityScoreNormalizer(self.proteoform_df, self._condpair_tree.children[0]).results_df
     
     @staticmethod
     def _merge_list_of_dicts(dict_list):
@@ -266,3 +257,35 @@ class ProteoFormTableAnnotator():
                 row["fcdiff"] = abs(row["log2fc"] - ref_fc)
                 all_rows.append(row)
         self.proteoform_df = pd.DataFrame(all_rows)
+
+
+class QualityScoreNormalizer():
+    def __init__(self,  results_df, example_node):
+        self.results_df = results_df
+        self._example_node = example_node
+
+        self._normalize_quality_score()
+        self._invert_quality_score_if_ml()
+
+    def _normalize_quality_score(self):
+        scores = self.results_df['quality_score'].values
+
+        # Z-Score Normalization
+        mean = np.mean(scores)
+        std_dev = np.std(scores)
+        scores_standardized = (scores - mean) / std_dev
+
+        # Min-Max Scaling
+        min_val = np.min(scores_standardized)
+        max_val = np.max(scores_standardized)
+        scores_min_max_scaled = (scores_standardized - min_val) / (max_val - min_val)
+
+        # Assigning the normalized scores back to the DataFrame
+        self.results_df['quality_score'] = scores_min_max_scaled
+
+        return self.results_df
+
+    def _invert_quality_score_if_ml(self):
+        if hasattr(self._example_node, "predscore"):
+            self.results_df["quality_score"] = 1 - self.results_df["quality_score"]
+        return self.results_df
