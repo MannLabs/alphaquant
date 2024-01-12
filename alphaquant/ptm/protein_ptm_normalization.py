@@ -13,16 +13,19 @@ class PTMResultsNormalizer():
         self._table_localizer = PTMtableLocalizer(results_dir_ptm, results_dir_proteome, organism)
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
-        self._write_normalized_tables()
+        self._write_normalized_tables_diffquant()
         print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
-    def _write_normalized_tables(self):
+    def _write_normalized_tables_diffquant(self):
         for ptm_file, protfile in self._table_localizer.get_ptmfile2protfile().items():
             if protfile == None:
                 print(f"could not localize protfile for {ptm_file}, skipping")
                 continue
-            df_normed = PTMtableNormalizer(ptm_file, protfile).normalize_with_proteome()
+            table_normalizer = PTMtableNormalizer(ptm_file, protfile)
+            df_normed = table_normalizer.results_df
+            df_summary = table_normalizer.info_df
             self._write_normed_df(df_normed, ptm_file)
+            self._write_summary_df(df_summary, ptm_file)
 
     def _create_results_dir(self):
         aqutils.create_or_replace_folder(self.results_dir_protnormed)
@@ -31,6 +34,11 @@ class PTMResultsNormalizer():
         ptmfile2name = self._table_localizer.get_ptmfile2name()
         name = ptmfile2name.get(ptmfile)
         df_normed.to_csv(f"{self.results_dir_protnormed}/{name}.results.tsv", sep = "\t")
+
+    def _write_summary_df(self,df_summary, ptmfile):
+        ptmfile2name = self._table_localizer.get_ptmfile2name()
+        name = ptmfile2name.get(ptmfile)
+        df_summary.to_csv(f"{self.results_dir_protnormed}/{name}.summary.tsv", sep = "\t")
 
 
 class PTMtableLocalizer():
@@ -89,27 +97,41 @@ class PTMFiles():
 class PTMtableNormalizer():
     def __init__(self,  ptm_file, proteome_file):
         self._prepared_tables = PTMtablePreparer(ptm_file, proteome_file)
-        self._output_table_template = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and fdrs
+        self.results_df = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and fdrs
+        self.info_df = None
 
+        self._number_of_excluded_ptms = 0
+        self._number_of_included_ptms = 0
 
-    def normalize_with_proteome(self):
-        for ptm in self._output_table_template.index:
-            self.__update_ptm_infos__(ptm)
-        return self._output_table_template
+        self._normalize_with_proteome()
+        self._define_info_df()
 
-    def __update_ptm_infos__(self, ptm):
+    def _normalize_with_proteome(self):
+        for ptm in self.results_df.index:
+            self._update_ptm_infos(ptm)
+    
+    def _define_info_df(self):
+        info_dict = {}
+        info_dict["number_ptms_w_no_matching_protein"] = self._number_of_excluded_ptms
+        info_dict["number_ptms_w_matching_protein"] = len(self.results_df.index)
+        info_dict["number_proteins_in_ptm_dataset"] = len(set([x.split("_")[1] for x in self._prepared_tables.ptm_df.index]))
+        info_dict["number_proteins_in_proteome_dataset"] = self._prepared_tables.proteome_df.shape[0]
+        self.info_df = pd.DataFrame.from_dict(info_dict, orient = "index", columns = ["value"])
+
+    def _update_ptm_infos(self, ptm):
         regulation_infos = self._prepared_tables.get_protein_regulation_infos(ptm)
         if regulation_infos is None:
-            self._output_table_template = self._output_table_template.drop(labels = [ptm])
+            self.results_df = self.results_df.drop(labels = [ptm])
+            self._number_of_excluded_ptms += 1
         else:
             fdr_damper = FDRDamper(regulation_infos)
             dampened_fdr = fdr_damper.get_fdr()
-            self.__update_values_for_output_table__(ptm, dampened_fdr, regulation_infos.diff_fc)
+            self._update_values_for_output_table(ptm, dampened_fdr, regulation_infos.diff_fc)
 
 
-    def __update_values_for_output_table__(self, ptm, fdr, log2fc):
-        self._output_table_template.loc[ptm, "fdr"] = fdr
-        self._output_table_template.loc[ptm, "log2fc"] = log2fc
+    def _update_values_for_output_table(self, ptm, fdr, log2fc):
+        self.results_df.loc[ptm, "fdr"] = fdr
+        self.results_df.loc[ptm, "log2fc"] = log2fc
 
     def __get_ptm_list__(self):
         list(self._prepared_tables.ptm_df.index)
@@ -122,7 +144,7 @@ import pandas as pd
 class PTMtablePreparer():
     def __init__(self, ptm_file, proteome_file):
         self._swissprot_referenceprots = aqptm.get_swissprot_path()
-        self.ptm_df = self.__read_and_annotate_ptm_df__(ptm_file)
+        self.ptm_df = self.__read_and_annotate_ptm_df(ptm_file)
         self.proteome_df = self.__read_and_annotate_proteome_df(proteome_file)
         self.output_df = self.ptm_df.copy()
         self._ptmsite2swissprot  = self.__get_ptmsite2swissprot__()
@@ -152,7 +174,7 @@ class PTMtablePreparer():
         else:
             return protein_row
 
-    def __read_and_annotate_ptm_df__(self, ptm_file):
+    def __read_and_annotate_ptm_df(self, ptm_file):
         ptm_df = self.__read_dataframe__(ptm_file)
         ptm_df = self.__add_swissprot_name_column(ptm_df)
         ptm_df = ptm_df.set_index("protein")
@@ -197,7 +219,7 @@ class PTMtablePreparer():
         return pd.read_csv(file, sep = "\t")
 
     def __get_ptmsite2swissprot__(self):
-        return dict(zip(self.ptm_df.index, self.ptm_df["swissprot"])) #a bit weird, but the "protein" column always refers to the identifier, which in this case is the ptmsite
+        return dict(zip(self.ptm_df.index, self.ptm_df["swissprot"])) #the "protein" column always refers to the identifier, which in this case is the ptmsite
 
     @staticmethod
     def __get_fdr_from_table_row__(row):
