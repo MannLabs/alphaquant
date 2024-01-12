@@ -506,8 +506,8 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
 
     refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
 
-    input_df["REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")],swissprot_ids)
-    input_df["IonID"] = input_df[label_column] + input_df[fg_id_column]
+    input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")],swissprot_ids)
+    input_df.loc[:,"IonID"] = input_df[label_column] + input_df[fg_id_column]
     input_df = input_df.set_index("REFPROT")
     input_df.sort_index(inplace=True)
     #input_df.to_csv(f"{ptmprob_file}.sorted", sep = "\t")
