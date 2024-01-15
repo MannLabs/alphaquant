@@ -193,3 +193,9 @@ example_nbs/data/phospho/phospho_subset_ptmsite_mapped.tsv.spectronaut_ptm_fragi
 example_nbs/data/phospho/phospho_subset_ptmsite_mapped.tsv
 example_nbs/data/phospho/proteome_subset.tsv.ml_info_table.tsv
 example_nbs/data/phospho/proteome_subset.tsv.spectronaut_fragion_isotopes.aq_reformat.tsv
+example_nbs/data/phospho/phospho_subset_ptmsite_mapped_w_median.tsv.spectronaut_ptm_fragion_isotopes.aq_reformat_w_median.tsv
+example_nbs/data/phospho/phospho_subset.tsv.ml_info_table.tsv
+example_nbs/data/phospho/phospho_subset.tsv.spectronaut_fragion_isotopes.aq_reformat.tsv
+example_nbs/data/phospho/proteome_subset_w_median.tsv.spectronaut_fragion_isotopes.aq_reformat_w_median.tsv
+example_nbs/data/phospho/samplemap_phospho_w_median.tsv
+example_nbs/data/phospho/samplemap_proteome_w_median.tsv
