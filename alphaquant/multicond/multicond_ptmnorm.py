@@ -2,10 +2,11 @@ import alphaquant.utils.utils as aqutils
 import pandas as pd
 
 
-def combine_results_tables(results_dir):
+def combine_results_tables_if_they_exist(results_dir):
     condpair2results_df = MedianRefResultLoaderPTM(results_dir).condpair2results_df
-    combiner = MedianConditionCombinerPTMNormed(condpair2results_df)
-    combiner.combined_df.to_csv(f"{results_dir}/medianref_proteinnormed.tsv", sep = "\t")
+    if len(condpair2results_df.keys())>1:
+        combiner = MedianConditionCombinerPTMNormed(condpair2results_df)
+        combiner.combined_df.to_csv(f"{results_dir}/medianref_proteinnormed.tsv", sep = "\t")
 
 
 class MedianRefResultLoaderPTM():
