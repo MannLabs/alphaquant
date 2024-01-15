@@ -6,6 +6,7 @@ __all__ = ['PTMResultsNormalizer', 'PTMtableLocalizer', 'PTMFiles', 'PTMtableNor
 # Cell
 import alphaquant.diffquant.diffutils as aqutils
 import pathlib
+import alphaquant.multicond.multicond_ptmnorm as aq_multicond_ptmnorm
 
 
 class PTMResultsNormalizer():
@@ -14,6 +15,7 @@ class PTMResultsNormalizer():
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
         self._write_normalized_tables_diffquant()
+        aq_multicond_ptmnorm.combine_results_tables_if_they_exist(self.results_dir_protnormed)
         print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
     def _write_normalized_tables_diffquant(self):
@@ -38,7 +40,7 @@ class PTMResultsNormalizer():
     def _write_summary_df(self,df_summary, ptmfile):
         ptmfile2name = self._table_localizer.get_ptmfile2name()
         name = ptmfile2name.get(ptmfile)
-        df_summary.to_csv(f"{self.results_dir_protnormed}/{name}.summary.tsv", sep = "\t")
+        df_summary.to_csv(f"{self.results_dir_protnormed}/{name}.summary.tsv", sep = "\t", header = False)
 
 
 class PTMtableLocalizer():
