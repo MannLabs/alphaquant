@@ -244,13 +244,13 @@ class RegulationInfos():
         self.log2fc_protein = log2fc_protein
         self.fdr_ptm = fdr_ptm
         self.fdr_protein = fdr_protein
-        self.diff_fc = self.__get_protnormed_fc__()
-        self.switched_regulation_direction = not self.__check_if_regulation_stayed_the_same__()
+        self.diff_fc = self._get_protnormed_fc()
+        self.switched_regulation_direction = not self._check_if_regulation_stayed_the_same()
 
-    def __get_protnormed_fc__(self):
+    def _get_protnormed_fc(self):
         return self.log2fc_ptm - self.log2fc_protein
 
-    def __check_if_regulation_stayed_the_same__(self):
+    def _check_if_regulation_stayed_the_same(self):
         return np.sign(self.log2fc_ptm) == np.sign(self.diff_fc)
 
 
@@ -267,31 +267,31 @@ class FDRDamper():
         self._regulation_infos = regulation_infos
 
     def get_fdr(self):
-        return self.__dampen_fdr_if_needed()
+        return self._dampen_fdr_if_needed()
 
-    def __dampen_fdr_if_needed(self):
-        if self.__check_if_needs_damping():
-            return self.__get_adjusted_fdr()
+    def _dampen_fdr_if_needed(self):
+        if self._check_if_needs_damping():
+            return self._get_adjusted_fdr()
         else:
             return self._regulation_infos.fdr_ptm
 
-    def __check_if_needs_damping(self):
+    def _check_if_needs_damping(self):
         if self._regulation_infos.fdr_protein<0.05:
             if np.sign(self._regulation_infos.log2fc_ptm) == np.sign(self._regulation_infos.log2fc_protein):
                 return True
         return False
 
-    def __get_adjusted_fdr(self):
+    def _get_adjusted_fdr(self):
         if self._regulation_infos.switched_regulation_direction:
             return 1.0
         else:
-            return self.__calculate_damping_factor()
+            return self._calculate_damping_factor()
 
-    def __calculate_damping_factor(self):
-        factor = self.__calculate_order_of_magnitude_damping_factor()
+    def _calculate_damping_factor(self):
+        factor = self._calculate_order_of_magnitude_damping_factor()
         fdr_new = 10**(math.log10(self._regulation_infos.fdr_ptm)*factor)
         return min(fdr_new, 1)
 
-    def __calculate_order_of_magnitude_damping_factor(self):
+    def _calculate_order_of_magnitude_damping_factor(self):
         ratio_old_new = self._regulation_infos.diff_fc/self._regulation_infos.log2fc_ptm #must be smaller than 1
         return ratio_old_new
