@@ -7,6 +7,8 @@ __all__ = ['PTMResultsNormalizer', 'PTMtableLocalizer', 'PTMFiles', 'PTMtableNor
 import alphaquant.diffquant.diffutils as aqutils
 import pathlib
 import alphaquant.multicond.multicond_ptmnorm as aq_multicond_ptmnorm
+import statsmodels.stats.multitest as mt
+
 
 
 class PTMResultsNormalizer():
@@ -26,11 +28,19 @@ class PTMResultsNormalizer():
             table_normalizer = PTMtableNormalizer(ptm_file, protfile)
             df_normed = table_normalizer.results_df
             df_summary = table_normalizer.info_df
+            df_normed = self._update_fdr_column_normed_df(df_normed)
             self._write_normed_df(df_normed, ptm_file)
             self._write_summary_df(df_summary, ptm_file)
 
     def _create_results_dir(self):
         aqutils.create_or_replace_folder(self.results_dir_protnormed)
+
+    def _update_fdr_column_normed_df(self, df_normed):
+        pvals = df_normed["p_value"].tolist()
+        fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+        df_normed["fdr"] = fdrs
+        return df_normed
+
 
     def _write_normed_df(self,df_normed, ptmfile):
         ptmfile2name = self._table_localizer.get_ptmfile2name()
@@ -99,7 +109,7 @@ class PTMFiles():
 class PTMtableNormalizer():
     def __init__(self,  ptm_file, proteome_file):
         self._prepared_tables = PTMtablePreparer(ptm_file, proteome_file)
-        self.results_df = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and fdrs
+        self.results_df = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and p_values
         self.info_df = None
 
         self._number_of_excluded_ptms = 0
@@ -126,13 +136,13 @@ class PTMtableNormalizer():
             self.results_df = self.results_df.drop(labels = [ptm])
             self._number_of_excluded_ptms += 1
         else:
-            fdr_damper = FDRDamper(regulation_infos)
-            dampened_fdr = fdr_damper.get_fdr()
-            self._update_values_for_output_table(ptm, dampened_fdr, regulation_infos.diff_fc)
+            p_value_damper = PvalDamper(regulation_infos)
+            dampened_p_value = p_value_damper.get_p_value()
+            self._update_values_for_output_table(ptm, dampened_p_value, regulation_infos.diff_fc)
 
 
-    def _update_values_for_output_table(self, ptm, fdr, log2fc):
-        self.results_df.loc[ptm, "fdr"] = fdr
+    def _update_values_for_output_table(self, ptm, dampened_p_value, log2fc):
+        self.results_df.loc[ptm, "p_value"] = dampened_p_value
         self.results_df.loc[ptm, "log2fc"] = log2fc
 
     def __get_ptm_list__(self):
@@ -161,11 +171,11 @@ class PTMtablePreparer():
 
         except:
             return None
-        ptm_fdr = self.__get_fdr_from_table_row__(ptm_row)
+        ptm_p_value = self.__get_p_value_from_table_row__(ptm_row)
         ptm_fc = self.__get_fc_from_table_row__(ptm_row)
-        protein_fdr = self.__get_fdr_from_table_row__(protein_row)
+        protein_p_value = self.__get_p_value_from_table_row__(protein_row)
         protein_fc = self.__get_fc_from_table_row__(protein_row)
-        reginfos = RegulationInfos(log2fc_ptm=ptm_fc, fdr_ptm=ptm_fdr, log2fc_protein=protein_fc,fdr_protein=protein_fdr)
+        reginfos = RegulationInfos(log2fc_ptm=ptm_fc, p_value_ptm=ptm_p_value, log2fc_protein=protein_fc,p_value_protein=protein_p_value)
 
         return reginfos
 
@@ -224,12 +234,12 @@ class PTMtablePreparer():
         return dict(zip(self.ptm_df.index, self.ptm_df["swissprot"])) #the "protein" column always refers to the identifier, which in this case is the ptmsite
 
     @staticmethod
-    def __get_fdr_from_table_row__(row):
-        return float(row['fdr'])
+    def __get_p_value_from_table_row__(row):
+        return float(row["p_value"])
 
     @staticmethod
     def __get_fc_from_table_row__(row):
-        return float(row['log2fc'])
+        return float(row["log2fc"])
 
 
 
@@ -239,11 +249,11 @@ import math
 import numpy as np
 
 class RegulationInfos():
-    def __init__(self, log2fc_ptm, fdr_ptm,log2fc_protein, fdr_protein):
+    def __init__(self, log2fc_ptm, p_value_ptm,log2fc_protein, p_value_protein):
         self.log2fc_ptm = log2fc_ptm
         self.log2fc_protein = log2fc_protein
-        self.fdr_ptm = fdr_ptm
-        self.fdr_protein = fdr_protein
+        self.p_value_ptm = p_value_ptm
+        self.p_value_protein = p_value_protein
         self.diff_fc = self._get_protnormed_fc()
         self.switched_regulation_direction = not self._check_if_regulation_stayed_the_same()
 
@@ -256,32 +266,32 @@ class RegulationInfos():
 
 
 import math
-class FDRDamper():
-    """The fdr is taken from the regulation of the phosphopeptides. If the protein is regulated
-    similar to the phosphopeptide, we for the moment use a very simple heuristic to correct the fdr down:
+class PvalDamper():
+    """The p_value is taken from the regulation of the phosphopeptides. If the protein is regulated
+    similar to the phosphopeptide, we for the moment use a very simple heuristic to correct the p_value down:
 
     1) We only consider phosphopeptides where the fold change has become less strong, i.e. 'dampened' and where the "damping" protein was regulated significantly
-    2) We correct the logged(!) fdr up with an exponnential function and then transform it back to a new fdr. This means a exponential decrease in the significance
+    2) We correct the logged(!) p_value up with an exponnential function and then transform it back to a new p_value. This means a exponential decrease in the significance
     """
     def __init__(self, regulation_infos):
         self._regulation_infos = regulation_infos
 
-    def get_fdr(self):
-        return self._dampen_fdr_if_needed()
+    def get_p_value(self):
+        return self._dampen_p_value_if_needed()
 
-    def _dampen_fdr_if_needed(self):
+    def _dampen_p_value_if_needed(self):
         if self._check_if_needs_damping():
-            return self._get_adjusted_fdr()
+            return self._get_adjusted_p_value()
         else:
-            return self._regulation_infos.fdr_ptm
+            return self._regulation_infos.p_value_ptm
 
     def _check_if_needs_damping(self):
-        if self._regulation_infos.fdr_protein<0.05:
+        if self._regulation_infos.p_value_protein<0.05:
             if np.sign(self._regulation_infos.log2fc_ptm) == np.sign(self._regulation_infos.log2fc_protein):
                 return True
         return False
 
-    def _get_adjusted_fdr(self):
+    def _get_adjusted_p_value(self):
         if self._regulation_infos.switched_regulation_direction:
             return 1.0
         else:
@@ -289,8 +299,8 @@ class FDRDamper():
 
     def _calculate_damping_factor(self):
         factor = self._calculate_order_of_magnitude_damping_factor()
-        fdr_new = 10**(math.log10(self._regulation_infos.fdr_ptm)*factor)
-        return min(fdr_new, 1)
+        p_value_new = 10**(math.log10(self._regulation_infos.p_value_ptm)*factor)
+        return min(p_value_new, 1)
 
     def _calculate_order_of_magnitude_damping_factor(self):
         ratio_old_new = self._regulation_infos.diff_fc/self._regulation_infos.log2fc_ptm #must be smaller than 1
