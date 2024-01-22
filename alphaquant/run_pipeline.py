@@ -146,6 +146,3 @@ def determine_if_ion_tree_is_used(runconfig):
         return runconfig.use_iontree_if_possible
     _, config_dict, _ =  abconfigloader.get_input_type_and_config_dict(runconfig.input_file)
     return config_dict.get("use_iontree")
-
-
-
