@@ -6,7 +6,7 @@ import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.config.variables as aqvariables
-import alphaquant.diffquant.tablewriter as aq_diffquant_tablewriter
+import alphaquant.tables.tablewriter as aq_diffquant_tablewriter
 import anytree
 
 import alphaquant.cluster.cluster_utils as aqclust_utils

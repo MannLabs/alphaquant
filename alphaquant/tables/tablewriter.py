@@ -81,8 +81,9 @@ class TableAnnotatorFilterer():
 
     def _scatter_pvals(self): #add some scatter to the pvalues that are 1.00E-16, which is the lowest possible pvalue. This allows for a better visualization as there are less overlapping points. 
         #Scatter is added by adding a very small random number, therefore minimally reducing significance (i.e. not artificially making significance stronger)
+        rng = np.random.RandomState(123)
         number_of_cut_pvals = (self.results_df['p_value'] == 1.00E-16).sum()
-        random_scatter = np.random.uniform(-14.3, -16, size=number_of_cut_pvals)
+        random_scatter = rng.uniform(-14.3, -16, size=number_of_cut_pvals)
         random_scatter = 10**random_scatter
 
         row_has_cut_pval = self.results_df['p_value'] == 1.00E-16
