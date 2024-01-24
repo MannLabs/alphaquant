@@ -20,6 +20,230 @@ import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictl
 
 #helper classes
 
+
+# Cell
+
+import pandas as pd
+import dask.dataframe as dd
+
+def assign_dataset_chunkwise(input_file, results_dir, samplemap_df , modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+sequence_file=None, input_type = "Spectronaut", organism = "human"):
+    """go through the dataset chunkwise. The crucial step here is, that the dataset needs to be sorted by protein (realized via set_index) such that the chunks are independent (different proteins are independent)
+    """
+    clean_up_previous_processings(results_dir)
+
+    if input_type == 'Spectronaut':
+        relevant_cols = get_relevant_cols_spectronaut(modification_type)
+        input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
+        input_df = input_df.set_index('PG.UniProtIds')
+
+    if input_type == 'DIANN':
+        relevant_cols = get_relevant_cols_diann(modification_type)
+        input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
+        input_df = input_df.set_index('ProteinGroup')
+
+    input_df = input_df.drop_duplicates()
+    sorted_reduced_input = f"{input_file}.sorted_reduced.xz"
+    if os.path.exists(sorted_reduced_input):
+        os.remove(sorted_reduced_input)
+    input_df.to_csv(sorted_reduced_input, single_file = True, sep = "\t", compression = 'xz')
+
+    input_df_it = pd.read_csv(sorted_reduced_input, sep = "\t", chunksize = 1000_000, encoding ='latin1')
+    for input_df in input_df_it:
+
+        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        organism = organism)
+
+
+
+
+def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+sequence_file=None, input_type = "Spectronaut", organism = "human"):
+    if input_type == "Spectronaut":
+        input_df = read_df_spectronaut_reduce_cols(input_file, modification_type)
+    if input_type == "DIANN":
+        input_df = read_df_diann_reduce_cols(input_file)
+
+    assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
+        organism = organism)
+
+# Cell
+    
+
+import os
+import alphaquant.plotting.base_functions as aqviz
+def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
+sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
+
+    """wrapper function reformats Spectronaut inputs tables and iterates through the whole dataset.
+    Needed columns:
+    "EG.PTMProbabilities {modification_type}"
+    "EG.PTMPositions {modification_type}"
+    "PEP.StrippedSequence"
+    "FG.PrecMz"
+    "FG.Charge"
+
+    """""
+    if(id_thresh < 0.5):
+        print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
+        id_thresh = 0.51
+    swissprot_file = get_swissprot_path(swissprot_file, organism)
+    sequence_file = get_uniprot_path(sequence_file, organism)
+    #input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
+    headers_dict = headers_dicts.get(input_type)
+    label_column = headers_dict.get("label_column")
+    fg_id_column = headers_dict.get("fg_id_column")
+    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
+    len_before = len(input_df.index)
+    input_df = filter_input_table(input_type, modification_type, input_df)
+    print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
+    swissprot_ids = set(pd.read_csv(swissprot_file, sep = "\t", usecols = ["Entry"])["Entry"])
+    sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene names"])
+    sequence_map = dict(zip(sequence_df["Entry"], sequence_df["Sequence"]))
+    sequence_df = sequence_df.dropna()
+
+    refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
+
+    input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")],swissprot_ids)
+    input_df.loc[:,"IonID"] = input_df[label_column] + input_df[fg_id_column]
+    input_df = input_df.set_index("REFPROT")
+    input_df.sort_index(inplace=True)
+    #input_df.to_csv(f"{ptmprob_file}.sorted", sep = "\t")
+    site_ids = []
+    fg_ids = []
+    run_ids = []
+    prot_ids = []
+    gene_ids = []
+    ptmlocs = []
+    locprobs = []
+    siteprobs = []
+    stripped_seqs = []
+    prec_mz = []
+    fg_charge = []
+    ptm_id = []
+    ion_id = []
+
+
+    count_peps = 0
+    fraction_count = 0
+    one_fraction = int(len(input_df.index)/100)
+    for prot in input_df.index.unique():#input_df["REFPROT"].unique():
+
+        if int(count_peps/one_fraction)>fraction_count:
+            print(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index)}")
+            fraction_count = int(count_peps/one_fraction) +1
+
+        #filtvec = [prot in x for x in input_df["REFPROT"]]
+
+        protein_df = input_df.loc[[prot]].copy()#input_df[filtvec].copy()
+        protein_df = protein_df.reset_index()
+
+        count_peps+= len(protein_df)
+
+        sequence = sequence_map.get(prot)
+        if sequence == None:
+            continue
+        gene = refgene_map.get(prot)
+
+        modpeps_per_sample = [ModifiedPeptide(input_type,protein_df.loc[x],sequence, modification_type) for x in protein_df.index]
+        merged_siteprobs = get_site_prob_overview(modpeps_per_sample, prot, gene)
+        siteprobs.extend(merged_siteprobs)
+        modpeps, condid2ionids = merge_samecond_modpeps(modpeps_per_sample, sample2cond, id_thresh, excl_thresh) #all ions coming from the same condition are merged
+        ionid2ptmid = assign_ptm_locations(modpeps, condid2ionids,id_thresh)##after clustering, conditions are mapped back to the original run
+
+        ptm_ids_prot = [ionid2ptmid.get(x) for x in protein_df["IonID"]]
+
+        ptmlocs.extend([x for x in protein_df[get_ptmpos_header(input_type, modification_type)]])
+        locprobs.extend([x for x in protein_df[get_ptmprob_header(input_type, modification_type)]])
+        site_ids.extend(ptm_ids_prot)
+        fg_ids.extend(protein_df[fg_id_column].tolist())
+        ion_id.extend([f"{fg}_{site_num}" for fg, site_num in zip(protein_df[fg_id_column].tolist(), ptm_ids_prot)])
+        run_ids.extend(protein_df[label_column].tolist())
+        prot_ids.extend([prot for x in range(len(ptm_ids_prot))])
+        gene_ids.extend([gene for x in range(len(ptm_ids_prot))])
+        stripped_seqs.extend(protein_df[headers_dict.get("sequence")])
+        prec_mz.extend(protein_df[headers_dict.get("precursor_mz")])
+        fg_charge.extend(protein_df[headers_dict.get("precursor_charge")])
+        ptm_id.extend([f"{gene}_{prot}_{ionid2ptmid.get(x)}" for x in protein_df["IonID"]])
+
+
+    conditions = [sample2cond.get(x) for x in run_ids]
+
+    mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,
+    "locprob" : locprobs, "PEP.StrippedSequence" : stripped_seqs, "FG.PrecMz" : prec_mz, "FG.Charge": fg_charge, "FG.Id.ptm" : ion_id, "ptm_id" : ptm_id})
+
+
+    siteprob_df = pd.DataFrame(siteprobs)
+    siteprob_df = siteprob_df.astype({"site" : "int"})
+    siteprob_df.set_index(["REFPROT", "site"], inplace=True)
+    siteprob_df = siteprob_df.sort_index().reset_index()
+
+    if results_folder != None:
+        os.makedirs(results_folder, exist_ok=True)
+        mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None, header = header, mode = 'a')
+        siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None, header = header, mode = 'a')
+
+    return mapped_df, siteprob_df
+
+
+def assign_ptm_locations(modpeps,condid2ionids, id_thresh):
+    """go through ions of a given protein, cluster if necessary and map each ion to a ptm_site ID"""
+    id2groupid = {}
+
+    if len(modpeps) == 1:
+        grouped_ions = [modpeps]
+    else:
+        grouped_ions = cluster_ions(modpeps)
+
+    for iongroup in grouped_ions:
+        idxs_most_likely, idxs_confident = get_most_likely_sites(iongroup, id_thresh)
+        positions_ids = get_AA_positions(iongroup, idxs_most_likely, idxs_confident)
+        positions_ids_w_aa = add_AA_ids_to_positions(positions_ids, iongroup)
+
+        #positions = np.sort(positions)
+        all_ions = sum([condid2ionids.get(x.id) for x in iongroup], [])#the condition-level merged ions are mapped back to the existin ion-level IDs
+        id2groupid.update({x:positions_ids_w_aa for x in all_ions})
+    return id2groupid
+
+def get_most_likely_sites(iongroup, id_thresh):
+    summed_probs = np.sum([x.probabilities for x in iongroup], axis = 0)
+    max_probs = np.max([x.probabilities for x in iongroup], axis = 0)
+    num_sites = iongroup[0].num_sites
+
+    idxs_most_likely = np.argpartition(summed_probs, -num_sites)[-num_sites:] #get the indices of the most likely sites
+    idxs_most_likely = np.sort(idxs_most_likely)
+    idxs_confident = set(np.where(max_probs>=id_thresh)[0]) #check which sites are above the confidence threshold
+    return idxs_most_likely, idxs_confident
+
+
+def get_AA_positions(iongroup, idxs_most_likely, idxs_confident):
+    positions = list(iongroup[0].positions)
+    positions_final = []
+    for idx in idxs_most_likely:
+        if idx in idxs_confident:
+            positions_final.append(positions[idx])
+        else:
+            positions_final.append(np.nan)#set those sites that are not confident enough to np.nan
+    return positions_final
+
+
+def add_AA_ids_to_positions(position_ids, iongroup):
+    position_ids_w_aa = []
+    pepseq = iongroup[0].seq
+    start_idx = iongroup[0].start_idx
+    position_ids_normed = [x-start_idx-1 for x in position_ids]
+    
+    for position_id in position_ids_normed:
+        if np.isnan(position_id):
+            position_ids_w_aa.append(np.nan)
+        else:
+            aa_id = pepseq[position_id]
+            position_id_w_aa = f"{aa_id}{position_id}"
+            position_ids_w_aa.append(position_id_w_aa)
+
+    return position_ids_w_aa
+
+
 # Cell
 import numpy as np
 class ModifiedPeptide():
@@ -376,88 +600,8 @@ def get_path_to_database(database_path, database_name, organism):
 import pandas as pd
 import numpy as np
 
-def assign_protein(modpeps,condid2ionids, refprot, id_thresh):
-    """go through ions of a given protein, cluster if necessary and map each ion to a ptm_site ID"""
-    id2groupid = {}
-    id2normedid = {}
-
-    if len(modpeps) == 1:
-        grouped_ions = [modpeps]
-    else:
-        grouped_ions = cluster_ions(modpeps)
-
-    for group in grouped_ions:
-        summed_probs = np.sum([x.probabilities for x in group], axis = 0)
-        max_probs = np.max([x.probabilities for x in group], axis = 0)
-        num_sites = group[0].num_sites
-
-        idxs_most_likely = np.argpartition(summed_probs, -num_sites)[-num_sites:] #get the indices of the most likely sites
-        idxs_most_likely = np.sort(idxs_most_likely)
-        idxs_confident = set(np.where(max_probs>=id_thresh)[0]) #check which sites are above the confidence threshold
-
-        positions = list(group[0].positions)
-        positions_final = []
-        for idx in idxs_most_likely:#set those sites that are not confident enough to np.nan
-            if idx in idxs_confident:
-                positions_final.append(positions[idx])
-            else:
-                positions_final.append(np.nan)
-
-        #positions = np.sort(positions)
-        ptm_group_id = positions_final
-        ptm_group_id_normed = f"{refprot}_{np.array(positions_final)-group[0].start_idx}"
-        all_ions = sum([condid2ionids.get(x.id) for x in group], [])#the condition-level merged ions are mapped back to the existin ion-level IDs
-        id2groupid.update({x:ptm_group_id for x in all_ions})
-
-        id2normedid.update({x:ptm_group_id_normed for x in all_ions})
-
-
-    return id2groupid, id2normedid
 
 ## Iterate through dataset
-
-def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
-sequence_file=None, input_type = "Spectronaut", organism = "human"):
-    if input_type == "Spectronaut":
-        input_df = read_df_spectronaut_reduce_cols(input_file, modification_type)
-    if input_type == "DIANN":
-        input_df = read_df_diann_reduce_cols(input_file)
-
-    assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
-        organism = organism)
-
-# Cell
-import pandas as pd
-import dask.dataframe as dd
-
-def assign_dataset_chunkwise(input_file, results_dir, samplemap_df , modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
-sequence_file=None, input_type = "Spectronaut", organism = "human"):
-    """go through the dataset chunkwise. The crucial step here is, that the dataset needs to be sorted by protein (realized via set_index) such that the chunks are independent (different proteins are independent)
-    """
-    clean_up_previous_processings(results_dir)
-
-    if input_type == 'Spectronaut':
-        relevant_cols = get_relevant_cols_spectronaut(modification_type)
-        input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
-        input_df = input_df.set_index('PG.UniProtIds')
-
-    if input_type == 'DIANN':
-        relevant_cols = get_relevant_cols_diann(modification_type)
-        input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
-        input_df = input_df.set_index('ProteinGroup')
-
-    input_df = input_df.drop_duplicates()
-    sorted_reduced_input = f"{input_file}.sorted_reduced.xz"
-    if os.path.exists(sorted_reduced_input):
-        os.remove(sorted_reduced_input)
-    input_df.to_csv(sorted_reduced_input, single_file = True, sep = "\t", compression = 'xz')
-
-    input_df_it = pd.read_csv(sorted_reduced_input, sep = "\t", chunksize = 1000_000, encoding ='latin1')
-    for input_df in input_df_it:
-
-        assign_dataset(input_df, id_thresh = id_thresh, excl_thresh =excl_thresh, results_folder = results_dir, samplemap_df = samplemap_df, swissprot_file = swissprot_file, sequence_file=sequence_file, modification_type = modification_type, input_type = input_type,
-        organism = organism)
-
 
 # Cell
 
@@ -470,122 +614,6 @@ def clean_up_previous_processings(results_folder):
     if os.path.exists(file_siteprobs):
         os.remove(file_siteprobs)
 
-
-# Cell
-import os
-import alphaquant.plotting.base_functions as aqviz
-def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
-sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
-
-    """wrapper function reformats Spectronaut inputs tables and iterates through the whole dataset.
-    Needed columns:
-    "EG.PTMProbabilities {modification_type}"
-    "EG.PTMPositions {modification_type}"
-    "PEP.StrippedSequence"
-    "FG.PrecMz"
-    "FG.Charge"
-
-    """""
-    if(id_thresh < 0.5):
-        print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
-        id_thresh = 0.51
-    swissprot_file = get_swissprot_path(swissprot_file, organism)
-    sequence_file = get_uniprot_path(sequence_file, organism)
-    #input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
-    headers_dict = headers_dicts.get(input_type)
-    label_column = headers_dict.get("label_column")
-    fg_id_column = headers_dict.get("fg_id_column")
-    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
-    len_before = len(input_df.index)
-    input_df = filter_input_table(input_type, modification_type, input_df)
-    print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
-    swissprot_ids = set(pd.read_csv(swissprot_file, sep = "\t", usecols = ["Entry"])["Entry"])
-    sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene names"])
-    sequence_map = dict(zip(sequence_df["Entry"], sequence_df["Sequence"]))
-    sequence_df = sequence_df.dropna()
-
-    refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
-
-    input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")],swissprot_ids)
-    input_df.loc[:,"IonID"] = input_df[label_column] + input_df[fg_id_column]
-    input_df = input_df.set_index("REFPROT")
-    input_df.sort_index(inplace=True)
-    #input_df.to_csv(f"{ptmprob_file}.sorted", sep = "\t")
-    site_ids = []
-    fg_ids = []
-    run_ids = []
-    prot_ids = []
-    gene_ids = []
-    ptmlocs = []
-    locprobs = []
-    siteprobs = []
-    stripped_seqs = []
-    prec_mz = []
-    fg_charge = []
-    ptm_id = []
-    ion_id = []
-
-
-    count_peps = 0
-    fraction_count = 0
-    one_fraction = int(len(input_df.index)/100)
-    for prot in input_df.index.unique():#input_df["REFPROT"].unique():
-
-        if int(count_peps/one_fraction)>fraction_count:
-            print(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index)}")
-            fraction_count = int(count_peps/one_fraction) +1
-
-        #filtvec = [prot in x for x in input_df["REFPROT"]]
-
-        protein_df = input_df.loc[[prot]].copy()#input_df[filtvec].copy()
-        protein_df = protein_df.reset_index()
-
-        count_peps+= len(protein_df)
-
-        sequence = sequence_map.get(prot)
-        if sequence == None:
-            continue
-        gene = refgene_map.get(prot)
-
-        modpeps_per_sample = [ModifiedPeptide(input_type,protein_df.loc[x],sequence, modification_type) for x in protein_df.index]
-        merged_siteprobs = get_site_prob_overview(modpeps_per_sample, prot, gene)
-        siteprobs.extend(merged_siteprobs)
-        modpeps, condid2ionids = merge_samecond_modpeps(modpeps_per_sample, sample2cond, id_thresh, excl_thresh) #all ions coming from the same condition are merged
-        ionid2ptmid,_ = assign_protein(modpeps, condid2ionids, prot,id_thresh)##after clustering, conditions are mapped back to the original run
-
-        ptm_ids_prot = [ionid2ptmid.get(x) for x in protein_df["IonID"]]
-
-        ptmlocs.extend([x for x in protein_df[get_ptmpos_header(input_type, modification_type)]])
-        locprobs.extend([x for x in protein_df[get_ptmprob_header(input_type, modification_type)]])
-        site_ids.extend(ptm_ids_prot)
-        fg_ids.extend(protein_df[fg_id_column].tolist())
-        ion_id.extend([f"{fg}_{site_num}" for fg, site_num in zip(protein_df[fg_id_column].tolist(), ptm_ids_prot)])
-        run_ids.extend(protein_df[label_column].tolist())
-        prot_ids.extend([prot for x in range(len(ptm_ids_prot))])
-        gene_ids.extend([gene for x in range(len(ptm_ids_prot))])
-        stripped_seqs.extend(protein_df[headers_dict.get("sequence")])
-        prec_mz.extend(protein_df[headers_dict.get("precursor_mz")])
-        fg_charge.extend(protein_df[headers_dict.get("precursor_charge")])
-        ptm_id.extend([f"{gene}_{prot}_{ionid2ptmid.get(x)}" for x in protein_df["IonID"]])
-
-
-    conditions = [sample2cond.get(x) for x in run_ids]
-
-    mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,
-    "locprob" : locprobs, "PEP.StrippedSequence" : stripped_seqs, "FG.PrecMz" : prec_mz, "FG.Charge": fg_charge, "FG.Id.ptm" : ion_id, "ptm_id" : ptm_id})
-
-
-    siteprob_df = pd.DataFrame(siteprobs)
-    siteprob_df = siteprob_df.astype({"site" : "int"})
-    siteprob_df.set_index(["REFPROT", "site"], inplace=True)
-    siteprob_df = siteprob_df.sort_index().reset_index()
-
-    if results_folder != None:
-        os.makedirs(results_folder, exist_ok=True)
-        mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None, header = header, mode = 'a')
-        siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None, header = header, mode = 'a')
-
-    return mapped_df, siteprob_df
 
 
 ## Create ptm mapped input tables
