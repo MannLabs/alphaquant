@@ -233,11 +233,13 @@ def add_AA_ids_to_positions(position_ids, iongroup):
     start_idx = iongroup[0].start_idx
     position_ids_normed = [x-start_idx-1 for x in position_ids]
     
-    for position_id in position_ids_normed:
+    for idx in range(len(position_ids_normed)):
+        position_id = position_ids[idx]
+        position_id_normed = position_ids_normed[idx]
         if np.isnan(position_id):
             position_ids_w_aa.append(np.nan)
         else:
-            aa_id = pepseq[position_id]
+            aa_id = pepseq[position_id_normed]
             position_id_w_aa = f"{aa_id}{position_id}"
             position_ids_w_aa.append(position_id_w_aa)
 
