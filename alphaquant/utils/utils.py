@@ -49,3 +49,7 @@ def get_condpairname(condpair):
 
 def get_condpair_from_condpairname(condpairname):
     return condpairname.split("_VS_")
+
+def remove_file_extension(filename):
+    trimmed_filename = os.path.splitext(filename)[0]
+    return trimmed_filename
