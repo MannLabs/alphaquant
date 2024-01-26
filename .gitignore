@@ -199,3 +199,5 @@ example_nbs/data/phospho/phospho_subset.tsv.spectronaut_fragion_isotopes.aq_refo
 example_nbs/data/phospho/proteome_subset_w_median.tsv.spectronaut_fragion_isotopes.aq_reformat_w_median.tsv
 example_nbs/data/phospho/samplemap_phospho_w_median.tsv
 example_nbs/data/phospho/samplemap_proteome_w_median.tsv
+example_nbs/data/phospho/phospho_subset_ptmsite_mapped.annotation.tsv
+example_nbs/data/phospho/proteome_subset.annotation.tsv
