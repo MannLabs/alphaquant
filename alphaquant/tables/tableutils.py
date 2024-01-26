@@ -79,7 +79,7 @@ class TableAnnotatorFilterer():
     def _filter_num_peptides(self):
         return self.results_df[self.results_df["num_peptides"] >= self._min_num_peptides]
 
-    def _scatter_pvals(self): #add some scatter to the pvalues that are 1.00E-16, which is the lowest possible pvalue. This allows for a better visualization as there are less overlapping points. 
+    def _scatter_pvals(self): #add some scatter to the pvalues that are 1.00E-16, which we set as the lowest possible pvalue. This allows for a better visualization as there are less overlapping points. 
         #Scatter is added by adding a very small random number, therefore minimally reducing significance (i.e. not artificially making significance stronger)
         rng = np.random.RandomState(123)
         number_of_cut_pvals = (self.results_df['p_value'] == 1.00E-16).sum()
@@ -89,8 +89,6 @@ class TableAnnotatorFilterer():
         row_has_cut_pval = self.results_df['p_value'] == 1.00E-16
         self.results_df.loc[row_has_cut_pval, 'p_value'] += random_scatter
         return self.results_df
-
-
 
     def _add_fdr(self):
         pvals = self.results_df["p_value"].tolist()
@@ -125,15 +123,13 @@ class RunConfigTableCreator():
                     method_params[x] = os.path.abspath(local_vars[x])
                 else:
                     method_params[x] = local_vars[x]
-        return method_params
-
-
+        return method_params  
 
 class ProteoFormTableCreator():
     def __init__(self, condpair_tree, organism = None):
         self._condpair_tree = condpair_tree
         self._phospho_scorer = PhosphoScorer(organism)
-    
+
         self.proteoform_df = None
 
         self._define_proteoform_df()
@@ -159,6 +155,22 @@ class ProteoFormTableCreator():
 
     def _annotate_proteoform_df(self):
         self.proteoform_df = ProteoFormTableAnnotator(self.proteoform_df).proteoform_df
+
+class ProteoFormTableAnnotator():
+    def __init__(self, proteoform_df):
+        self.proteoform_df = proteoform_df
+        self._annotate_fcdiff_column()
+    
+    def _annotate_fcdiff_column(self):
+        all_rows = []
+        self.proteoform_df = self.proteoform_df.sort_values(by=["proteoform_id"])
+        for protein, group_df in self.proteoform_df.groupby("protein"):
+            first_row = group_df.iloc[0]
+            ref_fc = first_row["log2fc"]
+            for i, row in group_df.iterrows():
+                row["fcdiff"] = abs(row["log2fc"] - ref_fc)
+                all_rows.append(row)
+        self.proteoform_df = pd.DataFrame(all_rows)
 
 
 class ValueDictCreator():
@@ -215,51 +227,6 @@ class ValueDictCreator():
         return round(fraction, 2)
 
 
-class PhosphoScorer():
-    def __init__(self, organism):
-        self._organism = organism
-        self._supported_organisms = ["human"]
-
-        self.phospho_scoring_available = False
-        self.phospo_peptide_database = None
-
-        self._check_if_scoring_available()
-        self._initialize_phospho_peptide_database()
-
-    def _check_if_scoring_available(self):
-        if self._organism in self._supported_organisms:
-            self.phospho_scoring_available = True
-    
-    def _initialize_phospho_peptide_database(self):
-        if self.phospho_scoring_available:
-            self.phospo_peptide_database = aq_phospho_inference.load_dl_predicted_phosphoprone_sequences(organism=self._organism)
-        
-    def check_if_cluster_likely_phospho(self, peptides):
-        number_of_likely_phospho = len(self.phospo_peptide_database.intersection({x.name for x in peptides}))
-        fraction_of_likely_phospho = number_of_likely_phospho / len(peptides)
-        if fraction_of_likely_phospho > 0.2:
-            return True
-        else:
-            return False
-
-
-class ProteoFormTableAnnotator():
-    def __init__(self, proteoform_df):
-        self.proteoform_df = proteoform_df
-        self._annotate_fcdiff_column()
-    
-    def _annotate_fcdiff_column(self):
-        all_rows = []
-        self.proteoform_df = self.proteoform_df.sort_values(by=["proteoform_id"])
-        for protein, group_df in self.proteoform_df.groupby("protein"):
-            first_row = group_df.iloc[0]
-            ref_fc = first_row["log2fc"]
-            for i, row in group_df.iterrows():
-                row["fcdiff"] = abs(row["log2fc"] - ref_fc)
-                all_rows.append(row)
-        self.proteoform_df = pd.DataFrame(all_rows)
-
-
 class QualityScoreNormalizer():
     def __init__(self,  results_df, example_node):
         self.results_df = results_df
@@ -290,3 +257,30 @@ class QualityScoreNormalizer():
         if hasattr(self._example_node, "predscore"):
             self.results_df["quality_score"] = 1 - self.results_df["quality_score"]
         return self.results_df
+
+class PhosphoScorer():
+    def __init__(self, organism):
+        self._organism = organism
+        self._supported_organisms = ["human"]
+
+        self.phospho_scoring_available = False
+        self.phospo_peptide_database = None
+
+        self._check_if_scoring_available()
+        self._initialize_phospho_peptide_database()
+
+    def _check_if_scoring_available(self):
+        if self._organism in self._supported_organisms:
+            self.phospho_scoring_available = True
+    
+    def _initialize_phospho_peptide_database(self):
+        if self.phospho_scoring_available:
+            self.phospo_peptide_database = aq_phospho_inference.load_dl_predicted_phosphoprone_sequences(organism=self._organism)
+        
+    def check_if_cluster_likely_phospho(self, peptides):
+        number_of_likely_phospho = len(self.phospo_peptide_database.intersection({x.name for x in peptides}))
+        fraction_of_likely_phospho = number_of_likely_phospho / len(peptides)
+        if fraction_of_likely_phospho > 0.2:
+            return True
+        else:
+            return False
