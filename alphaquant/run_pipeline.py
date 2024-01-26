@@ -27,14 +27,16 @@ import alphabase.quantification.quant_reader.quant_reader_manager as abquantread
 import alphaquant.diffquant.condpair_analysis as aqcondpair
 import alphaquant.multicond.median_condition_creation as aqmediancreation
 import alphaquant.multicond.median_condition_analysis as aqmediancond
+import alphaquant.tables.misctables as aq_tablewriter_misc
 
 
-def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", multicond_median_analysis = False, condpairs_list = None, file_has_alphaquant_format = False,
+def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", multicond_median_analysis = False, 
+                 condpairs_list = None, file_has_alphaquant_format = False,
                  minrep = 2, min_num_ions = 1, minpep = 1, organism = None,
                  cluster_threshold_pval = 0.01, cluster_threshold_fcfc = 0, fcdiff_cutoff_clustermerge = 0.5, use_ml = True, take_median_ion = True, 
                  perform_ptm_mapping = False, perform_phospho_inference = False, outlier_correction = True, normalize = True, use_iontree_if_possible = True, write_out_results_tree = True, get_ion2clust = False, median_offset = False,
                  pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, 
-                 volcano_fcthresh = 0.5, annotation_file = None, protein_subset_for_normalization_file = None, protnorm_peptides = True):
+                 volcano_fcthresh = 0.5, annotation_columns = None, protein_subset_for_normalization_file = None, protnorm_peptides = True):
 
     """Run the differential analyses.
     """
@@ -51,6 +53,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism = organism)
 
     if "aq_reformat.tsv" not in input_file and not file_has_alphaquant_format:
+        annotation_file = aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type_to_use, annotation_columns).annotation_filename
         input_file = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use, use_alphaquant_format=True)
 
     if multicond_median_analysis:

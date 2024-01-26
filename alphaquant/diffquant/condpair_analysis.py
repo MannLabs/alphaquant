@@ -6,17 +6,17 @@ import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.config.variables as aqvariables
-import alphaquant.tables.tablewriter as aq_diffquant_tablewriter
+import alphaquant.tables.proteintable as aq_tablewriter_protein
+import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
+import alphaquant.tables.misctables as aq_tablewriter_runconfig
 import anytree
 
 import alphaquant.cluster.cluster_utils as aqclust_utils
-from time import time
 import pandas as pd
 import numpy as np
 import os
 
 def analyze_condpair(*,runconfig, condpair):
-    t_zero = time()
     print(f"start processeing condpair {condpair}")
     prot2diffions = {}
     p2z = {}
@@ -38,26 +38,21 @@ def analyze_condpair(*,runconfig, condpair):
 
     if runconfig.results_dir != None:
         write_out_normed_df(df_c1_normed, df_c2_normed, pep2prot, runconfig.results_dir, condpair)
-    t_normalized = time()
     normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
     normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
     
-    t_bgdist_fin = time()
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
     use_ion_tree = runconfig.use_iontree_if_possible
     bgpair2diffDist = {}
     deedpair2doublediffdist = {}
     count_ions=0
     for ion in ions_to_check:
-        t_ion = time()
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
         bg1 = normed_c1.ion2background.get(ion)
         bg2 = normed_c2.ion2background.get(ion)
         diffDist = aqbg.get_subtracted_bg(bgpair2diffDist, bg1, bg2, p2z)
-        t_subtract_end = time()
         diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
-        t_diffion = time()
         protein = pep2prot.get(ion)
         prot_ions = prot2diffions.get(protein, list())
         prot_ions.append(diffIon)
@@ -102,8 +97,8 @@ def analyze_condpair(*,runconfig, condpair):
 
 
     condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
-    res_df = aq_diffquant_tablewriter.TableFromNodeCreator(condpair_node, type = "gene", min_num_peptides = runconfig.minpep).results_df
-    pep_df = aq_diffquant_tablewriter.TableFromNodeCreator(condpair_node, type = "seq", min_num_peptides = runconfig.minpep).results_df
+    res_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, type = "gene", min_num_peptides = runconfig.minpep, annotation_file= getattr(runconfig, "annotation_file", None)).results_df
+    pep_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, type = "seq", min_num_peptides = runconfig.minpep).results_df
 
 
     if runconfig.runtime_plots:
@@ -113,10 +108,10 @@ def analyze_condpair(*,runconfig, condpair):
     if runconfig.results_dir!=None:
         if runconfig.write_out_results_tree:
             aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
-        proteoform_df = aq_diffquant_tablewriter.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism).proteoform_df
+        proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism).proteoform_df
         proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
 
-        runconfig_df = aq_diffquant_tablewriter.RunConfigTableCreator(runconfig).runconfig_df
+        runconfig_df = aq_tablewriter_runconfig.RunConfigTableCreator(runconfig).runconfig_df
 
         runconfig_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.runconfig.tsv", sep='\t', header=False)
         res_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
