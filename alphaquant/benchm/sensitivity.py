@@ -94,7 +94,7 @@ def plot_sighits_barplot(df, suffixes, decoy_organism):
     index = np.arange(n_organisms)
 
     for i, suffix in enumerate(suffixes):
-        hits_col = f'{suffix}'
+        hits_col = f'hits{suffix}'
         max_hits_col = f'max_hits{suffix}'
 
         # Basic color for this suffix
@@ -104,11 +104,11 @@ def plot_sighits_barplot(df, suffixes, decoy_organism):
         max_hits_color = sns.light_palette(base_color, n_colors=3)[1]
 
         # Plot max hits bars (background)
-        ax.bar(index + i * bar_width, df[max_hits_col], bar_width, alpha=0.4, color=max_hits_color, label=f'max_hits{suffix}')
+        ax.bar(index + i * bar_width, df[max_hits_col], bar_width, alpha=0.4, color=max_hits_color, label=max_hits_col)
 
         # Overlay actual hits bars with slightly darker color
         hits_color = sns.dark_palette(base_color, n_colors=3)[2]
-        ax.bar(index + i * bar_width, df[hits_col], bar_width, alpha=opacity, color=hits_color, label=f'hits{suffix}')
+        ax.bar(index + i * bar_width, df[hits_col], bar_width, alpha=opacity, color=hits_color, label=hits_col)
 
     # Add horizontal lines for allowed decoy hits, if applicable
     if decoy_organism in organisms.values:
