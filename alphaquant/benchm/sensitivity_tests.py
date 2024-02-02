@@ -81,11 +81,11 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot_comparison_corrected(df, suffixes, decoy_organism):
+def plot_sighits_barplot(df, suffixes, decoy_organism):
     fig, ax = plt.subplots(figsize=(15, 6))
 
     # Choose a seaborn palette
-    palette = sns.color_palette('deep', len(suffixes))  # 'deep' can be replaced with your preferred palette
+    palette = sns.color_palette('deep', len(suffixes)) 
 
     organisms = df['organism']
     n_organisms = len(organisms)
