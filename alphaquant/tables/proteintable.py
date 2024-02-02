@@ -47,8 +47,8 @@ class TableFromNodeCreator():
         else:
             node_dict["quality_score"] = node.fraction_consistent * len(node.leaves)
 
-        if hasattr(node, "summed_intensity"):
-            node_dict["summed_intensity"] = node.summed_intensity
+        if hasattr(node, "total_intensity"):
+            node_dict["total_intensity"] = node.total_intensity
 
         if self._type == "gene":
             node_dict["num_peptides"] = len(node.children)
