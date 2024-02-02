@@ -33,6 +33,8 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
     min_intensity = np.median(min_intensities)
+    total_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "total_intensity")
+    total_intensity = np.median(total_intensities)
     min_reps_childs = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_reps")
     min_reps = np.median(min_reps_childs)
     if np.isnan(min_intensity) or np.isnan(min_reps):
@@ -56,6 +58,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     node.fraction_consistent = fraction_consistent
     node.cv = min(cvs)
     node.min_intensity = min_intensity
+    node.total_intensity = total_intensity
     node.min_reps = min_reps
 
     if hasattr(node.children[0], 'predscore'):
@@ -157,6 +160,7 @@ def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
         cv_c2 = scipy.stats.variation(original_intensities_c2)
         leaf.cv = min(cv_c1, cv_c2)
         leaf.min_intensity = min(sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2))
+        leaf.total_intensity = np.mean([sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2)])
         leaf.min_reps = min(len(normed_c1.ion2nonNanvals.get(leaf.name)), len(normed_c2.ion2nonNanvals.get(leaf.name)) )
 
 
