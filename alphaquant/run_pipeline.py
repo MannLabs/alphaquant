@@ -138,7 +138,7 @@ def check_input_consistency(input_file, samplemap_file, samplemap_df):
     if input_file is None:
         raise Exception("no input file!")
     if samplemap_file is None and samplemap_df is None:
-        raise Exception("inputs inconsistent! Either file or dataframe needs to be specified!")
+        raise Exception("Samplemap is missing!")
     return True
 
 
