@@ -8,21 +8,22 @@ import alphaquant.tables.tableutils as aqtableutils
 
 
 class TableFromNodeCreator():
-    def __init__(self, condpair_tree, type = "gene", min_num_peptides = 1, annotation_file = None):
+    def __init__(self, condpair_tree, node_type = "gene", min_num_peptides = 1, annotation_file = None):
         self.results_df = None
 
-        self._type = type
+        self._node_type = node_type
         self._min_num_peptides = min_num_peptides
         self._annotation_file = annotation_file
         self._condpair_tree = condpair_tree
         self._list_of_nodes = self._get_list_of_nodes()
         self._condpair_name_table = self._get_condpair_name()
 
+
         self._define_results_df()
         self._filter_annotate_results_df()
 
     def _get_list_of_nodes(self):
-        return anytree.findall(self._condpair_tree, filter_ = lambda x : x.type == self._type)
+        return anytree.findall(self._condpair_tree, filter_ = lambda x : x.type == self._node_type)
 
     def _get_condpair_name(self):
         return aqutils.get_condpairname(self._condpair_tree.name)
@@ -35,7 +36,7 @@ class TableFromNodeCreator():
         
     def _get_node_dict(self, node):
         typename_dict = {"gene" : "protein", "seq" : "sequence", "mod_seq" : "modified_sequence"} #map the short name in the node to a more descriptive name. "gene" to "protein" is a bit confusing, I plan to change everything to "gene" in the future
-        type_name  = typename_dict.get(self._type, self._type)
+        type_name  = typename_dict.get(self._node_type, self._node_type)
         node_dict = {}
         node_dict["condition_pair"] = self._condpair_name_table
         node_dict[type_name] = node.name
@@ -50,7 +51,7 @@ class TableFromNodeCreator():
         if hasattr(node, "total_intensity"):
             node_dict["total_intensity"] = node.total_intensity
 
-        if self._type == "gene":
+        if self._node_type == "gene":
             node_dict["num_peptides"] = len(node.children)
         
         return node_dict
@@ -85,7 +86,8 @@ class TableAnnotatorFilterer():
     def _add_annotation_columns_if_applicable(self):
         if self._annotation_file is not None:    
             annotation_df = pd.read_csv(self._annotation_file, sep = "\t")
-            self.results_df = self.results_df.merge(annotation_df, left_on = "protein", right_on = "protein", how = "left")
+            annotation_df = annotation_df.drop_duplicates(subset = "protein", keep="first")
+            self.results_df = self.results_df.merge(annotation_df, on = "protein", how = "left")
 
     def _scatter_pvals(self): #add some scatter to the pvalues that are 1.00E-16, which we set as the lowest possible pvalue. This allows for a better visualization as there are less overlapping points. 
         #Scatter is added by adding a very small random number, therefore minimally reducing significance (i.e. not artificially making significance stronger)
