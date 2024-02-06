@@ -63,7 +63,7 @@ class AnnotationFileCreator():
     
     def _define_annotation_df(self):
         self._annotation_df = pd.read_csv(self._input_file, usecols = self._id_columns + self._annotation_columns, sep = "\t",encoding ='latin1').drop_duplicates()
-        self._annotation_df["protein"] = self._annotation_df[self._id_columns].apply(lambda x : "_".join(x), axis = 1)
+        self._annotation_df["protein"] = self._annotation_df[self._id_columns].astype(str).apply(lambda x : "_".join(x), axis = 1)
         self._annotation_df = self._annotation_df.drop(columns = self._id_columns)
     
     def _define_annotation_filename(self):
