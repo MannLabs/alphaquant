@@ -76,8 +76,8 @@ def filter_fewpeps_per_protein(peptide_nodes):
     pepnode2pval2numleaves = []
     for pepnode in peptide_nodes:
         pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
-        pepnode2pval2numleaves.append((pepnode, pepnode.p_val,len(pepleaves)))
-    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True) #sort with highest p-val (least significant) first
+        pepnode2pval2numleaves.append((pepnode, pepnode.z_val,len(pepleaves)))
+    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : abs(x[1])) #sort with lowest absolute z-val (least significant) first
 
     return get_median_peptides(pepnode2pval2numleaves)
 
