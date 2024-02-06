@@ -97,29 +97,9 @@ def analyze_condpair(*,runconfig, condpair):
 
 
     condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
-    res_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, type = "gene", min_num_peptides = runconfig.minpep, annotation_file= getattr(runconfig, "annotation_file", None)).results_df
-    pep_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, type = "seq", min_num_peptides = runconfig.minpep).results_df
-
-
-    if runconfig.runtime_plots:
-        aq_plot_pairwise.volcano_plot(res_df, significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
-        aq_plot_pairwise.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
-
-    if runconfig.results_dir!=None:
-        if runconfig.write_out_results_tree:
-            aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
-        proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism).proteoform_df
-        proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
-
-        runconfig_df = aq_tablewriter_runconfig.RunConfigTableCreator(runconfig).runconfig_df
-
-        runconfig_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.runconfig.tsv", sep='\t', header=False)
-        res_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
-        pep_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.seq.tsv", sep = "\t", index=None)
-        
+    res_df, pep_df = write_out_tables(condpair_node, runconfig)
 
     print(f"\ncondition pair {condpair} finished!\n")
-
 
     return res_df, pep_df
 
@@ -169,3 +149,37 @@ def get_minrep_for_cond(c_samples, minrep):
         return num_samples
     else:
         return minrep
+    
+
+def write_out_tables(condpair_node, runconfig):
+    condpair = condpair_node.name
+    has_sequence_nodes = check_if_has_sequence_nodes(condpair_node)
+    res_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "gene", min_num_peptides = runconfig.minpep, annotation_file= getattr(runconfig, "annotation_file", None)).results_df
+    if has_sequence_nodes:
+        pep_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "seq", min_num_peptides = runconfig.minpep).results_df
+    else:
+        pep_df = None
+
+
+    if runconfig.runtime_plots:
+        aq_plot_pairwise.volcano_plot(res_df, significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
+        if has_sequence_nodes:
+            aq_plot_pairwise.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
+
+    if runconfig.results_dir!=None:
+        if runconfig.write_out_results_tree:
+            aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
+        proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism).proteoform_df
+        proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
+
+        runconfig_df = aq_tablewriter_runconfig.RunConfigTableCreator(runconfig).runconfig_df
+
+        runconfig_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.runconfig.tsv", sep='\t', header=False)
+        res_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
+        if has_sequence_nodes:
+            pep_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.seq.tsv", sep = "\t", index=None)
+        
+    return res_df, pep_df
+
+def check_if_has_sequence_nodes(condpair_node):
+    return condpair_node.children[0].children[0].type == "seq"
