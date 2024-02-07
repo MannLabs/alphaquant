@@ -118,13 +118,13 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
                 childnode2clust = get_childnode2clust_for_single_ion(type_node)
             else:
                 childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
-                childnode2clust = merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
+                childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                 childnode2clust = decide_cluster_order(type_node,childnode2clust)
             
             aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
             aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
             aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
-            aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
+            aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=False)
 
     return root_node
 
@@ -162,6 +162,12 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     childnode2clust = sorted(childnode2clust, key = lambda x : x[0].name) #sort list for reproducibility
 
     return childnode2clust
+
+def merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = 0.5):
+    if type_node.level == "seq":
+        return merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge)
+    else:
+        return childnode2clust
 
 
 def merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge = 0.5):
