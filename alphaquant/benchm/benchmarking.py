@@ -336,9 +336,9 @@ import alphaquant.utils.utils as aqutils
 import anytree
 import math
 import os
-import alphaquant.run_pipeline as aqdiffmgr
 import alphaquant.diffquant.background_distributions as aqbg
 import pandas as pd
+import alphaquant.diffquant.condpair_analysis as aq_condpair
 
 
 def load_real_example_ions(input_file, samplemap_file, num_ions = 20, condpair = ('S1', 'S2'), minrep = 4):
@@ -371,8 +371,8 @@ def get_grouped_diffions_for_node(type_node, diffions):
 def format_condpair_input(samplemap_df, condpair, minrep, input_file):
     print(condpair)
     samples_c1, samples_c2 = aqdiffutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
-    input_df_local = aqdiffmgr.get_unnormed_df_condpair(input_file = input_file, samplemap_df = samplemap_df, condpair = condpair)
-    df_c1, df_c2 = aqdiffmgr.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
+    input_df_local = aq_condpair.get_unnormed_df_condpair(input_file = input_file, samplemap_df = samplemap_df, condpair = condpair, file_has_alphaquant_format = True)
+    df_c1, df_c2 = aq_condpair.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
     return df_c1, df_c2, samples_c1, samples_c2
 
 def get_filtered_protnodes(condpair, results_dir_unfiltered):
