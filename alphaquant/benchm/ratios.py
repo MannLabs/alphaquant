@@ -6,11 +6,13 @@ class MixedSpeciesScatterPlotter():
     Plots the LFQ-bench style plots from a standardized input table. The columns of an example table are:
     'protein'	'log2fc_alphaquant'	'intensity_alphaquant' 'organism'	'log2fc_spectronaut' 'intensity_spectronaut'
     """
-    def __init__(self, df_combined, method_suffixes, expected_log2fcs, figure_size = [4, 4]):
+    def __init__(self, df_combined, method_suffixes, expected_log2fcs, figure_size = [4, 4], point_size = 4, alpha = 0.5):
         self._df_combined = df_combined
         self._method_suffixes = method_suffixes
         self._expected_log2fcs = expected_log2fcs
         self._figure_size = figure_size
+        self._point_size = point_size
+        self._alpha = alpha
         
 
         self.fig = None
@@ -37,7 +39,8 @@ class MixedSpeciesScatterPlotter():
         log2fc_column = f'log2fc{suffix}'
         organism_column = 'organism'
         ax = self.axes[0][method_idx]
-        sns.scatterplot(data = self._df_combined, x=intensity_column, y=log2fc_column, hue=organism_column, ax=ax)
+        sns.scatterplot(data = self._df_combined, x=intensity_column, y=log2fc_column, hue=organism_column, ax=ax, s = self._point_size, alpha = self._alpha)
+        ax.set_xscale('log')
         for expected_log2fc in self._expected_log2fcs:
             ax.axhline(expected_log2fc, color='black')
         ax.set_title(suffix[1:])
@@ -65,6 +68,50 @@ class MixedSpeciesScatterPlotter():
         if len(set(self._df_combined['organism'])) > 1:
             # Place the legend on the right side of the last subplot
             self.axes[0, -1].legend(bbox_to_anchor=(1.05, 1), loc='upper left', title='Organism')
+
+
+
+import plotly.express as px
+
+class MixedSpeciesScatterPlotterInteractive:
+    """
+    Plots interactive LFQ-bench style plots from a standardized input table using plotly for interactivity.
+    Hovering over points will display protein names among other details.
+    """
+    def __init__(self, df_combined, method_suffixes, expected_log2fcs):
+        self._df_combined = df_combined
+        self._method_suffixes = method_suffixes
+        self._expected_log2fcs = expected_log2fcs
+        self.figures = []
+
+        self._plot_fc_scatter_per_method()
+
+    def _plot_fc_scatter_per_method(self):
+        for method_idx, suffix in enumerate(self._method_suffixes):
+            self._plot_fc_scatter(method_idx, suffix)
+
+    def _plot_fc_scatter(self, method_idx, suffix):
+        intensity_column = f'intensity{suffix}'
+        log2fc_column = f'log2fc{suffix}'
+        organism_column = 'organism'
+        protein_column = 'protein'
+
+        fig = px.scatter(self._df_combined, x=intensity_column, y=log2fc_column, color=organism_column,
+                          hover_data=[protein_column], log_x=True, title=suffix[1:],
+                          labels={"x": "Intensity", "y": "Log2 Fold Change"},
+                          opacity=0.5, size_max=60)
+
+        # Add expected_log2fc lines
+        for expected_log2fc in self._expected_log2fcs:
+            fig.add_hline(y=expected_log2fc, line_dash="dash", line_color="black")
+
+        self.figures.append(fig)
+        print("scatter plotted")
+
+    def show_figures(self):
+        for fig in self.figures:
+            fig.show()
+
 
 
 import seaborn as sns
