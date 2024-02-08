@@ -104,7 +104,7 @@ def select_predscore_with_minimum_absval(predscores):
     min_index = abs_predscores.index(min_value)
     return predscores[min_index]
 
-def get_mainclust_leaves(child_nodes, ionname2diffion):
+def get_mainclust_diffions(child_nodes, ionname2diffion):
     grouped_leafs = []
     for child in child_nodes:
         child_leaves_mainclust = []
