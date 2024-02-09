@@ -34,7 +34,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
     min_intensity = np.median(min_intensities)
     total_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "total_intensity")
-    total_intensity = np.median(total_intensities)
+    total_intensity = np.sum(total_intensities)
     min_reps_childs = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_reps")
     min_reps = np.median(min_reps_childs)
     if np.isnan(min_intensity) or np.isnan(min_reps):
@@ -104,7 +104,7 @@ def select_predscore_with_minimum_absval(predscores):
     min_index = abs_predscores.index(min_value)
     return predscores[min_index]
 
-def get_mainclust_diffions(child_nodes, ionname2diffion):
+def get_grouped_mainclust_leafs(child_nodes):
     grouped_leafs = []
     for child in child_nodes:
         child_leaves_mainclust = []
@@ -113,10 +113,32 @@ def get_mainclust_diffions(child_nodes, ionname2diffion):
             if hasattr(leafnode, 'inclusion_levels') and not (leafnode.inclusion_levels[-1] in types_previous_level):
                 continue
             child_leaves_mainclust.append(leafnode)
-        child_leafs_diffions = [ionname2diffion.get(x.name) for x in child_leaves_mainclust] #map the leaf names to the diffion objetcs
-        if len(child_leafs_diffions)>0:
-            grouped_leafs.append(child_leafs_diffions)
+        if len(child_leaves_mainclust)>0:
+            grouped_leafs.append(child_leaves_mainclust)
     return grouped_leafs
+
+def select_highid_lowcv_leafs(grouped_leafs):
+    grouped_leafs_lowcv = []
+    for leafs in grouped_leafs:
+        top_quantile_idx = math.ceil(len(leafs) * 0.2)
+        leafs_repsorted = sorted(leafs, key = lambda x : x.min_reps)[:top_quantile_idx]
+        leafs_repsorted_cvsorted = sorted(leafs_repsorted, key = lambda x : x.cv)
+        grouped_leafs_lowcv.append([leafs_repsorted_cvsorted[0]])
+    return grouped_leafs_lowcv
+
+def select_median_fc_leafs(grouped_leafs):
+    grouped_leafs_medianfc = []
+    for leafs in grouped_leafs:
+        leafs_fcsorted = sorted(leafs, key = lambda x : x.fc)
+        grouped_leafs_medianfc.append([leafs_fcsorted[int(len(leafs_fcsorted)/2)]])
+    return grouped_leafs_medianfc
+
+def map_grouped_leafs_to_diffions(grouped_leafs, ionname2diffion):
+    grouped_diffions = []
+    for leafs in grouped_leafs:
+        diffions = [ionname2diffion.get(x.name) for x in leafs]
+        grouped_diffions.append(diffions)
+    return grouped_diffions
 
 
 def annotate_mainclust_leaves(childnode2clust):
@@ -149,7 +171,7 @@ def assign_clusterstats_to_type_node(type_node, childnode2clust):
 
 
 import scipy.stats
-def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
+def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
     for leaf in root_node.leaves:
         leaf.fc = name2diffion.get(leaf.name).fc
         leaf.z_val = name2diffion.get(leaf.name).z_val

@@ -101,7 +101,7 @@ def add_reduced_names_to_root(node):
 import pandas as pd
 def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
     #typefilter object specifies filtering and clustering of the nodes
-    aqcluster_utils.assign_fcs_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
+    aqcluster_utils.assign_properties_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
     for idx in range(len(typefilter.type)):
         type_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == typefilter.type[idx])
@@ -110,14 +110,18 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             continue
         for type_node in type_nodes:
             child_nodes = type_node.children
-            diffions = aqcluster_utils.get_mainclust_diffions(child_nodes, ionname2diffion)
-            if len(diffions)==0:
+            grouped_mainclust_leafs = aqcluster_utils.get_grouped_mainclust_leafs(child_nodes)
+            
+            if len(grouped_mainclust_leafs)==0:
                 exclude_node(type_node)
                 continue
-            
-            if len(diffions)==1:
+
+            if len(grouped_mainclust_leafs)==1:
                 childnode2clust = get_childnode2clust_for_single_ion(type_node)
             else:
+                if take_median_ion:
+                    grouped_mainclust_leafs = aqcluster_utils.select_highid_lowcv_leafs(grouped_mainclust_leafs)
+                diffions = aqcluster_utils.map_grouped_leafs_to_diffions(grouped_mainclust_leafs, ionname2diffion)
                 childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
                 childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                 childnode2clust = decide_cluster_order(type_node,childnode2clust)
@@ -284,13 +288,10 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
     if abs((fc1-fc2)) < fcfc_threshold:
         return 0.99 #
 
-    if take_median_ion:
-        ions1, ions2 = get_median_ions(diffions, idx1, idx2)
-
     fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
     return 1/(pval + 1e-17)
 
-def get_median_ions(diffions, idx1, idx2):
+def get_median_ions(diffions, idx1, idx2, ions1, ions2):
     fcs_ions1 = [x.fc for x in diffions[idx1]]
     fcs_ions2 = [x.fc for x in diffions[idx2]]
     idx_ions1 = np.argsort(fcs_ions1)[len(fcs_ions1)//2]
