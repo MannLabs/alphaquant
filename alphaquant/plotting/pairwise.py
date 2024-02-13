@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import alphaquant.diffquant.diffutils as aq_diff_utils
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 
 
@@ -50,7 +51,6 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples=True, cumulat
 
     axes.set_xlabel("log2(fc)")
 
-    plt.show()
     return fig, axes
 
 
@@ -76,46 +76,75 @@ def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed):
     axes.legend()
     #place legend outside of plot
     axes.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    plt.show()
     return fig, axes
 
 
 
-def volcano_plot(result_df, fc_header="log2fc", fdr_header="fdr", significance_cutoff=0.05, log2fc_cutoff=0.5, ybound=None, xbound=None):
-    result_df[fdr_header] = result_df[fdr_header].replace(0, np.min(result_df[fdr_header].replace(0, 1.0)))
-    fdrs = result_df[fdr_header].to_numpy()
-    fcs = result_df[fc_header].to_numpy()
-    sighits_down = sum((fdrs < significance_cutoff) & (fcs <= -log2fc_cutoff))
-    sighits_up = sum((fdrs < significance_cutoff) & (fcs >= log2fc_cutoff))
+def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.05, 
+                 log2fc_cutoff=0.5, xlim=None, ylim = None,
+                 organism_column=None, organism2color_dict=None, 
+                 color_only_significant=True, alpha= None,ax = None,
+                 draw_vertical_lines = False, draw_horizontal_lines = False):
+                 
+    results_df[fdr_header] = results_df[fdr_header].replace(0, np.min(results_df[fdr_header].replace(0, 1.0)))
+    fdrs = results_df[fdr_header].to_numpy()
+    fcs = results_df[fc_header].to_numpy()
+    sighits_down = sum((fdrs < fdr_cutoff) & (fcs <= -log2fc_cutoff))
+    sighits_up = sum((fdrs < fdr_cutoff) & (fcs >= log2fc_cutoff))
 
-    fig, ax = plt.subplots()
+    results_df['-log10(fdr)'] = -np.log10(results_df['fdr'])
+    results_df['is_significant'] = (results_df['fdr'] <= fdr_cutoff) & (np.abs(results_df['log2fc']) >= fdr_cutoff)
+
+    results_df = add_color_column(results_df, organism2color_dict, organism_column, color_only_significant)
+
+    if not ax:
+        fig, ax = plt.subplots(figsize=(2.5, 2.5))
+    else:
+        fig = ax.get_figure()
+
     ax.set_title(f"{sighits_up} up, {sighits_down} down of {len(fcs)}")
 
     # Calculate dynamic alpha value
 
-    alpha = max(0.1, min(0.7, 0.7 - 0.6 * (len(fdrs) / 1000)))
+    if alpha is None:
+        alpha = max(0.1, min(0.7, 0.7 - 0.6 * (len(fdrs) / 1000)))
 
-    ax.scatter(result_df[fc_header], -np.log10(result_df[fdr_header]), s=10, c='grey', alpha=alpha)
 
-    ax.set_xlabel('log2 FC', fontsize=14)
-    ax.set_ylabel('-log10 FDR', fontsize=14)
+    sns.scatterplot(data=results_df, x='log2fc', y='-log10(fdr)', 
+                    color=results_df['color'], ax=ax, legend=None, alpha = alpha)
+    
+    # Drawing vertical lines for fold change thresholds and horizontal lines for p-value threshold
+    if draw_vertical_lines:
+        if log2fc_cutoff !=0:
+            ax.axvline(x=-log2fc_cutoff, linestyle='--', color='black')
+            ax.axvline(x=log2fc_cutoff, linestyle='--', color='black')
+    if draw_horizontal_lines:
+        if fdr_cutoff !=0:
+            ax.axhline(y=-np.log10(fdr_cutoff), linestyle='--', color='black')
+    
+    ax.set_xlabel("log2(FC)")
+    ax.set_ylabel("-log10(fdr)")
 
-    if ybound is None:
-        ax.set_ylim(0, max(-np.log10(result_df[fdr_header])) + 0.5)
-    else:
-        ax.set_ylim(ybound)
 
-    if significance_cutoff > 0:
-        ax.axhline(y=-np.log10(significance_cutoff), color='g', linestyle='-')
-    if log2fc_cutoff > 0:
-        ax.axvline(x=log2fc_cutoff, color='g', linestyle='-')
-        ax.axvline(x=-log2fc_cutoff, color='g', linestyle='-')
-
-    maxfc = max(abs(result_df[fc_header])) + 0.5
-    if xbound is None:
+    
+    if xlim is None:
+        maxfc = max(abs(results_df[fc_header])) + 0.5
         ax.set_xlim(-maxfc, maxfc)
     else:
-        ax.set_xlim(xbound)
+        ax.set_xlim(xlim)
+    
+    if ylim:
+        ax.set_ylim(ylim)
 
-    plt.show()
+
+
     return fig, ax
+
+def add_color_column(results_df ,organism2color_dict, organism_column, color_only_significant):
+        # Create a color column based on organism and significance
+    if organism2color_dict:
+        results_df['color'] = results_df.apply(lambda row: organism2color_dict[row[organism_column]] 
+                                               if row['is_significant'] or not color_only_significant else 'gray', axis=1)
+    else:
+        results_df['color'] = np.where(results_df['is_significant'], 'green', 'gray')
+    return results_df
