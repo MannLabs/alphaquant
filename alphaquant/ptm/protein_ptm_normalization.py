@@ -17,7 +17,7 @@ class PTMResultsNormalizer():
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
         self._write_normalized_tables_diffquant()
-        aq_multicond_ptmnorm.combine_results_tables_if_they_exist(self.results_dir_protnormed)
+        self._write_normalized_tables_multicond()
         print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
     def _write_normalized_tables_diffquant(self):
@@ -31,6 +31,10 @@ class PTMResultsNormalizer():
             df_normed = self._update_fdr_column_normed_df(df_normed)
             self._write_normed_df(df_normed, ptm_file)
             self._write_summary_df(df_summary, ptm_file)
+        
+    def _write_normalized_tables_multicond(self):
+        aq_multicond_ptmnorm.combine_results_tables_if_they_exist(self.results_dir_protnormed)
+
 
     def _create_results_dir(self):
         aqutils.create_or_replace_folder(self.results_dir_protnormed)
