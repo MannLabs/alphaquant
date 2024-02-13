@@ -1,5 +1,9 @@
 import numpy as np 
 import pandas as pd
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 class RatioClassificationTableGenerator():
     def __init__(self, merged_results_table, decoy_organism,fdr_threshold = 0.05,method_suffixes=["_alphaquant", "_spectronaut"]):
@@ -75,12 +79,6 @@ class RatioClassificationTableGenerator():
         self.per_species_results_df = self.per_species_results_df.reset_index().rename(columns={"index" : "organism"})
 
 
-
-
-import seaborn as sns
-import numpy as np
-import matplotlib.pyplot as plt
-
 def plot_sighits_barplot(df, suffixes, decoy_organism):
     fig, ax = plt.subplots(figsize=(15, 6))
 
@@ -130,3 +128,10 @@ def plot_sighits_barplot(df, suffixes, decoy_organism):
 
     fig.tight_layout()
     plt.show()
+
+
+def get_tp_fp_from_count_df(per_species_results_df, organism_fp, suffix):
+    tp_hits = per_species_results_df[per_species_results_df["organism"] != organism_fp][f"hits{suffix}"].sum()
+    fp_hits = per_species_results_df[per_species_results_df["organism"] == organism_fp][f"hits{suffix}"].sum()
+
+    return tp_hits, fp_hits
