@@ -24,11 +24,10 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     else:
         childs = [x for x in node.children if x.is_included]
 
-    if use_fewpeps_per_protein and node.type == "gene":
-        childs = filter_fewpeps_per_protein(childs)
+    childs_fewpepfiltered = get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node)
 
 
-    zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
+    zvals = get_feature_numpy_array_from_nodes(nodes=childs_fewpepfiltered, feature_name="z_val")
     fcs =  get_feature_numpy_array_from_nodes(nodes=childs, feature_name="fc")
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
@@ -71,6 +70,13 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
+def get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node):
+    if use_fewpeps_per_protein and node.type == "gene":
+        return filter_fewpeps_per_protein(childs)
+    else:
+        return childs
+
+
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
     pepnode2pval2numleaves = []
@@ -82,13 +88,6 @@ def filter_fewpeps_per_protein(peptide_nodes):
     return get_median_peptides(pepnode2pval2numleaves)
 
 
-def set_bounds_for_p_if_too_extreme(p_val):
-    if p_val <aqvariables.MIN_PVAL:
-        return aqvariables.MIN_PVAL
-    elif p_val > 1-(aqvariables.MIN_PVAL):
-        return 1- (aqvariables.MIN_PVAL)
-    else:
-        return p_val
 
 import math
 def get_median_peptides(pepnode2pval2numleaves):
@@ -97,6 +96,15 @@ def get_median_peptides(pepnode2pval2numleaves):
         return [x[0] for x in pepnode2pval2numleaves]
     else:
         return [x[0] for x in pepnode2pval2numleaves[:median_idx+1]]
+
+def set_bounds_for_p_if_too_extreme(p_val):
+    if p_val <aqvariables.MIN_PVAL:
+        return aqvariables.MIN_PVAL
+    elif p_val > 1-(aqvariables.MIN_PVAL):
+        return 1- (aqvariables.MIN_PVAL)
+    else:
+        return p_val
+
 
 def select_predscore_with_minimum_absval(predscores):
     abs_predscores = [abs(x) for x in predscores]
