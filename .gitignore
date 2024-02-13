@@ -201,3 +201,4 @@ example_nbs/data/phospho/samplemap_phospho_w_median.tsv
 example_nbs/data/phospho/samplemap_proteome_w_median.tsv
 example_nbs/data/phospho/phospho_subset_ptmsite_mapped.annotation.tsv
 example_nbs/data/phospho/proteome_subset.annotation.tsv
+tests/ratio_tests/compare_multiple_configs_spectronaut_largefc.ipynb
