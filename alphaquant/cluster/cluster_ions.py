@@ -129,7 +129,7 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
             aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
             aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
-            aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=False)
+            aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
     return root_node
 
