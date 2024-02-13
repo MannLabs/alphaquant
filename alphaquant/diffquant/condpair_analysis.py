@@ -162,9 +162,9 @@ def write_out_tables(condpair_node, runconfig):
 
 
     if runconfig.runtime_plots:
-        aq_plot_pairwise.volcano_plot(res_df, significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
+        aq_plot_pairwise.volcano_plot(res_df, fdr_cutoff= runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
         if has_sequence_nodes:
-            aq_plot_pairwise.volcano_plot(pep_df,significance_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
+            aq_plot_pairwise.volcano_plot(pep_df,fdr_cutoff = runconfig.volcano_fdr, log2fc_cutoff = runconfig.volcano_fcthresh)
 
     if runconfig.results_dir!=None:
         if runconfig.write_out_results_tree:
