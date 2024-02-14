@@ -16,16 +16,16 @@ class PTMResultsNormalizer():
         self._table_localizer = PTMtableLocalizer(results_dir_ptm, results_dir_proteome, organism)
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
-        self._write_normalized_tables_diffquant()
+        self._write_normalized_tables_diffquant(organism)
         self._write_normalized_tables_multicond()
         print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
-    def _write_normalized_tables_diffquant(self):
+    def _write_normalized_tables_diffquant(self, organism):
         for ptm_file, protfile in self._table_localizer.get_ptmfile2protfile().items():
             if protfile == None:
                 print(f"could not localize protfile for {ptm_file}, skipping")
                 continue
-            table_normalizer = PTMtableNormalizer(ptm_file, protfile)
+            table_normalizer = PTMtableNormalizer(ptm_file, protfile, organism)
             df_normed = table_normalizer.results_df
             df_summary = table_normalizer.info_df
             df_normed = self._update_fdr_column_normed_df(df_normed)
@@ -111,8 +111,8 @@ class PTMFiles():
         return aqptm.get_swissprot_path(organism=self._organism)
 
 class PTMtableNormalizer():
-    def __init__(self,  ptm_file, proteome_file):
-        self._prepared_tables = PTMtablePreparer(ptm_file, proteome_file)
+    def __init__(self,  ptm_file, proteome_file, organism = "human"):
+        self._prepared_tables = PTMtablePreparer(ptm_file, proteome_file, organism)
         self.results_df = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and p_values
         self.info_df = None
 
@@ -158,93 +158,118 @@ import glob
 import re
 import pandas as pd
 class PTMtablePreparer():
-    def __init__(self, ptm_file, proteome_file):
-        self._swissprot_referenceprots = aqptm.get_swissprot_path()
-        self.ptm_df = self.__read_and_annotate_ptm_df(ptm_file)
-        self.proteome_df = self.__read_and_annotate_proteome_df(proteome_file)
+    def __init__(self, ptm_file, proteome_file, organism):
+        
+        self.ptm_df = pd.read_csv(ptm_file, sep = "\t")
+        self.proteome_df = pd.read_csv(proteome_file, sep = "\t")
+        self._organism = organism
+        self._map_ids_proteome_df_to_ptm_df()
         self.output_df = self.ptm_df.copy()
-        self._ptmsite2swissprot  = self.__get_ptmsite2swissprot__()
+        
+
+    def _map_ids_proteome_df_to_ptm_df(self):
+        id_mapper = ProteinToPTMMapper(self.ptm_df, self.proteome_df, self._organism)
+        self.ptm_df = id_mapper.ptm_df.set_index("protein")
+        self.proteome_df = id_mapper.proteome_df.set_index("gene")
 
 
     def get_protein_regulation_infos(self, ptmsite):
-        swissprot = self._ptmsite2swissprot.get(ptmsite)
         ptm_row = self.ptm_df.loc[ptmsite]
-        try:
-            protein_row = self.proteome_df.loc[swissprot]
-            protein_row = self.__resolve_possible_duplicate_protein_rows(protein_row)
-
-        except:
+        gene_name = ptm_row["gene"]
+        if gene_name not in self.proteome_df.index:
             return None
-        ptm_p_value = self.__get_p_value_from_table_row__(ptm_row)
-        ptm_fc = self.__get_fc_from_table_row__(ptm_row)
-        protein_p_value = self.__get_p_value_from_table_row__(protein_row)
-        protein_fc = self.__get_fc_from_table_row__(protein_row)
+        protein_row = self.proteome_df.loc[gene_name] #the proteome df is indexed be the gene name that maps to the ptm
+
+        ptm_p_value = self._get_p_value_from_table_row(ptm_row)
+        ptm_fc = self._get_fc_from_table_row(ptm_row)
+        protein_p_value = self._get_p_value_from_table_row(protein_row)
+        protein_fc = self._get_fc_from_table_row(protein_row)
         reginfos = RegulationInfos(log2fc_ptm=ptm_fc, p_value_ptm=ptm_p_value, log2fc_protein=protein_fc,p_value_protein=protein_p_value)
 
         return reginfos
 
-    def __resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
+    def _resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
         if type(protein_row) != pd.Series: #a single row gets transposed into a pandas series
             protein_row = protein_row.sort_values(by = "pseudoint1", ascsending = False)
             return protein_row.iloc[0]
         else:
             return protein_row
 
-    def __read_and_annotate_ptm_df(self, ptm_file):
-        ptm_df = self.__read_dataframe__(ptm_file)
-        ptm_df = self.__add_swissprot_name_column(ptm_df)
-        ptm_df = ptm_df.set_index("protein")
-        return ptm_df
-
-    def __read_and_annotate_proteome_df(self, proteome_file):
-        proteome_df = self.__read_dataframe__(proteome_file)
-        proteome_df["swissprot"] = aqptm.get_idmap_column(proteome_df["protein"],self._swissprot_referenceprots)#maps the protein identifier(s) to the swissprot reference if possible
-        proteome_df = proteome_df.set_index("swissprot")
-        return proteome_df
-
-    def __add_swissprot_name_column(self, ptm_df):
-        ptm_prots = self.__get_ptm_proteins__(ptm_df)
-        ptm_df = self.__match_ptm_df_to_ptm_prots__(ptm_df, ptm_prots)
-        ptm_df["swissprot"] = aqptm.get_idmap_column(ptm_prots, self._swissprot_referenceprots)
-        return ptm_df
-
-    def __get_ptm_proteins__(self, ptm_df):
-        prots = []
-        for ptmprot_name in ptm_df["protein"]:
-            prot = self.__extract_protein_from_ptmprot_name__(ptmprot_name)
-            prots.append(prot)
-        return prots
 
     @staticmethod
-    def __extract_protein_from_ptmprot_name__(ptmprot_name):
-        if ptmprot_name == None:
-            return None
-        elif len(ptmprot_name.split("_"))<2:
-            return None
-        else:
-            return ptmprot_name.split("_")[1]
-    @staticmethod
-    def __match_ptm_df_to_ptm_prots__(ptm_df,ptm_prots):
+    def _match_ptm_df_to_ptm_prots(ptm_df,ptm_prots):
         return ptm_df[[x != None for x in ptm_prots]]
 
-    def __filter_nonidentified_proteins__(ptm_prots):
-        return [x for x in ptm_prots if x != None]
-
     @staticmethod
-    def __read_dataframe__(file):
-        return pd.read_csv(file, sep = "\t")
-
-    def __get_ptmsite2swissprot__(self):
-        return dict(zip(self.ptm_df.index, self.ptm_df["swissprot"])) #the "protein" column always refers to the identifier, which in this case is the ptmsite
-
-    @staticmethod
-    def __get_p_value_from_table_row__(row):
+    def _get_p_value_from_table_row(row):
         return float(row["p_value"])
 
     @staticmethod
-    def __get_fc_from_table_row__(row):
+    def _get_fc_from_table_row(row):
         return float(row["log2fc"])
+    
 
+class ProteinToPTMMapper():
+    def __init__(self, ptm_df, proteome_df, organism):
+        """both PTM and proteome df get a "gene" column. The uniprot synonyms are used to map the gene names in the proteome df to the PTM df
+        """
+        self.ptm_df = ptm_df
+        self.proteome_df = proteome_df
+
+        self._gene2synonyms_mapping_dict = None
+        self._organism = organism
+
+        self._define_gene2synonyms_mapping_dict()
+        self._add_genename_column_ptm_df()
+        self._map_gene_names_in_proteome_df_to_ptm_df()
+
+    
+    
+    def _add_genename_column_ptm_df(self):
+        self.ptm_df["gene"] = self._get_ptm_proteins(self.ptm_df)
+        self.ptm_df = self.ptm_df[[x != None for x in self.ptm_df["gene"]]]
+        return self.ptm_df
+    
+    def _map_gene_names_in_proteome_df_to_ptm_df(self):
+        genes_ptm = set(self.ptm_df["gene"])
+        gene2sysnonyms_subset = {gene: self._gene2synonyms_mapping_dict[gene] for gene in genes_ptm if gene in self._gene2synonyms_mapping_dict[gene]}
+        inverted_dict = self._invert_gene2synonyms_mapping_dict(gene2sysnonyms_subset)
+        self.proteome_df["gene"] = self.proteome_df["protein"].map(inverted_dict) #maps every gene name to the reference gene name
+        self.proteome_df = self.proteome_df[[x != None for x in self.proteome_df["gene"]]]
+
+
+    def _get_ptm_proteins(self, ptm_df):
+        genes = []
+        for ptm_id in ptm_df["protein"]:
+            gene = self._extract_gene_from_ptmname(ptm_id)
+            genes.append(gene)
+        return genes
+
+    @staticmethod
+    def _extract_gene_from_ptmname(ptm_id):
+        if ptm_id == None:
+            return None
+        elif len(ptm_id.split("_"))<2:
+            return None
+        else:
+            return ptm_id.split("_")[0]
+
+    def _define_gene2synonyms_mapping_dict(self):
+        uniprot_file = aqptm.get_uniprot_path(organism=self._organism)
+        uniprot_gene_names_str = pd.read_csv(uniprot_file, sep = "\t")["Gene names"].astype(str).to_list()
+        uniprot_gene_names = [x.split(" ") for x in uniprot_gene_names_str]
+        gene2synonyms_mapping_dict = {}
+        for gene_list in uniprot_gene_names:
+            for gene in gene_list:
+                gene2synonyms_mapping_dict[gene] = gene_list
+        self._gene2synonyms_mapping_dict = gene2synonyms_mapping_dict
+
+    def _invert_gene2synonyms_mapping_dict(self, gene2sysnonyms_subset):
+        inverted_dict = {}
+        for key, value_list in gene2sysnonyms_subset.items():
+            for item in value_list:
+                inverted_dict[item] = key  # Map each list element back to the reference gene (key)
+        return inverted_dict
 
 
 
