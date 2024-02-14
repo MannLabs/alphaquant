@@ -84,7 +84,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
                  log2fc_cutoff=0.5, xlim=None, ylim = None,
                  organism_column=None, organism2color_dict=None, 
                  color_only_significant=True, alpha= None,ax = None,
-                 draw_vertical_lines = True, draw_horizontal_lines = False):
+                 draw_vertical_lines = True, draw_horizontal_lines = True):
                  
     results_df[fdr_header] = results_df[fdr_header].replace(0, np.min(results_df[fdr_header].replace(0, 1.0)))
     fdrs = results_df[fdr_header].to_numpy()
@@ -93,7 +93,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     sighits_up = sum((fdrs < fdr_cutoff) & (fcs >= log2fc_cutoff))
 
     results_df['-log10(fdr)'] = -np.log10(results_df['fdr'])
-    results_df['is_significant'] = (results_df['fdr'] <= fdr_cutoff) & (np.abs(results_df['log2fc']) >= fdr_cutoff)
+    results_df['is_significant'] = (results_df['fdr'] <= fdr_cutoff) & (np.abs(results_df['log2fc']) >= log2fc_cutoff)
 
     results_df = add_color_column(results_df, organism2color_dict, organism_column, color_only_significant)
 
