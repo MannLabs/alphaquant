@@ -98,7 +98,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     results_df = add_color_column(results_df, organism2color_dict, organism_column, color_only_significant)
 
     if not ax:
-        fig, ax = plt.subplots(figsize=(2.5, 2.5))
+        fig, ax = plt.subplots(figsize=(4, 4))
     else:
         fig = ax.get_figure()
 
