@@ -582,7 +582,7 @@ def get_ptmprob_header(input_type, modification_type):
 import pathlib
 import os
 
-def get_uniprot_path(database_tsv, organism= "human"):
+def get_uniprot_path(database_tsv = None, organism= "human"):
     return get_path_to_database(database_tsv, "uniprot_mapping.tsv",organism)
 
 def get_swissprot_path(database_tsv = None, organism = "human"):
