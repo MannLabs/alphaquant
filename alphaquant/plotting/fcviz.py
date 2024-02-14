@@ -1,13 +1,9 @@
-
-# Cell
 import pandas as pd
 import anytree
-import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.cluster.cluster_utils as aqclustutils
-import alphaquant.utils.utils as aqutils
 import alphaquant.plotting.base_functions as aqviz
 import alphaquant.config.variables as aqvars
-import alphamap.organisms_data
+
 
 
 
@@ -34,6 +30,7 @@ class PlotConfig():
 
 
 def get_pyteomics_fasta(organism = 'Human'):
+        import alphamap.organisms_data
         return alphamap.organisms_data.import_fasta(organism)
 
 class CondpairQuantificationInfo():
