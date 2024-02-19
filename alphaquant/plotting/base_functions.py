@@ -60,6 +60,14 @@ class ClusterColorMap():
 
 
 
+def rgba_list_to_hex_list(rgba_list):
+    hex_list = []
+    for rgba in rgba_list:
+        # Convert each value to a 0-255 scale, then to hex, and finally concatenate.
+        hex_code = '#' + ''.join([f"{int(c*255):02X}" for c in rgba[:3]])
+        hex_list.append(hex_code)
+    return hex_list
+
 # Cell
 import matplotlib.pyplot as plt
 import numpy as np
