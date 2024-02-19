@@ -61,7 +61,6 @@ class FoldChangeVisualizer():
         Returns:
             figure: figure object for the individual protein.
         """
-        #print(f'Creating fold change plot for {protein_of_interest}')
         protein_node = self.protein2node[protein_of_interest]
         cluster_plotter = ProteinPlot(protein_node, self.quantification_info, self.plotconfig)
         return cluster_plotter.fig
@@ -205,7 +204,6 @@ class ProteinPlot():
     
     def _plot_fcs(self):
         pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
-        pcplotter.plot_all_child_elements()
         self.fig =  pcplotter._fig
         self.axes = pcplotter._axes
     
@@ -224,8 +222,9 @@ class ProteinClusterPlotter():
         self._melted_df = None
         
         self._init_melted_df()
+        self._plot_all_child_elements()
 
-    def plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
+    def _plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
         parent2elements = self._get_parent2elements(parent2elements)
         #self._sort_parent2elements(parent2elements)
         self._define_fig_and_axes(fig, axes, parent2elements)
@@ -238,6 +237,7 @@ class ProteinClusterPlotter():
             ProteinPlot.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
             #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         self._set_yaxes_to_same_scale()
+        self._set_title()
         
 
     def _init_melted_df(self):
@@ -313,6 +313,10 @@ class ProteinClusterPlotter():
 
     def _label_x_and_y(self):
         self._fig.supylabel("log2FC")
+
+    def _set_title(self):
+        self._fig.suptitle(self._protein_node.name)
+
 
     def _set_title_of_subplot(self, ax, peptide_nodes, first_subplot):
         title_text = self._get_subplot_title_text(peptide_nodes, first_subplot)
