@@ -1,32 +1,117 @@
 import pandas as pd
 import anytree
 import alphaquant.cluster.cluster_utils as aqclustutils
-import alphaquant.plotting.base_functions as aqviz
+import alphaquant.plotting.base_functions as aq_plot_base
 import alphaquant.config.variables as aqvars
 import alphamap.organisms_data
+import alphaquant.utils.utils as aq_utils
+import alphaquant.resources.database_loader as aq_db_loader
 
+
+class FoldChangeVisualizer():
+
+    def __init__(self, condition1, condition2, results_directory, samplemap_file,
+                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.ClusterColorMap().colorlist, tree_level = 'seq',
+                                                        protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
+                                                        narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2):
+        """
+        Class to visualize the peptide fold changes of all peptides for the proteins specified in the list_of_proteins.
+
+        Args:
+            condition1 (str): name of the first experimental condition
+            condition2 (str): name of the second experimental condition
+            results_directory (str): location of AlphaQuant results directory
+            samplemap_file (str): path to AlphaQuant samplemap file
+            list_of_proteins (list): List of proteins to visualize, can be gene symbols or uniprot ids.
+            protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+            label_rotation (int): Rotation of x-axis labels.
+            add_stripplot (bool): Add stripplot to boxplot.
+            narrowing_factor_for_fcplot (float): Factor to narrow the plot.
+            rescale_factor_x (float): Rescale factor for x-axis.
+            rescale_factor_y (float): Rescale factor for y-axis.
+            tree_level (str): Specify which level of the tree to visualize, options are 'seq', 'mod_seq', 'mod_seq_charge', 'ion_type'.
+            colorlist (list): List of colors for plotting.
+            protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+
+        """
+
+        self.plotconfig = PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence)
+
+        self.quantification_info = CondpairQuantificationInfo((condition1, condition2), results_directory, samplemap_file)
+
+        #load the trees containing the tree-based quantification info
+        self.condpair_tree = aq_utils.read_condpair_tree(condition1, condition2, results_folder=results_directory)
+
+
+        self.protein2node = {x.name : x for x in self.condpair_tree.children}
+
+    def plot_list_of_proteins(self, list_of_proteins):
+        """
+        Returns:
+            list: list of figure objects for the individual proteins.
+        """
+        results_figures = []
+        for protein_of_interest in list_of_proteins:
+            protein_fig = self.plot_protein(protein_of_interest)
+            results_figures.append(protein_fig)
+        
+        return results_figures
+    
+    def plot_protein(self, protein_of_interest):
+        """
+        Returns:
+            figure: figure object for the individual protein.
+        """
+        #print(f'Creating fold change plot for {protein_of_interest}')
+        protein_node = self.protein2node[protein_of_interest]
+        cluster_plotter = ProteinPlot(protein_node, self.quantification_info, self.plotconfig)
+        return cluster_plotter.fig
 
 
 
 
 class PlotConfig():
-    def __init__(self):
-        self.label_rotation = 90
-        self.add_stripplot = False
-        self.narrowing_factor_for_fcplot = 1/14
-        self.rescale_factor_x = 1.0
-        self.rescale_factor_y = 2
-        self.pyteomics_fasta = None
-        self.parent_level = 'gene'
-        self.colorlist = aqviz.ClusterColorMap().colorlist
+    def __init__(self, label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, 
+                 colorlist = aq_plot_base.ClusterColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human', 
+                 order_peptides_along_protein_sequence = False):
+        """
+        Configuration class for plotting.
 
-        self._order_peptides_along_protein_sequence = False
-        self._order_by_cluster = True
+        Attributes:
+            protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+            label_rotation (int): Rotation of x-axis labels.
+            add_stripplot (bool): Add stripplot to boxplot.
+            narrowing_factor_for_fcplot (float): Factor to narrow the plot.
+            rescale_factor_x (float): Rescale factor for x-axis.
+            rescale_factor_y (float): Rescale factor for y-axis.
+            tree_level (str): Specify which level of the tree to visualize, options are 'seq', 'mod_seq', 'mod_seq_charge', 'ion_type'.
+            colorlist (list): List of colors for plotting.
+            protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+        """
+        self.label_rotation = label_rotation
+        self.add_stripplot = add_stripplot
+        self.narrowing_factor_for_fcplot = narrowing_factor_for_fcplot
+        self.rescale_factor_x = rescale_factor_x
+        self.rescale_factor_y = rescale_factor_y
+        self.colorlist = colorlist
+        self.protein_identifier = protein_identifier #can be 'gene_symbol' or 'uniprot_id'
+        self.tree_level = tree_level
+
+        self.parent_level = aqclustutils.LEVELS[aqclustutils.LEVELS.index(self.tree_level)+1]
+        self.order_peptides_along_protein_sequence = order_peptides_along_protein_sequence
+        self._order_by_cluster = not order_peptides_along_protein_sequence
+        self._organism = organism
+        self.protid2seq = None
+
+        if self.order_peptides_along_protein_sequence:
+            self._load_sequences()
     
-    def set_config_to_order_along_protein_sequence(self, organism = 'Human'):
-        self.pyteomics_fasta = get_pyteomics_fasta(organism)
-        self._order_peptides_along_protein_sequence = True
-        self._order_by_cluster = False
+    def _load_sequences(self):
+        organism = self._organism.lower()
+        if self.protein_identifier == 'gene_symbol':
+            self.protid2seq = aq_db_loader.get_genename2sequence_dict(organism)
+        else:
+            self.protid2seq = aq_db_loader.get_uniprot2sequence_dict(organism)
 
 
 def get_pyteomics_fasta(organism = 'Human'):
@@ -39,7 +124,7 @@ class CondpairQuantificationInfo():
         self.condpair = condpair
         cond1 = condpair[0]
         cond2 = condpair[1]
-        self.normed_intensity_df = aqviz.get_normed_peptides_dataframe(cond1, cond2, results_folder= results_dir)
+        self.normed_intensity_df = aq_plot_base.get_normed_peptides_dataframe(cond1, cond2, results_folder= results_dir)
         self.sample2cond = self._get_sample2cond(samplemap)
         self.relevant_samples = self._get_relevant_samples()
         self.diffresults_df = self._get_diffresults_df(cond1, cond2, results_dir)
@@ -59,8 +144,197 @@ class CondpairQuantificationInfo():
 
     
     def _get_diffresults_df(self, cond1, cond2, results_dir):
-        return aqviz.get_diffresult_dataframe(cond1, cond2, results_folder= results_dir).set_index("protein")
+        return aq_plot_base.get_diffresult_dataframe(cond1, cond2, results_folder= results_dir).set_index("protein")
 
+
+
+
+
+
+from alphaquant.cluster.outlier_scoring import ClusterDiffInfo
+
+class ProteinQuantDfProteoformSubsetter():
+    def __init__(self, melted_df, protein_node, clusterdiffinfo : ClusterDiffInfo):
+        self._melted_df = melted_df
+        self._protein_node = protein_node
+        self._clusterdiffinfo = clusterdiffinfo
+
+
+    def subset_melted_df_to_clusterdiffinfo(self):
+
+        clusterdiff_protein_node = self._get_clusterdiff_protein_node()
+
+        df_melted_reduced = self._reduce_dataframe_to_clusterdiff_ions(clusterdiff_protein_node)
+
+        return df_melted_reduced
+
+    def _get_clusterdiff_protein_node(self):
+        return self._clusterdiffinfo.get_clusterdiff_protnode(self._protein_node)
+
+    def _reduce_dataframe_to_clusterdiff_ions(self, clusterdiff_protein_node):
+        ions_used = {x.name  for x in clusterdiff_protein_node.leaves}
+        return self._melted_df[[x in ions_used for x in self._melted_df[aqvars.QUANT_ID]]]
+
+
+
+
+# Cell
+import alphaquant.diffquant.diffutils as aqdiffutils
+import alphaquant.plotting.treeutils as aqtreeutils
+import anytree
+
+
+class ProteinPlot():
+    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig):
+
+        self.fig = None
+        self.axes = None
+
+        self._protein_node = protein_node
+        self._quantification_info = quantification_info
+        self._plotconfig = plotconfig
+        self._shorten_protein_node_according_to_plotconfig()
+        self._sort_tree_according_to_plotconfig()
+        self._plot_fcs()
+    
+    def _shorten_protein_node_according_to_plotconfig(self):
+        self._protein_node = aqclustutils.clone_tree(self._protein_node)
+        self._protein_node = aqclustutils.shorten_root_to_level(self._protein_node,parent_level=self._plotconfig.parent_level)
+    
+    def _sort_tree_according_to_plotconfig(self):
+        self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
+    
+    def _plot_fcs(self):
+        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
+        pcplotter.plot_all_child_elements()
+        self.fig =  pcplotter._fig
+        self.axes = pcplotter._axes
+    
+
+
+
+class ProteinClusterPlotter():
+    def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, plotconfig : PlotConfig):
+        
+        self._protein_node = protein_node
+        self._plotconfig = plotconfig
+        self._quantification_info = quantification_info
+
+        self._fig = None
+        self._axes = None
+        self._melted_df = None
+        
+        self._init_melted_df()
+
+    def plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
+        parent2elements = self._get_parent2elements(parent2elements)
+        #self._sort_parent2elements(parent2elements)
+        self._define_fig_and_axes(fig, axes, parent2elements)
+
+        for idx, (_, elements) in enumerate(parent2elements.items()):
+            
+            melted_df_subset = self._subset_to_elements(self._melted_df, elements)
+            colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
+            ProteinPlot = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._quantification_info.condpair, plotconfig=self._plotconfig)
+            ProteinPlot.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
+            #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
+        self._set_yaxes_to_same_scale()
+        
+
+    def _init_melted_df(self):
+        protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
+        self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
+
+
+    @staticmethod
+    def _subset_to_elements(df_melted, elements):
+        return df_melted.set_index("specified_level").loc[elements].reset_index()
+    
+    def _define_fig_and_axes(self, fig, axes, parent2elements):
+        if fig is None or axes is None:
+            self._prepare_axes(parent2elements)
+        else:
+            self._fig = fig
+            self._axes = axes    
+
+
+    def _prepare_axes(self, parent2elements):
+        num_independent_plots = len(parent2elements.keys())
+        width_list = [len(x) for x in parent2elements.values()] #adjust width of each subplot according to peptide number
+        total_number_of_peptides = sum(width_list)
+        figsize = (total_number_of_peptides*0.5,10)
+        self._fig, self._axes = plt.subplots(1, num_independent_plots,figsize = figsize,sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list}, squeeze=False)
+        self._axes = self._axes[0] #the squeeze=False option always returns a 2D array, even if there is only one subplot
+
+
+    def _set_yaxes_to_same_scale(self):
+        min_ylim = min(ax.get_ylim()[0] for ax in self._axes)
+        max_ylim = max(ax.get_ylim()[1] for ax in self._axes)
+        
+        for ax in self._axes:
+            ax.set_ylim(min_ylim, max_ylim)
+    
+    def _get_parent2elements(self, parent2elements):
+        if parent2elements is not None:
+            return parent2elements
+        else:
+            return aqclustutils.get_parent2leaves_dict(self._protein_node)
+
+
+    def _sort_parent2elements(self, parent2elements):
+        sorted_parent2elements = {}
+        
+        for parent_name, elements in parent2elements.items():
+            
+            parent_node = anytree.search.find(self._protein_node, lambda node: node.name == parent_name)
+
+            ordered_children_names = [child.name for child in parent_node.children]
+            
+            sorted_elements = sorted(elements, key=lambda x: ordered_children_names.index(x))
+            
+            sorted_parent2elements[parent_name] = sorted_elements
+
+        return sorted_parent2elements
+
+    
+    def _load_level_nodes(self):
+        all_child_nodes = []
+        nodes_at_level =  anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._parent_level))
+        for node in nodes_at_level:
+            all_child_nodes += node.children
+        return all_child_nodes
+
+    @staticmethod
+    def _get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, cluster_idx):
+        return [x.name for x in cluster_sorted_groups_of_peptide_nodes[cluster_idx]]
+
+    def _get_color_from_list(self, idx):
+        modulo_idx = idx % (len(self._colormap)) #if idx becomes larger than the list length, start at 0 again
+        return self._colormap[modulo_idx]
+
+    def _label_x_and_y(self):
+        self._fig.supylabel("log2FC")
+
+    def _set_title_of_subplot(self, ax, peptide_nodes, first_subplot):
+        title_text = self._get_subplot_title_text(peptide_nodes, first_subplot)
+        ax.set_title(title_text)
+
+    def _get_subplot_title_text(self, peptide_nodes, first_subplot):
+        median_fc = np.median([x.fc for x in peptide_nodes])
+        min_quality_score = min([self._get_quality_score(x) for x in peptide_nodes])
+        fc_string = f"{median_fc:.2}"[:4]
+        quality_string = f"{min_quality_score:.2}"[:4]
+        if first_subplot:
+            return f"fc {fc_string}\nquality {quality_string}"
+        else:
+            return f"{fc_string}\n{quality_string}"
+
+    def _get_quality_score(self, peptide_node):
+        has_predscore = hasattr(peptide_node, 'predscore')
+        if has_predscore:
+            return abs(peptide_node.predscore)
+        else:
+            return 1/peptide_node.fraction_consistent
 
 
 
@@ -216,197 +490,8 @@ class IonConsistencyTester():
             Exception("Clustered ions are not entirely contained in  observed ions!")
 
 
-from alphaquant.cluster.outlier_scoring import ClusterDiffInfo
-
-class ProteinQuantDfProteoformSubsetter():
-    def __init__(self, melted_df, protein_node, clusterdiffinfo : ClusterDiffInfo):
-        self._melted_df = melted_df
-        self._protein_node = protein_node
-        self._clusterdiffinfo = clusterdiffinfo
-
-
-    def subset_melted_df_to_clusterdiffinfo(self):
-
-        clusterdiff_protein_node = self._get_clusterdiff_protein_node()
-
-        df_melted_reduced = self._reduce_dataframe_to_clusterdiff_ions(clusterdiff_protein_node)
-
-        return df_melted_reduced
-
-    def _get_clusterdiff_protein_node(self):
-        return self._clusterdiffinfo.get_clusterdiff_protnode(self._protein_node)
-
-    def _reduce_dataframe_to_clusterdiff_ions(self, clusterdiff_protein_node):
-        ions_used = {x.name  for x in clusterdiff_protein_node.leaves}
-        return self._melted_df[[x in ions_used for x in self._melted_df[aqvars.QUANT_ID]]]
-
-
-
-
-# Cell
-import alphaquant.diffquant.diffutils as aqdiffutils
-import alphaquant.plotting.treeutils as aqtreeutils
-import anytree
-
-
-class FCPlotter():
-    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig):
-
-        self.fig = None
-        self.axes = None
-
-        self._protein_node = protein_node
-        self._quantification_info = quantification_info
-        self._plotconfig = plotconfig
-        self._shorten_protein_node_according_to_plotconfig()
-        self._sort_tree_according_to_plotconfig()
-        self._plot_fcs()
-    
-    def _shorten_protein_node_according_to_plotconfig(self):
-        self._protein_node = aqclustutils.clone_tree(self._protein_node)
-        self._protein_node = aqclustutils.shorten_root_to_level(self._protein_node,parent_level=self._plotconfig.parent_level)
-    
-    def _sort_tree_according_to_plotconfig(self):
-        self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
-    
-    def _plot_fcs(self):
-        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
-        pcplotter.plot_all_child_elements()
-        self.fig =  pcplotter._fig
-        self.axes = pcplotter._axes
-    
-
-
-
-class ProteinClusterPlotter():
-    def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, plotconfig : PlotConfig):
-        
-        self._protein_node = protein_node
-        self._plotconfig = plotconfig
-        self._quantification_info = quantification_info
-
-        self._fig = None
-        self._axes = None
-        self._melted_df = None
-        
-        self._init_melted_df()
-
-    def plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
-        parent2elements = self._get_parent2elements(parent2elements)
-        #self._sort_parent2elements(parent2elements)
-        self._define_fig_and_axes(fig, axes, parent2elements)
-
-        for idx, (_, elements) in enumerate(parent2elements.items()):
-            
-            melted_df_subset = self._subset_to_elements(self._melted_df, elements)
-            colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
-            fcplotter = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._quantification_info.condpair, plotconfig=self._plotconfig)
-            fcplotter.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
-            #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
-        self._set_yaxes_to_same_scale()
-        plt.show()
-        
-
-    def _init_melted_df(self):
-        protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
-        self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
-
-
-    @staticmethod
-    def _subset_to_elements(df_melted, elements):
-        return df_melted.set_index("specified_level").loc[elements].reset_index()
-    
-    def _define_fig_and_axes(self, fig, axes, parent2elements):
-        if fig is None or axes is None:
-            self._prepare_axes(parent2elements)
-        else:
-            self._fig = fig
-            self._axes = axes    
-
-
-    def _prepare_axes(self, parent2elements):
-        num_independent_plots = len(parent2elements.keys())
-        width_list = [len(x) for x in parent2elements.values()] #adjust width of each subplot according to peptide number
-        total_number_of_peptides = sum(width_list)
-        figsize = (total_number_of_peptides*0.5,10)
-        self._fig, self._axes = plt.subplots(1, num_independent_plots,figsize = figsize,sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list}, squeeze=False)
-        self._axes = self._axes[0] #the squeeze=False option always returns a 2D array, even if there is only one subplot
-
-
-    def _set_yaxes_to_same_scale(self):
-        min_ylim = min(ax.get_ylim()[0] for ax in self._axes)
-        max_ylim = max(ax.get_ylim()[1] for ax in self._axes)
-        
-        for ax in self._axes:
-            ax.set_ylim(min_ylim, max_ylim)
-    
-    def _get_parent2elements(self, parent2elements):
-        if parent2elements is not None:
-            return parent2elements
-        else:
-            return aqclustutils.get_parent2leaves_dict(self._protein_node)
-
-
-    def _sort_parent2elements(self, parent2elements):
-        sorted_parent2elements = {}
-        
-        for parent_name, elements in parent2elements.items():
-            
-            parent_node = anytree.search.find(self._protein_node, lambda node: node.name == parent_name)
-
-            ordered_children_names = [child.name for child in parent_node.children]
-            
-            sorted_elements = sorted(elements, key=lambda x: ordered_children_names.index(x))
-            
-            sorted_parent2elements[parent_name] = sorted_elements
-
-        return sorted_parent2elements
-
-    
-    def _load_level_nodes(self):
-        all_child_nodes = []
-        nodes_at_level =  anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._parent_level))
-        for node in nodes_at_level:
-            all_child_nodes += node.children
-        return all_child_nodes
-
-    @staticmethod
-    def _get_peptide_names_to_plot(cluster_sorted_groups_of_peptide_nodes, cluster_idx):
-        return [x.name for x in cluster_sorted_groups_of_peptide_nodes[cluster_idx]]
-
-    def _get_color_from_list(self, idx):
-        modulo_idx = idx % (len(self._colormap)) #if idx becomes larger than the list length, start at 0 again
-        return self._colormap[modulo_idx]
-
-    def _label_x_and_y(self):
-        self._fig.supylabel("log2FC")
-
-    def _set_title_of_subplot(self, ax, peptide_nodes, first_subplot):
-        title_text = self._get_subplot_title_text(peptide_nodes, first_subplot)
-        ax.set_title(title_text)
-
-    def _get_subplot_title_text(self, peptide_nodes, first_subplot):
-        median_fc = np.median([x.fc for x in peptide_nodes])
-        min_quality_score = min([self._get_quality_score(x) for x in peptide_nodes])
-        fc_string = f"{median_fc:.2}"[:4]
-        quality_string = f"{min_quality_score:.2}"[:4]
-        if first_subplot:
-            return f"fc {fc_string}\nquality {quality_string}"
-        else:
-            return f"{fc_string}\n{quality_string}"
-
-    def _get_quality_score(self, peptide_node):
-        has_predscore = hasattr(peptide_node, 'predscore')
-        if has_predscore:
-            return abs(peptide_node.predscore)
-        else:
-            return 1/peptide_node.fraction_consistent
-
-
-import pandas as pd
-
 class ClusterColorMapper():
-    def __init__(self, colorlist = aqviz.AlphaPeptColorMap().colorlist):
+    def __init__(self, colorlist = aq_plot_base.AlphaPeptColorMap().colorlist):
         self._colorlist = colorlist
     
     def get_element2color(self, melted_df):
@@ -446,7 +531,7 @@ class IonFoldChangePlotter():
         self._melted_df = ionfc_calculated.melted_df
 
     def plot_ion_selection_overview(self):
-        fig, axs = plt.subplots(2, 2,figsize = self.__get_fig_width())
+        fig, axs = plt.subplots(2, 2,figsize = self._get_fig_width())
         colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
 
         colormap_relative_strength_all = colorgetter.get_predscore_relative_strength_colormap(set_nonmainclust_elems_whiter=False)
@@ -501,7 +586,7 @@ class IonFoldChangePlotter():
     def _plot_fcs_with_boxplot(self, colormap, ax):
         sns.boxplot(data = self.fcs, ax=ax, palette=colormap)
 
-    def __get_fig_width(self):
+    def _get_fig_width(self):
         num_ions = len(self.precursors)
         return (int(0.7*num_ions), 10)
     
@@ -541,7 +626,7 @@ class IonPlotColorGetter():
         self._ion_name_column = ion_name_column
         self._is_included_column = is_included_column
 
-        self._color_palette = aqviz.AlphaPeptColorMap().colormap_discrete
+        self._color_palette = aq_plot_base.AlphaPeptColorMap().colormap_discrete
         self._sorted_map_df = self.__init_sorted_mapping_df()
 
     def get_predscore_relative_strength_colormap(self, set_nonmainclust_elems_whiter = True):
