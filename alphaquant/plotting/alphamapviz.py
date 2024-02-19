@@ -19,6 +19,30 @@ class AlphaMapVisualizer:
             protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
             narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2):
         
+        """
+        Initializes an object for visualizing peptide fold changes and AlphaMap sequence alignment. 
+        This class allows for the visualization of different proteins by using the visualize_protein method 
+        after initialization.
+
+        Args:
+            condition1 (str): Name of the first experimental condition.
+            condition2 (str): Name of the second experimental condition.
+            results_directory (str): Location of the AlphaQuant results directory.
+            samplemap_file (str): Path to the AlphaQuant samplemap file.
+            order_along_protein_sequence (bool, optional): Whether to order peptides along the protein sequence. Defaults to True.
+            organism (str, optional): The organism for the protein sequences. Defaults to 'Human'.
+            colorlist (list, optional): List of colors for plotting. Defaults to aq_plot_base.ClusterColorMap().colorlist.
+            tree_level (str, optional): Specifies which level of the tree to visualize. Options are 'seq', 'mod_seq', 'mod_seq_charge', 'ion_type'. Defaults to 'seq'.
+            protein_identifier (str, optional): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'. Defaults to 'gene_symbol'.
+            label_rotation (int, optional): Rotation angle (in degrees) for x-axis labels. Defaults to 90.
+            add_stripplot (bool, optional): Whether to add a stripplot to the boxplot. Defaults to False.
+            narrowing_factor_for_fcplot (float, optional): Factor to narrow the fold change plot. Defaults to 1/14.
+            rescale_factor_x (float, optional): Rescale factor for the x-axis. Defaults to 1.0.
+            rescale_factor_y (float, optional): Rescale factor for the y-axis. Defaults to 2.
+            identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+
+        """
+        
         self._fc_visualizer = aq_plot_fc.FoldChangeVisualizer(condition1, condition2, results_directory, samplemap_file,
             order_along_protein_sequence = order_along_protein_sequence, organism = organism, colorlist = colorlist, 
             tree_level = tree_level, protein_identifier = protein_identifier, label_rotation = label_rotation, 
