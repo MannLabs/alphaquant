@@ -6,6 +6,7 @@ import alphaquant.cluster.cluster_utils as aqcluster_utils
 
 class CombinedTreeAndFCPlotter():
     def __init__(self, protein_node, quantification_info: aqfcviz.CondpairQuantificationInfo, plotconfig = aqfcviz.PlotConfig()):
+
         self._protein_node = protein_node
 
         self.fig = None
@@ -41,9 +42,9 @@ class CombinedTreeAndFCPlotter():
         aqtreeviz.GraphCreator(self._protein_node, self.ax_tree, self._plotconfig)
 
     def _plot_fcs(self):
-        pcplotter = aqfcviz.ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
-        parent2leaves = aqcluster_utils.get_parent2leaves_dict(self._protein_node)
-        pcplotter.plot_all_child_elements(parent2elements= None, fig=self.fig, axes=self.axes_fcs)
+        aqfcviz.ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig,
+                                                  fig=self.fig, axes=self.axes_fcs) #updates the axes elements with the fc plot
+#        parent2leaves = aqcluster_utils.get_parent2leaves_dict(self._protein_node)
     
     def _format_fig(self):
         self.fig.tight_layout()
