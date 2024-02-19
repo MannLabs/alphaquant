@@ -211,25 +211,41 @@ class ProteinPlot():
 
 
 class ProteinClusterPlotter():
-    def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, plotconfig : PlotConfig):
+    def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, plotconfig : PlotConfig,
+                 parent2elements = None, fig = None, axes = None):
         
         self._protein_node = protein_node
         self._plotconfig = plotconfig
         self._quantification_info = quantification_info
 
-        self._fig = None
-        self._axes = None
+        self._parent2elements = parent2elements
+        self._fig = fig
+        self._axes = axes
         self._melted_df = None
         
         self._init_melted_df()
+        self._define_parent2elements()
+        self._define_fig_and_axes()
         self._plot_all_child_elements()
 
-    def _plot_all_child_elements(self, parent2elements = None, fig = None, axes = None):
-        parent2elements = self._get_parent2elements(parent2elements)
-        #self._sort_parent2elements(parent2elements)
-        self._define_fig_and_axes(fig, axes, parent2elements)
 
-        for idx, (_, elements) in enumerate(parent2elements.items()):
+    def _init_melted_df(self):
+        protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
+        self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
+
+    def _define_parent2elements(self):
+        if self._parent2elements is None:
+            self._parent2elements =  aqclustutils.get_parent2leaves_dict(self._protein_node)
+    
+        
+    def _define_fig_and_axes(self):
+        if self._fig is None or self._axes is None:
+            self._prepare_axes()
+
+
+    def _plot_all_child_elements(self):
+
+        for idx, (_, elements) in enumerate(self._parent2elements.items()):
             
             melted_df_subset = self._subset_to_elements(self._melted_df, elements)
             colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
@@ -240,26 +256,14 @@ class ProteinClusterPlotter():
         self._set_title()
         
 
-    def _init_melted_df(self):
-        protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
-        self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
-
-
     @staticmethod
     def _subset_to_elements(df_melted, elements):
         return df_melted.set_index("specified_level").loc[elements].reset_index()
-    
-    def _define_fig_and_axes(self, fig, axes, parent2elements):
-        if fig is None or axes is None:
-            self._prepare_axes(parent2elements)
-        else:
-            self._fig = fig
-            self._axes = axes    
 
 
-    def _prepare_axes(self, parent2elements):
-        num_independent_plots = len(parent2elements.keys())
-        width_list = [len(x) for x in parent2elements.values()] #adjust width of each subplot according to peptide number
+    def _prepare_axes(self):
+        num_independent_plots = len(self._parent2elements.keys())
+        width_list = [len(x) for x in self._parent2elements.values()] #adjust width of each subplot according to peptide number
         total_number_of_peptides = sum(width_list)
         figsize = (total_number_of_peptides*0.5,10)
         self._fig, self._axes = plt.subplots(1, num_independent_plots,figsize = figsize,sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list}, squeeze=False)
@@ -273,11 +277,6 @@ class ProteinClusterPlotter():
         for ax in self._axes:
             ax.set_ylim(min_ylim, max_ylim)
     
-    def _get_parent2elements(self, parent2elements):
-        if parent2elements is not None:
-            return parent2elements
-        else:
-            return aqclustutils.get_parent2leaves_dict(self._protein_node)
 
 
     def _sort_parent2elements(self, parent2elements):
@@ -286,11 +285,8 @@ class ProteinClusterPlotter():
         for parent_name, elements in parent2elements.items():
             
             parent_node = anytree.search.find(self._protein_node, lambda node: node.name == parent_name)
-
             ordered_children_names = [child.name for child in parent_node.children]
-            
             sorted_elements = sorted(elements, key=lambda x: ordered_children_names.index(x))
-            
             sorted_parent2elements[parent_name] = sorted_elements
 
         return sorted_parent2elements
