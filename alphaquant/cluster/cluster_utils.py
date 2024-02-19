@@ -337,14 +337,6 @@ def get_sorted_peptides_by_position_in_protein_seq(protein_node, protein_sequenc
     return sorted(peptides, key=lambda x: get_sequence_position(protein_sequence, aqutils.cut_trailing_parts_seqstring(x.name_reduced)))
 
 
-def get_protein_sequence(protein_node, pyteomics_fasta):
-    for id in protein_node.name.split(";"):
-        try:
-            return pyteomics_fasta.get_by_id(id).sequence
-        except:
-            continue
-    return None
-
 
 def get_sequence_position(protein_seq, peptide_seq):
     return protein_seq.find(peptide_seq)
