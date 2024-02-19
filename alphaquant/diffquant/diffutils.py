@@ -336,11 +336,13 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None, res
     
     input_reshaped = pd.read_csv(file_to_read, sep = "\t", encoding = 'latin1', usecols=samples_subset)
     input_reshaped = input_reshaped.drop_duplicates(subset='quant_id')
+    input_reshaped = input_reshaped.astype({'protein': 'str', QUANT_ID: 'str'})
+
     return input_reshaped
 
 def add_ion_protein_headers_if_applicable(samples_subset):
     if samples_subset is not None:
-        return samples_subset + ["quant_id", "protein"]
+        return samples_subset + [QUANT_ID, "protein"]
     else:
         return None
 
@@ -361,11 +363,7 @@ def reformat_and_save_input_file(input_file, input_type_to_use = None, use_alpha
 
 
 
-def add_ion_protein_headers_if_applicable(samples_subset):
-    if samples_subset is not None:
-        return samples_subset + [QUANT_ID, "protein"]
-    else:
-        return None
+
 
 
 

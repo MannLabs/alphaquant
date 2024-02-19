@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 
 class MedianConditionManager():
@@ -52,9 +53,13 @@ class MedianConditionCreator():
         self.extended_samplemap_df = self._define_extended_samplemap_df()
 
     def _define_extended_input_df(self):
+        input_df_subset = self._subset_input_df_to_samplemap()
         median_sample_df = self._define_median_sample_df()
-        return pd.concat([self._input_df_aqformat, median_sample_df], axis="columns")
+        return pd.concat([input_df_subset, median_sample_df], axis="columns")
 
+    def _subset_input_df_to_samplemap(self):
+        return self._input_df_aqformat[self._samplemap_df["sample"].to_list()]
+    
     def _define_median_sample_df(self):
         replicate_intensities = []
         for idx in range(self._number_replicates):
@@ -73,8 +78,9 @@ class MedianConditionCreator():
             expname = cond_df["sample"].to_list()[replicate_idx]
             sample_intensities = self._input_df_aqformat[expname]
             list_of_sample_intensities.append(sample_intensities)
-        selected_intensities_df =  pd.concat(list_of_sample_intensities, axis="columns")
-        median_intensities = selected_intensities_df.median(axis="columns")
+        selected_intensities_df =  np.log2(pd.concat(list_of_sample_intensities, axis="columns").replace(0, np.nan))
+        median_intensities = (2**selected_intensities_df.median(axis="columns")).replace(np.nan, 0)
+        
 
         return median_intensities
     

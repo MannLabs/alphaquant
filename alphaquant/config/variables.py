@@ -1,6 +1,7 @@
 import pandas as pd
 
 QUANT_ID = "quant_id"
+MIN_PVAL = 1e-16
 
 def determine_variables(input_file):
     _determine_quant_id(input_file)

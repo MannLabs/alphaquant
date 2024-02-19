@@ -119,13 +119,13 @@ Some details: By default this installs loose dependancies (no explicit versionin
 
 There are two ways to use AlphaQuant:
 
-* [**GUI**](#gui)
+* [**GUI** --under construction--](#gui)
 <!---* [**CLI**](#cli)-->
-* [**Python**](#python-and-jupyter-notebooks)
+* [**Python and Jupyter Notebooks**](#python-and-jupyter-notebooks)
 
 NOTE: The first time you use a fresh installation of AlphaQuant, it is often quite slow because some functions might still need compilation on your local operating system and architecture. Subsequent use should be a lot faster.
 
-### GUI
+### GUI --under construction--
 
 The GUI is currently accessible through the one-click GUI installer. Currently it only does the pairwise analysis. Further functionalities can be accessed through python and jupyter notebooks.
 <!-- If the GUI was not installed through a one-click GUI installer, it can be activate with the following `bash` command:
@@ -154,7 +154,7 @@ We have compiled a set of Jupyter notebooks together with some example data in t
  * perform very sensitive differential expression analysis on a single condition, analyze and visualize proteoforms [here](example_nbs/differential_expression.ipynb)
  * analyze multiple condition together and inspect proteoform profiles [here](example_nbs/multi_condition_analysis.ipynb)
  * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_PTM.ipynb)
- * **in preparation** combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
+ * combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
  * visualize the tree structure of differential expression analysis [here](example_nbs/visualizing_tree_structure.ipynb)
 
 
@@ -182,18 +182,37 @@ The data needs to be exported in the normal long format as .tsv file
 Provide the path to the DIANN "report.tsv" output table.
 
 ### MaxQuant
-Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table. Additionally and if possible, provide the path to the corresponding "proteinGroups.txt" file.
+Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table. 
 
 ### FragPipe
 Provide the path to the "combined_ion.tsv" output table.
 
 
-### generic input format
-In the case that you working with a search engine that is not supported by AlphaQuant, you can use the generic input format. This format is a tab-separated quantity matrix file with the following columns: "protein", "quant_id", "run_id1", "run_id2", ..,"run_idN". 
-Each row contains therefore all the ion intensities that were measured for an ion in each run (see examples below). The ion identifier only needs to be unique for each ion and can be on the level you want (peptide, charged peptide, or fragment ion). After reformatting your file into this format, save the file with the ending ".aq_reformat.tsv". Then you can simply give this file as input to AlphaQuant and it will automatically detect the generic input format.
-<img src="./release/images/example_input_format_mq.png" width="700" />
-<img src="./release/images/example_input_format_sn.png" width="700" />
 
+## Output tables
+
+### results.tsv
+
+* *condition_pair:* the names of the two conditions that are compared against each other (condition1 _VS_ condition2).  The log2 fold change is calculated as condition1 - condition2
+* *p_value:* the uncorrected(!) p-value of the differential expression analysis. It tests the null hypothesis: 'no change between condition1 and condition2'. Lower values mean higher significance.
+* *fdr:* the multiple testing corrected p-value with the Benjamini-Hochberg method
+* *log2fc:* the estimated log 2 fold change.
+* *number_of_ions:* number of raw datapoints used for protein intensity estimation.
+* *quality_score:* a quantitative score indicating the quality of quantification. Higher scores mean higher quality.
+* *summed_intensity:* the summed (non-log) intensities of all base ions
+
+
+### proteoforms.tsv
+
+* *protein:* protein or gene name
+* *proteoform_id:* the protein name with a number at the end, indicating the nth proteoform. For EGFR_0 would be the reference proteoform of EGFR, EGFR_1 would indicated a second group of EGFR peptides that behave differently to EGFR_0. Many proteins will only have one reference proteoform.
+* *cluster:* proteoform number
+* *is_reference:*	TRUE if proteoform is the reference proteoform
+* *peptides:* sequences of all peptides that map
+* *quality_score:* alphaquant quality score between 0 and 1 (higher is better)
+* *log2fc:* the estimated log2 fold change
+* *fraction_of_peptides:* the fraction of peptides within the whole protein that belongs to the proteoform
+* *fcdiff:* fold change difference relative to the reference proteoform
 
 ---
 ## Troubleshooting

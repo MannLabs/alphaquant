@@ -1,6 +1,7 @@
 import os
 from anytree.importer import JsonImporter
 import glob
+import pandas as pd
 
 
 def read_all_trees_in_results_folder(results_folder):
@@ -29,14 +30,26 @@ def read_tree_from_json(tree_file):
     filehandle.close()
     return jsontree
 
+def read_all_results_files_in_results_folder(results_folder):
+    condpair2df = {}
 
+    for results_file in glob.glob(os.path.join(results_folder, '*.results.tsv')):
+        results_df = pd.read_csv(results_file, sep = "\t")
+        results_filename_nopath = os.path.basename(results_file)
+        condpairname = results_filename_nopath.replace(".results.tsv", "")
+        condpair2df[condpairname] = results_df
+
+    return condpair2df
 
 def cut_trailing_parts_seqstring(seqstring):
     return seqstring.replace("SEQ_", "").rstrip("_")
-
 
 def get_condpairname(condpair):
     return f"{condpair[0]}_VS_{condpair[1]}"
 
 def get_condpair_from_condpairname(condpairname):
     return condpairname.split("_VS_")
+
+def remove_file_extension(filename):
+    trimmed_filename = os.path.splitext(filename)[0]
+    return trimmed_filename

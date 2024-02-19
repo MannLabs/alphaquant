@@ -6,6 +6,9 @@ __all__ = ['PTMResultsNormalizer', 'PTMtableLocalizer', 'PTMFiles', 'PTMtableNor
 # Cell
 import alphaquant.diffquant.diffutils as aqutils
 import pathlib
+import alphaquant.multicond.multicond_ptmnorm as aq_multicond_ptmnorm
+import statsmodels.stats.multitest as mt
+
 
 
 class PTMResultsNormalizer():
@@ -13,24 +16,45 @@ class PTMResultsNormalizer():
         self._table_localizer = PTMtableLocalizer(results_dir_ptm, results_dir_proteome, organism)
         self.results_dir_protnormed = f"{results_dir_ptm}_protnormed"
         self._create_results_dir()
-        self._write_normalized_tables()
+        self._write_normalized_tables_diffquant(organism)
+        self._write_normalized_tables_multicond()
         print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
-    def _write_normalized_tables(self):
+    def _write_normalized_tables_diffquant(self, organism):
         for ptm_file, protfile in self._table_localizer.get_ptmfile2protfile().items():
             if protfile == None:
                 print(f"could not localize protfile for {ptm_file}, skipping")
                 continue
-            df_normed = PTMtableNormalizer(ptm_file, protfile).normalize_with_proteome()
+            table_normalizer = PTMtableNormalizer(ptm_file, protfile, organism)
+            df_normed = table_normalizer.results_df
+            df_summary = table_normalizer.info_df
+            df_normed = self._update_fdr_column_normed_df(df_normed)
             self._write_normed_df(df_normed, ptm_file)
+            self._write_summary_df(df_summary, ptm_file)
+        
+    def _write_normalized_tables_multicond(self):
+        aq_multicond_ptmnorm.combine_results_tables_if_they_exist(self.results_dir_protnormed)
+
 
     def _create_results_dir(self):
         aqutils.create_or_replace_folder(self.results_dir_protnormed)
+
+    def _update_fdr_column_normed_df(self, df_normed):
+        pvals = df_normed["p_value"].tolist()
+        fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+        df_normed["fdr"] = fdrs
+        return df_normed
+
 
     def _write_normed_df(self,df_normed, ptmfile):
         ptmfile2name = self._table_localizer.get_ptmfile2name()
         name = ptmfile2name.get(ptmfile)
         df_normed.to_csv(f"{self.results_dir_protnormed}/{name}.results.tsv", sep = "\t")
+
+    def _write_summary_df(self,df_summary, ptmfile):
+        ptmfile2name = self._table_localizer.get_ptmfile2name()
+        name = ptmfile2name.get(ptmfile)
+        df_summary.to_csv(f"{self.results_dir_protnormed}/{name}.summary.tsv", sep = "\t", header = False)
 
 
 class PTMtableLocalizer():
@@ -87,29 +111,43 @@ class PTMFiles():
         return aqptm.get_swissprot_path(organism=self._organism)
 
 class PTMtableNormalizer():
-    def __init__(self,  ptm_file, proteome_file):
-        self._prepared_tables = PTMtablePreparer(ptm_file, proteome_file)
-        self._output_table_template = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and fdrs
+    def __init__(self,  ptm_file, proteome_file, organism = "human"):
+        self._prepared_tables = PTMtablePreparer(ptm_file, proteome_file, organism)
+        self.results_df = self._prepared_tables.ptm_df.copy() #use ptm table as template for the output table and update with normalized fcs and p_values
+        self.info_df = None
 
+        self._number_of_excluded_ptms = 0
+        self._number_of_included_ptms = 0
 
-    def normalize_with_proteome(self):
-        for ptm in self._output_table_template.index:
-            self.__update_ptm_infos__(ptm)
-        return self._output_table_template
+        self._normalize_with_proteome()
+        self._define_info_df()
 
-    def __update_ptm_infos__(self, ptm):
+    def _normalize_with_proteome(self):
+        for ptm in self.results_df.index:
+            self._update_ptm_infos(ptm)
+    
+    def _define_info_df(self):
+        info_dict = {}
+        info_dict["number_ptms_w_no_matching_protein"] = self._number_of_excluded_ptms
+        info_dict["number_ptms_w_matching_protein"] = len(self.results_df.index)
+        info_dict["number_proteins_in_ptm_dataset"] = len(set([x.split("_")[1] for x in self._prepared_tables.ptm_df.index]))
+        info_dict["number_proteins_in_proteome_dataset"] = self._prepared_tables.proteome_df.shape[0]
+        self.info_df = pd.DataFrame.from_dict(info_dict, orient = "index", columns = ["value"])
+
+    def _update_ptm_infos(self, ptm):
         regulation_infos = self._prepared_tables.get_protein_regulation_infos(ptm)
         if regulation_infos is None:
-            self._output_table_template = self._output_table_template.drop(labels = [ptm])
+            self.results_df = self.results_df.drop(labels = [ptm])
+            self._number_of_excluded_ptms += 1
         else:
-            fdr_damper = FDRDamper(regulation_infos)
-            dampened_fdr = fdr_damper.get_fdr()
-            self.__update_values_for_output_table__(ptm, dampened_fdr, regulation_infos.diff_fc)
+            p_value_damper = PvalDamper(regulation_infos)
+            dampened_p_value = p_value_damper.get_p_value()
+            self._update_values_for_output_table(ptm, dampened_p_value, regulation_infos.diff_fc)
 
 
-    def __update_values_for_output_table__(self, ptm, fdr, log2fc):
-        self._output_table_template.loc[ptm, "fdr"] = fdr
-        self._output_table_template.loc[ptm, "log2fc"] = log2fc
+    def _update_values_for_output_table(self, ptm, dampened_p_value, log2fc):
+        self.results_df.loc[ptm, "p_value"] = dampened_p_value
+        self.results_df.loc[ptm, "log2fc"] = log2fc
 
     def __get_ptm_list__(self):
         list(self._prepared_tables.ptm_df.index)
@@ -120,93 +158,118 @@ import glob
 import re
 import pandas as pd
 class PTMtablePreparer():
-    def __init__(self, ptm_file, proteome_file):
-        self._swissprot_referenceprots = aqptm.get_swissprot_path()
-        self.ptm_df = self.__read_and_annotate_ptm_df__(ptm_file)
-        self.proteome_df = self.__read_and_annotate_proteome_df(proteome_file)
+    def __init__(self, ptm_file, proteome_file, organism):
+        
+        self.ptm_df = pd.read_csv(ptm_file, sep = "\t")
+        self.proteome_df = pd.read_csv(proteome_file, sep = "\t")
+        self._organism = organism
+        self._map_ids_proteome_df_to_ptm_df()
         self.output_df = self.ptm_df.copy()
-        self._ptmsite2swissprot  = self.__get_ptmsite2swissprot__()
+        
+
+    def _map_ids_proteome_df_to_ptm_df(self):
+        id_mapper = ProteinToPTMMapper(self.ptm_df, self.proteome_df, self._organism)
+        self.ptm_df = id_mapper.ptm_df.set_index("protein")
+        self.proteome_df = id_mapper.proteome_df.set_index("gene")
 
 
     def get_protein_regulation_infos(self, ptmsite):
-        swissprot = self._ptmsite2swissprot.get(ptmsite)
         ptm_row = self.ptm_df.loc[ptmsite]
-        try:
-            protein_row = self.proteome_df.loc[swissprot]
-            protein_row = self.__resolve_possible_duplicate_protein_rows(protein_row)
-
-        except:
+        gene_name = ptm_row["gene"]
+        if gene_name not in self.proteome_df.index:
             return None
-        ptm_fdr = self.__get_fdr_from_table_row__(ptm_row)
-        ptm_fc = self.__get_fc_from_table_row__(ptm_row)
-        protein_fdr = self.__get_fdr_from_table_row__(protein_row)
-        protein_fc = self.__get_fc_from_table_row__(protein_row)
-        reginfos = RegulationInfos(log2fc_ptm=ptm_fc, fdr_ptm=ptm_fdr, log2fc_protein=protein_fc,fdr_protein=protein_fdr)
+        protein_row = self.proteome_df.loc[gene_name] #the proteome df is indexed be the gene name that maps to the ptm
+
+        ptm_p_value = self._get_p_value_from_table_row(ptm_row)
+        ptm_fc = self._get_fc_from_table_row(ptm_row)
+        protein_p_value = self._get_p_value_from_table_row(protein_row)
+        protein_fc = self._get_fc_from_table_row(protein_row)
+        reginfos = RegulationInfos(log2fc_ptm=ptm_fc, p_value_ptm=ptm_p_value, log2fc_protein=protein_fc,p_value_protein=protein_p_value)
 
         return reginfos
 
-    def __resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
+    def _resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
         if type(protein_row) != pd.Series: #a single row gets transposed into a pandas series
             protein_row = protein_row.sort_values(by = "pseudoint1", ascsending = False)
             return protein_row.iloc[0]
         else:
             return protein_row
 
-    def __read_and_annotate_ptm_df__(self, ptm_file):
-        ptm_df = self.__read_dataframe__(ptm_file)
-        ptm_df = self.__add_swissprot_name_column(ptm_df)
-        ptm_df = ptm_df.set_index("protein")
-        return ptm_df
-
-    def __read_and_annotate_proteome_df(self, proteome_file):
-        proteome_df = self.__read_dataframe__(proteome_file)
-        proteome_df["swissprot"] = aqptm.get_idmap_column(proteome_df["protein"],self._swissprot_referenceprots)#maps the protein identifier(s) to the swissprot reference if possible
-        proteome_df = proteome_df.set_index("swissprot")
-        return proteome_df
-
-    def __add_swissprot_name_column(self, ptm_df):
-        ptm_prots = self.__get_ptm_proteins__(ptm_df)
-        ptm_df = self.__match_ptm_df_to_ptm_prots__(ptm_df, ptm_prots)
-        ptm_df["swissprot"] = aqptm.get_idmap_column(ptm_prots, self._swissprot_referenceprots)
-        return ptm_df
-
-    def __get_ptm_proteins__(self, ptm_df):
-        prots = []
-        for ptmprot_name in ptm_df["protein"]:
-            prot = self.__extract_protein_from_ptmprot_name__(ptmprot_name)
-            prots.append(prot)
-        return prots
 
     @staticmethod
-    def __extract_protein_from_ptmprot_name__(ptmprot_name):
-        if ptmprot_name == None:
-            return None
-        elif len(ptmprot_name.split("_"))<2:
-            return None
-        else:
-            return ptmprot_name.split("_")[1]
-    @staticmethod
-    def __match_ptm_df_to_ptm_prots__(ptm_df,ptm_prots):
+    def _match_ptm_df_to_ptm_prots(ptm_df,ptm_prots):
         return ptm_df[[x != None for x in ptm_prots]]
 
-    def __filter_nonidentified_proteins__(ptm_prots):
-        return [x for x in ptm_prots if x != None]
+    @staticmethod
+    def _get_p_value_from_table_row(row):
+        return float(row["p_value"])
 
     @staticmethod
-    def __read_dataframe__(file):
-        return pd.read_csv(file, sep = "\t")
+    def _get_fc_from_table_row(row):
+        return float(row["log2fc"])
+    
 
-    def __get_ptmsite2swissprot__(self):
-        return dict(zip(self.ptm_df.index, self.ptm_df["swissprot"])) #a bit weird, but the "protein" column always refers to the identifier, which in this case is the ptmsite
+class ProteinToPTMMapper():
+    def __init__(self, ptm_df, proteome_df, organism):
+        """both PTM and proteome df get a "gene" column. The uniprot synonyms are used to map the gene names in the proteome df to the PTM df
+        """
+        self.ptm_df = ptm_df
+        self.proteome_df = proteome_df
+
+        self._gene2synonyms_mapping_dict = None
+        self._organism = organism
+
+        self._define_gene2synonyms_mapping_dict()
+        self._add_genename_column_ptm_df()
+        self._map_gene_names_in_proteome_df_to_ptm_df()
+
+    
+    
+    def _add_genename_column_ptm_df(self):
+        self.ptm_df["gene"] = self._get_ptm_proteins(self.ptm_df)
+        self.ptm_df = self.ptm_df[[x != None for x in self.ptm_df["gene"]]]
+        return self.ptm_df
+    
+    def _map_gene_names_in_proteome_df_to_ptm_df(self):
+        genes_ptm = set(self.ptm_df["gene"])
+        gene2sysnonyms_subset = {gene: self._gene2synonyms_mapping_dict[gene] for gene in genes_ptm if gene in self._gene2synonyms_mapping_dict[gene]}
+        inverted_dict = self._invert_gene2synonyms_mapping_dict(gene2sysnonyms_subset)
+        self.proteome_df["gene"] = self.proteome_df["protein"].map(inverted_dict) #maps every gene name to the reference gene name
+        self.proteome_df = self.proteome_df[[x != None for x in self.proteome_df["gene"]]]
+
+
+    def _get_ptm_proteins(self, ptm_df):
+        genes = []
+        for ptm_id in ptm_df["protein"]:
+            gene = self._extract_gene_from_ptmname(ptm_id)
+            genes.append(gene)
+        return genes
 
     @staticmethod
-    def __get_fdr_from_table_row__(row):
-        return float(row['fdr'])
+    def _extract_gene_from_ptmname(ptm_id):
+        if ptm_id == None:
+            return None
+        elif len(ptm_id.split("_"))<2:
+            return None
+        else:
+            return ptm_id.split("_")[0]
 
-    @staticmethod
-    def __get_fc_from_table_row__(row):
-        return float(row['log2fc'])
+    def _define_gene2synonyms_mapping_dict(self):
+        uniprot_file = aqptm.get_uniprot_path(organism=self._organism)
+        uniprot_gene_names_str = pd.read_csv(uniprot_file, sep = "\t")["Gene names"].astype(str).to_list()
+        uniprot_gene_names = [x.split(" ") for x in uniprot_gene_names_str]
+        gene2synonyms_mapping_dict = {}
+        for gene_list in uniprot_gene_names:
+            for gene in gene_list:
+                gene2synonyms_mapping_dict[gene] = gene_list
+        self._gene2synonyms_mapping_dict = gene2synonyms_mapping_dict
 
+    def _invert_gene2synonyms_mapping_dict(self, gene2sysnonyms_subset):
+        inverted_dict = {}
+        for key, value_list in gene2sysnonyms_subset.items():
+            for item in value_list:
+                inverted_dict[item] = key  # Map each list element back to the reference gene (key)
+        return inverted_dict
 
 
 
@@ -215,59 +278,59 @@ import math
 import numpy as np
 
 class RegulationInfos():
-    def __init__(self, log2fc_ptm, fdr_ptm,log2fc_protein, fdr_protein):
+    def __init__(self, log2fc_ptm, p_value_ptm,log2fc_protein, p_value_protein):
         self.log2fc_ptm = log2fc_ptm
         self.log2fc_protein = log2fc_protein
-        self.fdr_ptm = fdr_ptm
-        self.fdr_protein = fdr_protein
-        self.diff_fc = self.__get_protnormed_fc__()
-        self.switched_regulation_direction = not self.__check_if_regulation_stayed_the_same__()
+        self.p_value_ptm = p_value_ptm
+        self.p_value_protein = p_value_protein
+        self.diff_fc = self._get_protnormed_fc()
+        self.switched_regulation_direction = not self._check_if_regulation_stayed_the_same()
 
-    def __get_protnormed_fc__(self):
+    def _get_protnormed_fc(self):
         return self.log2fc_ptm - self.log2fc_protein
 
-    def __check_if_regulation_stayed_the_same__(self):
+    def _check_if_regulation_stayed_the_same(self):
         return np.sign(self.log2fc_ptm) == np.sign(self.diff_fc)
 
 
 
 import math
-class FDRDamper():
-    """The fdr is taken from the regulation of the phosphopeptides. If the protein is regulated
-    similar to the phosphopeptide, we for the moment use a very simple heuristic to correct the fdr down:
+class PvalDamper():
+    """The p_value is taken from the regulation of the phosphopeptides. If the protein is regulated
+    similar to the phosphopeptide, we for the moment use a very simple heuristic to correct the p_value down:
 
     1) We only consider phosphopeptides where the fold change has become less strong, i.e. 'dampened' and where the "damping" protein was regulated significantly
-    2) We correct the logged(!) fdr up with an exponnential function and then transform it back to a new fdr. This means a exponential decrease in the significance
+    2) We correct the logged(!) p_value up with an exponnential function and then transform it back to a new p_value. This means a exponential decrease in the significance
     """
     def __init__(self, regulation_infos):
         self._regulation_infos = regulation_infos
 
-    def get_fdr(self):
-        return self.__dampen_fdr_if_needed()
+    def get_p_value(self):
+        return self._dampen_p_value_if_needed()
 
-    def __dampen_fdr_if_needed(self):
-        if self.__check_if_needs_damping():
-            return self.__get_adjusted_fdr()
+    def _dampen_p_value_if_needed(self):
+        if self._check_if_needs_damping():
+            return self._get_adjusted_p_value()
         else:
-            return self._regulation_infos.fdr_ptm
+            return self._regulation_infos.p_value_ptm
 
-    def __check_if_needs_damping(self):
-        if self._regulation_infos.fdr_protein<0.05:
+    def _check_if_needs_damping(self):
+        if self._regulation_infos.p_value_protein<0.05:
             if np.sign(self._regulation_infos.log2fc_ptm) == np.sign(self._regulation_infos.log2fc_protein):
                 return True
         return False
 
-    def __get_adjusted_fdr(self):
+    def _get_adjusted_p_value(self):
         if self._regulation_infos.switched_regulation_direction:
             return 1.0
         else:
-            return self.__calculate_damping_factor()
+            return self._calculate_damping_factor()
 
-    def __calculate_damping_factor(self):
-        factor = self.__calculate_order_of_magnitude_damping_factor()
-        fdr_new = 10**(math.log10(self._regulation_infos.fdr_ptm)*factor)
-        return min(fdr_new, 1)
+    def _calculate_damping_factor(self):
+        factor = self._calculate_order_of_magnitude_damping_factor()
+        p_value_new = 10**(math.log10(self._regulation_infos.p_value_ptm)*factor)
+        return min(p_value_new, 1)
 
-    def __calculate_order_of_magnitude_damping_factor(self):
+    def _calculate_order_of_magnitude_damping_factor(self):
         ratio_old_new = self._regulation_infos.diff_fc/self._regulation_infos.log2fc_ptm #must be smaller than 1
         return ratio_old_new

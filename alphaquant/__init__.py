@@ -2,7 +2,7 @@
 
 
 __project__ = "alphaquant"
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 __license__ = "Apache"
 __description__ = "An open-source Python package of the AlphaPept ecosystem"
 __author__ = "Mann Labs"
@@ -41,4 +41,6 @@ __urls__ = {
 }
 __extra_requirements__ = {
     "development": "requirements_development.txt",
+    "gui": "requirements_gui.txt"
+    #"alphamap": "requirements_alphamap.txt"
 }

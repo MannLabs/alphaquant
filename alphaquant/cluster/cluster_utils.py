@@ -4,6 +4,7 @@ import anytree
 from statistics import NormalDist
 import numpy as np
 import collections
+import alphaquant.config.variables as aqvariables
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
@@ -23,15 +24,16 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     else:
         childs = [x for x in node.children if x.is_included]
 
-    if use_fewpeps_per_protein and node.type == "gene":
-        childs = filter_fewpeps_per_protein(childs)
+    childs_fewpepfiltered = get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node)
 
 
-    zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
+    zvals = get_feature_numpy_array_from_nodes(nodes=childs_fewpepfiltered, feature_name="z_val")
     fcs =  get_feature_numpy_array_from_nodes(nodes=childs, feature_name="fc")
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
     min_intensity = np.median(min_intensities)
+    total_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "total_intensity")
+    total_intensity = np.sum(total_intensities)
     min_reps_childs = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_reps")
     min_reps = np.median(min_reps_childs)
     if np.isnan(min_intensity) or np.isnan(min_reps):
@@ -45,12 +47,9 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
     p_z = set_bounds_for_p_if_too_extreme(p_z)
     z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z)
-    if z_normed <-8.3:
-        Exception("not in alignment with bounded pval")
-    if z_normed > 8.3:
-        Exception("not in alignment with bounded pval")
 
-    p_val = max(1e-16, 2.0 * (1.0 - NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(abs(z_sum))))
+    p_val = 2.0 * (1.0 - NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(abs(z_sum)))
+    p_val = set_bounds_for_p_if_too_extreme(p_val)
 
     node.z_val = z_normed
     node.p_val = p_val
@@ -58,6 +57,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     node.fraction_consistent = fraction_consistent
     node.cv = min(cvs)
     node.min_intensity = min_intensity
+    node.total_intensity = total_intensity
     node.min_reps = min_reps
 
     if hasattr(node.children[0], 'predscore'):
@@ -70,24 +70,24 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
+def get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node):
+    if use_fewpeps_per_protein and node.type == "gene":
+        return filter_fewpeps_per_protein(childs)
+    else:
+        return childs
+
+
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
     pepnode2pval2numleaves = []
     for pepnode in peptide_nodes:
         pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
-        pepnode2pval2numleaves.append((pepnode, pepnode.p_val,len(pepleaves)))
-    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : x[1], reverse=True) #sort with highest p-val (least significant) first
+        pepnode2pval2numleaves.append((pepnode, pepnode.z_val,len(pepleaves)))
+    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : abs(x[1])) #sort with lowest absolute z-val (least significant) first
 
     return get_median_peptides(pepnode2pval2numleaves)
 
 
-def set_bounds_for_p_if_too_extreme(p_val):
-    if p_val <1e-16:
-        return 1e-16
-    elif p_val > 1-(1e-16):
-        return 1- (1e-16)
-    else:
-        return p_val
 
 import math
 def get_median_peptides(pepnode2pval2numleaves):
@@ -97,13 +97,22 @@ def get_median_peptides(pepnode2pval2numleaves):
     else:
         return [x[0] for x in pepnode2pval2numleaves[:median_idx+1]]
 
+def set_bounds_for_p_if_too_extreme(p_val):
+    if p_val <aqvariables.MIN_PVAL:
+        return aqvariables.MIN_PVAL
+    elif p_val > 1-(aqvariables.MIN_PVAL):
+        return 1- (aqvariables.MIN_PVAL)
+    else:
+        return p_val
+
+
 def select_predscore_with_minimum_absval(predscores):
     abs_predscores = [abs(x) for x in predscores]
     min_value = min(abs_predscores)
     min_index = abs_predscores.index(min_value)
     return predscores[min_index]
 
-def get_mainclust_leaves(child_nodes, ionname2diffion):
+def get_grouped_mainclust_leafs(child_nodes):
     grouped_leafs = []
     for child in child_nodes:
         child_leaves_mainclust = []
@@ -112,10 +121,32 @@ def get_mainclust_leaves(child_nodes, ionname2diffion):
             if hasattr(leafnode, 'inclusion_levels') and not (leafnode.inclusion_levels[-1] in types_previous_level):
                 continue
             child_leaves_mainclust.append(leafnode)
-        child_leafs_diffions = [ionname2diffion.get(x.name) for x in child_leaves_mainclust] #map the leaf names to the diffion objetcs
-        if len(child_leafs_diffions)>0:
-            grouped_leafs.append(child_leafs_diffions)
+        if len(child_leaves_mainclust)>0:
+            grouped_leafs.append(child_leaves_mainclust)
     return grouped_leafs
+
+def select_highid_lowcv_leafs(grouped_leafs):
+    grouped_leafs_lowcv = []
+    for leafs in grouped_leafs:
+        top_quantile_idx = math.ceil(len(leafs) * 0.2)
+        leafs_repsorted = sorted(leafs, key = lambda x : x.min_reps)[:top_quantile_idx]
+        leafs_repsorted_cvsorted = sorted(leafs_repsorted, key = lambda x : x.cv)
+        grouped_leafs_lowcv.append([leafs_repsorted_cvsorted[0]])
+    return grouped_leafs_lowcv
+
+def select_median_fc_leafs(grouped_leafs):
+    grouped_leafs_medianfc = []
+    for leafs in grouped_leafs:
+        leafs_fcsorted = sorted(leafs, key = lambda x : x.fc)
+        grouped_leafs_medianfc.append([leafs_fcsorted[int(len(leafs_fcsorted)/2)]])
+    return grouped_leafs_medianfc
+
+def map_grouped_leafs_to_diffions(grouped_leafs, ionname2diffion):
+    grouped_diffions = []
+    for leafs in grouped_leafs:
+        diffions = [ionname2diffion.get(x.name) for x in leafs]
+        grouped_diffions.append(diffions)
+    return grouped_diffions
 
 
 def annotate_mainclust_leaves(childnode2clust):
@@ -148,7 +179,7 @@ def assign_clusterstats_to_type_node(type_node, childnode2clust):
 
 
 import scipy.stats
-def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
+def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
     for leaf in root_node.leaves:
         leaf.fc = name2diffion.get(leaf.name).fc
         leaf.z_val = name2diffion.get(leaf.name).z_val
@@ -159,6 +190,7 @@ def assign_fcs_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
         cv_c2 = scipy.stats.variation(original_intensities_c2)
         leaf.cv = min(cv_c1, cv_c2)
         leaf.min_intensity = min(sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2))
+        leaf.total_intensity = np.mean([sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2)])
         leaf.min_reps = min(len(normed_c1.ion2nonNanvals.get(leaf.name)), len(normed_c2.ion2nonNanvals.get(leaf.name)) )
 
 
@@ -181,12 +213,6 @@ def get_fcs_ions(diffions):
     return fcs
 
 
-def get_diffresults_from_clust_root_node(root_node):
-    pval = root_node.p_val
-    fc = root_node.fc
-    ions_included = [x.name for x in root_node.leaves if x.is_included]
-    consistency_score = root_node.fraction_consistent * len(root_node.leaves)
-    return pval, fc, consistency_score, ions_included
 
 import anytree
 from anytree.exporter import JsonExporter
@@ -310,14 +336,6 @@ def get_sorted_peptides_by_position_in_protein_seq(protein_node, protein_sequenc
     peptides = protein_node.children
     return sorted(peptides, key=lambda x: get_sequence_position(protein_sequence, aqutils.cut_trailing_parts_seqstring(x.name_reduced)))
 
-
-def get_protein_sequence(protein_node, pyteomics_fasta):
-    for id in protein_node.name.split(";"):
-        try:
-            return pyteomics_fasta.get_by_id(id).sequence
-        except:
-            continue
-    return None
 
 
 def get_sequence_position(protein_seq, peptide_seq):

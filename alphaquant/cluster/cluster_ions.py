@@ -21,6 +21,7 @@ import alphaquant.diffquant.diffutils as aqutils
 REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
 LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 FCDIFF_CUTOFF_CLUSTERMERGE = 0.5
+LEVEL2PVALTHRESH = {'ion_type':0.2, 'mod_seq_charge':0.2, 'mod_seq':0.2, 'seq':0.2} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here
 
 
 
@@ -100,7 +101,7 @@ def add_reduced_names_to_root(node):
 import pandas as pd
 def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
     #typefilter object specifies filtering and clustering of the nodes
-    aqcluster_utils.assign_fcs_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
+    aqcluster_utils.assign_properties_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
     for idx in range(len(typefilter.type)):
         type_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == typefilter.type[idx])
@@ -109,16 +110,20 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
             continue
         for type_node in type_nodes:
             child_nodes = type_node.children
-            diffions = aqcluster_utils.get_mainclust_leaves(child_nodes, ionname2diffion)
-            if len(diffions)==0:
+            grouped_mainclust_leafs = aqcluster_utils.get_grouped_mainclust_leafs(child_nodes)
+            
+            if len(grouped_mainclust_leafs)==0:
                 exclude_node(type_node)
                 continue
-            
-            if len(diffions)==1:
+
+            if len(grouped_mainclust_leafs)==1:
                 childnode2clust = get_childnode2clust_for_single_ion(type_node)
             else:
+                if take_median_ion:
+                    grouped_mainclust_leafs = aqcluster_utils.select_highid_lowcv_leafs(grouped_mainclust_leafs)
+                diffions = aqcluster_utils.map_grouped_leafs_to_diffions(grouped_mainclust_leafs, ionname2diffion)
                 childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
-                childnode2clust = merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
+                childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                 childnode2clust = decide_cluster_order(type_node,childnode2clust)
             
             aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
@@ -145,10 +150,11 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
         ion2diffDist (dict(ion : SubtractedBackground)): [description]
         p2z ([type]): [description]
         deedpair2doublediffdist ([type]): [description]
-        fc_threshold (float, optional): [description]. Defaults to 0.3.
-        pval_threshold_basis (float, optional): [description]. Defaults to 0.05.
+        fc_threshold (float, optional): [description]. Defaults to 0.
+        pval_threshold_basis (float, optional): the threshold at which to merge peptides at the gene level. Defaults to 0.01
     """
 
+    pval_threshold_basis = get_pval_threshold_basis(type_node, pval_threshold_basis)
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
@@ -162,6 +168,18 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     childnode2clust = sorted(childnode2clust, key = lambda x : x[0].name) #sort list for reproducibility
 
     return childnode2clust
+
+def get_pval_threshold_basis(type_node, pval_threshold_basis): #the pval threshold is only set at the gene level, the rest of the levels are set as specified in the LEVEL2PVALTHRESH dictionary
+    if type_node.level == "gene":
+        return pval_threshold_basis
+    else:
+        return LEVEL2PVALTHRESH.get(type_node.level, 0.2)
+
+def merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = 0.5):
+    if type_node.level == "gene":
+        return merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge)
+    else:
+        return childnode2clust
 
 
 def merge_similar_clusters(childnode2clust, type_node, fcdiff_cutoff_clustermerge = 0.5):
@@ -270,16 +288,19 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
     if abs((fc1-fc2)) < fcfc_threshold:
         return 0.99 #
 
-    if take_median_ion:
-        fcs_ions1 = [x.fc for x in diffions[idx1]]
-        fcs_ions2 = [x.fc for x in diffions[idx2]]
-        idx_ions1 = np.argsort(fcs_ions1)[len(fcs_ions1)//2]
-        idx_ions2 = np.argsort(fcs_ions2)[len(fcs_ions2)//2]
-        ions1 = [ions1[idx_ions1]]
-        ions2 = [ions2[idx_ions2]]
-
     fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
     return 1/(pval + 1e-17)
+
+def get_median_ions(diffions, idx1, idx2, ions1, ions2):
+    fcs_ions1 = [x.fc for x in diffions[idx1]]
+    fcs_ions2 = [x.fc for x in diffions[idx2]]
+    idx_ions1 = np.argsort(fcs_ions1)[len(fcs_ions1)//2]
+    idx_ions2 = np.argsort(fcs_ions2)[len(fcs_ions2)//2]
+    ions1 = [ions1[idx_ions1]]
+    ions2 = [ions2[idx_ions2]]
+    return ions1, ions2
+
+
 
 # Cell
 import anytree
