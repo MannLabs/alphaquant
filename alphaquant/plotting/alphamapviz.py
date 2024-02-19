@@ -56,7 +56,7 @@ class AlphaMapVisualizer:
     
     def _get_colorlist(self, fc_visualizer):
         colorlist = fc_visualizer.plotconfig.colorlist
-        return aq_plot_base.rgba_to_hex(colorlist)
+        return aq_plot_base.rgba_list_to_hex_list(colorlist)
 
     def visualize_protein(self, protein):
         """returns 2 plots: 1) fold change plot and 2) alphamap sequence plot"""
