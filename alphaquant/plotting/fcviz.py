@@ -15,14 +15,13 @@ class FoldChangeVisualizer():
                                                         protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
                                                         narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2):
         """
-        Class to visualize the peptide fold changes of all peptides for the proteins specified in the list_of_proteins.
+        Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
 
         Args:
             condition1 (str): name of the first experimental condition
             condition2 (str): name of the second experimental condition
             results_directory (str): location of AlphaQuant results directory
             samplemap_file (str): path to AlphaQuant samplemap file
-            list_of_proteins (list): List of proteins to visualize, can be gene symbols or uniprot ids.
             protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
             label_rotation (int): Rotation of x-axis labels.
             add_stripplot (bool): Add stripplot to boxplot.
