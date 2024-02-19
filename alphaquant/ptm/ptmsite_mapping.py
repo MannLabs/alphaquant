@@ -16,6 +16,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
 import alphaquant.diffquant.diffutils as utils
 from alphaquant.config.variables import *
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
+import alphaquant.resources.database_loader as aq_resource_dbloader
 
 
 #helper classes
@@ -87,8 +88,8 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     if(id_thresh < 0.5):
         print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
         id_thresh = 0.51
-    swissprot_file = get_swissprot_path(swissprot_file, organism)
-    sequence_file = get_uniprot_path(sequence_file, organism)
+    swissprot_file = aq_resource_dbloader.get_swissprot_path(organism)
+    sequence_file = aq_resource_dbloader.get_uniprot_path(organism)
     #input_df = pd.read_csv(ptmprob_file, sep = sep).drop_duplicates()
     headers_dict = headers_dicts.get(input_type)
     label_column = headers_dict.get("label_column")
