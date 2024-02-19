@@ -41,15 +41,15 @@ AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Bioche
 AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
 There are currently two different types of installation possible:
 
-* [**One-click GUI installer:**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible.
+* [**One-click GUI installer:--under construction--**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible. Note that this version is quite outdated and does not contain many of the features. Update is in the making.
 <!---
 * [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing Python 3.8 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
 -->
 * [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
-### One-click GUI
+### One-click GUI --under construction--
 
-The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. **It currently only supports comparison of two conditions**. Click on one of the links below to download the latest release for:
+The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. **Note that this version is quite outdated and does not contain many of the features. Update is in the making.** Click on one of the links below to download the latest release for:
 
 * [**Windows**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_windows.exe)
 * [**macOS**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_macos.pkg)
