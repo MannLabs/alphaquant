@@ -120,7 +120,7 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
                 childnode2clust = get_childnode2clust_for_single_ion(type_node)
             else:
                 if take_median_ion:
-                    grouped_mainclust_leafs = aqcluster_utils.select_highid_lowcv_leafs(grouped_mainclust_leafs)
+                    grouped_mainclust_leafs = aqcluster_utils.select_median_fc_leafs(grouped_mainclust_leafs)
                 diffions = aqcluster_utils.map_grouped_leafs_to_diffions(grouped_mainclust_leafs, ionname2diffion)
                 childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion) #the clustering is performed on the child nodes
                 childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
