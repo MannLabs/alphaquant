@@ -8,6 +8,13 @@ __all__ = ['ConditionBackgrounds', 'BackGroundDistribution', 'SubtractedBackgrou
 from time import time
 import numpy as np
 import alphaquant.diffquant.diffutils as aqutils
+
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
+
 class ConditionBackgrounds():
 
     def __init__(self, normed_condition_df, p2z):
@@ -21,7 +28,6 @@ class ConditionBackgrounds():
         self.context_ranges = []
         self.select_intensity_ranges(p2z)
         t_intensity_selection = time()
-        print(f't_intensity_selection {t_intensity_selection - t_start}')
 
 
     def init_ion2nonNanvals(self, normed_condition_df):
@@ -34,7 +40,6 @@ class ConditionBackgrounds():
         self.ion2nonNanvals = aqutils.get_non_nas_from_pd_df(normed_condition_df)
         self.ion2allvals = aqutils.get_ionints_from_pd_df(normed_condition_df)
         t_end = time()
-        print(f't_ion2nonan_sw {t_end - t_start}')
         self.idx2ion = dict(zip(range(len(normed_condition_df.index)), normed_condition_df.index))
 
 
@@ -127,7 +132,6 @@ class BackGroundDistribution:
         self.cumulative = self.transform_fc2counts_into_cumulative()
         self.calc_SD(0, self.cumulative)
         self.zscores = self.transform_cumulative_into_z_values(p2z)
-       # print(f"create dist SD {self.SD}")
 
     def generate_anchorfcs_from_intensity_range(self, ion2noNanvals : dict, idx2ion : dict) -> list:
         """For each ion, a random intensity is selected as an "anchor" and the remaining intensities are subtracted from the achor.
@@ -227,7 +231,6 @@ class BackGroundDistribution:
             zscore = sign*abs(get_z_from_p_empirical(p_val, p2z))
             zscores[i] =  zscore
             t_nd_lookup = time()
-            #print(f"t_empirical {t_empirical - t_start} t_zcacl {t_nd_lookup - t_empirical}")
         return zscores
 
 
@@ -300,7 +303,6 @@ class SubtractedBackgrounds(BackGroundDistribution):
         t_calc_SD = time()
         self.zscores = self.transform_cumulative_into_z_values(p2z)
         t_calc_zvals = time()
-        #print(f"t_cumul {t_cumul_transf-t_start} t_SD {t_calc_SD-t_cumul_transf} t_zval {t_calc_zvals - t_calc_SD}")
 
 def subtract_distribs(from_dist, to_dist):
     min_joined = from_dist.min_fc - to_dist.max_fc

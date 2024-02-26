@@ -25,6 +25,11 @@ import alphaquant.plotting.base_functions as aqplot
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, 
                                  replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}, protnorm_peptides = True):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
@@ -48,7 +53,7 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     #predict the subset of peptides that is accessible to protein shifting (only the ones with at least 2 peps per protein)
     regr = RandomForestRegressor()
     y_test_cp, y_pred_cp, ionnames_cp, regr = random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr)
-    print("performed RF prediction")
+    LOGGER.info("performed RF prediction")
     performance_metrics["r2_score"] = r2_score(y_test_cp, y_pred_cp)
     test_fc_name_mapping(y_test_cp, ionnames_cp, normalized_precursors)
 
@@ -174,7 +179,7 @@ def calc_variance_for_node(node):
     fcs_children = [x.fc for x in node.children]
     min_fc = min(fcs_children)
     fcs_children = [x.fc - min_fc for x in node.children]
-    #print(f"fcs children are {fcs_children}, variance is {np.var(fcs_children)}")
+    #LOGGER.info(f"fcs children are {fcs_children}, variance is {np.var(fcs_children)}")
 
     return scipy.stats.variation(fcs_children)
 
@@ -268,8 +273,8 @@ def balance_classes(df_precursor_features):
     df_pos_examples = resample(df_pos_examples, replace = False, n_samples = int(min_length), random_state = 123)
     df_neg_examples = resample(df_neg_examples, replace = False, n_samples = min_length, random_state = 123)
     df_downsampled = pd.concat([df_pos_examples, df_neg_examples], ignore_index=True)
-    print(sum(df_downsampled["positive_example"]))
-    print(len(df_downsampled.index))
+    LOGGER.info(sum(df_downsampled["positive_example"]))
+    LOGGER.info(len(df_downsampled.index))
     return df_downsampled
 
 # Cell
@@ -288,7 +293,7 @@ def plot_precision_recall(classfier, X_train, y_train, X_test, y_test):
       y_score = classfier.decision_function(X_train)
       average_precision = average_precision_score(y_train, y_score)
 
-      print('Average precision-recall score: {0:0.2f}'.format(
+      LOGGER.info('Average precision-recall score: {0:0.2f}'.format(
             average_precision))
 
 
@@ -392,12 +397,12 @@ def do_linear_regression(X, y, featurenames, ionnames, prediction_cutoff):
     y_pred = regr.predict(X_test)
 
     # The coefficients
-    print('Coefficients: \n', regr.coef_)
+    LOGGER.info('Coefficients: \n', regr.coef_)
     # The mean squared error
-    print('Mean squared error: %.2f'
+    LOGGER.info('Mean squared error: %.2f'
         % mean_squared_error(y_test, y_pred))
     # The coefficient of determination: 1 is perfect prediction
-    print('Coefficient of determination: %.2f'
+    LOGGER.info('Coefficient of determination: %.2f'
         % r2_score(y_test, y_pred))
 
     # Plot outputs
@@ -438,10 +443,10 @@ def do_random_forest_regression(X, y, featurenames, prediction_cutoff):
 
 
       # The mean squared error
-      print('Mean squared error: %.2f'
+      LOGGER.info('Mean squared error: %.2f'
             % mean_squared_error(y_test, y_pred))
       # The coefficient of determination: 1 is perfect prediction
-      print('Coefficient of determination: %.2f'
+      LOGGER.info('Coefficient of determination: %.2f'
             % r2_score(y_test, y_pred))
 
       # Plot outputs
@@ -473,9 +478,9 @@ def scale_input_minmax(X):
 def print_good_predicitions(y_test, y_pred, fc2ionnames,top_n = 10):
     tuples = list(zip(y_test, y_pred))
     tuples.sort(key = lambda x: min(abs(np.array([x[0], x[1]]))), reverse=True)
-    print('printing names of some well predicted ions')
+    LOGGER.info('printing names of some well predicted ions')
     for idx in range(top_n):
-        print(f"{tuples[idx]}\t{fc2ionnames.get(tuples[idx][0])}")
+        LOGGER.info(f"{tuples[idx]}\t{fc2ionnames.get(tuples[idx][0])}")
 
 # Cell
 import random
@@ -519,7 +524,7 @@ def get_trained_predictor_and_predicted_trainset(X, y, ionnames, number_splits, 
         regr.fit(X_train, y_train)
         # Make predictions using the testing set
         y_pred = regr.predict(X_test)
-        print(f"round {i} w. {len(idxs_in)} ions used for training")
+        LOGGER.info(f"round {i} w. {len(idxs_in)} ions used for training")
         y_test_all.extend(y_test)
         y_pred_all.extend(y_pred)
         ionnames_all.extend(ionnames[idxs_out])
@@ -564,7 +569,7 @@ def find_mean_and_cutoffs(y_pred, visualize = False):
     stdev = np.sqrt(weight_mean_cov[2][0][0])
     val_neg = scipy.stats.norm.ppf(0.01,  scale = stdev)
     val_pos = scipy.stats.norm.ppf(0.99,  scale = stdev)
-    print(f"the mean is {mean}")
+    LOGGER.info(f"the mean is {mean}")
     if visualize:
         plt.hist(y_pred-mean, bins=50, histtype='step', density=True, alpha=0.5, label= 'after_shift')
         plt.legend()
@@ -582,12 +587,12 @@ def fit_gaussian_to_dist_around_mode(dist, visualize = False):
     mode_quantile = cumsum_rel[mode_idx]
     subrange = min([mode_quantile, 0.34, 1-mode_quantile]) #if the mode is close to the edge, make the interval smaller
 
-    print(f"subrange: {subrange}")
+    LOGGER.info(f"subrange: {subrange}")
     quantile1 = mode_quantile-subrange
     quantile2 = mode_quantile+subrange
     idx_start = find_nearest(cumsum_rel, quantile1)
     idx_end = find_nearest(cumsum_rel, quantile2)
-    print(f'before_adjust: start {idx_start} mode {mode_idx} end {idx_end}')
+    LOGGER.info(f'before_adjust: start {idx_start} mode {mode_idx} end {idx_end}')
     #try to fit around the same "widht" around the mode
     difference_start_mode = mode_idx - idx_start
     difference_mode_end = idx_end - mode_idx
@@ -595,7 +600,7 @@ def fit_gaussian_to_dist_around_mode(dist, visualize = False):
         idx_end = mode_idx+difference_start_mode
     if difference_mode_end> difference_start_mode:
         idx_start = mode_idx-difference_mode_end
-    print(f'after adjust: start {idx_start} mode {mode_idx} end {idx_end}')
+    LOGGER.info(f'after adjust: start {idx_start} mode {mode_idx} end {idx_end}')
 
     dist_subset = dist[idx_start:idx_end]
     gmm = GaussianMixture(n_components = 1).fit(dist_subset.reshape(-1, 1))
@@ -641,7 +646,7 @@ def fit_gaussian_to_subdist(dist, visualize, results_dir = None):
     mode_quantile = cumsum_rel[mode_idx]
     subrange = min([mode_quantile, 0.4, 1-mode_quantile]) #if the mode is close to the edge, make the interval smaller
 
-    print(f"subrange: {subrange}")
+    LOGGER.info(f"subrange: {subrange}")
     quantile1 = mode_quantile-subrange
     quantile2 = mode_quantile+subrange
     idx_start = 0#find_nearest(cumsum_rel, quantile1)
@@ -667,12 +672,12 @@ def fit_gaussian_to_subdist(dist, visualize, results_dir = None):
             plt.savefig(f'{results_dir}/ml_offsets_gaussian_fit.pdf')
         plt.show()
 
-    print(stdev)
+    LOGGER.info(stdev)
     #val_neg = scipy.stats.norm.ppf(0.001,  scale = stdev)
     #val_pos = scipy.stats.norm.ppf(0.999,  scale = stdev)
     val_neg = -3*stdev
     val_pos = 3*stdev
-    print(mean, val_neg, val_pos)
+    LOGGER.info(mean, val_neg, val_pos)
     return mean, val_neg, val_pos
 
 
@@ -706,11 +711,11 @@ def balance_small_and_strong_fcs(normed_nodes, cutoff):
         else:
             larger_peps_idxs.append(idx)
     if len(larger_peps_idxs)< len(smaller_pep_idxs):
-        print("balancing subsets")
-        print(f"{len(larger_peps_idxs)} of large vs {len(smaller_pep_idxs)} of small fcs")
+        LOGGER.info("balancing subsets")
+        LOGGER.info(f"{len(larger_peps_idxs)} of large vs {len(smaller_pep_idxs)} of small fcs")
         smaller_pep_idxs = random.sample(smaller_pep_idxs, len(larger_peps_idxs))
     else:
-        print("skip balancing subsets")
+        LOGGER.info("skip balancing subsets")
         return normed_nodes
     new_idxs = smaller_pep_idxs+larger_peps_idxs
     return [normed_nodes[i] for i in range(len(new_idxs))]
@@ -732,7 +737,7 @@ def random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr, b
         idxs_out = chunks_excluded[i]
 
         if len(set(idxs_out).intersection(all_excluded))>0:
-            print("overfitting alarm!")
+            LOGGER.info("overfitting alarm!")
             all_excluded.update(set(idxs_out))
 
         X_train = X[idxs_in,:]

@@ -18,6 +18,11 @@ import time
 from alphaquant.config.variables import QUANT_ID
 import alphaquant.plotting.pairwise as aq_plot_pairwise
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 def get_normfacts_withincond(samples):##row is the sample column is the features
 
     "finds optimal scaling factors for samples measured in the same condition and corrects the samples by these scaling factors. Takes a 2d numpy array as input  "
@@ -29,7 +34,6 @@ def get_normfacts_withincond(samples):##row is the sample column is the features
     exclusion_set = set() #already clustered samples are stored here
     distance_matrix = create_distance_matrix(samples)
     variance_matrix = create_distance_matrix(samples, metric = 'variance')
-    #print(f"distance matrix start\n{distance_matrix}")
 
     for rep in range(num_samples-1):
         #anchor_idx, shift_idx, min_distance = get_bestmatch_pair(mergedsamples, exclusion_set, sampleidx2counts)
@@ -48,18 +52,13 @@ def get_normfacts_withincond(samples):##row is the sample column is the features
         shift_sample = samples[shift_idx]
         shifted_sample = shift_sample + min_distance
 
-        #print(f"\n\nanchor {anchor_sample}\nshift {shift_sample}\nshifted sample{shifted_sample}\nshiftfactor {min_distance}\tsamples {shift_idx}\t{anchor_idx}")
         merged_sample = merge_distribs(anchor_sample, shifted_sample, sampleidx2counts[anchor_idx], sampleidx2counts[shift_idx])
         mergedsamples[anchor_idx] = merged_sample
-
-        #print(f"shift, anchor: {shift_idx}, {anchor_idx} achtual shift {distance_matrix[shift_idx][anchor_idx]} or {distance_matrix[anchor_idx][shift_idx]}")
-        #print(f"distance matrix before\n{distance_matrix}")
 
 
         update_distance_matrix(variance_matrix, mergedsamples, anchor_idx, shift_idx, metric='variance')
         update_distance_matrix(distance_matrix, mergedsamples, anchor_idx, shift_idx)
 
-        #print(f"distance matrix after\n{distance_matrix}")
         sampleidx2counts[anchor_idx]+=1
 
     sampleidx2totalshift = {}
@@ -80,7 +79,6 @@ def get_bestmatch_pair(distance_matrix, variance_matrix, sample2counts):
 
     i,j = np.unravel_index(np.argmin(variance_matrix, axis=None), variance_matrix.shape)
     min_distance = distance_matrix[i,j]
-    #print(f"idxs are {i}, {j} median is {distance_matrix[i][j]} variance is {variance_matrix[i][j]}")
     if(min_distance == np.inf):
         return None, None, None
     anchor_idx, shift_idx, min_distance = determine_anchor_and_shift_sample(sample2counts,i, j, min_distance) #direction flip of distance if necessary
@@ -293,16 +291,16 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
         return -median
 
     if len(diff_fcs)<100:
-        print("using median for shift")
+        LOGGER.info("using median for shift")
         return -median
     mode = mode_normalization(diff_fcs)
     #mode = determine_mode_iteratively(diff_fcs)
-    print(f"median {median}, mode {mode}")
+    LOGGER.info(f"median {median}, mode {mode}")
     if(abs(median-mode) <0.05):
-        print(f"using median for shift")
+        LOGGER.info(f"using median for shift")
         return -median
     else:
-        print(f"using mode for shift")
+        LOGGER.info(f"using mode for shift")
         return -mode
 
 # Cell
@@ -318,14 +316,14 @@ def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normali
     if normalize_within_conds:
         df_c1 = normalize_within_cond(df_c=df_c1, samples_c= c1_samples)
         df_c2 = normalize_within_cond(df_c=df_c2, samples_c=c2_samples)
-        print(f"normalized within conditions")
+        LOGGER.info(f"normalized within conditions")
 
     if runtime_plots:
         aq_plot_pairwise.plot_withincond_normalization(df_c1, df_c2)
 
     if normalize_between_conds:
         df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots = runtime_plots)
-        print("normalized between conditions")
+        LOGGER.info("normalized between conditions")
 
     return df_c1, df_c2
 
@@ -334,7 +332,7 @@ def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, minrep, normali
 def get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots):
     shift_between_cond = prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot)
 
-    print(f"shift comparison by {shift_between_cond}")
+    LOGGER.info(f"shift comparison by {shift_between_cond}")
     df_c2 = df_c2-shift_between_cond
     #compare_normalization("./test_data/normed_intensities.tsv", df_c1_normed, df_c2_normed)
     if runtime_plots:
@@ -394,7 +392,7 @@ def drop_nas_if_possible(df):
     df_nonans = df.dropna(axis=0)
     fraction_nonans = calculate_fraction_with_no_NAs(df, df_nonans)
     if fraction_nonans<0.05:
-        print('to few values for normalization without missing values. Including missing values')
+        LOGGER.info('to few values for normalization without missing values. Including missing values')
         return df
     else:
         return df_nonans
@@ -406,7 +404,7 @@ def calculate_fraction_with_no_NAs(df, df_nonnans):
 
 
 def use_benchmark_prenormed_file(prenormed_file, minrep, c1_samples, c2_samples):
-    print("using pre-normalized data - skipping normalization")
+    LOGGER.info("using pre-normalized data - skipping normalization")
     df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = QUANT_ID)
     df_c1_normed = df_prenormed[c1_samples].dropna(thresh=minrep, axis=0)
     df_c2_normed = df_prenormed[c2_samples].dropna(thresh=minrep, axis=0)

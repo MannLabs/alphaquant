@@ -5,7 +5,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
 
 
 def plot_normalization_overview(normed_df, samplemap_df):
@@ -21,9 +24,9 @@ def plot_normalization_overview(normed_df, samplemap_df):
 
 
 def plot_withincond_normalization(df_c1, df_c2):
-    print("without missingvals (if applicable)")
+    LOGGER.info("without missingvals (if applicable)")
     plot_betweencond_fcs(aqnorm.drop_nas_if_possible(df_c1), aqnorm.drop_nas_if_possible(df_c2), True)
-    print("complete dataset")
+    LOGGER.info("complete dataset")
     plot_betweencond_fcs(df_c1, df_c2, True)
 
 

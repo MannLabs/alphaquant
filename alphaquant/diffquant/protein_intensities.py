@@ -15,6 +15,13 @@ from ..run_pipeline import read_tables
 import pandas as pd
 import numpy as np
 import alphaquant.norm.normalization as aqnorm
+
+
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 def run_protein_normalization(input_file, protein_header, ion_header):
     input_df = pd.read_csv(input_file, sep = "\t")
     input_df = input_df.set_index([protein_header, ion_header])
@@ -40,7 +47,7 @@ def estimate_protein_intensities(normed_df):
     allprots = idx.unique()
     for protein in allprots:
         if(count_prots%100 ==0):
-            print(f"prot {count_prots} of {len(allprots)}")
+            LOGGER.info(f"prot {count_prots} of {len(allprots)}")
         count_prots+=1
 
         protvals_df = pd.DataFrame(normed_df.loc[protein])

@@ -463,7 +463,6 @@ class MultipleComparison(object):
         """
         This function plots a simple Heatmap.
         """
-        print('inside plotting function')
         fig = go.Figure()
         fig.update_layout(
             title={

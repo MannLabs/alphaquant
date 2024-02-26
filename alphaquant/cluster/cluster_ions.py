@@ -18,6 +18,12 @@ import scipy.cluster.hierarchy as hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.diffquant.diffutils as aqutils
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
+
 REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
 LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 FCDIFF_CUTOFF_CLUSTERMERGE = 0.5
@@ -46,7 +52,7 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(REGEX_FRGIONS_ISOTOPES, LEVEL_NAMES,gene_name, diffions)
     add_reduced_names_to_root(root_node)
-    #print(anytree.RenderTree(root_node))
+    #LOGGER.info(anytree.RenderTree(root_node))
     root_node_clust = cluster_along_specified_levels(globally_initialized_typefilter, root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
 
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]

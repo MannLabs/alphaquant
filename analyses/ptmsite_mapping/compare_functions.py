@@ -5,6 +5,11 @@ import os
 os.chdir(".")
 
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 def load_perseus_df():
     df_file = os.path.join("..","..","..","test_data", "ptmsite_mapping", "shortened_plugin_outputv4_loc_prob_75.txt.zip")
     perseus_res = pd.read_csv(df_file , sep = "\t")
@@ -57,7 +62,7 @@ def get_key2expprecursors_perseus(perseus_res, key2prec_pers, all_expprecs):
         exp_precs_pers = [get_exp_precursor_id(exp, prec) for exp, prec in itertools.product(nonan_experiments_names, precursors_perseus)]
         exp_precs_pers = set(exp_precs_pers).intersection(all_expprecs)
         key2expprecs[key_perseus] = list(exp_precs_pers)
-    print("precursor assign finished")
+    LOGGER.info("precursor assign finished")
 
     return key2expprecs
 
@@ -108,7 +113,7 @@ def get_site_probabilites_exp_precursors(shortened_aq_input, exp_precs_pers, exp
 
 def get_shortened_aq_input():
     df_file = os.path.join("..","..","..","test_data", "ptmsite_mapping", "shortened_aq.tsv.zip")
-    print(os.path.abspath(df_file))
+    LOGGER.info(os.path.abspath(df_file))
     shortened_aq_input = pd.read_csv(df_file, sep = "\t")
     return shortened_aq_input
 

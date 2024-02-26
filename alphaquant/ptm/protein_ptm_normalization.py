@@ -9,6 +9,11 @@ import pathlib
 import alphaquant.multicond.multicond_ptmnorm as aq_multicond_ptmnorm
 import statsmodels.stats.multitest as mt
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 
 
 class PTMResultsNormalizer():
@@ -18,12 +23,12 @@ class PTMResultsNormalizer():
         self._create_results_dir()
         self._write_normalized_tables_diffquant(organism)
         self._write_normalized_tables_multicond()
-        print(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
+        LOGGER.info(f"wrote proteome normalized tables to: {self.results_dir_protnormed}")
 
     def _write_normalized_tables_diffquant(self, organism):
         for ptm_file, protfile in self._table_localizer.get_ptmfile2protfile().items():
             if protfile == None:
-                print(f"could not localize protfile for {ptm_file}, skipping")
+                LOGGER.info(f"could not localize protfile for {ptm_file}, skipping")
                 continue
             table_normalizer = PTMtableNormalizer(ptm_file, protfile, organism)
             df_normed = table_normalizer.results_df

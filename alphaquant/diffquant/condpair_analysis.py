@@ -5,19 +5,22 @@ import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
-import alphaquant.config.variables as aqvariables
 import alphaquant.tables.proteintable as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
-import anytree
 
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import pandas as pd
 import numpy as np
 import os
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 def analyze_condpair(*,runconfig, condpair):
-    print(f"start processeing condpair {condpair}")
+    LOGGER.info(f"start processeing condpair {condpair}")
     prot2diffions = {}
     p2z = {}
     ion2clust = {}
@@ -30,7 +33,7 @@ def analyze_condpair(*,runconfig, condpair):
     try:
         df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, runconfig.minrep)
     except Exception as e:
-        print(e)
+        LOGGER.info(e)
         return
 
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, minrep = runconfig.minrep, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
@@ -61,7 +64,7 @@ def analyze_condpair(*,runconfig, condpair):
 
 
         if count_ions%2000==0:
-            print(f"checked {count_ions} of {len(ions_to_check)} ions")
+            LOGGER.info(f"checked {count_ions} of {len(ions_to_check)} ions")
 
         count_ions+=1
 
@@ -78,7 +81,7 @@ def analyze_condpair(*,runconfig, condpair):
         protnodes.append(clustered_prot_node)
 
         if count_prots%100==0:
-            print(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
+            LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
         count_prots+=1
 
 
@@ -99,7 +102,7 @@ def analyze_condpair(*,runconfig, condpair):
     condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
     res_df, pep_df = write_out_tables(condpair_node, runconfig)
 
-    print(f"\ncondition pair {condpair} finished!\n")
+    LOGGER.info("condition pair {condpair} finished!")
 
     return res_df, pep_df
 

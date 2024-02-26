@@ -14,6 +14,11 @@ import numpy as np
 import copy
 import anytree
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 class OutlierHandler():
     def __init__(self, condpair_tree):
         self._protnodes = condpair_tree.children
@@ -330,7 +335,7 @@ class ComplementedClusterEvaluator():
 
         num_opposite = sum([np.sign(x[0])==-np.sign(x[1]) for x in zip(self._fcs_outliers, self._fcs_modpeps)])
         num_same = sum([np.sign(x[0])==np.sign(x[1]) for x in zip(self._fcs_outliers, self._fcs_modpeps)])
-        print(f"{num_same} same, {num_opposite} opposite")
+        LOGGER.info(f"{num_same} same, {num_opposite} opposite")
         sns.scatterplot(x =self._fcs_outliers, y=self._fcs_modpeps,ax=ax)
         ax.set_xlabel("outliers")
         ax.set_ylabel("modified_peptides")
@@ -339,7 +344,7 @@ class ComplementedClusterEvaluator():
 
     def calculate_correlation(self):
         r, p = scipy.stats.pearsonr(self._fcs_outliers, self._fcs_modpeps)
-        print(f"pval is {p}")
+        LOGGER.info(f"pval is {p}")
         return r
 
 

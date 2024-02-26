@@ -9,6 +9,11 @@ import subprocess
 import sys
 import os
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 
 
 class TestFileDownloader():
@@ -19,9 +24,9 @@ class TestFileDownloader():
 
     def download_missing_files(self):
         missing_paths = self.__get_missing_paths__()
-        print(missing_paths)
+        LOGGER.info(missing_paths)
         for missing_path in missing_paths:
-            print(missing_path)
+            LOGGER.info(missing_path)
             self.__download_file__(missing_path)
 
     def __get_missing_paths__(self):

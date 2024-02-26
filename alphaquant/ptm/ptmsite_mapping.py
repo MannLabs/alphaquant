@@ -18,6 +18,10 @@ from alphaquant.config.variables import *
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
 import alphaquant.resources.database_loader as aq_resource_dbloader
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
 
 #helper classes
 
@@ -86,7 +90,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
 
     """""
     if(id_thresh < 0.5):
-        print("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
+        LOGGER.info("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
         id_thresh = 0.51
     swissprot_file = aq_resource_dbloader.get_swissprot_path(organism)
     sequence_file = aq_resource_dbloader.get_uniprot_path(organism)
@@ -97,7 +101,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
     len_before = len(input_df.index)
     input_df = filter_input_table(input_type, modification_type, input_df)
-    print(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
+    LOGGER.info(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
     swissprot_ids = set(pd.read_csv(swissprot_file, sep = "\t", usecols = ["Entry"])["Entry"])
     sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene names"])
     sequence_map = dict(zip(sequence_df["Entry"], sequence_df["Sequence"]))
@@ -131,7 +135,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     for prot in input_df.index.unique():#input_df["REFPROT"].unique():
 
         if int(count_peps/one_fraction)>fraction_count:
-            print(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index)}")
+            LOGGER.info(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index)}")
             fraction_count = int(count_peps/one_fraction) +1
 
         #filtvec = [prot in x for x in input_df["REFPROT"]]
@@ -533,7 +537,7 @@ def get_site_prob_overview(modpeps, refprot, refgene):
 def add_ptmsite_infos_spectronaut(input_df, ptm_ids_df):
     intersect_columns = input_df.columns.intersection(ptm_ids_df.columns)
     if(len(intersect_columns)==2):
-        print(f"assigning ptms based on columns {intersect_columns}")
+        LOGGER.info(f"assigning ptms based on columns {intersect_columns}")
         input_df = input_df.merge(ptm_ids_df, on=list(intersect_columns), how= 'left')
     else:
         raise Exception(f"Number of intersecting columns {intersect_columns} not as expected")
@@ -635,7 +639,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
     labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
     specnaut_df_it = pd.read_csv(spectronaut_file, sep = "\t", chunksize=chunksize, usecols=relevant_columns_spectronaut)
 
-    print(f"adding ptm info to spectronaut file")
+    LOGGER.info(f"adding ptm info to spectronaut file")
 
     if os.path.exists(ptmmapped_table_filename):
         os.remove(ptmmapped_table_filename)
@@ -645,7 +649,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
         specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
         aqutils.write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
         lines_read +=chunksize
-        print(f"{lines_read} lines read")
+        LOGGER.info(f"{lines_read} lines read")
         header = False
     return ptmmapped_table_filename
 
@@ -708,7 +712,7 @@ def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, minrep 
         site_df = ptmsite_df.loc[[ptmsite]]
         if count%1000 ==0:
             num_checks = len(ptmsite_df.index.unique())
-            print(f"{count} of {num_checks} {count/num_checks :.2f}")
+            LOGGER.info(f"{count} of {num_checks} {count/num_checks :.2f}")
         count+=1
 
         cond1_vals = site_df[cond1_samples].to_numpy()
@@ -738,7 +742,7 @@ def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, minrep 
             direction = 1
 
         if direction!=0:
-            print("occpancy change detected")
+            LOGGER.info("occpancy change detected")
             refprot = site_df["REFPROT"].values[0]
             gene = site_df["gene"].values[0]
             site = site_df["site"].values[0]
@@ -765,7 +769,7 @@ def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join("
     if len(condpairs_to_compare) == 0:
         condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(results_folder) if re.match(r'.*results.tsv', f)]
     for condpair in condpairs_to_compare:
-        print(f"check condpair {condpair}")
+        LOGGER.info(f"check condpair {condpair}")
         cond1 = condpair[0]
         cond2 = condpair[1]
         cond1_samples = list(set(samplemap_df[(samplemap_df["condition"]==cond1)]["sample"]).intersection(set(ptmsite_df.columns)))

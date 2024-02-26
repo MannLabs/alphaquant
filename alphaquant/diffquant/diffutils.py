@@ -33,6 +33,10 @@ from ..config.variables import QUANT_ID
 if "__file__" in globals():#only run in the translated python file, as __file__ is not defined with ipython
     INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs", "intable_config.yaml") #the yaml config is located one directory below the python library files
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
 
 # Cell
 
@@ -50,7 +54,7 @@ def load_samplemap(samplemap_file):
         sep='\t'
 
     if 'sep' not in locals():
-        print(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {samplemap_file}! Trying with tab separation. In the case that it fails, please add the appropriate extension to your file name.")
+        LOGGER.info(f"neither of the file extensions (.tsv, .csv, .txt) detected for file {samplemap_file}! Trying with tab separation. In the case that it fails, please add the appropriate extension to your file name.")
         sep = "\t"
 
     return pd.read_csv(samplemap_file, sep = sep, encoding ='latin1', dtype='str')
@@ -204,7 +208,7 @@ def get_z_from_p_empirical(p_emp,p2z):
 def count_fraction_outliers_from_expected_fc(result_df, threshold, expected_log2fc):
     num_outliers = sum([abs(x-expected_log2fc)> threshold for x in result_df["log2fc"]])
     fraction_outliers = num_outliers/len(result_df["log2fc"])
-    print(f"{round(fraction_outliers, 2)} outliers")
+    LOGGER.info(f"{round(fraction_outliers, 2)} outliers")
     return fraction_outliers
 
 # Cell
@@ -349,7 +353,7 @@ def add_ion_protein_headers_if_applicable(samples_subset):
 def reformat_and_save_input_file(input_file, input_type_to_use = None, use_alphaquant_format = False):
     
     input_type, config_dict_for_type, sep = abconfigdictloader.get_input_type_and_config_dict(input_file, input_type_to_use)
-    print(f"using input type {input_type}")
+    LOGGER.info(f"using input type {input_type}")
     format = config_dict_for_type.get('format')
     outfile_name = f"{input_file}.{input_type}.aq_reformat.tsv"
 
@@ -464,7 +468,7 @@ class AcquisitionTableHandler():
     def __remove_possible_pre_existing_ml_table__(output_file_name):
         if os.path.exists(output_file_name):
             os.remove(output_file_name)
-            print(f"removed pre existing {output_file_name}")
+            LOGGER.info(f"removed pre existing {output_file_name}")
 
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
 
