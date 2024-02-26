@@ -178,6 +178,9 @@ test_data/unit_tests/results_file_handling
 tests/outliers
 
 test_data/system_tests/Spectronaut_LargeFC
+test_data/quicktests
+test_data/databases
+
 
 #bash scripts
 misc/bumpversion.sh
