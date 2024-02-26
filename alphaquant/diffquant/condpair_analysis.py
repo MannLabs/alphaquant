@@ -102,7 +102,7 @@ def analyze_condpair(*,runconfig, condpair):
     condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
     res_df, pep_df = write_out_tables(condpair_node, runconfig)
 
-    LOGGER.info("condition pair {condpair} finished!")
+    LOGGER.info(f"condition pair {condpair} finished!")
 
     return res_df, pep_df
 
