@@ -308,7 +308,7 @@ def check_for_processed_runs_in_results_folder(results_folder):
     result_files = list(filter(lambda x: "results.tsv" in x ,folder_files))
     for result_file in result_files:
         res_name = result_file.replace(".results.tsv", "")
-        if ((f"{res_name}.normed.tsv" in folder_files) & (f"{res_name}.results.ions.tsv" in folder_files)):
+        if ((f"{res_name}.normed.tsv" in folder_files) and (f"{res_name}.results.ions.tsv" in folder_files)):
             contained_condpairs.append(res_name)
     return contained_condpairs
 
