@@ -45,7 +45,7 @@ def analyze_condpair(*,runconfig, condpair):
     normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
     
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
-    use_ion_tree = runconfig.use_iontree_if_possible
+
     bgpair2diffDist = {}
     deedpair2doublediffdist = {}
     count_ions=0
@@ -83,20 +83,23 @@ def analyze_condpair(*,runconfig, condpair):
         if count_prots%100==0:
             LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
         count_prots+=1
+    
 
-
-    if runconfig.use_ml & len(protnodes)>100:
+    if runconfig.use_ml:
         ml_performance_dict = {}
-        ml_successfull = True
-        aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
+        ml_successfull = aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
                                                 samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
-        fc_cutoff=0.5, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, 
+        fc_cutoff=0.75, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, 
         replace_nans=True, performance_metrics=ml_performance_dict, protnorm_peptides=runconfig.protnorm_peptides)
 
 
         if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
             aqclust.update_nodes_w_ml_score(protnodes)
+            LOGGER.info(f"ML based quality score above quality threshold and added to the nodes.")
             runconfig.ml_based_quality_score = True
+        else:
+            LOGGER.info(f"ML based quality score below quality threshold and not added to the nodes.")
+            runconfig.ml_based_quality_score = False
 
 
     condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)

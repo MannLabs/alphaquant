@@ -1292,14 +1292,11 @@ def scatter_ml_regression_perturbation_aware(y_test, y_pred, ionnames, nodes, re
 
     err = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
-    print(f'Mean squared error: {err:.2f}')
-    print(f'Coefficient of determination: {r2:.2f}')
 
     ax_perturb.set_title(f"MSE: {err:.2f}, R2: {r2:.2f}")
 
     if results_dir is not None:
         fig_perturb.savefig(f"{results_dir}/ml_regression.pdf")
-    fig_perturb.show()
     plt.show()
 
 def plot_perturbation_histogram(perturbed_nodes, results_dir):
@@ -1308,7 +1305,6 @@ def plot_perturbation_histogram(perturbed_nodes, results_dir):
     ax.hist(perturbations, 60, density=True, histtype='step',cumulative=True)
     if results_dir is not None:
         ax.figure.savefig(f"{results_dir}/perturbation_histogram.pdf")
-    fig.show()
 
 def plot_perturbed_unperturbed_fcs(fcs_perturbed, fcs_unperturbed, results_dir = None):
     fig, ax = plt.subplots()
@@ -1316,7 +1312,6 @@ def plot_perturbed_unperturbed_fcs(fcs_perturbed, fcs_unperturbed, results_dir =
     ax.hist(bins = 60, x= fcs_perturbed,label='perturbed', density=True, histtype='step')
     if results_dir is not None:
         ax.figure.savefig(f"{results_dir}/compare_pertubed_unperturbed.pdf")
-    fig.show()
 
 
 def plot_ml_fc_histograms(y_test, y_pred, cutoff, results_dir = None):
@@ -1391,13 +1386,12 @@ import numpy as np
 
 def plot_feature_importances(coef, names, top_n = np.inf, print_out_name = False, results_dir = None):
     imp,names = filter_sort_top_n(coef, names, top_n)
-    plt.barh(range(len(names)), imp, align='center')
-    plt.yticks(range(len(names)), names)
-    if print_out_name:
-        for idx in range(len(imp)):
-            print(f"{imp[idx]}\t{names[idx]}")
+    fig, ax = plt.subplots()
+    ax.set_title('Feature Importances')
+    ax.barh(range(len(names)), imp, align='center')
+    ax.set_yticks(range(len(names)), names)
     if results_dir is not None:
-        plt.savefig(f"{results_dir}/ml_feature_importances.pdf")
+        fig.savefig(f"{results_dir}/ml_feature_importances.pdf")
     plt.show()
 
 

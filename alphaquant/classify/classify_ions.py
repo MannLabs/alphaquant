@@ -31,7 +31,7 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,precursor_cutoff=2, fc_cutoff = 1.0, number_splits = 5, plot_predictor_performance = False, 
-                                 replace_nans = False, distort_precursor_modulo = np.inf, performance_metrics = {}, protnorm_peptides = True):
+                                 replace_nans = False, distort_precursor_modulo = None, performance_metrics = {}, protnorm_peptides = True):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
     #add predictability scores to each precursor
@@ -42,6 +42,9 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     node_level = get_node_level_from_dfhandler(dfhandler)
     protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
     normalized_precursors, all_precursors = get_fc_normalized_nodes(protein_nodes, node_level, precursor_cutoff, fc_cutoff, distort_precursor_modulo=distort_precursor_modulo, protnorm_peptides=protnorm_peptides)
+    if len(normalized_precursors)<100:
+        LOGGER.info(f"only {len(normalized_precursors)} precursors, skipping ml")
+        return False
     df_precursor_features = collect_node_parameters(normalized_precursors)
     merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
 
@@ -61,12 +64,8 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     results_dir_plots =f"{results_dir}/{name}"
     aqutils.make_dir_w_existcheck(results_dir_plots)
     if plot_predictor_performance:
-        plt.hist(y_test_cp, 60, density=True, histtype='stepfilled',cumulative=False, alpha = 0.5)
-        plt.xlim(-1.8, 1.8)
-        plt.show()
 
         aqplot.scatter_ml_regression_perturbation_aware(y_test=y_test_cp, y_pred = y_pred_cp, ionnames=ionnames_cp, nodes=normalized_precursors, results_dir=results_dir_plots)
-        aqplot.plot_ml_fc_histograms(y_test_cp, y_pred_cp, 0.5, results_dir_plots)
         aqplot.plot_feature_importances(regr.feature_importances_,featurenames, 10, results_dir_plots)
 
     #mean, cutoff_neg, cutoff_pos = find_mean_and_cutoffs(y_pred_cp, visualize= plot_predictor_performance)
@@ -82,6 +81,7 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
 
     #annotate the precursor nodes
     annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
+    return True
 
 
 def generate_ml_input_regression(df_precursor_features, nodes, replace_nans = False):
@@ -222,7 +222,7 @@ def get_tp_fp_nodes(condpairtree, nodetype, substantially_off_thresholds, close_
             fc = node2fc.get(node)
         else:
             fc = node.fc
-        if (abs(fc) > substantially_off_thresholds[0]) & (abs(fc) < substantially_off_thresholds[1]):
+        if (abs(fc) > substantially_off_thresholds[0]) and (abs(fc) < substantially_off_thresholds[1]):
             node.positive_example = False
             res_nodes.append(node)
         if abs(fc) < close_to_target_threshold:
@@ -266,49 +266,12 @@ def get_ion2classification(ml_classifier, nodes, threshold_for_positive_classifi
 
 # Cell
 
-def balance_classes(df_precursor_features):
-    df_pos_examples = df_precursor_features[df_precursor_features["positive_example"] ==1]
-    df_neg_examples = df_precursor_features[df_precursor_features["positive_example"] ==0]
-    min_length = min(len(df_pos_examples.index), len(df_neg_examples.index))
-    df_pos_examples = resample(df_pos_examples, replace = False, n_samples = int(min_length), random_state = 123)
-    df_neg_examples = resample(df_neg_examples, replace = False, n_samples = min_length, random_state = 123)
-    df_downsampled = pd.concat([df_pos_examples, df_neg_examples], ignore_index=True)
-    LOGGER.info(sum(df_downsampled["positive_example"]))
-    LOGGER.info(len(df_downsampled.index))
-    return df_downsampled
-
-# Cell
-import numpy as np
 
 
 
-# Cell
-from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import plot_precision_recall_curve
-import matplotlib.pyplot as plt
-from sklearn.metrics import average_precision_score
+
 import matplotlib.pyplot as plt
 
-def plot_precision_recall(classfier, X_train, y_train, X_test, y_test):
-      y_score = classfier.decision_function(X_train)
-      average_precision = average_precision_score(y_train, y_score)
-
-      LOGGER.info('Average precision-recall score: {0:0.2f}'.format(
-            average_precision))
-
-
-      disp = plot_precision_recall_curve(classfier, X_test, y_test)
-      disp.ax_.set_title('2-class Precision-Recall curve: '
-                        'AP={0:0.2f}'.format(average_precision))
-      plt.show()
-
-# Cell
-def get_precursor2fc(cond1, cond2, results_folder):
-    result_df = aqviz.get_diffresult_dataframe(cond1, cond2, results_folder)
-    result_dict = dict(zip(result_df["protein"], result_df["log2fc"]))
-    return result_dict
-
-# Cell
 import alphaquant.utils.utils as aqutils
 
 def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
@@ -324,7 +287,7 @@ import anytree
 import copy
 import random
 import numpy as np
-def get_fc_normalized_nodes(nodes_protlevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = np.inf, protnorm_peptides = True):
+def get_fc_normalized_nodes(nodes_protlevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = None, protnorm_peptides = True):
     """"get nodes of type lowerlevel which are normalized by the fclevel fold change"""
     randnr_generator = random.Random(42)
     normalized_lowerlevels = [] #the normalized lowerlevels are copied values used for training, better change to different variable names to be used
@@ -343,10 +306,11 @@ def get_fc_normalized_nodes(nodes_protlevel, type_lowerlevel, min_nums_lowerleve
             if protnorm_peptides: #protnorm peptides should always be true, except when the dataset run tests different injection amounts
                 precursor.fc = precursor.fc - fc_prot
             
-            if count_precursors%distort_precursor_modulo==0:
-                perturbation = randnr_generator.uniform(-2, 2)
-                precursor.fc=precursor.fc + perturbation
-                precursor.perturbation_added = perturbation
+            if distort_precursor_modulo is not None:
+                if count_precursors%distort_precursor_modulo==0:
+                    perturbation = randnr_generator.uniform(-2, 2)
+                    precursor.fc=precursor.fc + perturbation
+                    precursor.perturbation_added = perturbation
             normalized_lowerlevels.append(precursor)
             count_precursors+=1
 
@@ -397,13 +361,7 @@ def do_linear_regression(X, y, featurenames, ionnames, prediction_cutoff):
     y_pred = regr.predict(X_test)
 
     # The coefficients
-    LOGGER.info('Coefficients: \n', regr.coef_)
     # The mean squared error
-    LOGGER.info('Mean squared error: %.2f'
-        % mean_squared_error(y_test, y_pred))
-    # The coefficient of determination: 1 is perfect prediction
-    LOGGER.info('Coefficient of determination: %.2f'
-        % r2_score(y_test, y_pred))
 
     # Plot outputs
     #plt.plot(X_test[:,-1], y_pred,  color='black')
@@ -415,7 +373,6 @@ def do_linear_regression(X, y, featurenames, ionnames, prediction_cutoff):
     plt.show()
     aqplot.plot_predicted_fc_histogram(y_test, y_pred, prediction_cutoff, show_filtered=True)
     plt.show()
-    print_good_predicitions(y_test, y_pred, fc2ion)
 
 # Cell
 import matplotlib.pyplot as plt
@@ -427,40 +384,6 @@ from sklearn.ensemble import RandomForestRegressor
 
 
 
-def do_random_forest_regression(X, y, featurenames, prediction_cutoff):
-      # Split the data into training/testing sets
-      X = scale_input(X)
-      X_train, X_test, y_train, y_test = train_test_split(X, y)
-
-      # Create linear regression object
-      regr = RandomForestRegressor(max_depth=2, random_state=0)
-
-      # Train the model using the training sets
-      regr.fit(X_train, y_train)
-
-      # Make predictions using the testing set
-      y_pred = regr.predict(X_test)
-
-
-      # The mean squared error
-      LOGGER.info('Mean squared error: %.2f'
-            % mean_squared_error(y_test, y_pred))
-      # The coefficient of determination: 1 is perfect prediction
-      LOGGER.info('Coefficient of determination: %.2f'
-            % r2_score(y_test, y_pred))
-
-      # Plot outputs
-      #plt.plot(X_test[:,-1], y_pred,  color='black')
-      plt.scatter(y_test, y_pred, color='blue')
-      plt.show()
-      aqclass.plot_feature_importances(regr.feature_importances_,featurenames, 10)
-      plt.show()
-      aqplot.plot_predicted_fc_histogram(y_test, y_pred, prediction_cutoff, show_filtered=False)
-      plt.show()
-      aqplot.plot_predicted_fc_histogram(y_test, y_pred, prediction_cutoff, show_filtered=True)
-      plt.show()
-
-# Cell
 
 import sklearn.preprocessing
 
@@ -646,7 +569,6 @@ def fit_gaussian_to_subdist(dist, visualize, results_dir = None):
     mode_quantile = cumsum_rel[mode_idx]
     subrange = min([mode_quantile, 0.4, 1-mode_quantile]) #if the mode is close to the edge, make the interval smaller
 
-    LOGGER.info(f"subrange: {subrange}")
     quantile1 = mode_quantile-subrange
     quantile2 = mode_quantile+subrange
     idx_start = 0#find_nearest(cumsum_rel, quantile1)
@@ -670,14 +592,12 @@ def fit_gaussian_to_subdist(dist, visualize, results_dir = None):
         plt.legend()
         if results_dir is not None:
             plt.savefig(f'{results_dir}/ml_offsets_gaussian_fit.pdf')
-        plt.show()
+        plt.close()
 
-    LOGGER.info(stdev)
     #val_neg = scipy.stats.norm.ppf(0.001,  scale = stdev)
     #val_pos = scipy.stats.norm.ppf(0.999,  scale = stdev)
     val_neg = -3*stdev
     val_pos = 3*stdev
-    LOGGER.info(mean, val_neg, val_pos)
     return mean, val_neg, val_pos
 
 
@@ -686,7 +606,7 @@ def annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_total, ionnames_tota
     precursor2predscore = {x:y for x, y in zip(ionnames_total, y_pred_total)}
     for precursor in precursor_nodes:
         predscore = precursor2predscore.get(precursor.name)
-        ml_excluded = not ((predscore>cutoff_neg) & (predscore<cutoff_pos))
+        ml_excluded = not ((predscore>cutoff_neg) and (predscore<cutoff_pos))
         precursor.predscore = predscore
         precursor.ml_excluded = bool(ml_excluded)
         precursor.cutoff = cutoff_pos #cutoff_pos is -cutoff_neg
@@ -731,14 +651,12 @@ def random_forest_iterative_cross_predict(X, y, ionnames, number_splits, regr, b
     y_test_all = []
     y_pred_all = []
     ionnames_all = []
-    all_excluded = {}
     for i in range(len(chunks_included)):
         idxs_in = chunks_included[i]
         idxs_out = chunks_excluded[i]
 
-        if len(set(idxs_out).intersection(all_excluded))>0:
-            LOGGER.info("overfitting alarm!")
-            all_excluded.update(set(idxs_out))
+        if len(set(idxs_out).intersection(idxs_in))>0:
+            raise Exception('train set in test set!')
 
         X_train = X[idxs_in,:]
         y_train = y[idxs_in]
