@@ -58,6 +58,37 @@ class ClusterColorMap():
                     ]
         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
 
+class AlphaPeptColorMapAdapted():
+    def __init__(self):
+        self.colorlist_hex  =  [
+    "#3FB7E4",  # Vivid Sky Blue (Slightly desaturated)
+    "#7BEDC5",  # Medium Aquamarine
+    "#EBCB70",  # Mustard (Slightly less bright)
+    "#16212B",  # Gunmetal
+    "#CA9ECB",  # Soft Lilac (Slightly more saturated)
+    "#708090",  # Slate Gray
+    "#3391A6",  # Deep Cerulean (Slightly lightened)
+    "#AEDDE9",  # Powder Blue (Slightly warmer)
+    "#5F9EA0",  # Cadet Blue
+    "#E77D7D"   # Light Coral (Slightly desaturated)
+]
+        
+class AlphaQuantColorMap():
+    def __init__(self):
+        self.colorlist_hex  = ["#d8674e",  # Cadmium Red
+        "#45a6ce",  # Steel Blue
+        "#fdb73b",  # Cadmium Yellow
+        "#a6d1f1",  # Baby Blue
+        "#b04e8d",  # Tiffany Rose
+        "#6e79b9",  # Periwinkle
+        "#fcdf3b",  # Goldenrod
+        "#50C878",  # Emerald Green
+        "#808080",  # Grey instead of Amber
+        "#FF7F50",  # Coral
+        "#0F52BA",  # Egyptian Blue
+        "#9966CC",  # Amethyst
+        "#40E0D0"   # Turquoise
+        ]
 
 
 def rgba_list_to_hex_list(rgba_list):
