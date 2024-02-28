@@ -45,11 +45,15 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     if len(normalized_precursors)<100:
         LOGGER.info(f"only {len(normalized_precursors)} precursors, skipping ml")
         return False
-    df_precursor_features = collect_node_parameters(normalized_precursors)
-    merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, df_precursor_features)
+    node_features_df = collect_node_parameters(normalized_precursors)
+    merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, node_features_df)
 
     #transform into ML input
     X, y, featurenames, ionnames = generate_ml_input_regression(merged_df, normalized_precursors, replace_nans=replace_nans)
+
+    featurenames_str = ', '.join(featurenames)
+    LOGGER.info(f"starting RF prediction using features {featurenames_str}")
+                
 
     test_fc_name_mapping(y, ionnames, normalized_precursors)
 
