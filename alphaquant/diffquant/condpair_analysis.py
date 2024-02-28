@@ -159,12 +159,16 @@ def get_minrep_for_cond(c_samples, minrep):
 
 def write_out_tables(condpair_node, runconfig):
     condpair = condpair_node.name
-    has_sequence_nodes = check_if_has_sequence_nodes(condpair_node)
+    
     res_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "gene", min_num_peptides = runconfig.minpep, annotation_file= getattr(runconfig, "annotation_file", None)).results_df
+    has_sequence_nodes = check_if_has_sequence_nodes(condpair_node)
     if has_sequence_nodes:
         pep_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "seq", min_num_peptides = runconfig.minpep).results_df
     else:
         pep_df = None
+    has_precursor_nodes = check_if_has_precursor_nodes(condpair_node)
+    if has_precursor_nodes:
+        prec_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "mod_seq_charge", min_num_peptides = runconfig.minpep).results_df
 
 
     if runconfig.runtime_plots:
@@ -185,7 +189,13 @@ def write_out_tables(condpair_node, runconfig):
         if has_sequence_nodes:
             pep_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.seq.tsv", sep = "\t", index=None)
         
+        if has_precursor_nodes:
+            prec_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.prec.tsv", sep = "\t", index=None)
+        
     return res_df, pep_df
 
 def check_if_has_sequence_nodes(condpair_node):
     return condpair_node.children[0].children[0].type == "seq"
+
+def check_if_has_precursor_nodes(condpair_node):
+    return condpair_node.children[0].children[0].children[0].children[0].type == "mod_seq_charge"
