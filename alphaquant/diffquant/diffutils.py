@@ -666,11 +666,10 @@ class AcquisitionTableHeaderFilter():
 
 # Cell
 
-def merge_acquisition_df_parameter_df(acquisition_df, parameter_df, groupby_merge_type = 'mean'):
+def merge_acquisition_df_parameter_df(acquisition_df, node_features_df, groupby_merge_type = 'mean'):
     """acquisition df contains details on the acquisition, parameter df are the parameters derived from the tree
     """
-
-    merged_df = parameter_df.merge(acquisition_df, how = 'left', on = QUANT_ID)
+    merged_df = node_features_df.merge(acquisition_df, how = 'left', on = QUANT_ID)
 
     if groupby_merge_type == 'mean':
         merged_df = merged_df.groupby(QUANT_ID).mean().reset_index()
