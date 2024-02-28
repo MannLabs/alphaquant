@@ -1,5 +1,6 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
+import pandas as pd
 
 class MixedSpeciesScatterPlotter():
     """
@@ -176,3 +177,48 @@ class MixedSpeciesBoxPlotter():
         # Set the same y limits for all plots, excluding severe outliers
         for ax in self.axes.flatten():
             ax.set_ylim(global_y_min, global_y_max)
+
+
+
+class MixedSpeciesRatioComparison():
+    """
+    Provides the comparison of observed log2fcs and expected log2fcs The columns of an example table are:
+    'protein'	'log2fc_alphaquant'	'intensity_alphaquant' 'organism'	'log2fc_spectronaut' 'intensity_spectronaut'
+    """
+    def __init__(self, df_combined, method_suffixes, organism2expectedfc):
+        self._df_combined = df_combined
+        self._method_suffixes = method_suffixes
+        self._organism2expectedfc = organism2expectedfc
+
+        self._results_dict_list = []
+        self.results_df = None
+
+        self._fill_results_dict_list()
+        self.results_df = pd.DataFrame(self._results_dict_list)
+
+    
+    def _fill_results_dict_list(self):
+        for method_idx in range(len(self._method_suffixes)):
+            self._collect_fc_distance_metrics_per_organism(method_idx)
+
+    def _collect_fc_distance_metrics_per_organism(self, method_idx):
+        method_suffix = self._method_suffixes[method_idx]
+        log2fc_column = f'log2fc{method_suffix}'
+        organism_column = 'organism'
+
+        df_organism_grouped = self._df_combined.groupby(organism_column)
+        for organism, df_organism in df_organism_grouped:
+            organism_fcs = df_organism[log2fc_column].to_numpy()
+            self._add_fc_distance_metrics_to_results_dict_list(organism_fcs, organism, method_suffix)
+    
+    def _add_fc_distance_metrics_to_results_dict_list(self, organism_fcs, organism, method_suffix):
+        expected_fc = self._organism2expectedfc[organism]
+        fc_distance = np.abs(organism_fcs - expected_fc)
+        median_fc_distance = np.median(fc_distance)
+        upper_10th_percentile = np.percentile(fc_distance, 90)
+        lower_10th_percentile = np.percentile(fc_distance, 10)
+        self._results_dict_list.append({'method_suffix': method_suffix,'organism': organism, 'median_fc_distance': median_fc_distance, 
+                                        'upper_10th_percentile': upper_10th_percentile, 'lower_10th_percentile': lower_10th_percentile})
+        
+    
+    
