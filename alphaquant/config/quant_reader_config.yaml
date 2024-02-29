@@ -1110,7 +1110,7 @@ spectronaut_protein:
   protein_cols:
    - PG.ProteinGroups
   ion_cols:
-   - PG.Organisms
+   - PG.ProteinGroups
   filters:
     decoy_filt:
       param: EG.IsDecoy
