@@ -72,6 +72,7 @@ class AlphaPeptColorMapAdapted():
     "#5F9EA0",  # Cadet Blue
     "#E77D7D"   # Light Coral (Slightly desaturated)
 ]
+        self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
         
 class AlphaQuantColorMap():
     def __init__(self):
@@ -89,6 +90,7 @@ class AlphaQuantColorMap():
         "#9966CC",  # Amethyst
         "#40E0D0"   # Turquoise
         ]
+        self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
 
 
 def rgba_list_to_hex_list(rgba_list):
