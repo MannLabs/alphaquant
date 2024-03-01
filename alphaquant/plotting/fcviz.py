@@ -70,7 +70,7 @@ class FoldChangeVisualizer():
 
 class PlotConfig():
     def __init__(self, label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, 
-                 colorlist = aq_plot_base.ClusterColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human', 
+                 colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human', 
                  order_peptides_along_protein_sequence = False):
         """
         Configuration class for plotting.
