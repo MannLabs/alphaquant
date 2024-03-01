@@ -44,10 +44,18 @@ class MixedSpeciesScatterPlotter():
         ax.set_xscale('log')
         for expected_log2fc in self._expected_log2fcs:
             ax.axhline(expected_log2fc, color='black')
-        ax.set_title(suffix[1:])
+        ax.set_title(self._get_title_text(suffix,log2fc_column, organism_column))
         ax.set_xlabel("intensity")
         ax.set_ylabel("log2 fold change")
         ax.get_legend().remove()
+
+    def _get_title_text(self, suffix,log2fc_column, organism_column):
+        std_devs = self._df_combined.groupby(organism_column)[log2fc_column].std()
+    
+        title_text = f"{suffix[1:]}:\n"
+        for organism, std_dev in std_devs.items():
+            title_text += f"{organism}: {std_dev:.2f}\n"
+        return title_text
     
     def _set_uniform_axis_ranges(self):
         # Find the overall min and max across all subplots for both axes
@@ -156,10 +164,19 @@ class MixedSpeciesBoxPlotter():
         sns.boxplot(data=self._df_combined, x=organism_column, y=log2fc_column, ax=ax)
         for expected_log2fc in self._expected_log2fcs:
             ax.axhline(expected_log2fc, color='black')
-        ax.set_title(suffix[1:])
+        title_text = self._get_title_text(suffix,log2fc_column, organism_column)
+        ax.set_title(title_text)
         ax.set_xlabel("organism")
         ax.set_ylabel("log2 Fold Change")
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment='right')
+
+    def _get_title_text(self, suffix,log2fc_column, organism_column):
+        std_devs = self._df_combined.groupby(organism_column)[log2fc_column].std()
+    
+        title_text = f"{suffix[1:]}:\n"
+        for organism, std_dev in std_devs.items():
+            title_text += f"{organism}: {std_dev:.2f}\n"
+        return title_text
 
     def _set_uniform_axis_ranges(self):
         # Collect all y-values from all subplots
