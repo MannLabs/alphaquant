@@ -637,8 +637,66 @@ diann_fragion_isotopes_raw_charite_dataset:
       value: 0.01
   
 
-
 diann_fragion:
+  format: longtable
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Raw
+  protein_cols:
+   - Genes
+  split_cols:
+    Fragment.Quant.Raw: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        FRGION: 
+         - Fragment.Quant.Raw
+  use_iontree: True
+  ml_level: CHARGE
+  filters:
+    protein_qval:
+      param: Lib.PG.Q.Value
+      comparator: "<="
+      value: 0.01
+
+
+diann_fragion_protein:
+  format: longtable
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Raw
+  protein_cols:
+   - Protein.Group
+  split_cols:
+    Fragment.Quant.Raw: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        FRGION: 
+         - Fragment.Quant.Raw
+  use_iontree: True
+  ml_level: CHARGE
+  filters:
+    protein_qval:
+      param: Lib.PG.Q.Value
+      comparator: "<="
+      value: 0.01
+
+diann_fragion_corrected:
   format: longtable
   sample_ID: Run
   quant_ID:
