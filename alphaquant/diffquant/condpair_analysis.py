@@ -5,7 +5,7 @@ import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
-import alphaquant.tables.proteintable as aq_tablewriter_protein
+import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
 
@@ -93,7 +93,7 @@ def analyze_condpair(*,runconfig, condpair):
         replace_nans=True, performance_metrics=ml_performance_dict, protnorm_peptides=runconfig.protnorm_peptides)
 
 
-        if (ml_performance_dict["r2_score"] >0.05) and ml_successfull: #only use the ml score if it is meaningful
+        if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful
             aqclust.update_nodes_w_ml_score(protnodes)
             LOGGER.info(f"ML based quality score above quality threshold and added to the nodes.")
             runconfig.ml_based_quality_score = True
@@ -163,12 +163,12 @@ def write_out_tables(condpair_node, runconfig):
     res_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "gene", min_num_peptides = runconfig.minpep, annotation_file= getattr(runconfig, "annotation_file", None)).results_df
     has_sequence_nodes = check_if_has_sequence_nodes(condpair_node)
     if has_sequence_nodes:
-        pep_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "seq", min_num_peptides = runconfig.minpep).results_df
+        pep_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "seq").results_df
     else:
         pep_df = None
     has_precursor_nodes = check_if_has_precursor_nodes(condpair_node)
     if has_precursor_nodes:
-        prec_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "mod_seq_charge", min_num_peptides = runconfig.minpep).results_df
+        prec_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "mod_seq_charge").results_df
 
 
     if runconfig.runtime_plots:
