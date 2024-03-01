@@ -15,14 +15,14 @@ class TableFromNodeCreator():
         self._min_num_peptides = min_num_peptides
         self._annotation_file = annotation_file
         self._condpair_tree = condpair_tree
-        self._list_of_nodes = self._get_list_of_nodes()
+        self._list_of_nodetype_nodes = self._get_list_of_nodetype_nodes()
         self._condpair_name_table = self._get_condpair_name()
 
 
         self._define_results_df()
         self._filter_annotate_results_df()
 
-    def _get_list_of_nodes(self):
+    def _get_list_of_nodetype_nodes(self):
         return anytree.findall(self._condpair_tree, filter_ = lambda x : x.type == self._node_type)
 
     def _get_condpair_name(self):
@@ -30,7 +30,7 @@ class TableFromNodeCreator():
 
     def _define_results_df(self):
         list_of_dicts = []
-        for node in self._list_of_nodes:
+        for node in self._list_of_nodetype_nodes:
             list_of_dicts.append(self._get_node_dict(node))
         self.results_df = pd.DataFrame(list_of_dicts)
         
@@ -57,8 +57,8 @@ class TableFromNodeCreator():
         return node_dict
     
     def _filter_annotate_results_df(self):
-        self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodes, self._min_num_peptides, self._annotation_file).results_df
-        self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df, self._list_of_nodes).results_df
+        self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodetype_nodes, self._min_num_peptides, self._annotation_file).results_df
+        self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df, self._list_of_nodetype_nodes[0]).results_df
     
 
 class TableAnnotatorFilterer():
