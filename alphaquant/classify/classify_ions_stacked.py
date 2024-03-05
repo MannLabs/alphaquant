@@ -34,11 +34,10 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, sampl
     
     precursor_selector = PrecursorForTrainingSelector(protein_nodes, min_num_precursors = min_num_precursors, prot_fc_cutoff = prot_fc_cutoff)
     
-    LOGGER.info(f"""{len(precursor_selector.precursors_suitable_for_training)} of {len(precursor_selector.precursors_suitable_for_training) + 
-                                                                                 len(precursor_selector.precursors_not_suitable_for_training)}
-                                                                                   selected for training""")
+    LOGGER.info(f"{precursor_selector.num_precursors_suitable_for_training} of {precursor_selector.num_precursors_total} selected for training")
+
     if len(precursor_selector.precursors_suitable_for_training)<100:
-        LOGGER.info(f"only {len(precursor_selector.precursors_suitable_for_training)} precursors, skipping ml")
+        LOGGER.info(f"too few precursors suitable for training, skipping ml")
         return False
 
 
@@ -100,6 +99,10 @@ class PrecursorForTrainingSelector:
         self.precursors_not_suitable_for_training = [] # the precursors that are not used for training the ML model
 
         self._select_precursors_for_training()
+
+        self.num_precursors_suitable_for_training = len(self.precursors_suitable_for_training)
+        self.num_precursors_not_suitable_for_training = len(self.precursors_not_suitable_for_training)
+        self.num_precursors_total = self.num_precursors_suitable_for_training + self.num_precursors_not_suitable_for_training
 
     
     def _select_precursors_for_training(self):
@@ -217,6 +220,7 @@ def init_and_train_stacked_regressor(X, y):
     return stacked_regressor
 
 
+
 def train_random_forest_ensemble(X, y, num_splits=5):
     kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
     models = []
@@ -224,11 +228,15 @@ def train_random_forest_ensemble(X, y, num_splits=5):
     for train_index, _ in kf.split(X):
         X_train, y_train = X[train_index], y[train_index]
 
-        model = sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42)
+        model = sklearn.ensemble.RandomForestRegressor(n_estimators=50,  # Reduced number of trees
+                                                       random_state=42,
+                                                       n_jobs=-1,)  # Utilize all CPU cores
+                                                       #max_features='sqrt')  # Reduce the number of features
         model.fit(X_train, y_train)
         models.append(model)
     
     return models
+
 
 def predict_on_models(models, X):
     y_preds = [model.predict(X) for model in models]
