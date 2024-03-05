@@ -48,6 +48,7 @@ def assign_predictability_scores(protein_nodes, results_dir, name, samples_used,
     node_features_df = collect_node_parameters(normalized_precursors)
     merged_df = aqutils.merge_acquisition_df_parameter_df(acquisition_info_df, node_features_df)
 
+
     #transform into ML input
     X, y, featurenames, ionnames = generate_ml_input_regression(merged_df, normalized_precursors, replace_nans=replace_nans)
 
@@ -291,15 +292,15 @@ import anytree
 import copy
 import random
 import numpy as np
-def get_fc_normalized_nodes(nodes_protlevel, type_lowerlevel, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = None, protnorm_peptides = True):
+def get_fc_normalized_nodes(nodes_protlevel, node_level, min_nums_lowerlevel = 2, fc_cutoff = 1.0, distort_precursor_modulo = None, protnorm_peptides = True):
     """"get nodes of type lowerlevel which are normalized by the fclevel fold change"""
     randnr_generator = random.Random(42)
-    normalized_lowerlevels = [] #the normalized lowerlevels are copied values used for training, better change to different variable names to be used
-    all_lowerlevels = []
+    normalized_precursors = [] #the normalized lowerlevels are copied values used for training, better change to different variable names to be used
+    all_precursors = []
     count_precursors = 0
     for prot in nodes_protlevel:
-        precursors = anytree.findall(prot, filter_= lambda x : (x.type == type_lowerlevel))
-        all_lowerlevels.extend(precursors)
+        precursors = anytree.findall(prot, filter_= lambda x : (x.type == node_level))
+        all_precursors.extend(precursors)
         if len(precursors)<min_nums_lowerlevel:
             continue
         fc_prot = prot.fc
@@ -315,10 +316,10 @@ def get_fc_normalized_nodes(nodes_protlevel, type_lowerlevel, min_nums_lowerleve
                     perturbation = randnr_generator.uniform(-2, 2)
                     precursor.fc=precursor.fc + perturbation
                     precursor.perturbation_added = perturbation
-            normalized_lowerlevels.append(precursor)
+            normalized_precursors.append(precursor)
             count_precursors+=1
 
-    return normalized_lowerlevels, all_lowerlevels
+    return normalized_precursors, all_precursors
 
 # Cell
 
