@@ -5,9 +5,11 @@ import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
+import alphaquant.classify.classify_ions_stacked as aq_class_stacked
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
+
 
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import pandas as pd
@@ -87,10 +89,13 @@ def analyze_condpair(*,runconfig, condpair):
 
     if runconfig.use_ml:
         ml_performance_dict = {}
-        ml_successfull = aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
-                                                samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
-        fc_cutoff=0.75, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, 
-        replace_nans=True, performance_metrics=ml_performance_dict, protnorm_peptides=runconfig.protnorm_peptides)
+        # ml_successfull = aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
+        #                                         samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
+        # fc_cutoff=0.75, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, 
+        # replace_nans=True, performance_metrics=ml_performance_dict, protnorm_peptides=runconfig.protnorm_peptides)
+
+        ml_successfull = aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
+                                        samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0.75, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
 
 
         if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful

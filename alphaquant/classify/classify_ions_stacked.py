@@ -1,0 +1,238 @@
+import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.classify.classify_ions as aq_class_ions
+import alphaquant.config.config as aqconfig
+import alphaquant.plotting.classify as aq_plot_classify
+
+import numpy as np
+import anytree
+import alphaquant.config.variables as aq_conf_vars
+import pandas as pd
+import alphaquant.classify.classification_utils as aq_class_utils
+
+import sklearn.ensemble
+import sklearn.linear_model
+import sklearn.impute
+import sklearn.metrics
+import sklearn.model_selection
+
+
+
+
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
+
+def assign_predictability_scores_stacked(protein_nodes, results_dir, name, samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
+                                         plot_predictor_performance = False, performance_metrics = {}):
+    #protnorm peptides should always be true, except when the dataset run tests different injection amounts
+
+    #add predictability scores to each precursor
+    #prepare the input table with all the relevant features for machine learning
+
+    protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
+    
+    precursor_selector = PrecursorForTrainingSelector(protein_nodes, min_num_precursors = min_num_precursors, prot_fc_cutoff = prot_fc_cutoff)
+    
+    LOGGER.info(f"""{len(precursor_selector.precursors_suitable_for_training)} of {len(precursor_selector.precursors_suitable_for_training) + 
+                                                                                 len(precursor_selector.precursors_not_suitable_for_training)}
+                                                                                   selected for training""")
+    if len(precursor_selector.precursors_suitable_for_training)<100:
+        LOGGER.info(f"only {len(precursor_selector.precursors_suitable_for_training)} precursors, skipping ml")
+        return False
+
+
+    dfinfo = aqutils.AcquisitionTableInfo(results_dir=results_dir)
+    acquisition_info_df = aqutils.AcquisitionTableHandler(table_infos=dfinfo, samples=samples_used).get_acquisition_info_df()
+
+    ml_input_for_training = MLInputTableCreator(precursor_selector.precursors_suitable_for_training, acquisition_info_df, define_y = True, replace_nans = replace_nans)
+    ml_input_remaining = MLInputTableCreator(precursor_selector.precursors_not_suitable_for_training, acquisition_info_df, define_y = False, replace_nans = replace_nans)
+    align_ml_input_tables_if_necessary(ml_input_for_training, ml_input_remaining)
+
+
+    featurenames_str = ', '.join(ml_input_for_training.featurenames)
+    LOGGER.info(f"starting RF prediction using features {featurenames_str}")
+    #stacked_regressor = init_and_train_stacked_regressor(ml_input_for_training.X, ml_input_for_training.y)
+    models = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 20)
+
+    y_pred = predict_on_models(models,ml_input_for_training.X)
+    y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
+    y_pred_total = np.concatenate([y_pred, y_pred_remaining])
+
+    performance_metrics["r2_score"] = sklearn.metrics.r2_score(ml_input_for_training.y, y_pred)
+
+    LOGGER.info("performed RF prediction")
+
+    #define plot outdir
+    results_dir_plots =f"{results_dir}/{name}"
+    aqutils.make_dir_w_existcheck(results_dir_plots)
+    if plot_predictor_performance:
+
+        aq_plot_classify.scatter_ml_regression(ml_input_for_training.y, y_pred, results_dir_plots)
+        #aq_plot_classify.compute_and_plot_feature_importances_stacked_rf(model=stacked_regressor, X_val=ml_input_for_training.X, y_val=ml_input_for_training.y, feature_names=ml_input_for_training.featurenames, top_n=10, results_dir=results_dir_plots)
+        feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
+        aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
+        aq_plot_classify.plot_value_histogram(y_pred_total, results_dir_plots)
+
+
+    mean, cutoff_neg, cutoff_pos = aq_class_ions.fit_gaussian_to_subdist(y_pred, visualize=plot_predictor_performance,results_dir = results_dir_plots)
+
+
+    
+    ionnames_total = ml_input_for_training.ionnames + ml_input_remaining.ionnames
+    all_precursors = precursor_selector.precursors_suitable_for_training + precursor_selector.precursors_not_suitable_for_training
+    
+    y_pred_normed = y_pred_total-mean
+    #annotate the precursor nodes
+    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
+    return True
+
+
+
+class PrecursorForTrainingSelector:
+    def __init__(self, protein_nodes,  min_num_precursors=3, prot_fc_cutoff =  0.75):
+
+        self._protein_nodes = protein_nodes
+        self._precursor_cutoff = min_num_precursors
+        self._prot_fc_cutoff = prot_fc_cutoff
+
+        self.precursors_suitable_for_training = [] # the precursors that are used for training the ML model
+        self.precursors_not_suitable_for_training = [] # the precursors that are not used for training the ML model
+
+        self._select_precursors_for_training()
+
+    
+    def _select_precursors_for_training(self):
+        for protein_node in self._protein_nodes:
+            precursors = anytree.findall(protein_node, filter_= lambda x : (x.level == "mod_seq_charge"))
+            if (abs(protein_node.fc) < self._prot_fc_cutoff) or (len(precursors)<self._precursor_cutoff):
+                self.precursors_not_suitable_for_training.extend(precursors)
+            else:
+                self.precursors_suitable_for_training.extend(precursors)
+
+
+class MLInputTableCreator:
+    def __init__(self, precursors, acquisition_info_df, define_y,replace_nans = False, numeric_threshold = 0.99):
+        self._precursors = precursors
+        self._acquisition_info_df = acquisition_info_df
+        self._replace_nans = replace_nans
+        self._numeric_threshold = numeric_threshold
+
+        self._merged_df = None
+        
+        self.X = None # the input for the ML model which has corresponding y values, so it is possible to train with this table
+        self.y = None
+        self.featurenames = None
+        self.ionnames = None
+
+        self._define_merged_df()
+        self._define_ionnames()
+        self._remove_non_numeric_columns_from_merged_df()
+        self._define_featurenames()
+        self._define_X()
+        if define_y: # y should only be defined if the protein has enough precursors in order to get a meaningful y
+            self._define_y()
+
+    def _define_merged_df(self):
+        node_features_df = aq_class_ions.collect_node_parameters(self._precursors)
+        self._merged_df = aqutils.merge_acquisition_df_parameter_df(self._acquisition_info_df, node_features_df)
+
+    def _define_ionnames(self):
+        self.ionnames = list(self._merged_df[aq_conf_vars.QUANT_ID])
+        
+
+    def _remove_non_numeric_columns_from_merged_df(self):
+        columns_to_drop = []
+        self._merged_df = self._merged_df.drop(columns=[aq_conf_vars.QUANT_ID])
+        self._merged_df = self._merged_df.apply(lambda col: pd.to_numeric(col, errors='coerce')) #'coerce' will turn non-numeric values into NaN
+        
+        for column in self._merged_df.columns:
+            proportion_non_nans = self._merged_df[column].notna().mean()
+            if proportion_non_nans < self._numeric_threshold:
+                columns_to_drop.append(column)
+        
+        self._merged_df = self._merged_df.drop(columns=columns_to_drop)
+
+    def _define_featurenames(self):
+        self.featurenames = list(self._merged_df.columns)
+
+    def _define_X(self):
+        X_df = self._merged_df.convert_dtypes(convert_integer=True, convert_floating=True)
+        if self._replace_nans:
+            imputer = sklearn.impute.SimpleImputer(strategy='most_frequent') #stragies are mean, median, most_frequent, constant
+            X_imputed = imputer.fit_transform(X_df)
+            self.X =  X_imputed
+        else:
+            self.X = X_df.to_numpy()
+    
+
+    def _define_y(self):
+        ion2fc = {x.name: self._get_protnormed_fc(x) for x in self._precursors}
+        self.y = np.array([ion2fc.get(ion) for ion in self.ionnames])
+    
+    @staticmethod
+    def _get_protnormed_fc(precursor_node):
+        fc_precursor = precursor_node.fc
+        protein_node = aq_class_utils.find_node_parent_at_level(precursor_node, "gene")
+        protein_fc = protein_node.fc
+        return fc_precursor - protein_fc
+
+
+def align_ml_input_tables_if_necessary(ml_input_1 : MLInputTableCreator, ml_input_2: MLInputTableCreator):
+    #in case some features are missing in one of the tables, they will be removed from both tables
+
+    featurenames_1 = ml_input_1.featurenames
+    featurenames_2 = ml_input_2.featurenames
+
+    featurenames_common = list(set(featurenames_1) & set(featurenames_2))
+
+    idxs_to_remove_1 = [i for i, featurename in enumerate(featurenames_1) if featurename not in featurenames_common]
+    idxs_to_remove_2 = [i for i, featurename in enumerate(featurenames_2) if featurename not in featurenames_common]
+
+    ml_input_1.X = np.delete(ml_input_1.X, idxs_to_remove_1, axis=1)
+    ml_input_1.featurenames = [featurenames_common[i] for i in range(len(featurenames_common)) if i not in idxs_to_remove_1]
+
+    ml_input_2.X = np.delete(ml_input_2.X, idxs_to_remove_2, axis=1)
+    ml_input_2.featurenames = [featurenames_common[i] for i in range(len(featurenames_common)) if i not in idxs_to_remove_2]
+
+
+
+def init_and_train_stacked_regressor(X, y):
+
+    # Define the base models
+    base_models = [
+
+        ('rf', sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42))
+    ]
+
+    # Define the final model
+    final_model = sklearn.linear_model.LinearRegression()
+
+    # Create the stacking regressor
+    stacked_regressor = sklearn.ensemble.StackingRegressor(estimators=base_models, final_estimator=final_model)
+
+    # Fit the stacking regressor
+    stacked_regressor.fit(X, y)
+
+    return stacked_regressor
+
+
+def train_random_forest_ensemble(X, y, num_splits=5):
+    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
+    models = []
+
+    for train_index, _ in kf.split(X):
+        X_train, y_train = X[train_index], y[train_index]
+
+        model = sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42)
+        model.fit(X_train, y_train)
+        models.append(model)
+    
+    return models
+
+def predict_on_models(models, X):
+    y_preds = [model.predict(X) for model in models]
+    y_pred = np.mean(y_preds, axis=0)
+    return y_pred
+
+

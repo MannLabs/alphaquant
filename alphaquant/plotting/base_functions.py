@@ -1301,6 +1301,22 @@ def scatter_ml_regression_perturbation_aware(y_test, y_pred, ionnames, nodes, re
         fig_perturb.savefig(f"{results_dir}/ml_regression.pdf")
     plt.show()
 
+
+def scatter_ml_regression(y_test, y_pred, results_dir = None):
+    fig, ax = plt.subplots()
+
+    sns.regplot(x = y_test, y = y_pred, scatter_kws=dict(alpha=0.1), ax = ax)
+    err = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    ax.set_title(f"MSE: {err:.2f}, R2: {r2:.2f}")
+
+    if results_dir is not None:
+        fig.savefig(f"{results_dir}/ml_regression.pdf")
+    plt.show()
+
+
+
 def plot_perturbation_histogram(perturbed_nodes, results_dir):
     fig, ax = plt.subplots()
     perturbations = [x.perturbation_added for x in perturbed_nodes]
