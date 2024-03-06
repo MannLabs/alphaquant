@@ -188,7 +188,7 @@ def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2
         original_intensities_c2 = 2**(normed_c2.ion2nonNanvals.get(leaf.name))
         cv_c1 = scipy.stats.variation(original_intensities_c1)
         cv_c2 = scipy.stats.variation(original_intensities_c2)
-        leaf.cv = min(cv_c1, cv_c2)
+        leaf.cv = np.mean([cv_c1, cv_c2])
         leaf.min_intensity = min(sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2))
         leaf.total_intensity = np.mean([sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2)])
         leaf.min_reps = min(len(normed_c1.ion2nonNanvals.get(leaf.name)), len(normed_c2.ion2nonNanvals.get(leaf.name)) )
