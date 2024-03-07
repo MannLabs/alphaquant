@@ -13,52 +13,52 @@ import statistics
 class DifferentialIon():
 
     def __init__(self,noNanvals_from, noNanvals_to, diffDist, name, outlier_correction = True):
-        self.usable = False
+
+        
         self.name = name
-        p_val, fc, z_val = calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_correction)
-        if (p_val!=None):
-            self.p_val=p_val
-            self.fc=fc
-            self.z_val = z_val
-            self.usable = True
+        self.p_val = None
+        self.fc = None
+        self.z_val = None
+        self.usable = False
 
-def calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_correction):
-
-    nrep_from = len(noNanvals_from)
-    nrep_to = len(noNanvals_to)
+        self._calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_correction)
 
 
+    def _calc_diffreg_peptide(self, noNanvals_from, noNanvals_to, diffDist, name, outlier_correction):
 
-    if ((nrep_from==0) or (nrep_to ==0)):
-        return None, None, None
-    var_from = diffDist.var_from
-    var_to = diffDist.var_to
+        nrep_from = len(noNanvals_from)
+        nrep_to = len(noNanvals_to)
 
-    perEvidenceVariance = diffDist.var + (nrep_to-1) * var_from + (nrep_from-1) * var_to
-    totalVariance = perEvidenceVariance*nrep_to * nrep_from
-    outlier_scaling_factor = 1.0
-    if outlier_correction:
-        outlier_scaling_factor = calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist)
+        if ((nrep_from==0) or (nrep_to ==0)):
+            return
+        var_from = diffDist.var_from
+        var_to = diffDist.var_to
 
-    fc_sum =0
-    z_sum=0
-    unscaled_zs = []
-    fcs = []
-    for from_intens in noNanvals_from:
-        for to_intens in noNanvals_to:
-            fc = from_intens - to_intens
-            fcs.append(fc)
-            fc_sum+=fc
-            z_unscaled = diffDist.calc_zscore_from_fc(fc)
-            unscaled_zs.append(z_unscaled)
-            z_sum += z_unscaled/outlier_scaling_factor
+        perEvidenceVariance = diffDist.var + (nrep_to-1) * var_from + (nrep_from-1) * var_to
+        totalVariance = perEvidenceVariance*nrep_to * nrep_from
+        outlier_scaling_factor = 1.0
+        if outlier_correction:
+            outlier_scaling_factor = calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist)
 
-    fc = fc_sum/(nrep_from * nrep_to)
-    scaled_SD =  math.sqrt(totalVariance/diffDist.var)*outlier_scaling_factor
-    p_val = 2.0 * (1.0 -  NormalDist(mu=0, sigma= scaled_SD).cdf(abs(z_sum)))
-    z_val = z_sum/scaled_SD
+        fc_sum =0
+        z_sum=0
+        unscaled_zs = []
+        for from_intens in noNanvals_from:
+            for to_intens in noNanvals_to:
+                fc = from_intens - to_intens
+                fc_sum+=fc
+                z_unscaled = diffDist.calc_zscore_from_fc(fc)
+                unscaled_zs.append(z_unscaled)
+                z_sum += z_unscaled/outlier_scaling_factor
 
-    return p_val, fc, z_val
+        scaled_SD =  math.sqrt(totalVariance/diffDist.var)*outlier_scaling_factor
+
+        self.fc = fc_sum/(nrep_from * nrep_to)
+        self.p_val = 2.0 * (1.0 -  NormalDist(mu=0, sigma= scaled_SD).cdf(abs(z_sum)))
+        self.z_val = z_sum/scaled_SD
+        self.usable = True
+
+
 
   #self.var_from = from_dist.var
    #     self.var_to
