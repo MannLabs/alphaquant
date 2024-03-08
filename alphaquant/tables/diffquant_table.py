@@ -5,6 +5,7 @@ import statsmodels.stats.multitest as mt
 import os
 import alphaquant.utils.utils as aqutils
 import alphaquant.tables.tableutils as aqtableutils
+import alphaquant.cluster.cluster_utils as aq_cluster_utils
 
 
 class TableFromNodeCreator():
@@ -39,6 +40,7 @@ class TableFromNodeCreator():
         type_name  = typename_dict.get(self._node_type, self._node_type)
         node_dict = {}
         node_dict["condition_pair"] = self._condpair_name_table
+        node_dict["protein"] = aq_cluster_utils.find_node_parent_at_level(node, "gene").name
         node_dict[type_name] = node.name
         node_dict["p_value"] = node.p_val
         node_dict["log2fc"] = node.fc
