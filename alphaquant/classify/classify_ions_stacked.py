@@ -24,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def assign_predictability_scores_stacked(protein_nodes, results_dir, name, samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
-                                         plot_predictor_performance = False, performance_metrics = {}):
+                                         plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = False):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
     #add predictability scores to each precursor
@@ -52,7 +52,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, sampl
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
     #stacked_regressor = init_and_train_stacked_regressor(ml_input_for_training.X, ml_input_for_training.y)
-    models = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 20)
+    models = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=shorten_features_for_speed)
 
     y_pred = predict_on_models(models,ml_input_for_training.X)
     y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
@@ -81,9 +81,8 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, sampl
     ionnames_total = ml_input_for_training.ionnames + ml_input_remaining.ionnames
     all_precursors = precursor_selector.precursors_suitable_for_training + precursor_selector.precursors_not_suitable_for_training
     
-    y_pred_normed = y_pred_total-mean
     #annotate the precursor nodes
-    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_normed, ionnames_total, all_precursors) #two new variables added to each node:
+    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_total, ionnames_total, all_precursors) #two new variables added to each node:
     return True
 
 
@@ -221,17 +220,22 @@ def init_and_train_stacked_regressor(X, y):
 
 
 
-def train_random_forest_ensemble(X, y, num_splits=5):
+def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5):
     kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
     models = []
+
+    if shorten_features_for_speed:
+        max_features = 'sqrt'
+    else:
+        max_features = 'auto'
 
     for train_index, _ in kf.split(X):
         X_train, y_train = X[train_index], y[train_index]
 
         model = sklearn.ensemble.RandomForestRegressor(n_estimators=50,  # Reduced number of trees
                                                        random_state=42,
-                                                       n_jobs=-1,)  # Utilize all CPU cores
-                                                       #max_features='sqrt')  # Reduce the number of features
+                                                       n_jobs=-1,  # Utilize all CPU cores
+                                                       max_features=max_features)  # Reduce the number of features
         model.fit(X_train, y_train)
         models.append(model)
     
