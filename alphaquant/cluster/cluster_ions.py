@@ -28,6 +28,7 @@ REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.
 LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 FCDIFF_CUTOFF_CLUSTERMERGE = 0.5
 LEVEL2PVALTHRESH = {'ion_type':0.2, 'mod_seq_charge':0.2, 'mod_seq':0.2, 'seq':0.2} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here
+LEVEL2PVALTHRESH = {'ion_type':1e-20, 'mod_seq_charge':1e-20, 'mod_seq':1e-20, 'seq':1e-20} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here
 
 
 
@@ -109,16 +110,16 @@ def cluster_along_specified_levels(typefilter, root_node, ionname2diffion, norme
     #typefilter object specifies filtering and clustering of the nodes
     aqcluster_utils.assign_properties_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
-    for idx in range(len(typefilter.type)):
-        type_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == typefilter.type[idx])
+    for node_type in typefilter.type:
+        type_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == node_type) #this gets e.g. all the precursors
 
         if len(type_nodes)==0:
             continue
-        for type_node in type_nodes:
+        for type_node in type_nodes: #this goes through each precursor individually and clusters the children
             child_nodes = type_node.children
-            grouped_mainclust_leafs = aqcluster_utils.get_grouped_mainclust_leafs(child_nodes)
+            grouped_mainclust_leafs = aqcluster_utils.get_grouped_mainclust_leafs(child_nodes) #leafs are excluded if they are not in the main cluster
             
-            if len(grouped_mainclust_leafs)==0:
+            if len(grouped_mainclust_leafs)==0: #this means the leafs were previously excluded
                 exclude_node(type_node)
                 continue
 
