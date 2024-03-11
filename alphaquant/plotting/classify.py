@@ -25,16 +25,30 @@ def scatter_ml_regression(y_test, y_pred, results_dir = None):
         fig.savefig(f"{results_dir}/ml_regression.pdf")
     plt.show()
 
+def plot_feature_importance_per_model(models, featurenames,top_n = np.inf, results_dir = None):
+    fig, axes = plt.subplots(1, len(models), figsize=(2.5 * len(models), 4))
+    for modelidx in range(len(models)):
+        model = models[modelidx]
+        ax = axes[modelidx]
+        plot_feature_importances(model.feature_importances_, featurenames, top_n, results_dir, ax)
+    fig.tight_layout()
+    if results_dir is not None:
+        fig.savefig(f"{results_dir}/ml_feature_importances.pdf")
+        
 
-def plot_feature_importances(coef, names, top_n = np.inf, results_dir = None):
+
+def plot_feature_importances(coef, names, top_n = np.inf, results_dir = None, ax = None):
     imp,names = filter_sort_top_n(coef, names, top_n)
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
     ax.set_title('Feature Importances')
     ax.barh(range(len(names)), imp, align='center')
     ax.set_yticks(range(len(names)), names)
     if results_dir is not None:
-        fig.savefig(f"{results_dir}/ml_feature_importances.pdf")
-    plt.show()
+        if 'fig' in locals():
+            fig.savefig(f"{results_dir}/ml_feature_importances.pdf")
+            
+
 
 
 import sklearn.inspection
