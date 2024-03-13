@@ -49,13 +49,17 @@ class MixedSpeciesScatterPlotter():
         ax.set_ylabel("log2 fold change")
         ax.get_legend().remove()
 
-    def _get_title_text(self, suffix,log2fc_column, organism_column):
+    def _get_title_text(self, suffix, log2fc_column, organism_column):
         std_devs = self._df_combined.groupby(organism_column)[log2fc_column].std()
-    
+        num_items = self._df_combined.groupby(organism_column)[log2fc_column].count()
+        
         title_text = f"{suffix[1:]}:\n"
-        for organism, std_dev in std_devs.items():
-            title_text += f"{organism}: {std_dev:.2f}\n"
+        for organism in std_devs.index:  # Iterate through each organism
+            std_dev = std_devs[organism]
+            count = num_items[organism]  # Retrieve the count for the current organism
+            title_text += f"{organism}: std {std_dev:.2f}, {count} fcs\n"  # Use count specific to the organism
         return title_text
+
     
     def _set_uniform_axis_ranges(self):
         # Find the overall min and max across all subplots for both axes
