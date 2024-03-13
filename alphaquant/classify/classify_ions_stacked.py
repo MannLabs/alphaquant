@@ -71,6 +71,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, sampl
         #aq_plot_classify.compute_and_plot_feature_importances_stacked_rf(model=stacked_regressor, X_val=ml_input_for_training.X, y_val=ml_input_for_training.y, feature_names=ml_input_for_training.featurenames, top_n=10, results_dir=results_dir_plots)
         feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
         aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
+        aq_plot_classify.plot_feature_importance_per_model(models, ml_input_for_training.featurenames, 10, results_dir_plots)
         aq_plot_classify.plot_value_histogram(y_pred_total, results_dir_plots)
 
 
@@ -180,23 +181,21 @@ class MLInputTableCreator:
         return fc_precursor - protein_fc
 
 
-def align_ml_input_tables_if_necessary(ml_input_1 : MLInputTableCreator, ml_input_2: MLInputTableCreator):
-    #in case some features are missing in one of the tables, they will be removed from both tables
-
+def align_ml_input_tables_if_necessary(ml_input_1, ml_input_2):
     featurenames_1 = ml_input_1.featurenames
     featurenames_2 = ml_input_2.featurenames
 
     featurenames_common = list(set(featurenames_1) & set(featurenames_2))
+    featurenames_common_ordered = [fn for fn in featurenames_1 if fn in featurenames_common]
 
     idxs_to_remove_1 = [i for i, featurename in enumerate(featurenames_1) if featurename not in featurenames_common]
     idxs_to_remove_2 = [i for i, featurename in enumerate(featurenames_2) if featurename not in featurenames_common]
 
     ml_input_1.X = np.delete(ml_input_1.X, idxs_to_remove_1, axis=1)
-    ml_input_1.featurenames = [featurenames_common[i] for i in range(len(featurenames_common)) if i not in idxs_to_remove_1]
-
     ml_input_2.X = np.delete(ml_input_2.X, idxs_to_remove_2, axis=1)
-    ml_input_2.featurenames = [featurenames_common[i] for i in range(len(featurenames_common)) if i not in idxs_to_remove_2]
 
+    ml_input_1.featurenames = featurenames_common_ordered
+    ml_input_2.featurenames = featurenames_common_ordered
 
 
 def init_and_train_stacked_regressor(X, y):
