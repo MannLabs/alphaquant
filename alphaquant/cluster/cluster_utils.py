@@ -5,6 +5,7 @@ from statistics import NormalDist
 import numpy as np
 import collections
 import alphaquant.config.variables as aqvariables
+from anytree import Node, LevelOrderGroupIter
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
@@ -31,8 +32,9 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     fcs =  get_feature_numpy_array_from_nodes(nodes=childs, feature_name="fc")
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
-    min_intensity = np.median(min_intensities)
     total_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "total_intensity")
+    
+    min_intensity = np.median(min_intensities)
     total_intensity = np.sum(total_intensities)
     min_reps_childs = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_reps")
     min_reps = np.median(min_reps_childs)
@@ -53,7 +55,8 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
 
     node.z_val = z_normed
     node.p_val = p_val
-    node.fc = np.median(fcs)
+    
+    node.fc = calc_weighted_fold_change_from_included_leaves_fcs(node)# calc_fold_change_from_included_leaves_fcs(node) #np.median(fcs)#
     node.fraction_consistent = fraction_consistent
     node.cv = min(cvs)
     node.min_intensity = min_intensity
@@ -61,10 +64,11 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     node.min_reps = min_reps
 
     if hasattr(node.children[0], 'predscore'):
-        predscores = [x.predscore for x in childs]
+        predscores = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "predscore")
         node.predscore = select_predscore_with_minimum_absval(predscores)
         node.cutoff = childs[0].cutoff
         node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
+
 
 def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
@@ -104,13 +108,71 @@ def set_bounds_for_p_if_too_extreme(p_val):
         return 1- (aqvariables.MIN_PVAL)
     else:
         return p_val
+    
+def calc_fold_change_from_included_leaves_fcs(node):
+    included_leaves = obtain_all_included_leaves(node)
+    list_of_fcs = [x.fcs for x in included_leaves]
+    merged_fcs = np.concatenate(list_of_fcs)
+    return np.median(merged_fcs)
 
+def calc_weighted_fold_change_from_included_leaves_fcs(node):
+    included_leaves = obtain_all_included_leaves(node)
+    list_of_fcs = [x.fcs for x in included_leaves]
+    weights = [get_weight_of_leaf(x) for x in included_leaves]
+    weighted_median = calculate_weighted_median(weights, list_of_fcs)
+    return weighted_median
+
+def get_weight_of_leaf(leaf):
+    if hasattr(leaf, "predscore_fragion"):
+        return 2**-leaf.predscore_fragion
+    else:
+        return 1
+
+def calculate_weighted_median(weights, fcs):
+    weighted_fcs = [(fc, weight) for weight, fc_list in zip(weights, fcs) for fc in fc_list]
+    sorted_weighted_fcs = sorted(weighted_fcs, key=lambda x: x[0])
+    sorted_fcs, sorted_weights = zip(*sorted_weighted_fcs)
+    cumulative_weights = np.cumsum(sorted_weights)
+    total_weight = cumulative_weights[-1]
+    median_cutoff = total_weight / 2
+    median_idx = np.where(cumulative_weights >= median_cutoff)[0][0]
+    weighted_median = sorted_fcs[median_idx]
+    return weighted_median
+
+def obtain_all_included_leaves(node):
+    list_of_included_leaves = []
+    traverse_and_add_included_leaves(node, list_of_included_leaves)
+    return list_of_included_leaves
+
+def traverse_and_add_included_leaves(node, list_of_included_leaves, is_root=True):
+    """
+    Recursively searches for leaves from the given node, where each node in the
+    path to the leaf has the 'is_included' attribute set to True, except for the initial node.
+    Fills up the list_of_included_leaves with the included leaves.
+
+    Parameters:
+    node (anytree.Node): The node to start the search from.
+    list_of_included_leaves (list): The list to store the included leaves in.
+    is_root (bool): Indicates if the current node is the root node of the traversal.
+    """
+
+    if len(node.children) == 0:  # if the node is a leaf
+        if is_root or (node.is_included and node.cluster == 0):
+            list_of_included_leaves.append(node)
+        return
+    
+    # If it's the root node or if the current node is included, then proceed to its children
+    if is_root or (node.is_included and node.cluster == 0):
+        for child in node.children:
+            # Recursive call with is_root set to False, as we are now dealing with child nodes
+            traverse_and_add_included_leaves(child, list_of_included_leaves, is_root=False)
 
 def select_predscore_with_minimum_absval(predscores):
     abs_predscores = [abs(x) for x in predscores]
     min_value = min(abs_predscores)
     min_index = abs_predscores.index(min_value)
     return predscores[min_index]
+
 
 def get_grouped_mainclust_leafs(child_nodes):
     grouped_leafs = []
@@ -181,17 +243,46 @@ def assign_clusterstats_to_type_node(type_node, childnode2clust):
 import scipy.stats
 def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2):
     for leaf in root_node.leaves:
-        leaf.fc = name2diffion.get(leaf.name).fc
-        leaf.z_val = name2diffion.get(leaf.name).z_val
+        log2intensities_c1 = normed_c1.ion2nonNanvals.get(leaf.name)
+        log2intensities_c2 = normed_c2.ion2nonNanvals.get(leaf.name)
+        diffion = name2diffion.get(leaf.name)
+        leaf.fc = diffion.fc
+        leaf.z_val = diffion.z_val
+        leaf.fcs = get_fcs_of_leaf(log2intensities_c1, log2intensities_c2)
         leaf.fraction_consistent = 1
-        original_intensities_c1 = 2**(normed_c1.ion2nonNanvals.get(leaf.name))
-        original_intensities_c2 = 2**(normed_c2.ion2nonNanvals.get(leaf.name))
+        original_intensities_c1 = 2**(log2intensities_c1)
+        original_intensities_c2 = 2**(log2intensities_c2)
         cv_c1 = scipy.stats.variation(original_intensities_c1)
         cv_c2 = scipy.stats.variation(original_intensities_c2)
         leaf.cv = np.mean([cv_c1, cv_c2])
         leaf.min_intensity = min(sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2))
-        leaf.total_intensity = np.mean([sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2)])
-        leaf.min_reps = min(len(normed_c1.ion2nonNanvals.get(leaf.name)), len(normed_c2.ion2nonNanvals.get(leaf.name)) )
+        leaf.total_intensity = get_total_intensity_if_ms2_ion(leaf, original_intensities_c1, original_intensities_c2)
+        leaf.min_reps = min(len(log2intensities_c1), len(log2intensities_c2))
+
+
+def get_total_intensity_if_ms2_ion(leaf, original_intensities_c1, original_intensities_c2):
+    if leaf.parent.type == "ms1_isotopes":
+        return 0
+    else:
+        return np.mean([sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2)])
+
+
+def get_fcs_of_leaf(log2intensities_c1, log2intensity_c2):
+    log2intensities_c1 = downsample_intensities_if_necessary(log2intensities_c1, 20)
+    log2intensity_c2 = downsample_intensities_if_necessary(log2intensity_c2, 20)
+    log2intensities_c1_reshaped = log2intensities_c1.reshape(-1, 1)
+    fold_changes = (log2intensities_c1_reshaped - log2intensity_c2).flatten()
+    return fold_changes
+    
+
+def downsample_intensities_if_necessary(intensities, max_num):
+    if len(intensities) > max_num:
+        rng = np.random.default_rng(42)  # Create a new random generator with the specified seed
+        return rng.choice(intensities, max_num, replace=False)
+    else:
+        return intensities
+
+    
 
 
 def exchange_cluster_idxs(fclust_output_array):
@@ -235,10 +326,20 @@ def export_condpairtree_to_json(condpair_node,  results_dir):
 def get_condpair_node(list_of_protein_nodes, condpair):
     condpair_node = anytree.Node(condpair) #set the condpair as node and export the whole condpair as one tree
     condpair_node.type = "condpair"
+    condpair_node.level = "condpair"
     for root in list_of_protein_nodes:
         root.parent = condpair_node
+    remove_unnecessary_attributes(condpair_node, ["fcs"])
     return condpair_node
 
+
+def remove_unnecessary_attributes(node, attributes_to_remove):
+    for attr in attributes_to_remove:
+        if hasattr(node, attr):
+            delattr(node, attr)
+
+    for child in node.children:
+        remove_unnecessary_attributes(child, attributes_to_remove)
 
 
 
@@ -329,9 +430,6 @@ def clone_tree(node):
     return cloned_node
 
 
-
-
-
 def get_sorted_peptides_by_position_in_protein_seq(protein_node, protein_sequence):
     peptides = protein_node.children
     return sorted(peptides, key=lambda x: get_sequence_position(protein_sequence, aqutils.cut_trailing_parts_seqstring(x.name_reduced)))
@@ -348,3 +446,8 @@ def get_sorted_peptides_by_cluster(protein_node):
 
 def get_sorted_peptides_by_name(protein_node):
     return sorted(protein_node.children, key=lambda x: x.name)
+
+def iterate_through_tree_levels_bottom_to_top(root_node):
+    nodes_by_level = list(LevelOrderGroupIter(root_node))
+    for level_nodes in reversed(nodes_by_level):
+        yield level_nodes
