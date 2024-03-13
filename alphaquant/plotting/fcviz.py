@@ -6,6 +6,7 @@ import alphaquant.config.variables as aqvars
 import alphamap.organisms_data
 import alphaquant.utils.utils as aq_utils
 import alphaquant.resources.database_loader as aq_db_loader
+import warnings
 
 
 class FoldChangeVisualizer():
@@ -13,7 +14,9 @@ class FoldChangeVisualizer():
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
                                                         order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.ClusterColorMap().colorlist, tree_level = 'seq',
                                                         protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
-                                                        narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2):
+                                                        narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
+                                                        
+                                                        ):
         """
         Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
 
@@ -56,13 +59,13 @@ class FoldChangeVisualizer():
         
         return results_figures
     
-    def plot_protein(self, protein_of_interest):
+    def plot_protein(self, protein_of_interest, selected_peptides = None):
         """
         Returns:
             figure: figure object for the individual protein.
         """
         protein_node = self.protein2node[protein_of_interest]
-        cluster_plotter = ProteinPlot(protein_node, self.quantification_info, self.plotconfig)
+        cluster_plotter = ProteinPlot(protein_node, self.quantification_info, self.plotconfig, selected_peptides)
         return cluster_plotter.fig
 
 
@@ -183,7 +186,7 @@ import anytree
 
 
 class ProteinPlot():
-    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig):
+    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig, selected_peptides = None):
 
         self.fig = None
         self.axes = None
@@ -191,13 +194,24 @@ class ProteinPlot():
         self._protein_node = protein_node
         self._quantification_info = quantification_info
         self._plotconfig = plotconfig
+        self._selected_peptides = selected_peptides
+
         self._shorten_protein_node_according_to_plotconfig()
+        self._subset_protein_node_to_selected_peptides_if_applicable()
         self._sort_tree_according_to_plotconfig()
         self._plot_fcs()
     
     def _shorten_protein_node_according_to_plotconfig(self):
         self._protein_node = aqclustutils.clone_tree(self._protein_node)
         self._protein_node = aqclustutils.shorten_root_to_level(self._protein_node,parent_level=self._plotconfig.parent_level)
+
+    def _subset_protein_node_to_selected_peptides_if_applicable(self): #would also work for different levels at the current implementation, however makes most sense for the peptide level
+        if self._selected_peptides is not None:
+            peptide_nodes = anytree.findall(self._protein_node, filter_= lambda x : x.level == self._plotconfig.tree_level)
+            peptide_nodes_to_exclude = [x for x in peptide_nodes if x.name not in self._selected_peptides]
+            for peptide_node in peptide_nodes_to_exclude:
+                peptide_node.parent = None
+
     
     def _sort_tree_according_to_plotconfig(self):
         self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
