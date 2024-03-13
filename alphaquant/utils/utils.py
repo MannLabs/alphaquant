@@ -2,6 +2,13 @@ import os
 from anytree.importer import JsonImporter
 import glob
 import pandas as pd
+import re
+
+NODETYPE2REGEX ={'frgion': 'SEQ.*MOD.*CHARGE.*FRG)(ION.*)',
+ 'ms1_isotopes': '(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)',
+ 'mod_seq_charge': 'SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*)',
+ 'mod_seq': 'SEQ.*MOD.*)(CHARGE.*)',
+ 'seq': 'SEQ.*)(MOD.*)'}
 
 
 def read_all_trees_in_results_folder(results_folder):
@@ -53,3 +60,13 @@ def get_condpair_from_condpairname(condpairname):
 def remove_file_extension(filename):
     trimmed_filename = os.path.splitext(filename)[0]
     return trimmed_filename
+
+def convert_ion_string_to_node_type(ionstring, node_type): #for example I have a full quant_id that describes a fragment ion, I want to shorten it to the specified leve, e.g. sequence
+    regex = NODETYPE2REGEX[node_type]
+    match = re.match(regex, ionstring)
+    if match:
+        return match.group(1)
+    else:
+        raise ValueError(f"Could not match {ionstring} to {node_type}. This function only works for the following node types: seq, mod_seq, mod_seq_charge")
+
+
