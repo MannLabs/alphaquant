@@ -55,8 +55,12 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
 
     node.z_val = z_normed
     node.p_val = p_val
-    
-    node.fc = calc_weighted_fold_change_from_included_leaves_fcs(node)# calc_fold_change_from_included_leaves_fcs(node) #np.median(fcs)#
+
+    # if node.type == "frgion":
+    #     node.fc = calc_weighted_fold_change_from_included_leaves_fcs(node)
+    # else:
+    node.fc = np.median(fcs)
+    #calc_fold_change_from_included_leaves_fcs(node) ##  #np.median(fcs)#
     node.fraction_consistent = fraction_consistent
     node.cv = min(cvs)
     node.min_intensity = min_intensity

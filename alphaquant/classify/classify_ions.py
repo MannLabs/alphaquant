@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import scipy.stats
 from alphaquant.config.variables import QUANT_ID
+import alphaquant.cluster.cluster_ions as aq_cluster_ions
+
 
 
 import alphaquant.diffquant.diffutils as aqutils
@@ -713,9 +715,8 @@ def calculate_log_loss_scores_for_prediction(y_test, y_pred):
 # Cell
 
 
-from alphaquant.cluster.cluster_ions import globally_initialized_typefilter
 def get_node_level_from_dfhandler(dfhandler):
-    return globally_initialized_typefilter.mapping_dict.get(dfhandler._table_infos.last_ion_level_to_use)
+    return aq_cluster_ions.MAPPING_DICT.get(dfhandler._table_infos.last_ion_level_to_use)
 
 
 def add_quality_scores_to_node(acquisition_info_df, nodes):
