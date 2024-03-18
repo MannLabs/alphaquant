@@ -6,6 +6,7 @@ import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions as aqclass
 import alphaquant.classify.classify_ions_stacked as aq_class_stacked
+import alphaquant.classify.classify_fragment_ions_stacked as aq_class_stacked_frag
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
@@ -76,7 +77,7 @@ def analyze_condpair(*,runconfig, condpair):
         ions = prot2diffions.get(prot)
         if len(ions)<runconfig.min_num_ions:
             continue
-
+        
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, 
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc, 
                                                                         take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge)
@@ -89,13 +90,11 @@ def analyze_condpair(*,runconfig, condpair):
 
     if runconfig.use_ml:
         ml_performance_dict = {}
-        # ml_successfull = aqclass.assign_predictability_scores(protnodes, runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
-        #                                         samples_used = c1_samples+ c2_samples,precursor_cutoff=3,
-        # fc_cutoff=0.75, number_splits=5, plot_predictor_performance=runconfig.runtime_plots, 
-        # replace_nans=True, performance_metrics=ml_performance_dict, protnorm_peptides=runconfig.protnorm_peptides)
 
-        ml_successfull = aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
-                                        samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0.75, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
+        #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions", 
+         #                           min_num_fragions=5, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
+        ml_successfull =aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
+                                        samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
 
 
         if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful
