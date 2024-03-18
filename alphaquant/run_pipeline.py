@@ -100,6 +100,9 @@ def generate_and_save_ml_infos_if_possible(runconfig):
     results_dir = runconfig.results_dir
     samplemap_df = runconfig.samplemap_df
     all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
+    samples_in_input = list(pd.read_csv(runconfig.input_file, sep = "\t", nrows = 1).columns)
+    if len(set(all_samples).intersection(samples_in_input)) <2:
+        raise Exception("The input file and the samplemap file show (almost) no overlap. Please check that the samplemap file is specified correctly.")
     dfinfos = aqutils.AcquisitionTableInfo(results_dir=results_dir)
     if dfinfos.file_exists:
         dfhandler = aqutils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
