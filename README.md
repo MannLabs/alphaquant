@@ -162,13 +162,15 @@ We have compiled a set of Jupyter notebooks together with some example data in t
 
 **note: AlphaQuant is currently under development, mostly using DIA-NN and Spectronaut outputs. Other search engines and the generic format might cause problems.**
 ### Spectronaut
+
 AlphaQuant takes a Spectronaut .tsv table as input. When exporting from Spectronaut, the correct columns need to be selected. These can be obtained by downloading one of the export schemes available below. We provide one export scheme for sprecursor quantification and one export scheme for fragment ion quantification. Fragment ion quantification shows slightly more accuracy, but the files are around 10 times larger.
 
 An export scheme can then simply be loaded into Spectronaut as follows:
 
 Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
 
-The data needs to be exported in the normal long format as .tsv file
+The data needs to be exported in the normal long format as .tsv file. Please double check that the schema is actually selected, sometimes Spectronaut (or at least older versions) lags when you select the schema. You should see that the preview changes when you click on it.
+
 
 
 <a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_precursor.rs" download>Download Spectronaut export scheme for precursor quantification</a>
@@ -177,15 +179,21 @@ The data needs to be exported in the normal long format as .tsv file
 
 <a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_ptm_fragion.rs" download>Download Spectronaut export scheme for fragment ion quantification WITH PTM </a>
 
+The **samplemap.tsv** file must map to the **R.Label** column.
+
 
 ### DIA-NN
-Provide the path to the DIANN "report.tsv" output table.
+Provide the path to the DIANN "report.tsv" output table.  
+The **samplemap.tsv** file must map the the **File.Name** column.
 
 ### MaxQuant
-Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table. 
+Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table.  
+For "peptides.txt", the **samplemap.tsv** file must map the names of the columns starting with "Intensity ", but **without** the "Intensity ". For example "Intensity sample1.raw" "Intensity sample2.raw"-> "sample1.raw" "sample2.raw".  
+For "evidence.txt, the **samplemap.tsv** file must map the **Experiment** column.
 
 ### FragPipe
-Provide the path to the "combined_ion.tsv" output table.
+Provide the path to the "combined_ion.tsv" output table.  
+For "peptides.txt", the **samplemap.tsv** file must map the names of the columns ending with " Intensity", but **without** the " Intensity". For example "sample1 Intensity" "sample2 Intensity"-> "sample1" "sample2".
 
 
 
