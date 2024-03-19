@@ -263,13 +263,19 @@ class ProteinToPTMMapper():
     def _map_gene_names_in_proteome_df_to_ptm_df(self):
         self.proteome_df["gene"] = self.proteome_df["protein"] #The proteome df has a column "protein" that contains the gene names. This is because "protein" is the general identifier for the thing that all peptides are mapped to.
         genes_ptm = set(self.ptm_df["gene"])
-        genes_proteome = set(self.proteome_df["gene"]) 
+        genes_proteome = set(self.proteome_df["gene"])
+        if len(set(self._gene2reference.keys()).intersection(genes_proteome)) <2:
+            LOGGER.warning("virtually no overlap between gene names in the proteome and uniprot gene names. Please double check that gene symbols were used as protein identifiers the proteome dataset. Additionally, check that the organism is correct.")
+
         intersecting_genes = genes_ptm.intersection(genes_proteome)
         unmapped_genes_ptm = genes_ptm - intersecting_genes
 
         #map the unmapped genes in the PTM dataset to the reference gene names. This might recover some of the genes that were not mapped in the first round
         unmapped_mask_proteome = self.proteome_df["gene"].isin(unmapped_genes_ptm)
         unmapped_mask_ptm = self.ptm_df["gene"].isin(unmapped_genes_ptm)
+
+        
+
         self.proteome_df.loc[unmapped_mask_proteome, "gene"] = self.proteome_df.loc[unmapped_mask_proteome, "gene"].map(self._gene2reference)
         self.ptm_df.loc[unmapped_mask_ptm, "gene"] = self.ptm_df.loc[unmapped_mask_ptm, "gene"].map(self._gene2reference)
 
