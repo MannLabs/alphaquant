@@ -177,7 +177,11 @@ class PTMtablePreparer():
         gene_name = ptm_row["gene"]
         if gene_name not in self.proteome_df.index:
             return None
-        protein_row = self.proteome_df.loc[gene_name] #the proteome df is indexed be the gene name that maps to the ptm
+        protein_rows = self.proteome_df.loc[[gene_name]] #the proteome df is indexed by the gene name that maps to the ptm
+        if len(protein_rows.index) >1:
+            LOGGER.warning(f"more than one match found for gene {gene_name}, excluding ptm {ptmsite} from normalization as this might be due to ambiguous gene names")
+            return None
+        protein_row = protein_rows.iloc[0]
 
         ptm_p_value = self._get_p_value_from_table_row(ptm_row)
         ptm_fc = self._get_fc_from_table_row(ptm_row)
@@ -187,12 +191,6 @@ class PTMtablePreparer():
 
         return reginfos
 
-    def _resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
-        if type(protein_row) != pd.Series: #a single row gets transposed into a pandas series
-            protein_row = protein_row.sort_values(by = "pseudoint1", ascsending = False)
-            return protein_row.iloc[0]
-        else:
-            return protein_row
 
 
     @staticmethod
