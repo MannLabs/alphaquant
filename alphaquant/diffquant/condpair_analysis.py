@@ -159,7 +159,20 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_bot
     if min_samples<2:
         raise Exception(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
     
-    if minrep_both is not None:
+    if (minrep_either is not None) or ((minrep_c1 is not None) and (minrep_c2 is not None)): #minrep_both was set as default and should be overruled by minrep_either or minrep_c1 and minrep_c2
+        minrep_both = None
+            
+    if minrep_either is not None:
+        minrep_either = np.min([get_minrep_for_cond(samples_c1, minrep_either), get_minrep_for_cond(samples_c2, minrep_either)])
+        passes_minrep_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= minrep_either
+        passes_minrep_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= minrep_either
+        passes_minrep_either = passes_minrep_c1 | passes_minrep_c2
+        unnormed_df = unnormed_df[passes_minrep_either]
+        df_c1 = unnormed_df.loc[:, samples_c1]
+        df_c2 = unnormed_df.loc[:, samples_c2]
+
+
+    elif minrep_both is not None:
         minrep_c1 = minrep_both
         minrep_c2 = minrep_both
 
@@ -170,15 +183,7 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_bot
         df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
             raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
-        
-    elif minrep_either is not None:
-        minrep_either = np.min([get_minrep_for_cond(samples_c1, minrep_either), get_minrep_for_cond(samples_c2, minrep_either)])
-        passes_minrep_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= minrep_either
-        passes_minrep_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= minrep_either
-        passes_minrep_either = passes_minrep_c1 | passes_minrep_c2
-        unnormed_df = unnormed_df[passes_minrep_either]
-        df_c1 = unnormed_df.loc[:, samples_c1]
-        df_c2 = unnormed_df.loc[:, samples_c2]
+
 
 
     return df_c1, df_c2
