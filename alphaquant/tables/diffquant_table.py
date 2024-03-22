@@ -45,6 +45,7 @@ class TableFromNodeCreator():
         node_dict["p_value"] = node.p_val
         node_dict["log2fc"] = node.fc
         node_dict["number_of_ions"] = len(node.leaves)
+        node_dict["counting_based"] = node.missingval
         if hasattr(node, "predscore"):
             node_dict["quality_score"] = node.predscore
         else:
@@ -59,19 +60,20 @@ class TableFromNodeCreator():
         return node_dict
     
     def _filter_annotate_results_df(self):
-        self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodetype_nodes, self._min_num_peptides, self._annotation_file).results_df
+        self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodetype_nodes, self._min_num_peptides, self._annotation_file, self._condpair_tree.fraction_missingval).results_df
         self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df, self._list_of_nodetype_nodes[0]).results_df
     
 
 class TableAnnotatorFilterer():
 
-    def __init__(self, results_df, list_of_nodes, min_num_peptides, annotation_file):
+    def __init__(self, results_df, list_of_nodes, min_num_peptides, annotation_file, fraction_missingval):
 
         self.results_df = results_df
 
         self._level_type = list_of_nodes[0].type
         self._min_num_peptides = min_num_peptides
         self._annotation_file = annotation_file
+        self._fraction_missingval = fraction_missingval
 
         self._filter_annotate_results_df()
     
@@ -80,7 +82,8 @@ class TableAnnotatorFilterer():
             self._filter_num_peptides()
             self._add_annotation_columns_if_applicable()
         self._scatter_pvals()
-        self._add_fdr()
+        self._add_fdr_fc_based_set()
+        self._add_fdr_counting_based_set()
     
     def _filter_num_peptides(self):
         self.results_df[self.results_df["num_peptides"] >= self._min_num_peptides]
@@ -101,8 +104,23 @@ class TableAnnotatorFilterer():
         row_has_cut_pval = self.results_df['p_value'] == 1.00E-16
         self.results_df.loc[row_has_cut_pval, 'p_value'] += random_scatter
 
-    def _add_fdr(self):
-        pvals = self.results_df["p_value"].tolist()
-        fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
-        self.results_df["fdr"] = fdrs
+    def _add_fdr_fc_based_set(self):
+        mask_of_not_counting_based = ~self.results_df["counting_based"]
+        pvals_not_counting_based = self.results_df.loc[mask_of_not_counting_based, "p_value"].tolist()
+        fdrs_not_counting_based = mt.multipletests(pvals_not_counting_based, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+        if "fdr" not in self.results_df.columns:
+            self.results_df["fdr"] = np.nan
+        self.results_df.loc[mask_of_not_counting_based, "fdr"] = fdrs_not_counting_based
+
+    def _add_fdr_counting_based_set(self):
+        mask_of_counting_based = self.results_df["counting_based"]
+        if sum(mask_of_counting_based) == 0:
+            return
+        pvals_counting_based = self.results_df.loc[mask_of_counting_based, "p_value"].tolist()
+        pvals_counting_based_adjusted_for_na_fraction = [np.min([pval/self._fraction_missingval, 1.0]) for pval in pvals_counting_based]
+        fdrs_counting_based = mt.multipletests(pvals_counting_based_adjusted_for_na_fraction, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+        if "fdr" not in self.results_df.columns:
+            self.results_df["fdr"] = np.nan
+        self.results_df.loc[mask_of_counting_based, "fdr"] = fdrs_counting_based
+
 
