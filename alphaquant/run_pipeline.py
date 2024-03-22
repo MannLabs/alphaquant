@@ -36,7 +36,7 @@ class ConfigOfRunPipeline:
 #abquantreader.set_quanttable_config_location(os.path.join(pathlib.Path(__file__).parent.absolute(), "./config/quant_reader_config.yaml"))
 
 def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, ml_input_file = None,modification_type = None, input_type_to_use = None,results_dir = "./results", multicond_median_analysis = False, 
-                 condpairs_list = None, file_has_alphaquant_format = False, minrep = 2, min_num_ions = 1, minpep = 1, organism = None,
+                 condpairs_list = None, file_has_alphaquant_format = False, minrep_both = 2, minrep_either = None,minrep_c1 = None, minrep_c2 = None, min_num_ions = 1, minpep = 1, organism = None,
                  cluster_threshold_pval = 0.01, cluster_threshold_fcfc = 0, fcdiff_cutoff_clustermerge = 0.5, use_ml = True, take_median_ion = True, 
                  perform_ptm_mapping = False, perform_phospho_inference = False, outlier_correction = True, normalize = True, use_iontree_if_possible = True, write_out_results_tree = True, get_ion2clust = False, median_offset = False,
                  pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, 
