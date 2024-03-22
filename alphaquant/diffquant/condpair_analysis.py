@@ -10,12 +10,14 @@ import alphaquant.classify.classify_fragment_ions_stacked as aq_class_stacked_fr
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
-
-
 import alphaquant.cluster.cluster_utils as aqclust_utils
+import alphaquant.cluster.cluster_missingval as aq_clust_missingval
+
 import pandas as pd
 import numpy as np
 import os
+
+from collections import defaultdict
 
 import alphaquant.config.config as aqconfig
 import logging
@@ -24,22 +26,24 @@ LOGGER = logging.getLogger(__name__)
 
 def analyze_condpair(*,runconfig, condpair):
     LOGGER.info(f"start processeing condpair {condpair}")
-    prot2diffions = {}
+    prot2diffions = defaultdict(list) #per default maps any key to empty list
+    prot2missingval_diffions = defaultdict(list)
     p2z = {}
     ion2clust = {}
     protnodes = []
+    protnodes_missingval = []
 
     input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file, samplemap_df=runconfig.samplemap_df, condpair=condpair, file_has_alphaquant_format = runconfig.file_has_alphaquant_format)
     pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
     try:
-        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, runconfig.minrep)
+        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local,runconfig.minrep_both, runconfig.minrep_either, runconfig.minrep_c1, runconfig.minrep_c2)
     except Exception as e:
         LOGGER.info(e)
         return
 
-    df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, minrep = runconfig.minrep, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
+    df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
     runtime_plots = runconfig.runtime_plots, protein_subset_for_normalization_file=runconfig.protein_subset_for_normalization_file, pep2prot = pep2prot,prenormed_file = runconfig.pre_normed_intensity_file)#, "./test_data/normed_intensities.tsv")
 
     if runconfig.results_dir != None:
@@ -60,9 +64,10 @@ def analyze_condpair(*,runconfig, condpair):
         diffDist = aqbg.get_subtracted_bg(bgpair2diffDist, bg1, bg2, p2z)
         diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
         protein = pep2prot.get(ion)
-        prot_ions = prot2diffions.get(protein, list())
-        prot_ions.append(diffIon)
-        prot2diffions[protein] = prot_ions
+        if diffIon.usable:
+            prot2diffions[protein].append(diffIon)
+        else:
+            prot2missingval_diffions[protein].append(diffIon)
 
 
 
@@ -87,6 +92,17 @@ def analyze_condpair(*,runconfig, condpair):
             LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
         count_prots+=1
     
+    if len(prot2missingval_diffions.keys())>0:
+        LOGGER.info(f"start analysis of proteins w. completely missing values")
+
+        for prot in prot2missingval_diffions.keys():
+            if prot in prot2diffions.keys(): #only do the missingval analysis if the protein was not analyzed the intensity-based way
+                continue
+            ions = prot2missingval_diffions.get(prot)
+            protnode_missingval = aq_clust_missingval.create_protnode_from_missingval_ions(gene_name=prot,diffions=ions, normed_c1=normed_c1, normed_c2=normed_c2, nrep_c1=len(c1_samples), nrep_c2=len(c2_samples))
+            protnodes_missingval.append(protnode_missingval)
+        
+        LOGGER.info(f"finished missing value analysis")
 
     if runconfig.use_ml:
         ml_performance_dict = {}
@@ -94,7 +110,7 @@ def analyze_condpair(*,runconfig, condpair):
         #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions", 
          #                           min_num_fragions=5, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
         ml_successfull =aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
-                                        samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
+                                        samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=runconfig.runtime_plots)
 
 
         if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful
@@ -105,8 +121,9 @@ def analyze_condpair(*,runconfig, condpair):
             LOGGER.info(f"ML based quality score below quality threshold and not added to the nodes.")
             runconfig.ml_based_quality_score = False
 
-
-    condpair_node = aqclust_utils.get_condpair_node(protnodes, condpair)
+    protnodes_combined = protnodes + protnodes_missingval
+    condpair_node = aqclust_utils.get_condpair_node(protnodes_combined, condpair)
+    condpair_node.fraction_missingval = len(prot2missingval_diffions.keys())/(len(prot2diffions.keys())+len(prot2missingval_diffions.keys()))
     res_df, pep_df = write_out_tables(condpair_node, runconfig)
 
     LOGGER.info(f"condition pair {condpair} finished!")
@@ -135,19 +152,34 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpai
     merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 
-def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep):
+def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both,  minrep_either, minrep_c1, minrep_c2):
 
     min_samples = min(len(samples_c1), len(samples_c2))
 
     if min_samples<2:
         raise Exception(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
+    
+    if minrep_both is not None:
+        minrep_c1 = minrep_both
+        minrep_c2 = minrep_both
 
-    minrep_c1 = get_minrep_for_cond(samples_c1, minrep)
-    minrep_c2 = get_minrep_for_cond(samples_c2, minrep)
-    df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=minrep_c1, axis=0)
-    df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
-    if (len(df_c1.index)<5) | (len(df_c2.index)<5):
-        raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
+    if (minrep_c1 is not None) and (minrep_c2 is not None):
+        minrep_c1 = get_minrep_for_cond(samples_c1, minrep_c1)
+        minrep_c2 = get_minrep_for_cond(samples_c2, minrep_c2)
+        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=minrep_c1, axis=0)
+        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
+        if (len(df_c1.index)<5) | (len(df_c2.index)<5):
+            raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
+        
+    elif minrep_either is not None:
+        minrep_either = np.min([get_minrep_for_cond(samples_c1, minrep_either), get_minrep_for_cond(samples_c2, minrep_either)])
+        passes_minrep_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= minrep_either
+        passes_minrep_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= minrep_either
+        passes_minrep_either = passes_minrep_c1 | passes_minrep_c2
+        unnormed_df = unnormed_df[passes_minrep_either]
+        df_c1 = unnormed_df.loc[:, samples_c1]
+        df_c2 = unnormed_df.loc[:, samples_c2]
+
 
     return df_c1, df_c2
 
@@ -159,6 +191,8 @@ def get_minrep_for_cond(c_samples, minrep):
         return num_samples
     else:
         return minrep
+    
+
     
 
 def write_out_tables(condpair_node, runconfig):
