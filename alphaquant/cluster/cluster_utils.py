@@ -45,12 +45,9 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
 
 
 
-    z_sum = sum(zvals)
-    p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
-    p_z = set_bounds_for_p_if_too_extreme(p_z)
-    z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z)
+    z_normed = sum_and_re_scale_zvalues(zvals)
 
-    p_val = 2.0 * (1.0 - NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(abs(z_sum)))
+    p_val = 2.0 * (1.0 - NormalDist().cdf(abs(z_normed)))
     p_val = set_bounds_for_p_if_too_extreme(p_val)
 
     node.z_val = z_normed
@@ -66,6 +63,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     node.min_intensity = min_intensity
     node.total_intensity = total_intensity
     node.min_reps = min_reps
+    node.missingval = False
 
     if hasattr(node.children[0], 'predscore'):
         predscores = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "predscore")
@@ -104,6 +102,18 @@ def get_median_peptides(pepnode2pval2numleaves):
         return [x[0] for x in pepnode2pval2numleaves]
     else:
         return [x[0] for x in pepnode2pval2numleaves[:median_idx+1]]
+
+
+def sum_and_re_scale_zvalues(zvals):
+    z_sum = sum(zvals)
+    p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
+    p_z = set_bounds_for_p_if_too_extreme(p_z)
+    z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z) #this is just a re-scaling of the z-value to a standard normal distribution
+    return z_normed
+
+def transform_znormed_to_pval(z_normed):
+    return 2.0 * (1.0 - NormalDist().cdf(abs(z_normed))) #we take the abs of the z_normed (normed means it belongs to a ND(0,1)), which means the cdf will return values between 0.5 and 1, and closer to 1 with increasing z_normed.
+
 
 def set_bounds_for_p_if_too_extreme(p_val):
     if p_val <aqvariables.MIN_PVAL:
@@ -252,7 +262,7 @@ def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2
         diffion = name2diffion.get(leaf.name)
         leaf.fc = diffion.fc
         leaf.z_val = diffion.z_val
-        leaf.fcs = get_fcs_of_leaf(log2intensities_c1, log2intensities_c2)
+        #leaf.fcs = get_fcs_of_leaf(log2intensities_c1, log2intensities_c2)
         leaf.fraction_consistent = 1
         original_intensities_c1 = 2**(log2intensities_c1)
         original_intensities_c2 = 2**(log2intensities_c2)
@@ -262,6 +272,7 @@ def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2
         leaf.min_intensity = min(sum(original_intensities_c1)/len(original_intensities_c1), sum(original_intensities_c2)/len(original_intensities_c2))
         leaf.total_intensity = get_total_intensity_if_ms2_ion(leaf, original_intensities_c1, original_intensities_c2)
         leaf.min_reps = min(len(log2intensities_c1), len(log2intensities_c2))
+        leaf.missingval = False
 
 
 def get_total_intensity_if_ms2_ion(leaf, original_intensities_c1, original_intensities_c2):
