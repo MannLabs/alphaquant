@@ -109,7 +109,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
 
     refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
 
-    input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")],swissprot_ids)
+    input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")].astype(str),swissprot_ids)
     input_df.loc[:,"IonID"] = input_df[label_column] + input_df[fg_id_column]
     input_df = input_df.set_index("REFPROT")
     input_df.sort_index(inplace=True)
@@ -135,7 +135,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     for prot in input_df.index.unique():#input_df["REFPROT"].unique():
 
         if int(count_peps/one_fraction)>fraction_count:
-            LOGGER.info(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index)}")
+            LOGGER.info(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index):.2f}")
             fraction_count = int(count_peps/one_fraction) +1
 
         #filtvec = [prot in x for x in input_df["REFPROT"]]
