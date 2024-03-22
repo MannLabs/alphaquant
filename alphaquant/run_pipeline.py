@@ -135,7 +135,8 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
 def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
     try:
         aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
-    except:
+    except Exception as e:
+        LOGGER.error(f"PTM mapping in memory failed with error: {e}. Trying out-of-core approach with dask.")
         aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
     mapped_df = pd.read_csv(f"{results_dir}/ptm_ids.tsv", sep = "\t")
     ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
