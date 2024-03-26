@@ -10,7 +10,7 @@ class RatioClassificationTableGenerator():
         """This takes in a table that has fdr scored differential expression results from different methods and generates an 
         output table with relevant information for comparing the results of the different methods.
 
-        Example input table columns: "protein" "fdr_alphaquant"	"organism"	"fdr_spectronaut"
+        Example input table columns: "protein" "fdr_alphaquant"	"organism_alphaquant"	"fdr_spectronaut" "organism_spectronaut" (the organisms need to be specified per method in order to determine the max num allowed decoy hits)
         """
         
         self._merged_results_table = merged_results_table
@@ -33,9 +33,9 @@ class RatioClassificationTableGenerator():
         Defines a series of results per method_suffix (method), containing counts of significant results per organism.
         """
         for method_suffix in self._method_suffixes:
-            method_results_df = self._merged_results_table[[self._fdr_column_name + method_suffix, self._organism_column_name]].copy()
+            method_results_df = self._merged_results_table[[self._fdr_column_name + method_suffix, self._organism_column_name + method_suffix]].copy()
             hits_per_organism_dict = self._get_hits_per_organism(method_results_df, method_suffix)
-            max_hits_per_organism_dict = self._get_max_possible_hits(method_results_df)
+            max_hits_per_organism_dict = self._get_max_possible_hits(method_results_df, method_suffix)
             max_allowed_decoy_hits = self._get_max_allowed_decoy_hits(method_results_df, method_suffix)
             
             self._per_suffix_results_series[f"hits{method_suffix}"] = hits_per_organism_dict
@@ -45,11 +45,11 @@ class RatioClassificationTableGenerator():
 
     def _get_hits_per_organism(self, suffix_results_df, method_suffix):
         suffix_results_df_significant = self._get_significant_hits(suffix_results_df, method_suffix)
-        hits_per_organism = suffix_results_df_significant[self._organism_column_name].value_counts().to_dict()
+        hits_per_organism = suffix_results_df_significant[self._organism_column_name + method_suffix].value_counts().to_dict()
         return hits_per_organism
     
-    def _get_max_possible_hits(self,  suffix_results_df):
-        num_entrys_dict = suffix_results_df[self._organism_column_name].value_counts().to_dict()
+    def _get_max_possible_hits(self,  suffix_results_df, method_suffix):
+        num_entrys_dict = suffix_results_df[self._organism_column_name + method_suffix].value_counts().to_dict()
         num_entrys_dict[self._decoy_organism] = 0
         return num_entrys_dict
     
@@ -60,7 +60,7 @@ class RatioClassificationTableGenerator():
     def _get_max_allowed_decoy_hits(self, suffix_results_df, method_suffix):
         suffix_results_df_significant = self._get_significant_hits(suffix_results_df, method_suffix)
         max_allowed_decoy_hits = {} #set non-decoy organisms to nan
-        all_organisms = suffix_results_df[self._organism_column_name].unique()
+        all_organisms = suffix_results_df[self._organism_column_name + method_suffix].unique()
         non_decoy_organisms = [x for x in all_organisms if x != self._decoy_organism]
         max_num_FP = self._fdr_threshold/(1-self._fdr_threshold) * len(suffix_results_df_significant.index)
         max_allowed_decoy_hits[self._decoy_organism] = int(max_num_FP)
