@@ -24,10 +24,12 @@ class ConditionBackgrounds():
         self.ion2allvals = {}
         self.idx2ion = {}
         self.init_ion2nonNanvals(normed_condition_df)
-        t_start = time()
         self.context_ranges = []
         self.select_intensity_ranges(p2z)
-        t_intensity_selection = time()
+
+        self.all_intensities = np.concatenate(list(self.ion2nonNanvals.values()))
+        self.num_replicates = len(next(iter(self.ion2allvals.values())))
+        
 
 
     def init_ion2nonNanvals(self, normed_condition_df):
@@ -125,6 +127,8 @@ class BackGroundDistribution:
         self.var = None
         self.SD = None
         self.ions = {idx2ion.get(idx) for idx in range(start_idx, end_idx)}
+        self.fraction_missingval = self.calc_missingval_fraction(ion2noNanvals, idx2ion)
+
 
         anchor_fcs = self.generate_anchorfcs_from_intensity_range(ion2noNanvals, idx2ion)
         random.Random(42).shuffle(anchor_fcs) #set seed to ensure reproducibility
@@ -132,6 +136,25 @@ class BackGroundDistribution:
         self.cumulative = self.transform_fc2counts_into_cumulative()
         self.calc_SD(0, self.cumulative)
         self.zscores = self.transform_cumulative_into_z_values(p2z)
+
+        LOGGER.info(f"Created Background Distribution for {len(self.ions)} ions. SD: {self.SD}, fraction of missing values: {self.fraction_missingval:.2f}")
+    
+    def calc_missingval_fraction(self, ion2nonNanvals: dict, idx2ion: dict) -> float:
+        """Calculates the fraction of missing values in the background distribution
+
+        Args:
+            ion2nonNanvals (dict): maps the ion to all measured intensities of this ion (no NAs/zero measurements)
+            idx2ion (dict): distinct mapping of the index to the ion name
+
+        Returns:
+            float: fraction of missing values
+        """
+        value_nums = [len(ion2nonNanvals.get(idx2ion.get(idx))) for idx in range(self.start_idx, self.end_idx)]
+        num_replicates = max(value_nums)
+        num_total = num_replicates*(self.end_idx-self.start_idx)
+        num_measured = sum(value_nums)
+        num_missing = num_total - num_measured
+        return num_missing/num_total
 
     def generate_anchorfcs_from_intensity_range(self, ion2noNanvals : dict, idx2ion : dict) -> list:
         """For each ion, a random intensity is selected as an "anchor" and the remaining intensities are subtracted from the achor.
