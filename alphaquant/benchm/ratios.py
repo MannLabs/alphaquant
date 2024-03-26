@@ -5,7 +5,7 @@ import pandas as pd
 class MixedSpeciesScatterPlotter():
     """
     Plots the LFQ-bench style plots from a standardized input table. The columns of an example table are:
-    'protein'	'log2fc_alphaquant'	'intensity_alphaquant' 'organism'	'log2fc_spectronaut' 'intensity_spectronaut'
+    'protein'	'log2fc_alphaquant'	'intensity_alphaquant' 'organism_alphaquant'	'log2fc_spectronaut' 'intensity_spectronaut' 'organism_spectronaut'
     """
     def __init__(self, df_combined, method_suffixes, expected_log2fcs, figure_size = [4, 4], point_size = 4, alpha = 0.5):
         self._df_combined = df_combined
@@ -38,7 +38,7 @@ class MixedSpeciesScatterPlotter():
         suffix = self._method_suffixes[method_idx]
         intensity_column = f'intensity{suffix}'
         log2fc_column = f'log2fc{suffix}'
-        organism_column = 'organism'
+        organism_column = f'organism{suffix}'
         ax = self.axes[0][method_idx]
         sns.scatterplot(data = self._df_combined, x=intensity_column, y=log2fc_column, hue=organism_column, ax=ax, s = self._point_size, alpha = self._alpha)
         ax.set_xscale('log')
@@ -78,9 +78,9 @@ class MixedSpeciesScatterPlotter():
     
     def _create_unified_legend(self):
         # Only create a unified legend if there's more than one category
-        if len(set(self._df_combined['organism'])) > 1:
+        if len(set(self._df_combined[f'organism{self._method_suffixes[0]}'])) > 1:
             # Place the legend on the right side of the last subplot
-            self.axes[0, -1].legend(bbox_to_anchor=(1.05, 1), loc='upper left', title='Organism')
+            self.axes[0, -1].legend(bbox_to_anchor=(1.05, 1), loc='upper left', title='organism')
 
 
 
@@ -106,7 +106,7 @@ class MixedSpeciesScatterPlotterInteractive:
     def _plot_fc_scatter(self, method_idx, suffix):
         intensity_column = f'intensity{suffix}'
         log2fc_column = f'log2fc{suffix}'
-        organism_column = 'organism'
+        organism_column = f'organism{suffix}'
         protein_column = 'protein'
 
         fig = px.scatter(self._df_combined, x=intensity_column, y=log2fc_column, color=organism_column,
@@ -135,7 +135,7 @@ class MixedSpeciesBoxPlotter():
     """
     Plots box plots for log2 fold changes across organisms from a standardized input table. 
     The columns of an example table are:
-    'protein', 'log2fc_alphaquant', 'organism', 'log2fc_spectronaut'
+    'protein', 'log2fc_alphaquant', 'organism_alphaquant', 'log2fc_spectronaut', 'organism_spectronaut'
     """
     def __init__(self, df_combined, method_suffixes, expected_log2fcs, figure_size = [4, 4]):
         self._df_combined = df_combined
@@ -163,7 +163,7 @@ class MixedSpeciesBoxPlotter():
     def _plot_box(self, method_idx):
         suffix = self._method_suffixes[method_idx]
         log2fc_column = f'log2fc{suffix}'
-        organism_column = 'organism'
+        organism_column = f'organism{suffix}'
         ax = self.axes[0][method_idx]
         sns.boxplot(data=self._df_combined, x=organism_column, y=log2fc_column, ax=ax)
         for expected_log2fc in self._expected_log2fcs:
@@ -204,7 +204,7 @@ class MixedSpeciesBoxPlotter():
 class MixedSpeciesRatioComparison():
     """
     Provides the comparison of observed log2fcs and expected log2fcs The columns of an example table are:
-    'protein'	'log2fc_alphaquant'	'intensity_alphaquant' 'organism'	'log2fc_spectronaut' 'intensity_spectronaut'
+    'protein'	'log2fc_alphaquant'	'intensity_alphaquant' 'organism_alphaquant'	'log2fc_spectronaut' 'intensity_spectronaut' 'organism_spectronaut'
     """
     def __init__(self, df_combined, method_suffixes, organism2expectedfc):
         self._df_combined = df_combined
@@ -225,7 +225,7 @@ class MixedSpeciesRatioComparison():
     def _collect_fc_distance_metrics_per_organism(self, method_idx):
         method_suffix = self._method_suffixes[method_idx]
         log2fc_column = f'log2fc{method_suffix}'
-        organism_column = 'organism'
+        organism_column = f'organism{method_suffix}'
 
         df_organism_grouped = self._df_combined.groupby(organism_column)
         for organism, df_organism in df_organism_grouped:

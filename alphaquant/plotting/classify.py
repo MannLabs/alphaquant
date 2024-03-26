@@ -38,12 +38,13 @@ def plot_feature_importance_per_model(models, featurenames,top_n = np.inf, resul
 
 
 def plot_feature_importances(coef, names, top_n = np.inf, results_dir = None, ax = None):
-    imp,names = filter_sort_top_n(coef, names, top_n)
+    importance_score,names = filter_sort_top_n(coef, names, top_n)
     if ax is None:
         fig, ax = plt.subplots()
     ax.set_title('Feature Importances')
-    ax.barh(range(len(names)), imp, align='center')
-    ax.set_yticks(range(len(names)), names)
+    ax.bar(range(len(names)), importance_score, align='center')
+    ax.set_xticks(range(len(names)))
+    ax.set_xticklabels(names, rotation=90)
     if results_dir is not None:
         if 'fig' in locals():
             fig.savefig(f"{results_dir}/ml_feature_importances.pdf")

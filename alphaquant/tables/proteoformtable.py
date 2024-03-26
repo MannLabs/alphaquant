@@ -21,6 +21,8 @@ class ProteoFormTableCreator():
     def _define_proteoform_df(self):
         combined_value_dicts = []
         for protein in self._condpair_tree.children:
+            if protein.missingval == True:
+                continue
             value_dict = ValueDictCreator(protein, self._phospho_scorer).value_dict
             combined_value_dicts.append(value_dict)
         combined_dict = self._merge_list_of_dicts(combined_value_dicts)

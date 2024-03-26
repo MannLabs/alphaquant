@@ -75,8 +75,6 @@ class PTMtableLocalizer():
     def get_ptmfile2name(self):
         return {v: k for k, v in self._name2ptmfile.items()}
 
-    def get_swissprot_reference(self):
-        return self._files.swissprot_reference
 
     def _get_name2ptmfile(self):
         return self._get_name2file(self._files.ptm_result_files)
@@ -104,16 +102,12 @@ class PTMFiles():
         
         self.ptm_result_files = self._get_ptm_result_files()
         self.proteome_result_files = self._get_proteome_result_files()
-        self.swissprot_reference = self._get_swissprot_reference()
 
     def _get_ptm_result_files(self):
         return glob.glob(f'{self._results_dir_ptm}/*.results.tsv')
 
     def _get_proteome_result_files(self):
         return glob.glob(f'{self._results_dir_proteome}/*.results.tsv')
-
-    def _get_swissprot_reference(self):
-        return aqptm.get_swissprot_path(organism=self._organism)
 
 class PTMtableNormalizer():
     def __init__(self,  ptm_file, proteome_file, organism = "human"):
@@ -183,7 +177,11 @@ class PTMtablePreparer():
         gene_name = ptm_row["gene"]
         if gene_name not in self.proteome_df.index:
             return None
-        protein_row = self.proteome_df.loc[gene_name] #the proteome df is indexed be the gene name that maps to the ptm
+        protein_rows = self.proteome_df.loc[[gene_name]] #the proteome df is indexed by the gene name that maps to the ptm
+        if len(protein_rows.index) >1:
+            LOGGER.warning(f"more than one match found for gene {gene_name}, excluding ptm {ptmsite} from normalization as this might be due to ambiguous gene names")
+            return None
+        protein_row = protein_rows.iloc[0]
 
         ptm_p_value = self._get_p_value_from_table_row(ptm_row)
         ptm_fc = self._get_fc_from_table_row(ptm_row)
@@ -193,12 +191,6 @@ class PTMtablePreparer():
 
         return reginfos
 
-    def _resolve_possible_duplicate_protein_rows(self, protein_row): #due to the proteingroup structure, it can happen, that different protein groups have the same swissprot id, which results in multiple rows
-        if type(protein_row) != pd.Series: #a single row gets transposed into a pandas series
-            protein_row = protein_row.sort_values(by = "pseudoint1", ascsending = False)
-            return protein_row.iloc[0]
-        else:
-            return protein_row
 
 
     @staticmethod
@@ -221,28 +213,37 @@ class ProteinToPTMMapper():
         self.ptm_df = ptm_df
         self.proteome_df = proteome_df
 
-        self._gene2synonyms_mapping_dict = None
+        self._gene2reference = None #gene2reference maps every variation of a gene name to a reference gene name. This way, differing gene names in the two dataframes can still be mapped
         self._organism = organism
 
-        self._define_gene2synonyms_mapping_dict()
+        self._define_gene2reference_dict()
         self._add_genename_column_ptm_df()
         self._map_gene_names_in_proteome_df_to_ptm_df()
-
     
+
+    def _define_gene2reference_dict(self):
+        uniprot_file = aqptm.get_uniprot_path(organism=self._organism)
+        uniprot_gene_names_str = pd.read_csv(uniprot_file, sep = "\t")["Gene names"].astype(str).to_list()
+        uniprot_gene_names = [x.split(" ") for x in uniprot_gene_names_str]
+        gene2synonyms_mapping_dict = {}
+        for gene_list in uniprot_gene_names:
+            for gene in gene_list:
+                gene2synonyms_mapping_dict[gene] = gene_list
+        self._gene2reference = self._invert_gene2synonyms_mapping_dict(gene2synonyms_mapping_dict)
+    
+    @staticmethod
+    def _invert_gene2synonyms_mapping_dict(gene2sysnonyms_subset):
+        inverted_dict = {}
+        for key, value_list in gene2sysnonyms_subset.items():
+            for item in value_list:
+                inverted_dict[item] = key  # Map each list element back to the reference gene (key)
+        return inverted_dict
     
     def _add_genename_column_ptm_df(self):
         self.ptm_df["gene"] = self._get_ptm_proteins(self.ptm_df)
         self.ptm_df = self.ptm_df[[x != None for x in self.ptm_df["gene"]]]
         return self.ptm_df
     
-    def _map_gene_names_in_proteome_df_to_ptm_df(self):
-        genes_ptm = set(self.ptm_df["gene"])
-        gene2sysnonyms_subset = {gene: self._gene2synonyms_mapping_dict[gene] for gene in genes_ptm if gene in self._gene2synonyms_mapping_dict[gene]}
-        inverted_dict = self._invert_gene2synonyms_mapping_dict(gene2sysnonyms_subset)
-        self.proteome_df["gene"] = self.proteome_df["protein"].map(inverted_dict) #maps every gene name to the reference gene name
-        self.proteome_df = self.proteome_df[[x != None for x in self.proteome_df["gene"]]]
-
-
     def _get_ptm_proteins(self, ptm_df):
         genes = []
         for ptm_id in ptm_df["protein"]:
@@ -258,23 +259,34 @@ class ProteinToPTMMapper():
             return None
         else:
             return ptm_id.split("_")[0]
+    
+    def _map_gene_names_in_proteome_df_to_ptm_df(self):
+        self.proteome_df["gene"] = self.proteome_df["protein"] #The proteome df has a column "protein" that contains the gene names. This is because "protein" is the general identifier for the thing that all peptides are mapped to.
+        genes_ptm = set(self.ptm_df["gene"])
+        genes_proteome = set(self.proteome_df["gene"])
+        if len(set(self._gene2reference.keys()).intersection(genes_proteome)) <2:
+            LOGGER.warning("virtually no overlap between gene names in the proteome and uniprot gene names. Please double check that gene symbols were used as protein identifiers the proteome dataset. Additionally, check that the organism is correct.")
 
-    def _define_gene2synonyms_mapping_dict(self):
-        uniprot_file = aqptm.get_uniprot_path(organism=self._organism)
-        uniprot_gene_names_str = pd.read_csv(uniprot_file, sep = "\t")["Gene names"].astype(str).to_list()
-        uniprot_gene_names = [x.split(" ") for x in uniprot_gene_names_str]
-        gene2synonyms_mapping_dict = {}
-        for gene_list in uniprot_gene_names:
-            for gene in gene_list:
-                gene2synonyms_mapping_dict[gene] = gene_list
-        self._gene2synonyms_mapping_dict = gene2synonyms_mapping_dict
+        intersecting_genes = genes_ptm.intersection(genes_proteome)
+        unmapped_genes_ptm = genes_ptm - intersecting_genes
 
-    def _invert_gene2synonyms_mapping_dict(self, gene2sysnonyms_subset):
-        inverted_dict = {}
-        for key, value_list in gene2sysnonyms_subset.items():
-            for item in value_list:
-                inverted_dict[item] = key  # Map each list element back to the reference gene (key)
-        return inverted_dict
+        #map the unmapped genes in the PTM dataset to the reference gene names. This might recover some of the genes that were not mapped in the first round
+        unmapped_mask_proteome = self.proteome_df["gene"].isin(unmapped_genes_ptm)
+        unmapped_mask_ptm = self.ptm_df["gene"].isin(unmapped_genes_ptm)
+
+        
+
+        self.proteome_df.loc[unmapped_mask_proteome, "gene"] = self.proteome_df.loc[unmapped_mask_proteome, "gene"].map(self._gene2reference)
+        self.ptm_df.loc[unmapped_mask_ptm, "gene"] = self.ptm_df.loc[unmapped_mask_ptm, "gene"].map(self._gene2reference)
+
+        genes_ptm_round2 = set(self.ptm_df["gene"])
+        genes_proteome_round2 = set(self.proteome_df["gene"])
+        intersecting_genes_round2 = genes_ptm_round2.intersection(genes_proteome_round2)
+
+        self.proteome_df = self.proteome_df[self.proteome_df["gene"].isin(intersecting_genes_round2)]
+
+        LOGGER.info(f"{len(intersecting_genes_round2)} of {len(genes_ptm_round2)} genes in PTM dataset could be mapped to the proteome dataset.")
+
 
 
 
