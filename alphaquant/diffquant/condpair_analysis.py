@@ -96,10 +96,11 @@ def analyze_condpair(*,runconfig, condpair):
         LOGGER.info(f"start analysis of proteins w. completely missing values")
 
         for prot in prot2missingval_diffions.keys():
+
             if prot in prot2diffions.keys(): #only do the missingval analysis if the protein was not analyzed the intensity-based way
                 continue
             ions = prot2missingval_diffions.get(prot)
-            protnode_missingval = aq_clust_missingval.create_protnode_from_missingval_ions(gene_name=prot,diffions=ions, normed_c1=normed_c1, normed_c2=normed_c2, nrep_c1=len(c1_samples), nrep_c2=len(c2_samples))
+            protnode_missingval = aq_clust_missingval.create_protnode_from_missingval_ions(gene_name=prot,diffions=ions, normed_c1=normed_c1, normed_c2=normed_c2)
             protnodes_missingval.append(protnode_missingval)
         
         LOGGER.info(f"finished missing value analysis")
