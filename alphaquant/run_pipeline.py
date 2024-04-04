@@ -47,6 +47,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     LOGGER.info("Starting AlphaQuant")
     check_input_consistency(input_file, samplemap_file, samplemap_df)
     aqvariables.determine_variables(input_file)
+    create_progress_folder(input_file)
 
     if samplemap_df is None:
         samplemap_df = aqutils.load_samplemap(samplemap_file)
@@ -94,6 +95,18 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     if multicond_median_analysis:
         aqmediancond.analyze_and_write_median_condition_results(results_dir)
 
+
+def check_input_consistency(input_file, samplemap_file, samplemap_df):
+    if input_file is None:
+        raise Exception("no input file!")
+    if samplemap_file is None and samplemap_df is None:
+        raise Exception("Samplemap is missing!")
+    return True
+
+def create_progress_folder(input_file):
+    progress_folder = os.path.join(os.path.dirname(input_file), "progress")
+    if not os.path.exists(progress_folder):
+        os.makedirs(progress_folder)
 
 
 def generate_and_save_ml_infos_if_possible(runconfig):
@@ -160,12 +173,6 @@ def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_f
 
 
 
-def check_input_consistency(input_file, samplemap_file, samplemap_df):
-    if input_file is None:
-        raise Exception("no input file!")
-    if samplemap_file is None and samplemap_df is None:
-        raise Exception("Samplemap is missing!")
-    return True
 
 
 import alphaquant.diffquant.diffutils as aqutils
