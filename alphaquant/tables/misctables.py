@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
 import alphaquant.utils.utils as aqutils
+import alphaquant.config.variables as aqvariables
 
 class RunConfigTableCreator():
     def __init__(self, runconfig):
@@ -68,7 +69,7 @@ class AnnotationFileCreator():
     
     def _define_annotation_filename(self):
         filename_shortened = aqutils.remove_file_extension(self._input_file)
-        self.annotation_filename = f"{filename_shortened}.annotation.tsv"
+        self.annotation_filename = f"{aqvariables.PROGRESS_FOLDER}/{filename_shortened}.annotation.tsv"
 
     def _write_annotation_file(self):
         self._annotation_df.to_csv(self.annotation_filename, sep = "\t", index = None)
