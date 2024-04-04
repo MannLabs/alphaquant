@@ -30,6 +30,7 @@ l__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_samplemap_
 import os
 import pathlib
 from ..config.variables import QUANT_ID
+import alphaquant.config.variables as aq_conf_var
 if "__file__" in globals():#only run in the translated python file, as __file__ is not defined with ipython
     INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs", "intable_config.yaml") #the yaml config is located one directory below the python library files
 
@@ -591,16 +592,17 @@ class AcquisitionTableHeaders():
 class AcquisitionTableOutputPaths():
     def __init__(self, table_info):
         self._table_info = table_info
-        self.output_file_name = self.__get_output_file_name__()
-        self.method_parameters_yaml_path = self.__get_method_parameters_yaml_path__()
+        self.output_file_name = self.get_output_file_name_()
+        self.method_parameters_yaml_path = self._get_method_parameters_yaml_path()
         self.ml_file_accession_in_yaml = "ml_input_file"
 
-    def __get_output_file_name__(self):
-        old_file_name = self._table_info._input_file
-        new_file_name = old_file_name+self._table_info._file_ending_of_formatted_table
-        return new_file_name
+    def get_output_file_name_(self):
+        directory_of_input_file = os.path.dirname(self._table_info._input_file)
+        filename = os.path.basename(self._table_info._input_file)
+        new_filepath = f"{directory_of_input_file}/{aq_conf_var.PROGRESS_FOLDER}/{filename}.ml_info_table.tsv"
+        return new_filepath
 
-    def __get_method_parameters_yaml_path__(self):
+    def _get_method_parameters_yaml_path(self):
         return f"{self._table_info._results_dir}/aq_parameters.yaml"
 
 import alphabase.quantification.quant_reader.table_reformatter as abtable_reformatter
