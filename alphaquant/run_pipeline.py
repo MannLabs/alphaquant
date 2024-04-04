@@ -109,6 +109,37 @@ def create_progress_folder(input_file):
         os.makedirs(progress_folder)
 
 
+def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
+    try:
+        aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
+    except Exception as e:
+        LOGGER.error(f"PTM mapping in memory failed with error: {e}. Trying out-of-core approach with dask.")
+        aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
+    mapped_df = pd.read_csv(f"{results_dir}/ptm_ids.tsv", sep = "\t")
+    ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
+    return ptm_mapped_file
+
+
+
+def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
+    df_input = pd.read_csv(input_file, sep = "\t")
+    peptides_to_exclude = set(pd.read_csv(peptides_to_exclude_file, sep = "\t")["peptide"].tolist())
+    pattern = r"SEQ_([A-Za-z0-9]+)_"
+    try:
+        df_input["peptide"] = [re.search(pattern, peptide).group(1) for peptide in df_input[aqvariables.QUANT_ID]]
+    except:
+        raise Exception("parsing of peptide sequence from QUANT_ID failed. The QUANT_ID column should contain the peptide sequence in the format SEQ_<peptide>_")
+    
+    not_in_peptides_to_exclude = ~df_input["peptide"].isin(peptides_to_exclude)
+    df_input = df_input[not_in_peptides_to_exclude]
+    df_input = df_input.drop(columns = ["peptide"])
+    df_input.to_csv(input_file, sep = "\t", index = False)
+    num_removed = len(not_in_peptides_to_exclude) - len(df_input.index)
+    LOGGER.info(f"Excluded {num_removed} shared-species entries from input file")
+
+
+
+
 def generate_and_save_ml_infos_if_possible(runconfig):
     results_dir = runconfig.results_dir
     samplemap_df = runconfig.samplemap_df
@@ -143,42 +174,3 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
 
         ,condpair_combinations)
 
-
-
-def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
-    try:
-        aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
-    except Exception as e:
-        LOGGER.error(f"PTM mapping in memory failed with error: {e}. Trying out-of-core approach with dask.")
-        aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
-    mapped_df = pd.read_csv(f"{results_dir}/ptm_ids.tsv", sep = "\t")
-    ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
-    return ptm_mapped_file
-
-def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
-    df_input = pd.read_csv(input_file, sep = "\t")
-    peptides_to_exclude = set(pd.read_csv(peptides_to_exclude_file, sep = "\t")["peptide"].tolist())
-    pattern = r"SEQ_([A-Za-z0-9]+)_"
-    try:
-        df_input["peptide"] = [re.search(pattern, peptide).group(1) for peptide in df_input[aqvariables.QUANT_ID]]
-    except:
-        raise Exception("parsing of peptide sequence from QUANT_ID failed. The QUANT_ID column should contain the peptide sequence in the format SEQ_<peptide>_")
-    
-    not_in_peptides_to_exclude = ~df_input["peptide"].isin(peptides_to_exclude)
-    df_input = df_input[not_in_peptides_to_exclude]
-    df_input = df_input.drop(columns = ["peptide"])
-    df_input.to_csv(input_file, sep = "\t", index = False)
-    num_removed = len(not_in_peptides_to_exclude) - len(df_input.index)
-    LOGGER.info(f"Excluded {num_removed} shared-species entries from input file")
-
-
-
-
-
-import alphaquant.diffquant.diffutils as aqutils
-import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
-def determine_if_ion_tree_is_used(runconfig):
-    if runconfig.use_iontree_if_possible is not None:
-        return runconfig.use_iontree_if_possible
-    _, config_dict, _ =  abconfigloader.get_input_type_and_config_dict(runconfig.input_file)
-    return config_dict.get("use_iontree")
