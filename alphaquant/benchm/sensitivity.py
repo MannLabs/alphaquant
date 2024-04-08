@@ -10,7 +10,7 @@ class RatioClassificationTableGenerator():
         """This takes in a table that has fdr scored differential expression results from different methods and generates an 
         output table with relevant information for comparing the results of the different methods.
 
-        Example input table columns: "protein" "fdr_alphaquant"	"organism_alphaquant"	"fdr_spectronaut" "organism_spectronaut" (the organisms need to be specified per method in order to determine the max num allowed decoy hits)
+        Example input table columns: "protein" "fdr_alphaquant" "fdr_spectronaut"	"organism_alphaquant"	 "organism_spectronaut" (the organisms need to be specified per method in order to determine the max num allowed decoy hits)
         """
         
         self._merged_results_table = merged_results_table
