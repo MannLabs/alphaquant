@@ -6,9 +6,11 @@ import numpy as np
 import collections
 import alphaquant.config.variables as aqvariables
 from anytree import Node, LevelOrderGroupIter
+import alphaquant.utils.diffquant_utils as aq_utils_diffquant
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
-LEVELS = ["base","frgion", "ion_type", "ion_type", "mod_seq", "seq", "gene"]
+LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
+LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
 
@@ -25,11 +27,11 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     else:
         childs = [x for x in node.children if x.is_included]
 
-    childs_fewpepfiltered = get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node)
+    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node)
 
 
-    zvals = get_feature_numpy_array_from_nodes(nodes=childs_fewpepfiltered, feature_name="z_val")
-    fcs =  get_feature_numpy_array_from_nodes(nodes=childs, feature_name="fc")
+    zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
+    fcs =  get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="fc")
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
     total_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "total_intensity")
@@ -47,7 +49,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
 
     z_normed = sum_and_re_scale_zvalues(zvals)
 
-    p_val = 2.0 * (1.0 - NormalDist().cdf(abs(z_normed)))
+    p_val = transform_znormed_to_pval(z_normed)
     p_val = set_bounds_for_p_if_too_extreme(p_val)
 
     node.z_val = z_normed
@@ -79,29 +81,47 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
 def get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node):
     if use_fewpeps_per_protein and node.type == "gene":
         return filter_fewpeps_per_protein(childs)
+    
+    elif node.type == "frgion":
+        return remove_outlier_fragion_childs(childs)
     else:
         return childs
 
 
+
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
-    pepnode2pval2numleaves = []
+    pepnode2zval2numleaves = []
     for pepnode in peptide_nodes:
         pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
-        pepnode2pval2numleaves.append((pepnode, pepnode.z_val,len(pepleaves)))
-    pepnode2pval2numleaves = sorted(pepnode2pval2numleaves, key=lambda x : abs(x[1])) #sort with lowest absolute z-val (least significant) first
+        pepnode2zval2numleaves.append((pepnode, pepnode.z_val,len(pepleaves)))
+    pepnode2zval2numleaves = sorted(pepnode2zval2numleaves, key=lambda x : abs(x[1])) #sort with lowest absolute z-val (least significant) first
 
-    return get_median_peptides(pepnode2pval2numleaves)
+    return get_median_peptides(pepnode2zval2numleaves)
 
 
 
 import math
-def get_median_peptides(pepnode2pval2numleaves):
-    median_idx = math.floor(len(pepnode2pval2numleaves)/2)
-    if len(pepnode2pval2numleaves)<3:
-        return [x[0] for x in pepnode2pval2numleaves]
+def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are sorted first
+    median_idx = math.floor(len(pepnode2zval2numleaves)/2)
+    if len(pepnode2zval2numleaves)<3:
+        return [x[0] for x in pepnode2zval2numleaves]
     else:
-        return [x[0] for x in pepnode2pval2numleaves[:median_idx+1]]
+        return [x[0] for x in pepnode2zval2numleaves[:median_idx+1]]
+    
+def remove_outlier_fragion_childs(childs):
+    zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
+    
+    if len(zvals) > 2:
+        sorted_idxs_zvals = np.argsort(zvals)
+        median_idx = math.floor(len(zvals)/2)
+        idx_start = median_idx - 1
+        idx_end = median_idx + 1
+        idxs_to_use = sorted_idxs_zvals[idx_start:idx_end]
+    else:
+        idxs_to_use = aq_utils_diffquant.find_non_outlier_indices_ipr(zvals, threshold=1.1, percentile_lower = 30, percentile_upper = 70)
+    
+    return [childs[idx] for idx in idxs_to_use]
 
 
 def sum_and_re_scale_zvalues(zvals):
@@ -261,7 +281,10 @@ def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2
         log2intensities_c2 = normed_c2.ion2nonNanvals.get(leaf.name)
         diffion = name2diffion.get(leaf.name)
         leaf.fc = diffion.fc
-        leaf.z_val = diffion.z_val
+        if abs(leaf.fc) < 0.2:
+            leaf.z_val = 0
+        else:
+            leaf.z_val = diffion.z_val
         #leaf.fcs = get_fcs_of_leaf(log2intensities_c1, log2intensities_c2)
         leaf.fraction_consistent = 1
         original_intensities_c1 = 2**(log2intensities_c1)
