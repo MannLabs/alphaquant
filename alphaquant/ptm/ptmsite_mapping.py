@@ -13,7 +13,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
            'initialize_ptmsite_df', 'detect_site_occupancy_change', 'check_site_occupancy_changes_all_diffresults']
 
 # Cell
-import alphaquant.diffquant.diffutils as utils
+
 from alphaquant.config.variables import *
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
 import alphaquant.resources.database_loader as aq_resource_dbloader
@@ -76,7 +76,6 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     
 
 import os
-import alphaquant.plotting.base_functions as aqviz
 def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
 sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
 
@@ -626,15 +625,13 @@ import numpy as np
 import alphaquant.diffquant.diffutils as aqutils
 import os
 
-def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes', chunksize = 100_000):
-    #load configs, determine
+def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, input_type_to_use = "spectronaut_ptm_fragion", chunksize = 100_000):
     config_dict = abconfigdictloader.import_config_dict()
-    config_dict_ptm = config_dict.get(ptm_type_config_dict)
+    config_dict_ptm = config_dict.get(input_type_to_use)
     relevant_columns = abconfigdictloader.get_relevant_columns_config_dict(config_dict_ptm)#the columns that will be relevant in the ptm table
     relevant_columns_spectronaut = list(set(relevant_columns).intersection(set(pd.read_csv(spectronaut_file, sep = "\t", nrows=2).columns)))# the relevant columsn in the spectronaut table ()
     relevant_columns_spectronaut = relevant_columns_spectronaut+["EG.ModifiedSequence"]
-    file_modified = spectronaut_file.replace(".tsv", "")
-    ptmmapped_table_filename = f'{file_modified}_ptmsite_mapped.tsv'
+    ptmmapped_table_filename = get_ptmmapped_filename(spectronaut_file)
     lines_read = 0
 
     labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
@@ -653,6 +650,15 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
         LOGGER.info(f"{lines_read} lines read")
         header = False
     return ptmmapped_table_filename
+
+def get_ptmmapped_filename(spectronaut_file):
+    spectronaut_file_abspath = os.path.abspath(spectronaut_file)
+    foldername = os.path.dirname(spectronaut_file_abspath)
+    filename = os.path.basename(spectronaut_file_abspath)
+    filename_reduced = filename.replace(".tsv", "")
+    return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv" #this file is not written to the progress folder
+    
+
 
 def add_ptmsite_info_to_subtable(spectronaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns):
 
