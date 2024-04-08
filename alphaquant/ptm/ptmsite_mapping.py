@@ -40,7 +40,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     if input_type == 'Spectronaut':
         relevant_cols = get_relevant_cols_spectronaut(modification_type)
         input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
-        input_df = input_df.set_index('PG.UniProtIds')
+        input_df = input_df.set_index('PG.ProteinGroups')
 
     if input_type == 'DIANN':
         relevant_cols = get_relevant_cols_diann(modification_type)
@@ -103,11 +103,11 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     input_df = filter_input_table(input_type, modification_type, input_df)
     LOGGER.info(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
     swissprot_ids = set(pd.read_csv(swissprot_file, sep = "\t", usecols = ["Entry"])["Entry"])
-    sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene names"])
+    sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene Names"])
     sequence_map = dict(zip(sequence_df["Entry"], sequence_df["Sequence"]))
     sequence_df = sequence_df.dropna()
 
-    refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
+    refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene Names"]]))
 
     input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")].astype(str),swissprot_ids)
     input_df.loc[:,"IonID"] = input_df[label_column] + input_df[fg_id_column]
@@ -129,25 +129,23 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     ion_id = []
 
 
-    count_peps = 0
-    fraction_count = 0
-    one_fraction = int(len(input_df.index)/100)
-    for prot in input_df.index.unique():#input_df["REFPROT"].unique():
 
-        if int(count_peps/one_fraction)>fraction_count:
-            LOGGER.info(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index):.2f}")
-            fraction_count = int(count_peps/one_fraction) +1
+    num_proteins = len(input_df.index.unique())
+    num_mapped = 0
+    for idx, prot in enumerate(input_df.index.unique()):#input_df["REFPROT"].unique():
+
+        if idx %100 == 0:
+            LOGGER.info(f"processing {idx} of {num_proteins} ({(idx/num_proteins):.2f}) proteins for ptmsite mapping")
 
         #filtvec = [prot in x for x in input_df["REFPROT"]]
 
         protein_df = input_df.loc[[prot]].copy()#input_df[filtvec].copy()
         protein_df = protein_df.reset_index()
 
-        count_peps+= len(protein_df)
-
         sequence = sequence_map.get(prot)
         if sequence == None:
             continue
+        num_mapped+=1
         gene = refgene_map.get(prot)
 
         modpeps_per_sample = [ModifiedPeptide(input_type,protein_df.loc[x],sequence, modification_type) for x in protein_df.index]
@@ -171,6 +169,9 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
         fg_charge.extend(protein_df[headers_dict.get("precursor_charge")])
         ptm_id.extend([f"{gene}_{prot}_{ionid2ptmid.get(x)}" for x in protein_df["IonID"]])
 
+    LOGGER.info(f"{num_mapped} of {num_proteins} could be mapped")
+    if num_mapped/num_proteins < 0.7:
+        LOGGER.warning(f"Fewer proteins than expected could be mapped to sequence. Ensure that the organism is specified correctly.")
 
     conditions = [sample2cond.get(x) for x in run_ids]
 
