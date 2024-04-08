@@ -6,7 +6,8 @@ import pathlib
 import pandas as pd
 from itertools import combinations
 
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aq_diffquant_utils
+import alphaquant.utils.utils as aq_utils
 
 import alphaquant.ptm.ptmsite_mapping as aqptm
 import multiprocess
@@ -51,7 +52,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     create_progress_folder(input_file)
 
     if samplemap_df is None:
-        samplemap_df = aqutils.load_samplemap(samplemap_file)
+        samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
 
     if perform_ptm_mapping:
         if modification_type is None:
@@ -75,8 +76,8 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
 
     #store method parameters for reproducibility
-    aqutils.remove_old_method_parameters_file_if_exists(results_dir)
-    aqutils.store_method_parameters(locals(), results_dir)
+    aq_diffquant_utils.remove_old_method_parameters_file_if_exists(results_dir)
+    aq_diffquant_utils.store_method_parameters(locals(), results_dir)
 
     if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:
         generate_and_save_ml_infos_if_possible(runconfig)
@@ -122,7 +123,7 @@ def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_t
 
 def load_input_file(input_file, input_type_to_use):
     input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file, input_type_to_use)
-    reformatted_input_filename = get_reformatted_input_filename(input_file, input_type)
+    reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".{input_type}.aq_reformat.tsv")
     if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
         LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type}")
         return reformatted_input_filename
@@ -131,13 +132,6 @@ def load_input_file(input_file, input_type_to_use):
         shutil.move(reformatted_input_file_initial, reformatted_input_filename)
 
     return reformatted_input_filename
-
-
-def get_reformatted_input_filename(input_file, input_type):
-    input_file = os.path.abspath(input_file) #to make sure that the path is absolute
-    dirname_input_file = os.path.dirname(input_file)
-    basename_input_file = os.path.basename(input_file)
-    return f"{dirname_input_file}/{aqvariables.PROGRESS_FOLDER}/{basename_input_file}.{input_type}.aq_reformat.tsv"
 
 
 def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
@@ -160,13 +154,13 @@ def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_f
 def generate_and_save_ml_infos_if_possible(runconfig):
     results_dir = runconfig.results_dir
     samplemap_df = runconfig.samplemap_df
-    all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
+    all_samples = aq_diffquant_utils.get_all_samples_from_samplemap_df(samplemap_df)
     samples_in_input = list(pd.read_csv(runconfig.input_file, sep = "\t", nrows = 1).columns)
     if len(set(all_samples).intersection(samples_in_input)) <2:
         raise Exception("The input file and the samplemap file show (almost) no overlap. Please check that the samplemap file is specified correctly.")
-    dfinfos = aqutils.AcquisitionTableInfo(results_dir=results_dir)
+    dfinfos = aq_diffquant_utils.AcquisitionTableInfo(results_dir=results_dir)
     if dfinfos.file_exists:
-        dfhandler = aqutils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
+        dfhandler = aq_diffquant_utils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
         dfhandler.save_dataframe_as_new_acquisition_dataframe()
         dfhandler.update_ml_file_location_in_method_parameters_yaml()
     else:
