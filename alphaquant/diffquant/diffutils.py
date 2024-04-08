@@ -597,8 +597,9 @@ class AcquisitionTableOutputPaths():
         self.ml_file_accession_in_yaml = "ml_input_file"
 
     def get_output_file_name_(self):
-        directory_of_input_file = os.path.dirname(self._table_info._input_file)
-        filename = os.path.basename(self._table_info._input_file)
+        input_file = os.path.abspath(self._table_info._input_file)
+        directory_of_input_file = os.path.dirname(input_file)
+        filename = os.path.basename(input_file)
         new_filepath = f"{directory_of_input_file}/{aq_conf_var.PROGRESS_FOLDER}/{filename}.ml_info_table.tsv"
         return new_filepath
 
