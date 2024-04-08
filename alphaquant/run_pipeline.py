@@ -21,6 +21,7 @@ import alphaquant.multicond.median_condition_analysis as aqmediancond
 import alphaquant.tables.misctables as aq_tablewriter_misc
 import alphaquant.config.config as aqconfig
 import logging
+import shutil
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
     if "aq_reformat.tsv" not in input_file and not file_has_alphaquant_format:
         annotation_file = aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type_to_use, annotation_columns).annotation_filename
-        input_file = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use, use_alphaquant_format=True)
+        input_file = load_input_file(input_file, input_type_to_use)
         if peptides_to_exclude_file is not None:
             remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file)
 
@@ -119,6 +120,24 @@ def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_t
     ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
     return ptm_mapped_file
 
+def load_input_file(input_file, input_type_to_use):
+    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file, input_type_to_use)
+    reformatted_input_filename = get_reformatted_input_filename(input_file, input_type)
+    if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type}")
+        return reformatted_input_filename
+    else: 
+        reformatted_input_file_initial = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type, use_alphaquant_format=True)
+        shutil.move(reformatted_input_file_initial, reformatted_input_filename)
+
+    return reformatted_input_filename
+
+
+def get_reformatted_input_filename(input_file, input_type):
+    input_file = os.path.abspath(input_file) #to make sure that the path is absolute
+    dirname_input_file = os.path.dirname(input_file)
+    basename_input_file = os.path.basename(input_file)
+    return f"{dirname_input_file}/{aqvariables.PROGRESS_FOLDER}/{basename_input_file}.{input_type}.aq_reformat.tsv"
 
 
 def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
@@ -136,8 +155,6 @@ def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_f
     df_input.to_csv(input_file, sep = "\t", index = False)
     num_removed = len(not_in_peptides_to_exclude) - len(df_input.index)
     LOGGER.info(f"Excluded {num_removed} shared-species entries from input file")
-
-
 
 
 def generate_and_save_ml_infos_if_possible(runconfig):
