@@ -112,11 +112,11 @@ def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are
 def remove_outlier_fragion_childs(childs):
     zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
     
-    if len(zvals) > 2:
+    if len(zvals) > 4:
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
-        idx_start = median_idx - 1
-        idx_end = median_idx + 1
+        idx_start = median_idx - 2
+        idx_end = median_idx + 2
         idxs_to_use = sorted_idxs_zvals[idx_start:idx_end]
     else:
         idxs_to_use = aq_utils_diffquant.find_non_outlier_indices_ipr(zvals, threshold=1.1, percentile_lower = 30, percentile_upper = 70)
