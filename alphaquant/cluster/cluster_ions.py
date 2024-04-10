@@ -15,7 +15,7 @@ LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 MAPPING_DICT = {'SEQ':'seq', 'MOD':'mod_seq', 'CHARGE':'mod_seq_charge', 'MS1ISOTOPES':'ms1_isotopes','FRGION':'frgion', 'PRECURSOR' : 'precursor'}
 FCDIFF_CUTOFF_CLUSTERMERGE = 0
 LEVEL2PVALTHRESH = {'ion_type':0.2, 'mod_seq_charge':0.2, 'mod_seq':0.2, 'seq':0.2} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here
-LEVEL2PVALTHRESH = {'ion_type':0.2, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'seq':1e-20} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here. The threshold applies to the children of the node
+LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'seq':1e-20} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here. The threshold applies to the children of the node
 
 
 
@@ -117,7 +117,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                 aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
                 aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
                 aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
-                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=False)
+                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
     return root_node
 
@@ -271,7 +271,7 @@ def re_order_depending_on_predscore(protnode):
                 had_predscore = hasattr(child_nodes[0], 'predscore')
                 if had_predscore:
                     re_order_clusters_by_predscore(child_nodes)
-                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=False)
+                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
 
 
