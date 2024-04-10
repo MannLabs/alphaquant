@@ -1083,6 +1083,43 @@ diann_gene:
   
 
 
+spectronaut_ptm_fragion:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    fragion: F.PeakArea
+  protein_cols:
+   - ptm_id
+  ion_cols:
+   - FG.Id
+   - F.FrgIon
+   - F.FrgLossType
+   - F.Charge
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - ptm_mapped_modseq
+        CHARGE: 
+         - FG.Charge
+        FRGION: 
+         - F.FrgIon
+         - F.FrgLossType
+         - F.Charge
+  filters:
+    fragion_intensity:
+      param: F.PeakArea
+      comparator: ">"
+      value: 5.0
+  use_iontree: True
+  ml_level: CHARGE
+  annotation_columns:
+    - PEP.StrippedSequence
+
+
 spectronaut_ptm_fragion_isotopes:
   format: longtable
   sample_ID: R.Label
@@ -1134,43 +1171,6 @@ spectronaut_ptm_fragion_isotopes:
     - PEP.StrippedSequence
 
 
-spectronaut_ptm_fragion:
-  format: longtable
-  sample_ID: R.Label
-  quant_ID:
-    fragion: F.PeakArea
-  protein_cols:
-   - ptm_id
-  ion_cols:
-   - FG.Id
-   - F.FrgIon
-   - F.FrgLossType
-   - F.Charge
-  split_cols:
-    FG.MS1IsotopeIntensities (Measured): ";"
-  ion_hierarchy:
-    fragion:
-      order: [SEQ, MOD, CHARGE, FRGION]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - ptm_mapped_modseq
-        CHARGE: 
-         - FG.Charge
-        FRGION: 
-         - F.FrgIon
-         - F.FrgLossType
-         - F.Charge
-  filters:
-    fragion_intensity:
-      param: F.PeakArea
-      comparator: ">"
-      value: 5.0
-  use_iontree: True
-  ml_level: CHARGE
-  annotation_columns:
-    - PEP.StrippedSequence
 
 
 spectronaut_fragion_isotopes:
