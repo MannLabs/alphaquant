@@ -167,20 +167,6 @@ def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_f
     LOGGER.info(f"Excluded {num_removed} shared-species entries from input file")
 
 
-def generate_and_save_ml_infos_if_possible(runconfig):
-    results_dir = runconfig.results_dir
-    samplemap_df = runconfig.samplemap_df
-    all_samples = aq_diffquant_utils.get_all_samples_from_samplemap_df(samplemap_df)
-    samples_in_input = list(pd.read_csv(runconfig.input_file, sep = "\t", nrows = 1).columns)
-    if len(set(all_samples).intersection(samples_in_input)) <2:
-        raise Exception("The input file and the samplemap file show (almost) no overlap. Please check that the samplemap file is specified correctly.")
-    dfinfos = aq_diffquant_utils.AcquisitionTableInfo(results_dir=results_dir)
-    if dfinfos.file_exists:
-        dfhandler = aq_diffquant_utils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
-        dfhandler.save_dataframe_as_new_acquisition_dataframe()
-        dfhandler.update_ml_file_location_in_method_parameters_yaml()
-    else:
-        runconfig.use_ml = False
 
 def get_num_cores_to_use(use_multiprocessing):
     num_cores = multiprocess.cpu_count() if use_multiprocessing else 1
