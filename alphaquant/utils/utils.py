@@ -68,11 +68,12 @@ def convert_ion_string_to_node_type(ionstring, node_type): #for example I have a
         raise ValueError(f"Could not match {ionstring} to {node_type}. This function only works for the following node types: seq, mod_seq, mod_seq_charge")
     
 
-def get_progress_folder_filename(input_file, file_ending): #file ending needs to include all dots, e.g. ".aq_reformat.tsv"
+def get_progress_folder_filename(input_file, file_ending, remove_extension = True): #file ending needs to include all dots, e.g. ".aq_reformat.tsv"
     input_file = os.path.abspath(input_file) #to make sure that the path is absolute
     dirname_input_file = os.path.dirname(input_file)
     basename_input_file = os.path.basename(input_file)
-    basename_input_file = remove_file_extension(basename_input_file)
+    if remove_extension:
+        basename_input_file = remove_file_extension(basename_input_file)
     return f"{dirname_input_file}/{aq_variables.PROGRESS_FOLDER}/{basename_input_file}{file_ending}"
 
 def remove_file_extension(filename):
