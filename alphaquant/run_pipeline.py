@@ -15,6 +15,7 @@ import alphaquant.config.variables as aqvariables
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "./config/quant_reader_config.yaml")
 
+import alphaquant.classify.ml_info_table as aq_ml_info_table
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
 import alphaquant.diffquant.condpair_analysis as aqcondpair
 import alphaquant.multicond.median_condition_creation as aqmediancreation
@@ -23,7 +24,6 @@ import alphaquant.tables.misctables as aq_tablewriter_misc
 import alphaquant.config.config as aqconfig
 import logging
 import shutil
-aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
@@ -60,8 +60,10 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism = organism)
 
     if "aq_reformat.tsv" not in input_file and not file_has_alphaquant_format:
-        annotation_file = aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type_to_use, annotation_columns).annotation_filename
-        input_file = load_input_file(input_file, input_type_to_use)
+        input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file, input_type_to_use)
+        annotation_file = load_annotation_file(input_file, input_type, annotation_columns)
+        ml_input_file = load_ml_info_file(input_file, input_type)
+        input_file = load_input_file(input_file, input_type)
         if peptides_to_exclude_file is not None:
             remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file)
 
@@ -79,8 +81,6 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     aq_diffquant_utils.remove_old_method_parameters_file_if_exists(results_dir)
     aq_diffquant_utils.store_method_parameters(locals(), results_dir)
 
-    if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:
-        generate_and_save_ml_infos_if_possible(runconfig)
 
     if condpairs_list == None:
         conds = samplemap_df["condition"].unique()
@@ -121,9 +121,9 @@ def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_t
     ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
     return ptm_mapped_file
 
-def load_input_file(input_file, input_type_to_use):
-    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file, input_type_to_use)
-    reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".{input_type}.aq_reformat.tsv")
+
+def load_input_file(input_file, input_type):    
+    reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".{input_type}.aq_reformat.tsv", remove_extension=False)
     if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
         LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type}")
         return reformatted_input_filename
@@ -132,6 +132,22 @@ def load_input_file(input_file, input_type_to_use):
         shutil.move(reformatted_input_file_initial, reformatted_input_filename)
 
     return reformatted_input_filename
+
+def load_annotation_file(input_file, input_type, annotation_columns):
+    annotation_filename = aq_utils.get_progress_folder_filename(input_file, f".annotation.tsv")
+    if os.path.exists(annotation_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"Annotation file already exists. Using annotation file of type {input_type}")
+        return annotation_filename
+    else:
+        return aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type, annotation_columns).annotation_filename
+        
+def load_ml_info_file(input_file, input_type):
+    ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
+    if os.path.exists(ml_info_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"ML info file already exists. Using ML info file of type {input_type}")
+        return ml_info_filename
+    else:
+        return aq_ml_info_table.MLInfoTableCreator(input_file, input_type).ml_info_filename
 
 
 def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
