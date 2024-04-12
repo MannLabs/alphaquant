@@ -79,7 +79,7 @@ class RatioClassificationTableGenerator():
         self.per_species_results_df = self.per_species_results_df.reset_index().rename(columns={"index" : "organism"})
 
 
-def plot_sighits_barplot(df, suffixes, decoy_organism):
+def plot_sighits_barplot(df, suffixes, decoy_organism, bar_width=0.35):
     fig, ax = plt.subplots(figsize=(15, 6))
 
     # Choose a seaborn palette
@@ -87,7 +87,7 @@ def plot_sighits_barplot(df, suffixes, decoy_organism):
 
     organisms = df['organism']
     n_organisms = len(organisms)
-    bar_width = 0.35
+    bar_width = bar_width
     opacity = 0.8
     index = np.arange(n_organisms)
 
@@ -124,7 +124,8 @@ def plot_sighits_barplot(df, suffixes, decoy_organism):
     ax.set_xticklabels(organisms, rotation=45, ha="right")
 
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels)
+    # Placing the legend outside the plot to the right
+    ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(1,1))
 
     fig.tight_layout()
     plt.show()
