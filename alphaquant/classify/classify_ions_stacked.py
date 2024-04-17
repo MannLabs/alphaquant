@@ -227,7 +227,7 @@ def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5)
     if shorten_features_for_speed:
         max_features = 'sqrt'
     else:
-        max_features = 'auto'
+        max_features = None
 
     for train_index, _ in kf.split(X):
         X_train, y_train = X[train_index], y[train_index]
