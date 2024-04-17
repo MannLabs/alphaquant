@@ -72,4 +72,5 @@ class MLInfoTableLoader():
     
     def _subset_df_to_relevant_samples(self):
         self.ml_info_df = self.ml_info_df[self.ml_info_df["sample_ID"].isin(self._samples_used)]
+        self.ml_info_df = self.ml_info_df.drop(columns=["sample_ID"])
 
