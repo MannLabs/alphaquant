@@ -1,8 +1,8 @@
 import numpy as np 
 import pandas as pd
 import seaborn as sns
-import numpy as np
 import matplotlib.pyplot as plt
+import alphaquant.plotting.colors as aq_plot_colors
 
 
 class RatioClassificationTableGenerator():
@@ -24,9 +24,11 @@ class RatioClassificationTableGenerator():
         self._per_suffix_results_series = {}
 
         self.per_species_results_df = pd.DataFrame()
+        self.tp_fp_results_df = pd.DataFrame()
 
         self._define_per_suffix_results_series()
         self._merge_per_species_results_series_to_df()
+        self._define_tp_fp_results_df()
 
     def _define_per_suffix_results_series(self):
         """
@@ -76,17 +78,23 @@ class RatioClassificationTableGenerator():
                 self.per_species_results_df = method_df
             else:
                 self.per_species_results_df = self.per_species_results_df.merge(method_df, left_index=True, right_index=True, how='outer')
-        self.per_species_results_df = self.per_species_results_df.reset_index().rename(columns={"index" : "organism"})
+        self.per_species_results_df = self.per_species_results_df
+
+    def _define_tp_fp_results_df(self):
+        series_tp = self.per_species_results_df.drop(index=self._decoy_organism).sum(axis=0)
+        series_tp.name = "TP"
+        series_fp = self.per_species_results_df.loc[self._decoy_organism]
+        series_fp.name = "FP"
+        self.tp_fp_results_df = pd.concat([series_tp, series_fp], axis=1).transpose()
 
 
-def plot_sighits_barplot(df, suffixes, decoy_organism, bar_width=0.35):
-    fig, ax = plt.subplots(figsize=(15, 6))
+def plot_sighits_barplot(df, suffixes, decoy_organism, indicate_max_hits = True,bar_width=0.35, ax = None, palette = aq_plot_colors.AlphaQuantColorMap().colorlist):
+    if ax == None:
+        _, ax = plt.subplots(figsize=(15, 6))
 
-    # Choose a seaborn palette
-    palette = sns.color_palette('deep', len(suffixes)) 
 
-    organisms = df['organism']
-    n_organisms = len(organisms)
+    classification = df.index #classfication is either the organism or something like TP and FP
+    n_organisms = len(classification)
     bar_width = bar_width
     opacity = 0.8
     index = np.arange(n_organisms)
@@ -101,34 +109,32 @@ def plot_sighits_barplot(df, suffixes, decoy_organism, bar_width=0.35):
         # Slightly modify base color for max hits (lighter)
         max_hits_color = sns.light_palette(base_color, n_colors=3)[1]
 
+        if indicate_max_hits:
         # Plot max hits bars (background)
-        ax.bar(index + i * bar_width, df[max_hits_col], bar_width, alpha=0.4, color=max_hits_color, label=max_hits_col)
+            ax.bar(index + i * bar_width, df[max_hits_col], bar_width, alpha=0.4, color=max_hits_color, label=max_hits_col)
 
         # Overlay actual hits bars with slightly darker color
         hits_color = sns.dark_palette(base_color, n_colors=3)[2]
-        ax.bar(index + i * bar_width, df[hits_col], bar_width, alpha=opacity, color=hits_color, label=hits_col)
+        ax.bar(index + i * bar_width, df[hits_col], bar_width, alpha=opacity, color=hits_color, label=suffix[1:])
 
     # Add horizontal lines for allowed decoy hits, if applicable
-    if decoy_organism in organisms.values:
+    if decoy_organism in classification.values:
         for j, suffix in enumerate(suffixes):
-            decoy_value = df.loc[df['organism'] == decoy_organism, f'allowed_decoy_hits{suffix}'].values[0]
+            decoy_value = df.loc[decoy_organism, f'allowed_decoy_hits{suffix}']
             if not np.isnan(decoy_value):
                 # Use the base color for the line to match the suffix's color scheme
                 line_color = palette[j]
-                ax.axhline(y=decoy_value, color=line_color, linestyle='--', label=f'allowed_decoy_hits{suffix}')
+                ax.axhline(y=decoy_value, color=line_color, linestyle='--', label=None)
 
-    ax.set_xlabel('Organism')
-    ax.set_ylabel('Hits')
-    ax.set_title('Comparison of Hits by Organism')
+    ax.set_ylabel('hits')
     ax.set_xticks(index + bar_width / len(suffixes))
-    ax.set_xticklabels(organisms, rotation=45, ha="right")
+    ax.set_xticklabels(classification, rotation=45, ha="right")
 
     handles, labels = ax.get_legend_handles_labels()
     # Placing the legend outside the plot to the right
     ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(1,1))
 
-    fig.tight_layout()
-    plt.show()
+
 
 
 def get_tp_fp_from_count_df(per_species_results_df, organism_fp, suffix):
