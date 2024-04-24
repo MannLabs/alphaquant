@@ -33,7 +33,7 @@ def analyze_condpair(*,runconfig, condpair):
     protnodes = []
     protnodes_missingval = []
 
-    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file, samplemap_df=runconfig.samplemap_df, condpair=condpair, file_has_alphaquant_format = runconfig.file_has_alphaquant_format)
+    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file_reformat, samplemap_df=runconfig.samplemap_df, condpair=condpair, file_has_alphaquant_format = runconfig.file_has_alphaquant_format)
     pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
