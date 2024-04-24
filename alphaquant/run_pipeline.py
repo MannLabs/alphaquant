@@ -54,15 +54,19 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     if samplemap_df is None:
         samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
 
+    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
+    annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
+    
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
         input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
+        ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
 
-    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
-    annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
-    ml_input_file = load_ml_info_file(input_file_original, input_type)
-    input_file_reformat = load_input_file(input_file_original, input_type)
+    else:
+        input_file_reformat = load_input_file(input_file_original, input_type)
+        ml_input_file = load_ml_info_file(input_file_original, input_type)
+    
     if peptides_to_exclude_file is not None:
         remove_peptides_to_exclude_from_input_file(input_file_reformat, peptides_to_exclude_file)
 
@@ -118,7 +122,8 @@ def load_ptm_input_file(input_file, input_type_to_use, results_dir, samplemap_df
         LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type_to_use}")
         return reformatted_input_filename
     else:
-        return write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism)
+        ptm_mapped_file = write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism)
+        return load_input_file(ptm_mapped_file, input_type_to_use)
 
 def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
     try:
@@ -152,13 +157,13 @@ def load_annotation_file(input_file, input_type, annotation_columns):
     else:
         return aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type, annotation_columns).annotation_filename
         
-def load_ml_info_file(input_file, input_type):
+def load_ml_info_file(input_file, input_type, modification_type = None):
     ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
     if os.path.exists(ml_info_filename):#in case there already is a reformatted file, we don't need to reformat it again
         LOGGER.info(f"ML info file already exists. Using ML info file of type {input_type}")
         return ml_info_filename
     else:
-        return aq_ml_info_table.MLInfoTableCreator(input_file, input_type).ml_info_filename
+        return aq_ml_info_table.MLInfoTableCreator(input_file, input_type, modification_type).ml_info_filename
 
 
 def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):

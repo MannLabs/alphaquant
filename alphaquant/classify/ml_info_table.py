@@ -7,9 +7,10 @@ import numpy as np
 import itertools
 
 class MLInfoTableCreator():
-    def __init__(self, input_file, input_type_to_use):
+    def __init__(self, input_file, input_type_to_use, modfication_type):
         self._input_file = input_file
         self._input_type_to_use = input_type_to_use
+        self._modification_type = modfication_type
 
         self._ml_info_df = None
 
@@ -54,12 +55,19 @@ class MLInfoTableCreator():
         input_df["quant_id"] = input_df["quant_id"].apply(lambda x: x + '_')
         input_df = input_df.set_index(["quant_id", "sample_ID"])
         self._ml_info_df = input_df.select_dtypes(include=[np.number])
+        self._ml_info_df = self._ml_info_df.reset_index()
+        if self._modification_type is not None:
+            self._adapt_precursor_name_to_modification_type()
+
+    def _adapt_precursor_name_to_modification_type(self):
+        self._ml_info_df["quant_id"] = self._ml_info_df["quant_id"].apply(lambda x: x.replace(self._modification_type, ""))
+
 
     def _define_ml_info_filename(self):
         self.ml_info_filename = aq_utils.get_progress_folder_filename(self._input_file, ".ml_info_table.tsv")
 
     def _write_ml_info_table(self):
-        self._ml_info_df.to_csv(self.ml_info_filename, sep="\t", index=True)
+        self._ml_info_df.to_csv(self.ml_info_filename, sep="\t", index=False)
 
 
 class MLInfoTableLoader():
