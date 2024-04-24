@@ -163,7 +163,6 @@ tests/ratio_tests/outlier_scoring_phosphatase_set.ipynb
 tests/sensitivity_tests/sensitivity_phospho_peptides.ipynb
 tests/sensitivity_tests/single_cell_comparison.ipynb
 tests/sensitivity_tests/plexDIA_set.ipynb
-analyses_data
 test_data/unit_tests/results
 tests/sensitivity_tests/check_peptide_selection_for_significance.ipynb
 tests/sensitivity_tests/quicktest_dia_set.ipynb
@@ -181,7 +180,10 @@ test_data/system_tests/Spectronaut_LargeFC
 test_data/quicktests
 test_data/databases
 
+#analyses
+analyses_data
 analyses/ratio_tests/mann_labs_longgradient
+analyses
 
 #bash scripts
 misc/bumpversion.sh
