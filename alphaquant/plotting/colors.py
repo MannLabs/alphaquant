@@ -1,22 +1,36 @@
 import matplotlib
 
+
 class AlphaQuantColorMap():
     def __init__(self):
-        self.colorlist_hex  = ["#d8674e",  # Cadmium Red
-        "#45a6ce",  # Steel Blue
-        "#fdb73b",  # Cadmium Yellow
-        "#a6d1f1",  # Baby Blue
-        "#b04e8d",  # Tiffany Rose
-        "#6e79b9",  # Periwinkle
-        "#fcdf3b",  # Goldenrod
-        "#50C878",  # Emerald Green
-        "#808080",  # Grey instead of Amber
-        "#FF7F50",  # Coral
-        "#0F52BA",  # Egyptian Blue
-        "#9966CC",  # Amethyst
-        "#40E0D0"   # Turquoise
-        ]
+        self.colorlist_hex = ["#BEB3C2", #Purple
+                              "#7BA081", #Green
+                              "#CBBE6F", #Yellow
+                              "#677894", #Blue
+                              "#2E2C2D", #Black
+                              "#9F533E", #Red
+                              "#ED954C", #Orange
+                              "#789EA9", #light blue
+                              ]
         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
+
+# class AlphaQuantColorMap():
+#     def __init__(self):
+#         self.colorlist_hex  = ["#d8674e",  # Cadmium Red
+#         "#45a6ce",  # Steel Blue
+#         "#fdb73b",  # Cadmium Yellow
+#         "#a6d1f1",  # Baby Blue
+#         "#b04e8d",  # Tiffany Rose
+#         "#6e79b9",  # Periwinkle
+#         "#fcdf3b",  # Goldenrod
+#         "#50C878",  # Emerald Green
+#         "#808080",  # Grey instead of Amber
+#         "#FF7F50",  # Coral
+#         "#0F52BA",  # Egyptian Blue
+#         "#9966CC",  # Amethyst
+#         "#40E0D0"   # Turquoise
+#         ]
+#         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
 
 
 def rgba_list_to_hex_list(rgba_list):
