@@ -126,7 +126,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
             ax.axhline(y=-np.log10(fdr_cutoff), linestyle='--', color='black')
     
     ax.set_xlabel("log2(FC)")
-    ax.set_ylabel("-log10(fdr)")
+    ax.set_ylabel("-log10(FDR)")
 
 
     
