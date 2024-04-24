@@ -47,9 +47,9 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     """Run the differential analyses.
     """
     LOGGER.info("Starting AlphaQuant")
-    check_input_consistency(input_file, samplemap_file, samplemap_df)
-    aqvariables.determine_variables(input_file)
-    create_progress_folder(input_file)
+    input_file_original = input_file
+    check_input_consistency(input_file_original, samplemap_file, samplemap_df)
+    create_progress_folder_if_applicable(input_file_original)
 
     if samplemap_df is None:
         samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
@@ -57,23 +57,24 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
-        input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism = organism)
+        input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
 
-    if "aq_reformat.tsv" not in input_file and not file_has_alphaquant_format:
-        input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file, input_type_to_use)
-        annotation_file = load_annotation_file(input_file, input_type, annotation_columns)
-        ml_input_file = load_ml_info_file(input_file, input_type)
-        input_file = load_input_file(input_file, input_type)
-        if peptides_to_exclude_file is not None:
-            remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file)
+    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
+    annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
+    ml_input_file = load_ml_info_file(input_file_original, input_type)
+    input_file_reformat = load_input_file(input_file_original, input_type)
+    if peptides_to_exclude_file is not None:
+        remove_peptides_to_exclude_from_input_file(input_file_reformat, peptides_to_exclude_file)
 
     if multicond_median_analysis:
         condpairs_list = aqmediancreation.get_all_conds_relative_to_median(samplemap_df)
-        median_manager = aqmediancreation.MedianConditionManager(input_file, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
-        input_file = median_manager.input_filename_adapted
+        median_manager = aqmediancreation.MedianConditionManager(input_file_reformat, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
+        input_file_reformat = median_manager.input_filename_adapted
         samplemap_df = median_manager.samplemap_df_adapted
         del median_manager #delete the object as it needs not be in the runconfig
     
+    aqvariables.determine_variables(input_file_reformat)
+
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
 
@@ -105,11 +106,19 @@ def check_input_consistency(input_file, samplemap_file, samplemap_df):
         raise Exception("Samplemap is missing!")
     return True
 
-def create_progress_folder(input_file):
+def create_progress_folder_if_applicable(input_file):
     progress_folder = os.path.join(os.path.dirname(input_file), "progress")
     if not os.path.exists(progress_folder):
         os.makedirs(progress_folder)
 
+
+def load_ptm_input_file(input_file, input_type_to_use, results_dir, samplemap_df, modification_type, organism):
+    reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".ptmsite_mapped.tsv.{input_type_to_use}.aq_reformat.tsv", remove_extension=True)
+    if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type_to_use}")
+        return reformatted_input_filename
+    else:
+        return write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism)
 
 def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
     try:
@@ -132,6 +141,8 @@ def load_input_file(input_file, input_type):
         shutil.move(reformatted_input_file_initial, reformatted_input_filename)
 
     return reformatted_input_filename
+
+
 
 def load_annotation_file(input_file, input_type, annotation_columns):
     annotation_filename = aq_utils.get_progress_folder_filename(input_file, f".annotation.tsv")
