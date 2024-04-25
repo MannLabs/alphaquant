@@ -87,7 +87,8 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
                  log2fc_cutoff=0.5, xlim=None, ylim = None,
                  organism_column=None, organism2color_dict=None, 
                  color_only_significant=True, alpha= None,ax = None,
-                 draw_vertical_lines = True, draw_horizontal_lines = True):
+                 draw_vertical_lines = True, draw_horizontal_lines = True,
+                 ground_truth_ratios = None):
                  
     results_df[fdr_header] = results_df[fdr_header].replace(0, np.min(results_df[fdr_header].replace(0, 1.0)))
     fdrs = results_df[fdr_header].to_numpy()
@@ -138,6 +139,12 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     
     if ylim:
         ax.set_ylim(ylim)
+
+
+    if ground_truth_ratios is not None:
+        for ratio in ground_truth_ratios:
+            ax.axvline(ratio, color='grey', linestyle='--', linewidth=1)
+
 
 
 
