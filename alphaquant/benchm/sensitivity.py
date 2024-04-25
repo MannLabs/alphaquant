@@ -86,6 +86,7 @@ class RatioClassificationTableGenerator():
         series_fp = self.per_species_results_df.loc[self._decoy_organism]
         series_fp.name = "FP"
         self.tp_fp_results_df = pd.concat([series_tp, series_fp], axis=1).transpose()
+        self.tp_fp_results_df = self.tp_fp_results_df.replace(np.nan, 0)
 
 
 def plot_sighits_barplot(df, suffixes, decoy_organism, indicate_max_hits = True,bar_width=0.35, ax = None, palette = aq_plot_colors.AlphaQuantColorMap().colorlist):
@@ -133,6 +134,43 @@ def plot_sighits_barplot(df, suffixes, decoy_organism, indicate_max_hits = True,
     handles, labels = ax.get_legend_handles_labels()
     # Placing the legend outside the plot to the right
     ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(1,1))
+
+
+def plot_fp_tp_barplot(counts_df, ax = None, suffixes=["_alphaquant", "_spectronaut"], color_tp="#7BA081", color_fp="#9F533E"):
+
+    if ax == None:
+        fig, ax = plt.subplots()
+
+    hits_data = counts_df[['hits' + sfx for sfx in suffixes]].copy()
+    
+    # Rename columns to keep only the suffixes as method names
+    hits_data.columns = suffixes
+    
+    # Melt the DataFrame to long format
+    df_long = hits_data.reset_index().melt(id_vars='index', var_name='method', value_name='count')
+    df_long["method"] = df_long["method"].apply(lambda row: row[1:])
+    
+    # Create the bar plot
+    sns.barplot(x='method', y='count', hue='index', data=df_long,
+                palette={'TP': color_tp, 'FP': color_fp}, ax=ax)
+    
+
+    x_positions_of_bars = ax.get_xticks()
+
+    #make a horizontal line for the max allowed decoy hits per method
+    for idx, suffix  in enumerate(suffixes): 
+        max_allowed_counts = counts_df.loc['FP', 'allowed_decoy_hits' + suffix]
+        x_position = x_positions_of_bars[idx]
+        #ax.axvline(x_position, color='black', linestyle='-')
+        xmin, xmax = ax.get_xlim()
+        xposition_frac = (x_position - xmin) / (xmax - xmin)
+        bar_width = 1/(len(suffixes)*2.5)
+        ax.axhline(max_allowed_counts, xmin=xposition_frac- bar_width, xmax=xposition_frac+bar_width, color='black', linestyle='-')
+
+    
+        
+
+    ax.legend()
 
 
 
