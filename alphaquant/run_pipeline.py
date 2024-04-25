@@ -6,7 +6,8 @@ import pathlib
 import pandas as pd
 from itertools import combinations
 
-import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diffutils as aq_diffquant_utils
+import alphaquant.utils.utils as aq_utils
 
 import alphaquant.ptm.ptmsite_mapping as aqptm
 import multiprocess
@@ -14,6 +15,7 @@ import alphaquant.config.variables as aqvariables
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "./config/quant_reader_config.yaml")
 
+import alphaquant.classify.ml_info_table as aq_ml_info_table
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
 import alphaquant.diffquant.condpair_analysis as aqcondpair
 import alphaquant.multicond.median_condition_creation as aqmediancreation
@@ -21,7 +23,7 @@ import alphaquant.multicond.median_condition_analysis as aqmediancond
 import alphaquant.tables.misctables as aq_tablewriter_misc
 import alphaquant.config.config as aqconfig
 import logging
-aqconfig.setup_logging()
+import shutil
 LOGGER = logging.getLogger(__name__)
 
 
@@ -45,39 +47,45 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
     """Run the differential analyses.
     """
     LOGGER.info("Starting AlphaQuant")
-    check_input_consistency(input_file, samplemap_file, samplemap_df)
-    aqvariables.determine_variables(input_file)
+    input_file_original = input_file
+    check_input_consistency(input_file_original, samplemap_file, samplemap_df)
+    create_progress_folder_if_applicable(input_file_original)
 
     if samplemap_df is None:
-        samplemap_df = aqutils.load_samplemap(samplemap_file)
+        samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
 
+    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
+    annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
+    
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
-        input_file = write_ptm_mapped_input(input_file=input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism = organism)
+        input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
+        ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
 
-    if "aq_reformat.tsv" not in input_file and not file_has_alphaquant_format:
-        annotation_file = aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type_to_use, annotation_columns).annotation_filename
-        input_file = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type_to_use, use_alphaquant_format=True)
-        if peptides_to_exclude_file is not None:
-            remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file)
+    else:
+        input_file_reformat = load_input_file(input_file_original, input_type)
+        ml_input_file = load_ml_info_file(input_file_original, input_type)
+    
+    if peptides_to_exclude_file is not None:
+        remove_peptides_to_exclude_from_input_file(input_file_reformat, peptides_to_exclude_file)
 
     if multicond_median_analysis:
         condpairs_list = aqmediancreation.get_all_conds_relative_to_median(samplemap_df)
-        median_manager = aqmediancreation.MedianConditionManager(input_file, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
-        input_file = median_manager.input_filename_adapted
+        median_manager = aqmediancreation.MedianConditionManager(input_file_reformat, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
+        input_file_reformat = median_manager.input_filename_adapted
         samplemap_df = median_manager.samplemap_df_adapted
         del median_manager #delete the object as it needs not be in the runconfig
     
+    aqvariables.determine_variables(input_file_reformat)
+
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
 
     #store method parameters for reproducibility
-    aqutils.remove_old_method_parameters_file_if_exists(results_dir)
-    aqutils.store_method_parameters(locals(), results_dir)
+    aq_diffquant_utils.remove_old_method_parameters_file_if_exists(results_dir)
+    aq_diffquant_utils.store_method_parameters(locals(), results_dir)
 
-    if runconfig.use_iontree_if_possible and use_ml and not ml_input_file:
-        generate_and_save_ml_infos_if_possible(runconfig)
 
     if condpairs_list == None:
         conds = samplemap_df["condition"].unique()
@@ -95,21 +103,86 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         aqmediancond.analyze_and_write_median_condition_results(results_dir)
 
 
+def check_input_consistency(input_file, samplemap_file, samplemap_df):
+    if input_file is None:
+        raise Exception("no input file!")
+    if samplemap_file is None and samplemap_df is None:
+        raise Exception("Samplemap is missing!")
+    return True
 
-def generate_and_save_ml_infos_if_possible(runconfig):
-    results_dir = runconfig.results_dir
-    samplemap_df = runconfig.samplemap_df
-    all_samples = aqutils.get_all_samples_from_samplemap_df(samplemap_df)
-    samples_in_input = list(pd.read_csv(runconfig.input_file, sep = "\t", nrows = 1).columns)
-    if len(set(all_samples).intersection(samples_in_input)) <2:
-        raise Exception("The input file and the samplemap file show (almost) no overlap. Please check that the samplemap file is specified correctly.")
-    dfinfos = aqutils.AcquisitionTableInfo(results_dir=results_dir)
-    if dfinfos.file_exists:
-        dfhandler = aqutils.AcquisitionTableHandler(table_infos=dfinfos,samples=all_samples)
-        dfhandler.save_dataframe_as_new_acquisition_dataframe()
-        dfhandler.update_ml_file_location_in_method_parameters_yaml()
+def create_progress_folder_if_applicable(input_file):
+    progress_folder = os.path.join(os.path.dirname(input_file), "progress")
+    if not os.path.exists(progress_folder):
+        os.makedirs(progress_folder)
+
+
+def load_ptm_input_file(input_file, input_type_to_use, results_dir, samplemap_df, modification_type, organism):
+    reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".ptmsite_mapped.tsv.{input_type_to_use}.aq_reformat.tsv", remove_extension=True)
+    if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type_to_use}")
+        return reformatted_input_filename
     else:
-        runconfig.use_ml = False
+        ptm_mapped_file = write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism)
+        return load_input_file(ptm_mapped_file, input_type_to_use)
+
+def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
+    try:
+        aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
+    except Exception as e:
+        LOGGER.error(f"PTM mapping in memory failed with error: {e}. Trying out-of-core approach with dask.")
+        aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
+    mapped_df = pd.read_csv(f"{results_dir}/ptm_ids.tsv", sep = "\t")
+    ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
+    return ptm_mapped_file
+
+
+def load_input_file(input_file, input_type):    
+    reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".{input_type}.aq_reformat.tsv", remove_extension=False)
+    if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type}")
+        return reformatted_input_filename
+    else: 
+        reformatted_input_file_initial = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type, use_alphaquant_format=True)
+        shutil.move(reformatted_input_file_initial, reformatted_input_filename)
+
+    return reformatted_input_filename
+
+
+
+def load_annotation_file(input_file, input_type, annotation_columns):
+    annotation_filename = aq_utils.get_progress_folder_filename(input_file, f".annotation.tsv")
+    if os.path.exists(annotation_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"Annotation file already exists. Using annotation file of type {input_type}")
+        return annotation_filename
+    else:
+        return aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type, annotation_columns).annotation_filename
+        
+def load_ml_info_file(input_file, input_type, modification_type = None):
+    ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
+    if os.path.exists(ml_info_filename):#in case there already is a reformatted file, we don't need to reformat it again
+        LOGGER.info(f"ML info file already exists. Using ML info file of type {input_type}")
+        return ml_info_filename
+    else:
+        return aq_ml_info_table.MLInfoTableCreator(input_file, input_type, modification_type).ml_info_filename
+
+
+def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
+    df_input = pd.read_csv(input_file, sep = "\t")
+    peptides_to_exclude = set(pd.read_csv(peptides_to_exclude_file, sep = "\t")["peptide"].tolist())
+    pattern = r"SEQ_([A-Za-z0-9]+)_"
+    try:
+        df_input["peptide"] = [re.search(pattern, peptide).group(1) for peptide in df_input[aqvariables.QUANT_ID]]
+    except:
+        raise Exception("parsing of peptide sequence from QUANT_ID failed. The QUANT_ID column should contain the peptide sequence in the format SEQ_<peptide>_")
+    
+    not_in_peptides_to_exclude = ~df_input["peptide"].isin(peptides_to_exclude)
+    df_input = df_input[not_in_peptides_to_exclude]
+    df_input = df_input.drop(columns = ["peptide"])
+    df_input.to_csv(input_file, sep = "\t", index = False)
+    num_removed = len(not_in_peptides_to_exclude) - len(df_input.index)
+    LOGGER.info(f"Excluded {num_removed} shared-species entries from input file")
+
+
 
 def get_num_cores_to_use(use_multiprocessing):
     num_cores = multiprocess.cpu_count() if use_multiprocessing else 1
@@ -130,48 +203,3 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
 
         ,condpair_combinations)
 
-
-
-def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_type, organism = "human"):
-    try:
-        aqptm.assign_dataset_inmemory(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
-    except Exception as e:
-        LOGGER.error(f"PTM mapping in memory failed with error: {e}. Trying out-of-core approach with dask.")
-        aqptm.assign_dataset_chunkwise(input_file = input_file, results_dir=results_dir, samplemap_df=samplemap_df, modification_type=modification_type, organism=organism)
-    mapped_df = pd.read_csv(f"{results_dir}/ptm_ids.tsv", sep = "\t")
-    ptm_mapped_file = aqptm.merge_ptmsite_mappings_write_table(input_file, mapped_df, modification_type)
-    return ptm_mapped_file
-
-def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
-    df_input = pd.read_csv(input_file, sep = "\t")
-    peptides_to_exclude = set(pd.read_csv(peptides_to_exclude_file, sep = "\t")["peptide"].tolist())
-    pattern = r"SEQ_([A-Za-z0-9]+)_"
-    try:
-        df_input["peptide"] = [re.search(pattern, peptide).group(1) for peptide in df_input[aqvariables.QUANT_ID]]
-    except:
-        raise Exception("parsing of peptide sequence from QUANT_ID failed. The QUANT_ID column should contain the peptide sequence in the format SEQ_<peptide>_")
-    
-    not_in_peptides_to_exclude = ~df_input["peptide"].isin(peptides_to_exclude)
-    df_input = df_input[not_in_peptides_to_exclude]
-    df_input = df_input.drop(columns = ["peptide"])
-    df_input.to_csv(input_file, sep = "\t", index = False)
-    num_removed = len(not_in_peptides_to_exclude) - len(df_input.index)
-    LOGGER.info(f"Excluded {num_removed} shared-species entries from input file")
-
-
-
-def check_input_consistency(input_file, samplemap_file, samplemap_df):
-    if input_file is None:
-        raise Exception("no input file!")
-    if samplemap_file is None and samplemap_df is None:
-        raise Exception("Samplemap is missing!")
-    return True
-
-
-import alphaquant.diffquant.diffutils as aqutils
-import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
-def determine_if_ion_tree_is_used(runconfig):
-    if runconfig.use_iontree_if_possible is not None:
-        return runconfig.use_iontree_if_possible
-    _, config_dict, _ =  abconfigloader.get_input_type_and_config_dict(runconfig.input_file)
-    return config_dict.get("use_iontree")

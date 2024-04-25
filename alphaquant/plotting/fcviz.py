@@ -6,8 +6,11 @@ import alphaquant.config.variables as aqvars
 import alphamap.organisms_data
 import alphaquant.utils.utils as aq_utils
 import alphaquant.resources.database_loader as aq_db_loader
-import warnings
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
 
 class FoldChangeVisualizer():
 
@@ -98,7 +101,7 @@ class PlotConfig():
         self.protein_identifier = protein_identifier #can be 'gene_symbol' or 'uniprot_id'
         self.tree_level = tree_level
 
-        self.parent_level = aqclustutils.LEVELS[aqclustutils.LEVELS.index(self.tree_level)+1]
+        self.parent_level = aqclustutils.LEVELS_UNIQUE[aqclustutils.LEVELS_UNIQUE.index(self.tree_level)+1]
         self.order_peptides_along_protein_sequence = order_peptides_along_protein_sequence
         self._order_by_cluster = not order_peptides_along_protein_sequence
         self._organism = organism
@@ -207,7 +210,7 @@ class ProteinPlot():
 
     def _subset_protein_node_to_selected_peptides_if_applicable(self): #would also work for different levels at the current implementation, however makes most sense for the peptide level
         if self._selected_peptides is not None:
-            peptide_nodes = anytree.findall(self._protein_node, filter_= lambda x : x.level == self._plotconfig.tree_level)
+            peptide_nodes = anytree.findall(self._protein_node, filter_= lambda x : x.level == "seq")
             peptide_nodes_to_exclude = [x for x in peptide_nodes if x.name not in self._selected_peptides]
             for peptide_node in peptide_nodes_to_exclude:
                 peptide_node.parent = None
@@ -481,8 +484,9 @@ class ProteinQuantDfAnnotator():
 
         if not rows_with_na.empty:
             print("Rows with NA values in the specified columns:")
-            print(rows_with_na)
-            raise ValueError("NA values detected in the specified columns.")
+            LOGGER.warn("NA values detected in the specified columns.")
+            LOGGER.info(rows_with_na)
+            melted_df = melted_df.dropna(subset=columns_to_check)
         
         return melted_df
 

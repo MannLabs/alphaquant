@@ -2,6 +2,7 @@ import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.classify.classify_ions as aq_class_ions
 import alphaquant.config.config as aqconfig
 import alphaquant.plotting.classify as aq_plot_classify
+import alphaquant.classify.ml_info_table as aq_ml_info_table
 
 import numpy as np
 import anytree
@@ -23,7 +24,7 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
-def assign_predictability_scores_stacked(protein_nodes, results_dir, name, samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
+def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
                                          plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = False):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
@@ -41,8 +42,8 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, sampl
         return False
 
 
-    dfinfo = aqutils.AcquisitionTableInfo(results_dir=results_dir)
-    acquisition_info_df = aqutils.AcquisitionTableHandler(table_infos=dfinfo, samples=samples_used).get_acquisition_info_df()
+    
+    acquisition_info_df = aq_ml_info_table.MLInfoTableLoader(ml_info_file, samples_used).ml_info_df
 
     ml_input_for_training = MLInputTableCreator(precursor_selector.precursors_suitable_for_training, acquisition_info_df, define_y = True, replace_nans = replace_nans)
     ml_input_remaining = MLInputTableCreator(precursor_selector.precursors_not_suitable_for_training, acquisition_info_df, define_y = False, replace_nans = replace_nans)
@@ -226,7 +227,7 @@ def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5)
     if shorten_features_for_speed:
         max_features = 'sqrt'
     else:
-        max_features = 'auto'
+        max_features = None
 
     for train_index, _ in kf.split(X):
         X_train, y_train = X[train_index], y[train_index]

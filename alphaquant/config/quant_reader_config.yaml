@@ -452,6 +452,48 @@ diann_fragion_isotopes_corrected:
       comparator: "<="
       value: 0.01
 
+diann_fragion_isotopes_corrected_protein:
+  format: longtable
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Corrected
+    #Fragment.Quant.Raw
+    ms1iso: Ms1.Area
+  protein_cols:
+   - Protein.Group
+  split_cols:
+    Fragment.Quant.Corrected: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        FRGION: 
+         - Fragment.Quant.Corrected
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - Stripped.Sequence
+        MOD: 
+         - Modified.Sequence
+        CHARGE: 
+         - Precursor.Charge
+        MS1ISOTOPES:
+         - Precursor.Charge
+  use_iontree: True
+  ml_level: CHARGE
+  filters:
+    protein_qval:
+      param: Lib.PG.Q.Value
+      comparator: "<="
+      value: 0.01
+
   
 diann_fragion_precursor:
   format: longtable
@@ -1041,6 +1083,43 @@ diann_gene:
   
 
 
+spectronaut_ptm_fragion:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    fragion: F.PeakArea
+  protein_cols:
+   - ptm_id
+  ion_cols:
+   - FG.Id
+   - F.FrgIon
+   - F.FrgLossType
+   - F.Charge
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - ptm_mapped_modseq
+        CHARGE: 
+         - FG.Charge
+        FRGION: 
+         - F.FrgIon
+         - F.FrgLossType
+         - F.Charge
+  filters:
+    fragion_intensity:
+      param: F.PeakArea
+      comparator: ">"
+      value: 5.0
+  use_iontree: True
+  ml_level: CHARGE
+  annotation_columns:
+    - PEP.StrippedSequence
+
+
 spectronaut_ptm_fragion_isotopes:
   format: longtable
   sample_ID: R.Label
@@ -1090,6 +1169,8 @@ spectronaut_ptm_fragion_isotopes:
   ml_level: CHARGE
   annotation_columns:
     - PEP.StrippedSequence
+
+
 
 
 spectronaut_fragion_isotopes:
