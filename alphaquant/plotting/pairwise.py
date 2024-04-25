@@ -87,7 +87,8 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
                  log2fc_cutoff=0.5, xlim=None, ylim = None,
                  organism_column=None, organism2color_dict=None, 
                  color_only_significant=True, alpha= None,ax = None,
-                 draw_vertical_lines = True, draw_horizontal_lines = True):
+                 draw_vertical_lines = True, draw_horizontal_lines = True,
+                 ground_truth_ratios = None):
                  
     results_df[fdr_header] = results_df[fdr_header].replace(0, np.min(results_df[fdr_header].replace(0, 1.0)))
     fdrs = results_df[fdr_header].to_numpy()
@@ -95,8 +96,8 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     sighits_down = sum((fdrs < fdr_cutoff) & (fcs <= -log2fc_cutoff))
     sighits_up = sum((fdrs < fdr_cutoff) & (fcs >= log2fc_cutoff))
 
-    results_df['-log10(fdr)'] = -np.log10(results_df['fdr'])
-    results_df['is_significant'] = (results_df['fdr'] <= fdr_cutoff) & (np.abs(results_df['log2fc']) >= log2fc_cutoff)
+    results_df['-log10(fdr)'] = -np.log10(results_df[fdr_header])
+    results_df['is_significant'] = (results_df[fdr_header] <= fdr_cutoff) & (np.abs(results_df[fc_header]) >= log2fc_cutoff)
 
     results_df = add_color_column(results_df, organism2color_dict, organism_column, color_only_significant)
 
@@ -113,7 +114,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
         alpha = max(0.1, min(0.7, 0.7 - 0.6 * (len(fdrs) / 1000)))
 
 
-    sns.scatterplot(data=results_df, x='log2fc', y='-log10(fdr)', 
+    sns.scatterplot(data=results_df, x=fc_header, y='-log10(fdr)', 
                     color=results_df['color'], ax=ax, legend=None, alpha = alpha)
     
     # Drawing vertical lines for fold change thresholds and horizontal lines for p-value threshold
@@ -126,7 +127,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
             ax.axhline(y=-np.log10(fdr_cutoff), linestyle='--', color='black')
     
     ax.set_xlabel("log2(FC)")
-    ax.set_ylabel("-log10(fdr)")
+    ax.set_ylabel("-log10(FDR)")
 
 
     
@@ -138,6 +139,12 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     
     if ylim:
         ax.set_ylim(ylim)
+
+
+    if ground_truth_ratios is not None:
+        for ratio in ground_truth_ratios:
+            ax.axvline(ratio, color='grey', linestyle='--', linewidth=1)
+
 
 
 

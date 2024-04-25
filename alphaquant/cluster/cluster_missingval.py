@@ -175,7 +175,7 @@ class MissingValNodeTester:
             raise Exception("Condition 1 and condition 2 have the same number of values. This should not be handled by the counting statistics module.")
     
     def _define_pvalue_by_iterative_testing(self):
-        if self._perform_binomal_test_on_higher_condition() > 0.2: #the function returns a p-value
+        if self._perform_binomal_test_on_higher_condition() > 0.1: #the function returns a p-value
             self.pval = self._perform_binomal_test_on_lower_condition()
         
         else:
@@ -203,7 +203,7 @@ class MissingValNodeTester:
 
 
     def _define_matching_fc(self, node_to_test):
-        intensity_lower = np.percentile(self._all_intensities_higher_condition, self.pval)
+        intensity_lower = np.percentile(self._all_intensities_higher_condition, 0.1) #simply sample from the lower 10% of intensities from the higher condition
         numvals_c1 = node_to_test.numvals_c1
         numvals_c2 = node_to_test.numvals_c2
         if numvals_c1 > numvals_c2:

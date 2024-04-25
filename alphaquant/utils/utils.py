@@ -3,6 +3,7 @@ from anytree.importer import JsonImporter
 import glob
 import pandas as pd
 import re
+import alphaquant.config.variables as aq_variables
 
 NODETYPE2REGEX ={'frgion': 'SEQ.*MOD.*CHARGE.*FRG)(ION.*)',
  'ms1_isotopes': '(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)',
@@ -57,9 +58,6 @@ def get_condpairname(condpair):
 def get_condpair_from_condpairname(condpairname):
     return condpairname.split("_VS_")
 
-def remove_file_extension(filename):
-    trimmed_filename = os.path.splitext(filename)[0]
-    return trimmed_filename
 
 def convert_ion_string_to_node_type(ionstring, node_type): #for example I have a full quant_id that describes a fragment ion, I want to shorten it to the specified leve, e.g. sequence
     regex = NODETYPE2REGEX[node_type]
@@ -68,5 +66,17 @@ def convert_ion_string_to_node_type(ionstring, node_type): #for example I have a
         return match.group(1)
     else:
         raise ValueError(f"Could not match {ionstring} to {node_type}. This function only works for the following node types: seq, mod_seq, mod_seq_charge")
+    
 
+def get_progress_folder_filename(input_file, file_ending, remove_extension = True): #file ending needs to include all dots, e.g. ".aq_reformat.tsv"
+    input_file = os.path.abspath(input_file) #to make sure that the path is absolute
+    dirname_input_file = os.path.dirname(input_file)
+    basename_input_file = os.path.basename(input_file)
+    if remove_extension:
+        basename_input_file = remove_file_extension(basename_input_file)
+    return f"{dirname_input_file}/{aq_variables.PROGRESS_FOLDER}/{basename_input_file}{file_ending}"
+
+def remove_file_extension(filename):
+    trimmed_filename = os.path.splitext(filename)[0]
+    return trimmed_filename
 

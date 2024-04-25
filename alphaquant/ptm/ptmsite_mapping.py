@@ -13,7 +13,7 @@ __all__ = ['ModifiedPeptide', 'merge_samecond_modpeps', 'scale_site_idxs_to_prot
            'initialize_ptmsite_df', 'detect_site_occupancy_change', 'check_site_occupancy_changes_all_diffresults']
 
 # Cell
-import alphaquant.diffquant.diffutils as utils
+
 from alphaquant.config.variables import *
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
 import alphaquant.resources.database_loader as aq_resource_dbloader
@@ -40,7 +40,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     if input_type == 'Spectronaut':
         relevant_cols = get_relevant_cols_spectronaut(modification_type)
         input_df = dd.read_csv(input_file, sep = "\t", dtype='str', blocksize = 100*1024*1024, usecols = relevant_cols)
-        input_df = input_df.set_index('PG.UniProtIds')
+        input_df = input_df.set_index('PG.ProteinGroups')
 
     if input_type == 'DIANN':
         relevant_cols = get_relevant_cols_diann(modification_type)
@@ -76,7 +76,6 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
     
 
 import os
-import alphaquant.plotting.base_functions as aqviz
 def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
 sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectronaut", organism = "human", header = True):
 
@@ -103,11 +102,11 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     input_df = filter_input_table(input_type, modification_type, input_df)
     LOGGER.info(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
     swissprot_ids = set(pd.read_csv(swissprot_file, sep = "\t", usecols = ["Entry"])["Entry"])
-    sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene names"])
+    sequence_df = pd.read_csv(sequence_file, sep = "\t", usecols = ["Entry", "Sequence", "Gene Names"])
     sequence_map = dict(zip(sequence_df["Entry"], sequence_df["Sequence"]))
     sequence_df = sequence_df.dropna()
 
-    refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene names"]]))
+    refgene_map = dict(zip(sequence_df["Entry"], [x.split(" ")[0] for x in sequence_df["Gene Names"]]))
 
     input_df.loc[:,"REFPROT"] = get_idmap_column(input_df[headers_dict.get("proteins")].astype(str),swissprot_ids)
     input_df.loc[:,"IonID"] = input_df[label_column] + input_df[fg_id_column]
@@ -129,25 +128,23 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     ion_id = []
 
 
-    count_peps = 0
-    fraction_count = 0
-    one_fraction = int(len(input_df.index)/100)
-    for prot in input_df.index.unique():#input_df["REFPROT"].unique():
 
-        if int(count_peps/one_fraction)>fraction_count:
-            LOGGER.info(f"assigned {count_peps} of {len(input_df.index)} {count_peps/len(input_df.index):.2f}")
-            fraction_count = int(count_peps/one_fraction) +1
+    num_proteins = len(input_df.index.unique())
+    num_mapped = 0
+    for idx, prot in enumerate(input_df.index.unique()):#input_df["REFPROT"].unique():
+
+        if idx %100 == 0:
+            LOGGER.info(f"processing {idx} of {num_proteins} ({(idx/num_proteins):.2f}) proteins for ptmsite mapping")
 
         #filtvec = [prot in x for x in input_df["REFPROT"]]
 
         protein_df = input_df.loc[[prot]].copy()#input_df[filtvec].copy()
         protein_df = protein_df.reset_index()
 
-        count_peps+= len(protein_df)
-
         sequence = sequence_map.get(prot)
         if sequence == None:
             continue
+        num_mapped+=1
         gene = refgene_map.get(prot)
 
         modpeps_per_sample = [ModifiedPeptide(input_type,protein_df.loc[x],sequence, modification_type) for x in protein_df.index]
@@ -171,6 +168,9 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
         fg_charge.extend(protein_df[headers_dict.get("precursor_charge")])
         ptm_id.extend([f"{gene}_{prot}_{ionid2ptmid.get(x)}" for x in protein_df["IonID"]])
 
+    LOGGER.info(f"{num_mapped} of {num_proteins} could be mapped")
+    if num_mapped/num_proteins < 0.7:
+        LOGGER.warning(f"Fewer proteins than expected could be mapped to sequence. Ensure that the organism is specified correctly.")
 
     conditions = [sample2cond.get(x) for x in run_ids]
 
@@ -625,15 +625,13 @@ import numpy as np
 import alphaquant.diffquant.diffutils as aqutils
 import os
 
-def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, ptm_type_config_dict = 'spectronaut_ptm_fragion_isotopes', chunksize = 100_000):
-    #load configs, determine
+def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, input_type_to_use = "spectronaut_ptm_fragion", chunksize = 100_000):
     config_dict = abconfigdictloader.import_config_dict()
-    config_dict_ptm = config_dict.get(ptm_type_config_dict)
+    config_dict_ptm = config_dict.get(input_type_to_use)
     relevant_columns = abconfigdictloader.get_relevant_columns_config_dict(config_dict_ptm)#the columns that will be relevant in the ptm table
     relevant_columns_spectronaut = list(set(relevant_columns).intersection(set(pd.read_csv(spectronaut_file, sep = "\t", nrows=2).columns)))# the relevant columsn in the spectronaut table ()
     relevant_columns_spectronaut = relevant_columns_spectronaut+["EG.ModifiedSequence"]
-    file_modified = spectronaut_file.replace(".tsv", "")
-    ptmmapped_table_filename = f'{file_modified}_ptmsite_mapped.tsv'
+    ptmmapped_table_filename = get_ptmmapped_filename(spectronaut_file)
     lines_read = 0
 
     labelid2ptmid, labelid2site = get_ptmid_mappings(mapped_df) #get precursor+experiment to site mappings
@@ -652,6 +650,15 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
         LOGGER.info(f"{lines_read} lines read")
         header = False
     return ptmmapped_table_filename
+
+def get_ptmmapped_filename(spectronaut_file):
+    spectronaut_file_abspath = os.path.abspath(spectronaut_file)
+    foldername = os.path.dirname(spectronaut_file_abspath)
+    filename = os.path.basename(spectronaut_file_abspath)
+    filename_reduced = filename.replace(".tsv", "")
+    return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv" #this file is not written to the progress folder
+    
+
 
 def add_ptmsite_info_to_subtable(spectronaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns):
 

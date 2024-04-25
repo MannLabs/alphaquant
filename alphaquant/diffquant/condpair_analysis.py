@@ -33,7 +33,7 @@ def analyze_condpair(*,runconfig, condpair):
     protnodes = []
     protnodes_missingval = []
 
-    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file, samplemap_df=runconfig.samplemap_df, condpair=condpair, file_has_alphaquant_format = runconfig.file_has_alphaquant_format)
+    input_df_local = get_unnormed_df_condpair(input_file=runconfig.input_file_reformat, samplemap_df=runconfig.samplemap_df, condpair=condpair, file_has_alphaquant_format = runconfig.file_has_alphaquant_format)
     pep2prot = dict(zip(input_df_local.index, input_df_local['protein']))
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
@@ -110,7 +110,7 @@ def analyze_condpair(*,runconfig, condpair):
 
         #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions", 
          #                           min_num_fragions=5, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
-        ml_successfull =aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), 
+        ml_successfull =aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), ml_info_file=runconfig.ml_input_file,
                                         samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=runconfig.runtime_plots)
 
 
