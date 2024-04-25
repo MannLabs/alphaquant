@@ -556,8 +556,6 @@ def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
 # Cell
 def filter_input_table(input_type, modification_type,input_df):
     if input_type == "Spectronaut":
-        non_fragion_columns = [x for x in input_df.columns if not x.startswith("F.")]
-
         return input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
     if input_type == "DIANN":
         return input_df[[(modification_type in x) for x in input_df["Modified.Sequence"]]]
