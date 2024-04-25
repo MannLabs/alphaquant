@@ -183,6 +183,8 @@ test_data/databases
 
 analyses/ratio_tests/mann_labs_longgradient
 
+analyses
+
 #bash scripts
 misc/bumpversion.sh
 #figures
