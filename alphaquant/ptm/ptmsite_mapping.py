@@ -97,7 +97,8 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     headers_dict = headers_dicts.get(input_type)
     label_column = headers_dict.get("label_column")
     fg_id_column = headers_dict.get("fg_id_column")
-    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
+   # sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
+    sample2cond = {x : "cond" for x in samplemap_df["sample"]} #we now enforce that all samples map to the same ptm site in the end. We do not split per condition.
     len_before = len(input_df.index)
     input_df = filter_input_table(input_type, modification_type, input_df)
     LOGGER.info(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
