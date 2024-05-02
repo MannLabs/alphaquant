@@ -186,7 +186,7 @@ class MissingValNodeTester:
 
     
     def _define_pvalue_by_iterative_testing(self):
-        if self._perform_binomal_test_on_higher_condition() > 0.1: #the function returns a p-value
+        if self._perform_binomal_test_on_higher_condition() > 0.2: #the function returns a p-value
             self.pval = self._perform_binomal_test_on_lower_condition()
         
         else:
