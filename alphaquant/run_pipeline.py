@@ -42,14 +42,14 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
                  cluster_threshold_pval = 0.01, cluster_threshold_fcfc = 0, fcdiff_cutoff_clustermerge = 0.5, use_ml = True, take_median_ion = True, 
                  perform_ptm_mapping = False, perform_phospho_inference = False, outlier_correction = True, normalize = True, use_iontree_if_possible = True, write_out_results_tree = True, get_ion2clust = False, median_offset = False,
                  pre_normed_intensity_file = None, dia_fragment_selection = False, use_multiprocessing = False,runtime_plots = False, volcano_fdr =0.05, 
-                 volcano_fcthresh = 0.5, annotation_columns = None, protein_subset_for_normalization_file = None, protnorm_peptides = True, peptides_to_exclude_file = None):
+                 volcano_fcthresh = 0.5, annotation_columns = None, protein_subset_for_normalization_file = None, protnorm_peptides = True, peptides_to_exclude_file = None, reset_progress_folder = False):
 
     """Run the differential analyses.
     """
     LOGGER.info("Starting AlphaQuant")
     input_file_original = input_file
     check_input_consistency(input_file_original, samplemap_file, samplemap_df)
-    create_progress_folder_if_applicable(input_file_original)
+    create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
 
     if samplemap_df is None:
         samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
@@ -110,9 +110,12 @@ def check_input_consistency(input_file, samplemap_file, samplemap_df):
         raise Exception("Samplemap is missing!")
     return True
 
-def create_progress_folder_if_applicable(input_file):
+def create_progress_folder_if_applicable(input_file, reset_progress_folder):
     progress_folder = os.path.join(os.path.dirname(input_file), "progress")
     if not os.path.exists(progress_folder):
+        os.makedirs(progress_folder)
+    elif reset_progress_folder:
+        shutil.rmtree(progress_folder)
         os.makedirs(progress_folder)
 
 
