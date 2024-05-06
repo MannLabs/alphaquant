@@ -52,7 +52,8 @@ class ProteoFormTableAnnotator():
             first_row = group_df.iloc[0]
             ref_fc = first_row["log2fc"]
             for i, row in group_df.iterrows():
-                row["fcdiff"] = abs(row["log2fc"] - ref_fc)
+                row["fcdiff"] = row["log2fc"] - ref_fc
+                row["abs_fcdiff"] = abs(row["fcdiff"])
                 all_rows.append(row)
         self.proteoform_df = pd.DataFrame(all_rows)
 

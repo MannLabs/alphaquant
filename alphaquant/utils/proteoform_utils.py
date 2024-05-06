@@ -2,7 +2,7 @@ import pandas as pd
 
 def filter_proteoform_df(proteoform_df, min_num_peptides=1, quality_score_cutoff=0, fcdiff_cutoff=0.5, likely_phospho = None,keep_reference_proteoform=True):
 
-    proteoform_df_outliers = proteoform_df[(proteoform_df['fcdiff'] > fcdiff_cutoff) & (proteoform_df['quality_score'] > quality_score_cutoff) & (proteoform_df['num_peptides'] >= min_num_peptides)]
+    proteoform_df_outliers = proteoform_df[(proteoform_df['abs_fcdiff'] > fcdiff_cutoff) & (proteoform_df['quality_score'] > quality_score_cutoff) & (proteoform_df['num_peptides'] >= min_num_peptides)]
     if likely_phospho is not None:
         proteoform_df_outliers = proteoform_df_outliers[proteoform_df_outliers['likely_phospho'] == likely_phospho]
 
