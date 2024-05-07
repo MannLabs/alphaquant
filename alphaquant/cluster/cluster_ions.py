@@ -1,5 +1,5 @@
-import scipy.spatial.distance as distance
-import scipy.cluster.hierarchy as hierarchy
+import scipy.spatial.distance
+import scipy.cluster.hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.cluster.cluster_sorting as aq_cluster_sorting
 import alphaquant.diffquant.diffutils as aqutils
@@ -147,11 +147,10 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
+    condensed_distance_matrix = scipy.spatial.distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
                                                                                                    deedpair2doublediffdist, fcfc_threshold))
-    
-    after_clust = hierarchy.ward(condensed_distance_matrix)
-    clustered = hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
+    after_clust = scipy.cluster.hierarchy.ward(condensed_distance_matrix)
+    clustered = scipy.cluster.hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
 
     childnode2clust = [(type_node.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
@@ -185,9 +184,9 @@ def merge_similar_clusters(childnode2clust, fcdiff_cutoff_clustermerge = 0.5):
     clusters = list(clust2fc.keys())
     clust_idxs = [[x] for x in range(len(clusters))]
 
-    condensed_distance_matrix = distance.pdist(clust_idxs, lambda idx1, idx2: compare_fcdistance(clusters, idx1, idx2, clust2fc))
-    after_clust = hierarchy.complete(condensed_distance_matrix)
-    clustered = hierarchy.fcluster(after_clust, fcdiff_cutoff_clustermerge, criterion='distance')
+    condensed_distance_matrix = scipy.spatial.distance.pdist(clust_idxs, lambda idx1, idx2: compare_fcdistance(clusters, idx1, idx2, clust2fc))
+    after_clust = scipy.cluster.hierarchy.complete(condensed_distance_matrix)
+    clustered = scipy.cluster.hierarchy.fcluster(after_clust, fcdiff_cutoff_clustermerge, criterion='distance')
 
     childnode2clust = update_childnode2clust(childnode2clust, clusters, clustered)
 
