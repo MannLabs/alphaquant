@@ -149,7 +149,8 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
     condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
                                                                                                    deedpair2doublediffdist, fcfc_threshold))
-    after_clust = hierarchy.complete(condensed_distance_matrix)
+    
+    after_clust = hierarchy.ward(condensed_distance_matrix)
     clustered = hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
 
