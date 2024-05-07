@@ -343,7 +343,7 @@ def exchange_cluster_idxs(fclust_output_array):
 
 
 def get_fcs_ions(diffions):
-    fcs = np.ones(len(diffions))
+    fcs = np.zeros(len(diffions))
     for idx in range(len(diffions)):
         fcs[idx] = np.nanmedian([ion.fc for ion in diffions[idx]])
     return fcs
