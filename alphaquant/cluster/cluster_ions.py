@@ -28,6 +28,7 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     global FCDIFF_CUTOFF_CLUSTERMERGE
     FCDIFF_CUTOFF_CLUSTERMERGE = fcdiff_cutoff_clustermerge
 
+    diffions = sorted(diffions, key = lambda x : x.name)
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(gene_name, diffions)
     add_reduced_names_to_root(root_node)
