@@ -232,15 +232,6 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
     fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
     return 1/(pval + 1e-17)
 
-def get_median_ions(diffions, idx1, idx2, ions1, ions2):
-    fcs_ions1 = [x.fc for x in diffions[idx1]]
-    fcs_ions2 = [x.fc for x in diffions[idx2]]
-    idx_ions1 = np.argsort(fcs_ions1)[len(fcs_ions1)//2]
-    idx_ions2 = np.argsort(fcs_ions2)[len(fcs_ions2)//2]
-    ions1 = [ions1[idx_ions1]]
-    ions2 = [ions2[idx_ions2]]
-    return ions1, ions2
-
 
 
 # Cell
