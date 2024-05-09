@@ -32,6 +32,21 @@ class AlphaQuantColorMap():
         ]
         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
 
+        self.colordict = {"cadmium_red" : "#d8674e",
+                        "steelblue": "#45a6ce",
+                        "cadmium_yellow": "#fdb73b",
+                        "baby_blue": "#a6d1f1",
+                        "tiffany_rose": "#b04e8d",
+                        "periwinkle": "#6e79b9",
+                        "goldenrod": "#fcdf3b",
+                        "emerald_green": "#50C878",
+                        "grey": "#808080",
+                        "coral": "#FF7F50",
+                        "egyptian_blue": "#0F52BA",
+                        "amethyst": "#9966CC",
+                        "turquoise": "#40E0D0"
+                          }
+
 
 def rgba_list_to_hex_list(rgba_list):
     hex_list = []
