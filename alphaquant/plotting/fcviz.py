@@ -612,8 +612,13 @@ class IonFoldChangePlotter():
     
 class IonFoldChangeCalculator():
     def __init__(self, melted_df, condpair):
+        
         self.melted_df = melted_df
+        self.precursors = None
+        self.fcs = None
+
         self._condpair = condpair
+        
         self._calculate_precursors_and_fcs_from_melted_df()
 
     def _calculate_precursors_and_fcs_from_melted_df(self):
