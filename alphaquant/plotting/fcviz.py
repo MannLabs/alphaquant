@@ -253,7 +253,7 @@ class ProteinClusterPlotter():
         protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
         self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
 
-    def _define_parent2elements(self):
+    def _define_parent2elements(self):# for example you have precursor as a parent and ms1 and ms2 as the leafs
         if self._parent2elements is None:
             self._parent2elements =  aqclustutils.get_parent2leaves_dict(self._protein_node)
     
@@ -265,9 +265,9 @@ class ProteinClusterPlotter():
 
     def _plot_all_child_elements(self):
 
-        for idx, (_, elements) in enumerate(self._parent2elements.items()):
+        for idx, (_, elements) in enumerate(self._parent2elements.items()): #each parent is a separate subplot
             
-            melted_df_subset = self._subset_to_elements(self._melted_df, elements)
+            melted_df_subset = self._subset_to_elements(self._melted_df, elements) 
             colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
             ProteinPlot = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._quantification_info.condpair, plotconfig=self._plotconfig)
             ProteinPlot.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
@@ -612,8 +612,13 @@ class IonFoldChangePlotter():
     
 class IonFoldChangeCalculator():
     def __init__(self, melted_df, condpair):
+        
         self.melted_df = melted_df
+        self.precursors = None
+        self.fcs = None
+
         self._condpair = condpair
+        
         self._calculate_precursors_and_fcs_from_melted_df()
 
     def _calculate_precursors_and_fcs_from_melted_df(self):
