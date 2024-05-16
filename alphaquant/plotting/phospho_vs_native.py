@@ -18,7 +18,7 @@ class CombinedPhosphoAndNativeDataframeGetter(): #"native" means unenriched prot
         self._prepare_nodes()
         self._init_melted_df_combined()
 
-    def _prepare_nodes(self):
+    def _prepare_nodes(self): #the nodes need to be cut to the level of interest, which in this case are the peptides (children of "gene" level)
         self._protein_node_native = aq_clus_utils.clone_tree(self._protein_node_native)
         self._protein_node_native = aq_clus_utils.shorten_root_to_level(self._protein_node_native, parent_level="gene")
         self._list_of_protein_nodes_phospho = [aq_clus_utils.clone_tree(protein_node) for protein_node in self._list_of_protein_nodes_phospho]
