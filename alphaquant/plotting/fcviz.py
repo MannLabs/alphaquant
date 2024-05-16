@@ -15,11 +15,11 @@ LOGGER = logging.getLogger(__name__)
 class FoldChangeVisualizer():
 
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
-                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.ClusterColorMap().colorlist, tree_level = 'seq',
+                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq',
                                                         protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
                                                         narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
+                                                        figsize = None, showfliers = True):
                                                         
-                                                        ):
         """
         Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
 
@@ -40,7 +40,7 @@ class FoldChangeVisualizer():
 
         """
 
-        self.plotconfig = PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence)
+        self.plotconfig = PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence, figsize=figsize, showfliers=showfliers)
 
         self.quantification_info = CondpairQuantificationInfo((condition1, condition2), results_directory, samplemap_file)
 
@@ -80,7 +80,7 @@ class FoldChangeVisualizer():
 class PlotConfig():
     def __init__(self, label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, 
                  colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human', 
-                 order_peptides_along_protein_sequence = False):
+                 order_peptides_along_protein_sequence = False, figsize = None, showfliers = True):
         """
         Configuration class for plotting.
 
@@ -103,6 +103,8 @@ class PlotConfig():
         self.colorlist = colorlist
         self.protein_identifier = protein_identifier #can be 'gene_symbol' or 'uniprot_id'
         self.tree_level = tree_level
+        self.figsize = figsize
+        self.showfliers = showfliers
 
         self.parent_level = aqclustutils.LEVELS_UNIQUE[aqclustutils.LEVELS_UNIQUE.index(self.tree_level)+1]
         self.order_peptides_along_protein_sequence = order_peptides_along_protein_sequence
@@ -241,12 +243,14 @@ class ProteinClusterPlotter():
         self._parent2elements = parent2elements
         self._fig = fig
         self._axes = axes
+        self._figsize = self._plotconfig.figsize
         self._melted_df = None
         
         self._init_melted_df()
         self._define_parent2elements()
         self._define_fig_and_axes()
         self._plot_all_child_elements()
+        self._label_x_and_y()
 
 
     def _init_melted_df(self):
@@ -285,9 +289,13 @@ class ProteinClusterPlotter():
         num_independent_plots = len(self._parent2elements.keys())
         width_list = [len(x) for x in self._parent2elements.values()] #adjust width of each subplot according to peptide number
         total_number_of_peptides = sum(width_list)
-        figsize = (total_number_of_peptides*0.5,10)
+        if self._figsize is None:
+            figsize = (total_number_of_peptides*0.5,10)
+        else:
+            figsize = self._figsize
         self._fig, self._axes = plt.subplots(1, num_independent_plots,figsize = figsize,sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list}, squeeze=False)
         self._axes = self._axes[0] #the squeeze=False option always returns a 2D array, even if there is only one subplot
+    
 
 
     def _set_yaxes_to_same_scale(self):
@@ -328,7 +336,7 @@ class ProteinClusterPlotter():
         return self._colormap[modulo_idx]
 
     def _label_x_and_y(self):
-        self._fig.supylabel("log2FC")
+        self._fig.supylabel("log2(FC)")
 
     def _set_title(self):
         self._fig.suptitle(self._protein_node.name)
@@ -545,7 +553,7 @@ class IonFoldChangePlotter():
         ionfc_calculated = IonFoldChangeCalculator(melted_df, condpair)
         self._property_column = property_column
         self._is_included_column = is_included_column
-        self._add_stripplot = plotconfig.add_stripplot
+        self._plotconfig = plotconfig
         self.precursors = ionfc_calculated.precursors
         self.fcs = ionfc_calculated.fcs
         self._melted_df = ionfc_calculated.melted_df
@@ -590,7 +598,7 @@ class IonFoldChangePlotter():
         if type(colormap) == type(dict()):
             colormap = {idx: colormap.get(self.precursors[idx]) for idx in range(len(self.precursors))}
         
-        if self._add_stripplot:
+        if self._plotconfig.add_stripplot:
             self._plot_fcs_with_swarmplot(colormap, ax)
         else:
             self._plot_fcs_with_boxplot(colormap, ax)
@@ -600,11 +608,11 @@ class IonFoldChangePlotter():
     
     def _plot_fcs_with_swarmplot(self, colormap, ax):
         sns.stripplot(data = self.fcs, ax=ax, palette=colormap)
-        sns.boxplot(data = self.fcs, ax=ax, 
+        sns.boxplot(data = self.fcs, ax=ax, showfliers=self._plotconfig.showfliers,
             boxprops=dict(facecolor="none", edgecolor="black"))
 
     def _plot_fcs_with_boxplot(self, colormap, ax):
-        sns.boxplot(data = self.fcs, ax=ax, palette=colormap)
+        sns.boxplot(data = self.fcs, ax=ax, palette=colormap, showfliers=self._plotconfig.showfliers)
 
     def _get_fig_width(self):
         num_ions = len(self.precursors)
