@@ -38,7 +38,7 @@ class MedianConditionManager():
     
     def _save_adapted_files(self):
         self.samplemap_df_extended.to_csv(self.samplemap_filename_adapted, sep = "\t", index = None)
-        self.input_df_extended.to_csv(self.input_filename_adapted, sep = "\t")
+        self.input_df_extended.to_csv(self.input_filename_adapted, sep = "\t", index = None)
 
 
 
@@ -72,7 +72,7 @@ class MedianConditionCreator():
         per_condition_idxs = self._get_per_condition_idxs()
         max_num_replicates = max([len(x) for x in per_condition_idxs])
 
-        median_intensities_array = np.zeros((self._input_df_np_array.shape[0], max_num_replicates))
+        median_intensities_array = np.full((self._input_df_np_array.shape[0], max_num_replicates), np.nan)
 
         for quant_id_idx in range(self._input_df_np_array.shape[0]):
             intensities = self._input_df_np_array[quant_id_idx,:]
