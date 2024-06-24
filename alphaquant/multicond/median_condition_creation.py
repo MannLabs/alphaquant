@@ -145,14 +145,14 @@ class MedianIntensityCreator():
                 median_intensities.append(median_intensity)
         return np.array(median_intensities)
     
-    def _get_intensities_for_replicate(self, rep_idx):
+    def _get_intensities_for_replicate(self, rep_idx : int):
          #rep_idx might be larger than the number of replicates for this particular condition as it goes until max_num_replicates
         condition_intensities = np.array([x[rep_idx] for x in self._per_condition_intensities_sorted 
                                               if self._check_if_replicate_is_valid(rep_idx, x)])
         return condition_intensities
     
     @staticmethod
-    def _check_if_replicate_is_valid(rep_idx, condition_intensities):
+    def _check_if_replicate_is_valid(rep_idx, condition_intensities : np.array):
         if rep_idx< len(condition_intensities):
             if ~np.isnan(condition_intensities[rep_idx]):
                 return True
