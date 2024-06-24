@@ -32,9 +32,8 @@ class MedianConditionManager():
 
 
 
-
 class MedianConditionCreator():
-    def __init__(self, input_df_aqformat : pd.DataFrame, samplemap_df : pd.DataFrame, fraction_missing_values = 0.1):
+    def __init__(self, input_df_aqformat : pd.DataFrame, samplemap_df : pd.DataFrame, fraction_missing_values : float = 0.1):
         """This class coordinates the calculation of median intensities
 
         Args:
