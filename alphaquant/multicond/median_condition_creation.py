@@ -19,22 +19,12 @@ class MedianConditionManager():
         self._fraction_missing_values = fraction_missing_values
         
 
-        self.input_df_extended = self._define_extended_input_df()
-        self.samplemap_df_extended = self._define_extended_samplemap_df()
-        self.samplemap_filename_adapted = self._adapt_filename(samplemap_file)
-        self.input_filename_adapted = self._adapt_filename(input_file)
+        self.input_df_extended = MedianConditionCreator(self._input_df, self._samplemap_df,  self._fraction_missing_values).extended_input_df
+        self.samplemap_df_extended = ExtendedSampleMapCreator(self._samplemap_df, self.input_df_extended).extended_samplemap_df
+        self.samplemap_filename_adapted = samplemap_file.replace(".tsv", "_w_median.tsv")
+        self.input_filename_adapted = input_file.replace(".tsv", "_w_median.tsv")
 
         self._save_adapted_files()
-    
-    def _define_extended_input_df(self):
-        return MedianConditionCreator(self._input_df, self._samplemap_df,  self._fraction_missing_values).extended_input_df
-    
-    def _define_extended_samplemap_df(self):
-        return ExtendedSampleMapCreator(self._samplemap_df, self.input_df_extended).extended_samplemap_df
-
-    @staticmethod
-    def _adapt_filename(filename):
-        return filename.replace(".tsv", "_w_median.tsv")
     
     def _save_adapted_files(self):
         self.samplemap_df_extended.to_csv(self.samplemap_filename_adapted, sep = "\t", index = None)
