@@ -159,3 +159,8 @@ class MedianIntensityCreator():
         return False
 
 
+
+def get_all_conds_relative_to_median(samplemap_df):
+    conds = samplemap_df["condition"].unique()
+    condpair_combinations = [(x, "median_reference") for x in conds]
+    return condpair_combinations
