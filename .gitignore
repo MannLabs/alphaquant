@@ -192,6 +192,8 @@ misc/bumpversion.sh
 #figures
 figures/
 
+analyses
+
 example_nbs/data/mouse_tissues/results_*
 example_nbs/data/phospho/results_*
 
