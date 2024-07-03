@@ -19,8 +19,8 @@ class MedianConditionManager():
         self._fraction_missing_values = fraction_missing_values
         
 
-        self.samplemap_df_extended = ExtendedSampleMapCreator(self._samplemap_df, self.input_df_extended).extended_samplemap_df
         self.input_df_extended = ExtendedInputDfCreator(self._input_df, self._samplemap_df,  self._fraction_missing_values).extended_input_df
+        self.samplemap_df_extended = ExtendedSampleMapCreator(self._samplemap_df, self.input_df_extended).extended_samplemap_df
         self.samplemap_filename_adapted = samplemap_file.replace(".tsv", "_w_median.tsv")
         self.input_filename_adapted = input_file.replace(".tsv", "_w_median.tsv")
 
