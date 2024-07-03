@@ -137,9 +137,10 @@ class MedianIntensityCreator():
         median_intensities = []
 
         max_num_replicates = max([len(x) for x in self._per_condition_idxs])
+        num_conditions = len(self._per_condition_idxs)
         for rep_idx in range(max_num_replicates):
             condition_intensities = self._get_intensities_for_replicate(rep_idx)
-            fraction_missing = 1-len(condition_intensities)/max_num_replicates
+            fraction_missing = 1-len(condition_intensities)/num_conditions
             if fraction_missing <= self._fraction_missing_values:
                 median_intensity = np.nanmedian(condition_intensities)
                 median_intensities.append(median_intensity)
