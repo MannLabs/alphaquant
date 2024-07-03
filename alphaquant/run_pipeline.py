@@ -74,7 +74,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         condpairs_list = aqmediancreation.get_all_conds_relative_to_median(samplemap_df)
         median_manager = aqmediancreation.MedianConditionManager(input_file_reformat, samplemap_file) #writes median condition to input file and samplemap file and overwrites the formatted input and samplemap file
         input_file_reformat = median_manager.input_filename_adapted
-        samplemap_df = median_manager.samplemap_df_adapted
+        samplemap_df = median_manager.samplemap_df_extended
         del median_manager #delete the object as it needs not be in the runconfig
     
     aqvariables.determine_variables(input_file_reformat)
