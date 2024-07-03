@@ -7,6 +7,14 @@ class MedianConditionManager():
         """This class reads in a quantitative alphaquant input table and a samplemap file. It calculates new "median intensity" samples,
         adds those to the input table, extends the samplemap accordingly and saves the adapted files under new filenames.
         
+        return idxs_per_condition
+    
+    @staticmethod
+    def _drop_allnan_columns(median_intensities_array):
+        column_is_all_nan = np.all(np.isnan(median_intensities_array), axis = 0)
+        return median_intensities_array[:, ~column_is_all_nan]
+            
+            
 
         Args:
             input_file (str): alphaquant input file ((protein,quant_id) x sample table in matrix format)
@@ -19,32 +27,39 @@ class MedianConditionManager():
         self._fraction_missing_values = fraction_missing_values
         
 
-        self.input_df_extended = self._define_extended_input_df()
-        self.samplemap_df_extended = self._define_extended_samplemap_df()
-        self.samplemap_filename_adapted = self._adapt_filename(samplemap_file)
-        self.input_filename_adapted = self._adapt_filename(input_file)
+        self.samplemap_df_extended = ExtendedSampleMapCreator(self._samplemap_df, self.input_df_extended).extended_samplemap_df
+        self.input_df_extended = ExtendedInputDfCreator(self._input_df, self._samplemap_df,  self._fraction_missing_values).extended_input_df
+        self.samplemap_filename_adapted = samplemap_file.replace(".tsv", "_w_median.tsv")
+        self.input_filename_adapted = input_file.replace(".tsv", "_w_median.tsv")
 
         self._save_adapted_files()
-    
-    def _define_extended_input_df(self):
-        return MedianConditionCreator(self._input_df, self._samplemap_df,  self._fraction_missing_values).extended_input_df
-    
-    def _define_extended_samplemap_df(self):
-        return ExtendedSampleMapCreator(self._samplemap_df, self.input_df_extended).extended_samplemap_df
-
-    @staticmethod
-    def _adapt_filename(filename):
-        return filename.replace(".tsv", "_w_median.tsv")
     
     def _save_adapted_files(self):
         self.samplemap_df_extended.to_csv(self.samplemap_filename_adapted, sep = "\t", index = None)
         self.input_df_extended.to_csv(self.input_filename_adapted, sep = "\t", index = None)
 
+class ExtendedSampleMapCreator():
+    def __init__(self, samplemap_df : pd.DataFrame, input_df_extended : pd.DataFrame):
+        """This class extends the samplemap dataframe by adding the new median intensity samples
+
+        Args:
+            samplemap_df (pd.Dataframe): sample to condition mapping dataframe
+            input_df_extended (pd.Dataframe): input dataframe with added median intensity samples
+        """
+        self._samplemap_df = samplemap_df
+        self._input_df_extended = input_df_extended
+
+        self.extended_samplemap_df = self._define_extended_samplemap_df()
+    
+    def _define_extended_samplemap_df(self):
+        median_columns = [x for x in self._input_df_extended.columns if x.startswith("median_rep")]
+        condition_name = ["median_reference" for x in range(len(median_columns))]
+        median_name_df = pd.DataFrame({"sample": median_columns, "condition": condition_name})
+        return pd.concat([self._samplemap_df, median_name_df], axis = "rows")
 
 
-
-class MedianConditionCreator():
-    def __init__(self, input_df_aqformat : pd.DataFrame, samplemap_df : pd.DataFrame, fraction_missing_values = 0.1):
+class ExtendedInputDfCreator():
+    def __init__(self, input_df_aqformat : pd.DataFrame, samplemap_df : pd.DataFrame, fraction_missing_values : float = 0.1):
         """This class coordinates the calculation of median intensities
 
         Args:
@@ -138,35 +153,17 @@ class MedianIntensityCreator():
                 median_intensities.append(median_intensity)
         return np.array(median_intensities)
     
-    def _get_intensities_for_replicate(self, rep_idx):
+    def _get_intensities_for_replicate(self, rep_idx : int):
          #rep_idx might be larger than the number of replicates for this particular condition as it goes until max_num_replicates
         condition_intensities = np.array([x[rep_idx] for x in self._per_condition_intensities_sorted 
                                               if self._check_if_replicate_is_valid(rep_idx, x)])
         return condition_intensities
     
     @staticmethod
-    def _check_if_replicate_is_valid(rep_idx, condition_intensities):
+    def _check_if_replicate_is_valid(rep_idx, condition_intensities : np.array):
         if rep_idx< len(condition_intensities):
             if ~np.isnan(condition_intensities[rep_idx]):
                 return True
         return False
 
 
-class ExtendedSampleMapCreator():
-    def __init__(self, samplemap_df : pd.DataFrame, input_df_extended : pd.DataFrame):
-        """This class extends the samplemap dataframe by adding the new median intensity samples
-
-        Args:
-            samplemap_df (pd.Dataframe): sample to condition mapping dataframe
-            input_df_extended (pd.Dataframe): input dataframe with added median intensity samples
-        """
-        self._samplemap_df = samplemap_df
-        self._input_df_extended = input_df_extended
-
-        self.extended_samplemap_df = self._define_extended_samplemap_df()
-    
-    def _define_extended_samplemap_df(self):
-        median_columns = [x for x in self._input_df_extended.columns if x.startswith("median_rep")]
-        condition_name = ["median_reference" for x in range(len(median_columns))]
-        median_name_df = pd.DataFrame({"sample": median_columns, "condition": condition_name})
-        return pd.concat([self._samplemap_df, median_name_df], axis = "rows")
