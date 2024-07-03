@@ -7,14 +7,6 @@ class MedianConditionManager():
         """This class reads in a quantitative alphaquant input table and a samplemap file. It calculates new "median intensity" samples,
         adds those to the input table, extends the samplemap accordingly and saves the adapted files under new filenames.
         
-        return idxs_per_condition
-    
-    @staticmethod
-    def _drop_allnan_columns(median_intensities_array):
-        column_is_all_nan = np.all(np.isnan(median_intensities_array), axis = 0)
-        return median_intensities_array[:, ~column_is_all_nan]
-            
-            
 
         Args:
             input_file (str): alphaquant input file ((protein,quant_id) x sample table in matrix format)
