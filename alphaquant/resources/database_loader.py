@@ -4,8 +4,8 @@ import pandas as pd
 
 def get_genename2sequence_dict( organism = "human"):
     swissprot_file = get_swissprot_path(organism)
-    swissprot_df = pd.read_csv(swissprot_file, sep = '\t', usecols=['Gene names', 'Sequence'])
-    gene_names = swissprot_df['Gene names'].astype(str).tolist()
+    swissprot_df = pd.read_csv(swissprot_file, sep = '\t', usecols=['Gene Names', 'Sequence'])
+    gene_names = swissprot_df['Gene Names'].astype(str).tolist()
     sequences = swissprot_df['Sequence'].astype(str).tolist()
 
     gene2sequence_dict = {}
