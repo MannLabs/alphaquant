@@ -194,8 +194,10 @@ figures/
 
 #example notebooks
 example_nbs/data/mouse_tissues/progress
-example_nbs/data/mouse_tissues/results_*
-example_nbs/data/phospho/results_*
+example_nbs/data/mouse_tissues/results*
+example_nbs/data/phospho/results*
+example_nbs/data/phospho/progress
+example_nbs/data/phospho/phospho_subset.ptmsite_mapped.tsv
 
 example_nbs/data/mouse_tissues/mouse_tissues_100prot_200ng.aq_reformat_w_median.tsv
 example_nbs/data/mouse_tissues/samplemap_200_w_median.tsv
