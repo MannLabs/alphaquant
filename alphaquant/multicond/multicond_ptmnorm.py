@@ -26,7 +26,7 @@ class MedianRefResultLoaderPTM():
             del self.condpair2results_df[key]
     
 
-class MedianConditionCombinerPTMNormed(): #this does a very simple combination of the conditionpairs, not taking into account proteoforms
+class MedianConditionCombinerPTMNormed(): #this does a very simple combination of the conditionpairs, it only derives protein intensities, not proteoform intensities
     def __init__(self, condpair2results_df):
         self._condpair2results_df = condpair2results_df
 
