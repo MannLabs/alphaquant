@@ -1,9 +1,9 @@
 on:
     workflow_dispatch:
   
-name: Create GitHub Draft Releases
+  name: Create GitHub Draft Releases
   
-jobs:
+  jobs:
     Current_Version:
       runs-on: ubuntu-latest
       outputs:
