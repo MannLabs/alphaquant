@@ -192,6 +192,7 @@ misc/bumpversion.sh
 figures/
 
 
+
 #example notebooks
 example_nbs/data/mouse_tissues/progress
 example_nbs/data/mouse_tissues/results*

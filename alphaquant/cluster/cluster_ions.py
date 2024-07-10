@@ -1,5 +1,5 @@
-import scipy.spatial.distance as distance
-import scipy.cluster.hierarchy as hierarchy
+import scipy.spatial.distance
+import scipy.cluster.hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.cluster.cluster_sorting as aq_cluster_sorting
 import alphaquant.diffquant.diffutils as aqutils
@@ -28,6 +28,7 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     global FCDIFF_CUTOFF_CLUSTERMERGE
     FCDIFF_CUTOFF_CLUSTERMERGE = fcdiff_cutoff_clustermerge
 
+    diffions = sorted(diffions, key = lambda x : x.name)
     name2diffion = {x.name : x for x in diffions}
     root_node = create_hierarchical_ion_grouping(gene_name, diffions)
     add_reduced_names_to_root(root_node)
@@ -146,10 +147,10 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
+    condensed_distance_matrix = scipy.spatial.distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
                                                                                                    deedpair2doublediffdist, fcfc_threshold))
-    after_clust = hierarchy.complete(condensed_distance_matrix)
-    clustered = hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
+    after_clust = scipy.cluster.hierarchy.ward(condensed_distance_matrix)
+    clustered = scipy.cluster.hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
 
     childnode2clust = [(type_node.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
@@ -183,9 +184,9 @@ def merge_similar_clusters(childnode2clust, fcdiff_cutoff_clustermerge = 0.5):
     clusters = list(clust2fc.keys())
     clust_idxs = [[x] for x in range(len(clusters))]
 
-    condensed_distance_matrix = distance.pdist(clust_idxs, lambda idx1, idx2: compare_fcdistance(clusters, idx1, idx2, clust2fc))
-    after_clust = hierarchy.complete(condensed_distance_matrix)
-    clustered = hierarchy.fcluster(after_clust, fcdiff_cutoff_clustermerge, criterion='distance')
+    condensed_distance_matrix = scipy.spatial.distance.pdist(clust_idxs, lambda idx1, idx2: compare_fcdistance(clusters, idx1, idx2, clust2fc))
+    after_clust = scipy.cluster.hierarchy.complete(condensed_distance_matrix)
+    clustered = scipy.cluster.hierarchy.fcluster(after_clust, fcdiff_cutoff_clustermerge, criterion='distance')
 
     childnode2clust = update_childnode2clust(childnode2clust, clusters, clustered)
 
@@ -230,15 +231,6 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
 
     fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
     return 1/(pval + 1e-17)
-
-def get_median_ions(diffions, idx1, idx2, ions1, ions2):
-    fcs_ions1 = [x.fc for x in diffions[idx1]]
-    fcs_ions2 = [x.fc for x in diffions[idx2]]
-    idx_ions1 = np.argsort(fcs_ions1)[len(fcs_ions1)//2]
-    idx_ions2 = np.argsort(fcs_ions2)[len(fcs_ions2)//2]
-    ions1 = [ions1[idx_ions1]]
-    ions2 = [ions2[idx_ions2]]
-    return ions1, ions2
 
 
 

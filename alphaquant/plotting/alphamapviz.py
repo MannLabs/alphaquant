@@ -10,12 +10,12 @@ import alphamap.organisms_data
 import alphamap.sequenceplot
 import alphamap.uniprot_integration
 import alphaquant.plotting.fcviz as aq_plot_fc
-import alphaquant.plotting.base_functions as aq_plot_base
+import alphaquant.plotting.colors as aq_plot_colors
 
 
 class AlphaMapVisualizer:
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
-            order_along_protein_sequence = True, organism = 'Human',colorlist = aq_plot_base.ClusterColorMap().colorlist, tree_level = 'seq',
+            order_along_protein_sequence = True, organism = 'Human',colorlist = aq_plot_colors.AlphaQuantColorMap().colorlist, tree_level = 'seq',
             protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
             narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2):
         
@@ -31,7 +31,7 @@ class AlphaMapVisualizer:
             samplemap_file (str): Path to the AlphaQuant samplemap file.
             order_along_protein_sequence (bool, optional): Whether to order peptides along the protein sequence. Defaults to True.
             organism (str, optional): The organism for the protein sequences. Defaults to 'Human'.
-            colorlist (list, optional): List of colors for plotting. Defaults to aq_plot_base.ClusterColorMap().colorlist.
+            colorlist (list, optional): List of colors for plotting. Defaults to aq_plot_colors.AlphaQuantColorMap().colorlist.
             tree_level (str, optional): Specifies which level of the tree to visualize. Options are 'seq', 'mod_seq', 'mod_seq_charge', 'ion_type'. Defaults to 'seq'.
             protein_identifier (str, optional): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'. Defaults to 'gene_symbol'.
             label_rotation (int, optional): Rotation angle (in degrees) for x-axis labels. Defaults to 90.
@@ -56,7 +56,7 @@ class AlphaMapVisualizer:
     
     def _get_colorlist(self, fc_visualizer):
         colorlist = fc_visualizer.plotconfig.colorlist
-        return aq_plot_base.rgba_list_to_hex_list(colorlist)
+        return aq_plot_colors.rgba_list_to_hex_list(colorlist)
 
     def visualize_protein(self, protein):
         """returns 2 plots: 1) fold change plot and 2) alphamap sequence plot"""
