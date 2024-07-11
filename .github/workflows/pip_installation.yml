@@ -1,11 +1,9 @@
-on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main, development ]
+on: 
+  push:
+  pull_request:
   workflow_dispatch:
 
-name: Default installation and tests
+name: Different pip installations with quick tests
 
 jobs:
   stable_installation:
@@ -32,7 +30,7 @@ jobs:
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_tests.sh
+          . ./run_quicktests.sh
   loose_installation:
     name: Test loose pip installation on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -57,4 +55,4 @@ jobs:
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_tests.sh
+          . ./run_quicktests.sh
