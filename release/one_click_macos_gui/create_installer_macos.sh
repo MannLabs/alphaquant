@@ -12,7 +12,7 @@ rm -rf dist
 rm -rf build
 
 # Creating a conda environment
-conda create -n alphaquantinstaller python=3.10 -y
+conda create -n alphaquantinstaller python=3.9 -y
 conda activate alphaquantinstaller
 
 # Creating the wheel
