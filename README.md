@@ -100,7 +100,7 @@ git clone https://github.com/MannLabs/alphaquant.git
 For any Python package, it is highly recommended to use a separate [conda virtual environment](https://docs.conda.io/en/latest/), as otherwise *dependancy conflicts can occur with already existing packages*.
 
 ```bash
-conda create --name alphaquant python=3.10 -y
+conda create --name alphaquant python=3.9 -y
 conda activate alphaquant
 ```
 
