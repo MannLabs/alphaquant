@@ -10,7 +10,7 @@ jobs:
       version: ${{ steps.master_Current_Version.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Get current version
         id: master_Current_Version
         run: |
@@ -49,7 +49,7 @@ jobs:
     needs: Create_Draft_On_GitHub
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
@@ -82,7 +82,7 @@ jobs:
     needs: Create_Draft_On_GitHub
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
