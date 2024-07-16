@@ -4,6 +4,8 @@ import numpy as np
 import alphaquant.diffquant.background_distributions as aq_diff_bg
 import pytest
 
+#previously in notebook 04_diff_analysis.ipynb
+
 def generate_random_input(num_pep, sample2cond_df):
     pepnames = list(map(lambda _idx: str(uuid.uuid4()), range(num_pep)))  # gives uuid strings for each peptide
     randarrays = 10 + 1.5 * np.random.randn(num_pep, sample2cond_df.shape[0])

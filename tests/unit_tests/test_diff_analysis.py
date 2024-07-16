@@ -5,6 +5,8 @@ import scipy.stats
 import alphaquant.diffquant.background_distributions as aq_diff_bg
 import alphaquant.diffquant.diff_analysis as aq_diff_diff
 
+#previously in notebook 04_diff_analysis.ipynb
+
 @pytest.fixture
 def condbg():
     num_vals = 10000
