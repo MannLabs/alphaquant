@@ -17,9 +17,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 class TestFileDownloader():
-    def __init__(self, test_folder, links_yaml):
+    def __init__(self, test_folder, links_yaml, subfolder_of_interest = None):
         self._test_folder = test_folder
-        self._path2link = DownloadLinkConverter(links_yaml).get_path2link_from_yaml_file()
+        self._path2link = DownloadLinkConverter(links_yaml, subfolder_of_interest).get_path2link_from_yaml_file()
         self._install_wget_if_missing()
 
     def download_missing_files(self):
@@ -81,13 +81,15 @@ class TestFileDownloader():
 
 
 class DownloadLinkConverter():
-    def __init__(self, links_yaml):
+    def __init__(self, links_yaml, subfolder_of_interest = None):
         self._links_yaml = links_yaml
+        self._subfolder_of_interest = subfolder_of_interest
 
     def get_path2link_from_yaml_file(self):
         yaml_dict = self._load_dict_from_yaml_file(self._links_yaml)
         path2link_generator = self._convert_nested_dict_to_relpath_dict(nested_dict=yaml_dict)
         path2link_dict = {path : link for path, link in path2link_generator}
+        path2link_dict = self._subset_path2link_to_subfolder_of_interest(path2link_dict)
         return path2link_dict
 
     @staticmethod
@@ -111,6 +113,11 @@ class DownloadLinkConverter():
     @staticmethod
     def _check_if_value_is_dict(value):
         return isinstance(value, dict)
+    
+    def _subset_path2link_to_subfolder_of_interest(self, path2link):
+        if self._subfolder_of_interest is None:
+            return path2link
+        return {path: link for path, link in path2link.items() if self._subfolder_of_interest in path}
 
 
 
