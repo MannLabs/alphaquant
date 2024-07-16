@@ -10,7 +10,7 @@ if __name__ == '__main__':
     command_line_arguments = sys.argv
     type_of_test = command_line_arguments[1]
 
-    if type_of_test == 'quicktest':
+    if type_of_test == 'quicktests':
         links_yaml = links_yaml_quicktest_files
     elif type_of_test == 'all_tests':
         links_yaml = links_yaml_all_testfiles
