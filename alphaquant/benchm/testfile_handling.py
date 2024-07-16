@@ -21,8 +21,9 @@ class TestFileDownloader():
         self._test_folder = test_folder
         self._path2link = DownloadLinkConverter(links_yaml, subfolder_of_interest).get_path2link_from_yaml_file()
         self._install_wget_if_missing()
+        self._download_missing_files()
 
-    def download_missing_files(self):
+    def _download_missing_files(self):
         missing_paths = self._get_missing_paths()
         LOGGER.info(missing_paths)
         for missing_path in missing_paths:
