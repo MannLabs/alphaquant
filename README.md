@@ -43,7 +43,7 @@ There are currently two different types of installation possible:
 
 * [**One-click GUI installer:--under construction--**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible. Note that this version is quite outdated and does not contain many of the features. Update is in the making.
 <!---
-* [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing Python 3.8 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
+* [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing python 3.9 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
 -->
 * [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
@@ -60,7 +60,7 @@ Older releases remain available on the [release page](https://github.com/MannLab
 <!---
 ### Pip
 
-AlphaQuant can be installed in an existing Python 3.8 environment with a single `bash` command. *This `bash` command can also be run directly from within a Jupyter notebook by prepending it with a `!`*:
+AlphaQuant can be installed in an existing python 3.9 environment with a single `bash` command. *This `bash` command can also be run directly from within a Jupyter notebook by prepending it with a `!`*:
 
 ```bash
 pip install alphaquant
@@ -100,7 +100,7 @@ git clone https://github.com/MannLabs/alphaquant.git
 For any Python package, it is highly recommended to use a separate [conda virtual environment](https://docs.conda.io/en/latest/), as otherwise *dependancy conflicts can occur with already existing packages*.
 
 ```bash
-conda create --name alphaquant python=3.8 -y
+conda create --name alphaquant python=3.9 -y
 conda activate alphaquant
 ```
 

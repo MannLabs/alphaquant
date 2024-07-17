@@ -30,7 +30,9 @@ l__ = ['get_samples_used_from_samplemap_file', 'get_samples_used_from_samplemap_
 import os
 import pathlib
 from ..config.variables import QUANT_ID
-import alphaquant.config.variables as aq_conf_var
+import importlib.metadata
+
+
 if "__file__" in globals():#only run in the translated python file, as __file__ is not defined with ipython
     INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs", "intable_config.yaml") #the yaml config is located one directory below the python library files
 
@@ -253,6 +255,7 @@ def load_config(config_yaml):
 
 def store_method_parameters(local_vars_dict, results_dir):
     method_params = get_methods_dict_from_local_vars(local_vars_dict)
+    method_params["alphaquant_version"] = importlib.metadata.version("alphaquant")
     #add_ml_input_file_location(method_params)
     params_file = f"{results_dir}/aq_parameters.yaml"
     if os.path.exists(params_file):

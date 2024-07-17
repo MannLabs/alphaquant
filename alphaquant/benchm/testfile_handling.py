@@ -17,107 +17,109 @@ LOGGER = logging.getLogger(__name__)
 
 
 class TestFileDownloader():
-    def __init__(self, test_folder, links_yaml):
+    def __init__(self, test_folder, links_yaml, subfolder_of_interest = None):
         self._test_folder = test_folder
-        self._path2link = DownloadLinkConverter(links_yaml).get_path2link_from_yaml_file()
-        self.__install_wget_if_missing__()
+        self._path2link = DownloadLinkConverter(links_yaml, subfolder_of_interest).get_path2link_from_yaml_file()
+        self._install_wget_if_missing()
+        self._download_missing_files()
 
-    def download_missing_files(self):
-        missing_paths = self.__get_missing_paths__()
+    def _download_missing_files(self):
+        missing_paths = self._get_missing_paths()
         LOGGER.info(missing_paths)
         for missing_path in missing_paths:
             LOGGER.info(missing_path)
-            self.__download_file__(missing_path)
+            self._download_file(missing_path)
 
-    def __get_missing_paths__(self):
+    def _get_missing_paths(self):
         all_paths = set(self._path2link.keys())
-        existing_paths = self.__get_existing_paths__()
+        existing_paths = self._get_existing_paths()
         return all_paths - existing_paths
 
-    def __download_file__(self, path):
+    def _download_file(self, path):
         import wget
-        download_link = self.__get_download_link_from_path__(path)
-        absolute_path = self.__convert_relative_to_absolute_path__(path)
-        self.__prepare_download_directory__(absolute_path)
+        download_link = self._get_download_link_from_path(path)
+        absolute_path = self._convert_relative_to_absolute_path(path)
+        self._prepare_download_directory(absolute_path)
         wget.download(download_link, absolute_path)
 
-    def __get_existing_paths__(self):
-        all_elements = self.__get_all_elements_in_all_subdirs__(self._test_folder)
-        all_filepaths = self.__filter_for_files__(all_elements)
-        all_filepaths_relative = self.__convert_to_relative_paths__(all_filepaths, self._test_folder)
+    def _get_existing_paths(self):
+        all_elements = self._get_all_elements_in_all_subdirs(self._test_folder)
+        all_filepaths = self._filter_for_files(all_elements)
+        all_filepaths_relative = self._convert_to_relative_paths(all_filepaths, self._test_folder)
         return all_filepaths_relative
 
-    def __get_download_link_from_path__(self, path):
+    def _get_download_link_from_path(self, path):
         link = self._path2link.get(path)
         return f"{link}/download"
 
-    def __convert_relative_to_absolute_path__(self, path):
+    def _convert_relative_to_absolute_path(self, path):
         return f"{self._test_folder}/{path}"
 
     @staticmethod
-    def __prepare_download_directory__(absolute_path):
+    def _prepare_download_directory(absolute_path):
         parent_directory = os.path.dirname(absolute_path)
         if not os.path.exists(parent_directory):
             os.makedirs(parent_directory)
 
 
     @staticmethod
-    def __get_all_elements_in_all_subdirs__(base_dir):
+    def _get_all_elements_in_all_subdirs(base_dir):
         return glob.glob(f"{base_dir}/**", recursive=True)
 
     @staticmethod
-    def __filter_for_files__(list_of_paths):
+    def _filter_for_files(list_of_paths):
         return (x for x in list_of_paths if os.path.isfile(x))
 
     @staticmethod
-    def __convert_to_relative_paths__(list_of_absolute_paths, base_dir):
+    def _convert_to_relative_paths(list_of_absolute_paths, base_dir):
         return {x.replace(base_dir, ".") for x in list_of_absolute_paths}
 
     @staticmethod
-    def __install_wget_if_missing__():
+    def _install_wget_if_missing():
         subprocess.check_call([sys.executable, "-m", "pip", "install", "wget"])
 
 
 
 
 class DownloadLinkConverter():
-    def __init__(self, links_yaml):
+    def __init__(self, links_yaml, subfolder_of_interest = None):
         self._links_yaml = links_yaml
+        self._subfolder_of_interest = subfolder_of_interest
 
     def get_path2link_from_yaml_file(self):
-        yaml_dict = self.__load_dict_from_yaml_file__(self._links_yaml)
-        path2link_generator = self.__convert_nested_dict_to_relpath_dict__(nested_dict=yaml_dict)
+        yaml_dict = self._load_dict_from_yaml_file(self._links_yaml)
+        path2link_generator = self._convert_nested_dict_to_relpath_dict(nested_dict=yaml_dict)
         path2link_dict = {path : link for path, link in path2link_generator}
+        path2link_dict = self._subset_path2link_to_subfolder_of_interest(path2link_dict)
         return path2link_dict
 
     @staticmethod
-    def __load_dict_from_yaml_file__(yaml_file):
+    def _load_dict_from_yaml_file(yaml_file):
         stream = open(yaml_file, 'r')
         return yaml.safe_load(stream)
 
-    def __convert_nested_dict_to_relpath_dict__(self, nested_dict , rel_path_so_far = "."):
+    def _convert_nested_dict_to_relpath_dict(self, nested_dict , rel_path_so_far = "."):
         for path, value in nested_dict.items():
-            updated_path = self.__get_updated_relpath__(rel_path_so_far, path)
-            is_dict = self.__check_if_value_is_dict__(value)
+            updated_path = self._get_updated_relpath(rel_path_so_far, path)
+            is_dict = self._check_if_value_is_dict(value)
             if is_dict:
-                yield from self.__convert_nested_dict_to_relpath_dict__(value, updated_path)
+                yield from self._convert_nested_dict_to_relpath_dict(value, updated_path)
             else:
                 yield updated_path , value
 
-    def __recursively_call_sub_dictionary__(self, sub_dictionary, updated_path):
-        yield from self.__convert_nested_dict_to_relpath_dict__(sub_dictionary, updated_path) #yield from allows to recursively trigger the generator
-
     @staticmethod
-    def __get_updated_relpath__(rel_path_so_far, new_path):
+    def _get_updated_relpath(rel_path_so_far, new_path):
         return f"{rel_path_so_far}/{new_path}"
 
     @staticmethod
-    def __check_if_value_is_dict__(value):
+    def _check_if_value_is_dict(value):
         return isinstance(value, dict)
+    
+    def _subset_path2link_to_subfolder_of_interest(self, path2link):
+        if self._subfolder_of_interest is None:
+            return path2link
+        return {path: link for path, link in path2link.items() if self._subfolder_of_interest in path}
 
-    @staticmethod
-    def __yield_path2link_pair__(updated_path, link):
-        yield updated_path , link
 
 
 

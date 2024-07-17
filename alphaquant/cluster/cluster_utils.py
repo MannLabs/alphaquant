@@ -234,7 +234,14 @@ def select_median_fc_leafs(grouped_leafs):
     grouped_leafs_medianfc = []
     for leafs in grouped_leafs:
         leafs_fcsorted = sorted(leafs, key = lambda x : x.fc)
-        grouped_leafs_medianfc.append([leafs_fcsorted[int(len(leafs_fcsorted)/2)]])
+        if len(leafs_fcsorted) < 4:
+            middle_elements = leafs_fcsorted  # Return the whole list if it has less than 3 elements
+            grouped_leafs_medianfc.append(middle_elements)
+        else:
+            mid_index = len(leafs_fcsorted) // 2
+            middle_elements = leafs_fcsorted[mid_index-1:mid_index+2]
+            grouped_leafs_medianfc.append(middle_elements)
+
     return grouped_leafs_medianfc
 
 def map_grouped_leafs_to_diffions(grouped_leafs, ionname2diffion):
@@ -336,7 +343,7 @@ def exchange_cluster_idxs(fclust_output_array):
 
 
 def get_fcs_ions(diffions):
-    fcs = np.ones(len(diffions))
+    fcs = np.zeros(len(diffions))
     for idx in range(len(diffions)):
         fcs[idx] = np.nanmedian([ion.fc for ion in diffions[idx]])
     return fcs

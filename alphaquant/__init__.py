@@ -2,7 +2,7 @@
 
 
 __project__ = "alphaquant"
-__version__ = "0.0.13"
+__version__ = "0.1.0"
 __license__ = "Apache"
 __description__ = "An open-source Python package of the AlphaPept ecosystem"
 __author__ = "Mann Labs"
@@ -29,7 +29,7 @@ __classifiers__ = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 __console_scripts__ = [
-    "alphaquant=alphaquant.cli:run",
+    "alphaquant=alphaquant.ui.cli:run",
 ]
 __urls__ = {
     "Mann Labs at MPIB": "https://www.biochem.mpg.de/mann",
