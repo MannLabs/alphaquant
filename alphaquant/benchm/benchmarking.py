@@ -377,7 +377,7 @@ def format_condpair_input(samplemap_df, condpair, minrep, input_file):
     LOGGER.info(condpair)
     samples_c1, samples_c2 = aqdiffutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
     input_df_local = aq_condpair.get_unnormed_df_condpair(input_file = input_file, samplemap_df = samplemap_df, condpair = condpair, file_has_alphaquant_format = True)
-    df_c1, df_c2 = aq_condpair.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
+    df_c1, df_c2 = aq_condpair.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep_both=minrep)
     return df_c1, df_c2, samples_c1, samples_c2
 
 def get_filtered_protnodes(condpair, results_dir_unfiltered):
