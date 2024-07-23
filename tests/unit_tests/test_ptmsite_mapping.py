@@ -2,12 +2,13 @@ import re
 import pytest
 import alphaquant.ptm.ptmsite_mapping as aqptm
 import pandas as pd
+import os
 
-# Constants
-INPUT_FILE = "../../test_data/unit_tests/ptmsite_mapping/shortened_aq.tsv.zip"
-SAMPLEMAP_FILE = "../../test_data/unit_tests/ptmsite_mapping/samplemap.tsv"
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Helper functions
+INPUT_FILE = os.path.join(current_dir, "../../test_data/unit_tests/ptmsite_mapping/shortened_aq.tsv.zip")
+SAMPLEMAP_FILE = os.path.join(current_dir, "../../test_data/unit_tests/ptmsite_mapping/samplemap.tsv")
+
 def compare_parsed_and_handpicked_site_and_prot(refprot_parsed, refprot_handpicked, site_parsed, sites_handpicked):
     if refprot_parsed == refprot_handpicked:
         return compare_sites(site_parsed, sites_handpicked)
@@ -35,7 +36,7 @@ def get_site_handpicked(protseq, pepseq, ptm_positions_peptide):
     sites_handpicked = str([x+start_idx_protein for x in ptm_positions_peptide])
     return sites_handpicked
 
-# Fixture for the mapped DataFrame
+
 @pytest.fixture(scope="module")
 def mapped_df():
     input_df = pd.read_csv(INPUT_FILE, sep="\t", nrows=1000)

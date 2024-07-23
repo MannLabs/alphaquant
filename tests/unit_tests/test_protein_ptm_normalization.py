@@ -11,8 +11,9 @@ import pytest
 random.seed(42)
 np.random.seed(42)
 
-RESULTS_DIR_SIMULATED_PROTEOME = "../../test_data/unit_tests/protein_ptm_normalization/toy_data/results_proteome"
-RESULTS_DIR_SIMULATED_PTM = "../../test_data/unit_tests/protein_ptm_normalization/toy_data/results_ptm"
+current_dir = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR_SIMULATED_PROTEOME = os.path.join("../../test_data/unit_tests/protein_ptm_normalization/toy_data/results_proteome")
+RESULTS_DIR_SIMULATED_PTM = os.path.join("../../test_data/unit_tests/protein_ptm_normalization/toy_data/results_ptm")
 
 def test_p_value_damping():
     assert_that_half_fc_is_half_logp_value()

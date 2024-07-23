@@ -10,9 +10,11 @@ import alphaquant.diffquant.background_distributions as aqbg
 import alphaquant.benchm.benchmarking as aqbm
 import alphaquant.diffquant.diff_analysis as aqdiff
 import alphaquant.cluster.cluster_utils as aq_clust_utils
+import os
 
-INPUT_FILE = "../../test_data/unit_tests/cluster_ions/filtered_fragions.aq_reformat.tsv"
-SAMPLEMAP_FILE = "../../test_data/unit_tests/cluster_ions/samples.map.tsv"
+current_dir = os.path.dirname(os.path.abspath(__file__))
+INPUT_FILE = os.path.join(current_dir, "../../test_data/unit_tests/cluster_ions/filtered_fragions.aq_reformat.tsv")
+SAMPLEMAP_FILE = os.path.join(current_dir, "../../test_data/unit_tests/cluster_ions/samples.map.tsv")
 
 def test_exchange_cluster_idxs():
     assert aq_clust_utils.exchange_cluster_idxs([1,2,1,2,2,2]) == [1,0,1,0,0,0]
