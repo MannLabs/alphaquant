@@ -1,7 +1,6 @@
 from anytree import Node
 import alphaquant.cluster.cluster_utils as aq_clust_clusterutils
 
-#previously in notebook 10_cluster_utils.ipynb and 05_diffutils.ipynb
 
 
 def test_find_node_parent_at_level():

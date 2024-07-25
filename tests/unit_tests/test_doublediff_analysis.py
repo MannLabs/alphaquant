@@ -1,11 +1,9 @@
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
-import matplotlib.pyplot as plt
 import alphaquant.diffquant.doublediff_analysis as aq_diff_doublediff
 import alphaquant.diffquant.background_distributions as aq_diff_background
 import random
-import pytest
 
 P2Z = {}
 ION2DIFFDIST = {}

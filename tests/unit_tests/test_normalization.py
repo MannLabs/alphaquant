@@ -1,7 +1,6 @@
 import alphaquant.norm.normalization as aq_norm
 import numpy as np
 
-#previously in notebook 02_normalization.ipynb
 
 def test_merged_distribs():
     anchor_distrib = np.array([1, 1, 1, 1, 1])
