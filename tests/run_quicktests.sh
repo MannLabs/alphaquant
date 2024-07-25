@@ -1,4 +1,7 @@
 conda activate alphaquant
-python download_testfiles.py quicktest
-jupyter nbconvert --execute --to ./sensitivity_tests/lfq_set.ipynb
+pip install pytest
+pip install nbmake==1.5.3
+echo "Running quicktests"
+pytest --nbmake quicktests/mixed_species.ipynb
+pytest --nbmake quicktests/phospho.ipynb
 conda deactivate

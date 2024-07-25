@@ -52,6 +52,7 @@ def analyze_condpair(*,runconfig, condpair):
     normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
     
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
+    ions_to_check = sorted(ions_to_check)
 
     bgpair2diffDist = {}
     deedpair2doublediffdist = {}

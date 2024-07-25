@@ -1,11 +1,8 @@
 on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main, development ]
+  pull_request:
   workflow_dispatch:
 
-name: Default installation and tests
+name: Different pip installations with quick tests
 
 jobs:
   stable_installation:
@@ -15,8 +12,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
@@ -32,7 +29,7 @@ jobs:
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_tests.sh
+          . ./run_quicktests.sh
   loose_installation:
     name: Test loose pip installation on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -40,8 +37,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/checkout@v4
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
@@ -57,4 +54,4 @@ jobs:
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_tests.sh
+          . ./run_quicktests.sh

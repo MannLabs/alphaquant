@@ -223,7 +223,7 @@ class ProteinToPTMMapper():
 
     def _define_gene2reference_dict(self):
         uniprot_file = aqptm.get_uniprot_path(organism=self._organism)
-        uniprot_gene_names_str = pd.read_csv(uniprot_file, sep = "\t")["Gene names"].astype(str).to_list()
+        uniprot_gene_names_str = pd.read_csv(uniprot_file, sep = "\t")["Gene Names"].astype(str).to_list()
         uniprot_gene_names = [x.split(" ") for x in uniprot_gene_names_str]
         gene2synonyms_mapping_dict = {}
         for gene_list in uniprot_gene_names:
