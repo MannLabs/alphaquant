@@ -27,7 +27,7 @@ class ProteoFormTableCreator():
             combined_value_dicts.append(value_dict)
         combined_dict = self._merge_list_of_dicts(combined_value_dicts)
         self.proteoform_df = pd.DataFrame(combined_dict)
-        self.proteoform_df = aqtableutils.QualityScoreNormalizer(self.proteoform_df, self._condpair_tree.children[0]).results_df
+        self.proteoform_df = aqtableutils.QualityScoreNormalizer(self.proteoform_df).results_df
     
     @staticmethod
     def _merge_list_of_dicts(dict_list):

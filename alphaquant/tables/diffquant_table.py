@@ -61,7 +61,7 @@ class TableFromNodeCreator():
     
     def _filter_annotate_results_df(self):
         self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodetype_nodes, self._min_num_peptides, self._annotation_file, self._condpair_tree.fraction_missingval).results_df
-        self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df, self._list_of_nodetype_nodes[0]).results_df
+        self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df).results_df
     
 
 class TableAnnotatorFilterer():
