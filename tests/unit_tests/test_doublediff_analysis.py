@@ -1,11 +1,9 @@
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
-import matplotlib.pyplot as plt
 import alphaquant.diffquant.doublediff_analysis as aq_diff_doublediff
 import alphaquant.diffquant.background_distributions as aq_diff_background
 import random
-import pytest
 
 P2Z = {}
 ION2DIFFDIST = {}
@@ -268,11 +266,6 @@ def _get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
     df_c2 = unnormed_df.loc[:, c2_samples["sample"]].dropna(thresh=minrep, axis=0)
 
     return df_c1, df_c2
-
-
-
-
-test_that_pvalues_are_uniformly_distributed_multiple_scenarios()
 
 
 

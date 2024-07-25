@@ -3,10 +3,6 @@ import pandas as pd
 import alphaquant.diffquant.condpair_analysis as aq_diffquant_condpair
 
 
-
-
-
-
 def test_get_per_condition_dataframes():
         data = {'A': [1, np.nan, np.nan, 4, 5, 123, 3, 4],
         'B': [5, np.nan, np.nan, 8, 9, 123, 4, 5],

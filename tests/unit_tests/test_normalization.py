@@ -1,7 +1,6 @@
 import alphaquant.norm.normalization as aq_norm
 import numpy as np
 
-#previously in notebook 02_normalization.ipynb
 
 def test_merged_distribs():
     anchor_distrib = np.array([1, 1, 1, 1, 1])
@@ -11,7 +10,6 @@ def test_merged_distribs():
     assert (aq_norm.merge_distribs(anchor_distrib, shift_distrib, counts_anchor_distrib, counts_shifted_distib)== np.array([1.2, 1.2, 1.2, 1.2, 1.2])).any()
     print("test_merged_distribs passed")
 
-test_merged_distribs() 
 
 
 def generate_randarrays(number_arrays,size_of_array):
@@ -21,7 +19,6 @@ def generate_randarrays(number_arrays,size_of_array):
         randarray.append(np.random.normal(loc=shift, size=size_of_array))
     return np.array(randarray)
 
-import numpy as np
 
 def test_sampleshift():
     randarray = generate_randarrays(5, 1000)
@@ -35,6 +32,3 @@ def test_sampleshift():
     print(f"STDev {stdev}")
     assert (stdev <=1.2) 
     
-
-
-test_sampleshift()
