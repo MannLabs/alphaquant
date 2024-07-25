@@ -1,17 +1,17 @@
-from anytree import Node
 import alphaquant.cluster.cluster_utils as aq_clust_clusterutils
+import anytree
 
 
 
 def test_find_node_parent_at_level():
 
-    udo = Node("Udo", type = 'granddad')
-    marc = Node("Marc", parent=udo, type = 'dad')
-    lian = Node("Lian", parent=marc, type = 'base')
-    dan = Node("Dan", parent=udo, type ='dad')
-    jet = Node("Jet", parent=dan, type ='base')
-    jan = Node("Jan", parent=dan, type ='base')
-    joe = Node("Joe", parent=dan, type ='base')
+    udo = anytree.Node("Udo", type = 'granddad')
+    marc = anytree.Node("Marc", parent=udo, type = 'dad')
+    lian = anytree.Node("Lian", parent=marc, type = 'base')
+    dan = anytree.Node("Dan", parent=udo, type ='dad')
+    jet = anytree.Node("Jet", parent=dan, type ='base')
+    jan = anytree.Node("Jan", parent=dan, type ='base')
+    joe = anytree.Node("Joe", parent=dan, type ='base')
 
     assert aq_clust_clusterutils.find_node_parent_at_level(lian, 'dad').name == 'Marc'
     assert aq_clust_clusterutils.find_node_parent_at_level(lian, 'granddad').name == 'Udo'
@@ -22,22 +22,19 @@ test_find_node_parent_at_level()
 
 def test_check_if_node_is_included():
 
-    udo = Node("Udo", type = 'gene', cluster =-1)
-    marc = Node("Marc", parent=udo, type = 'dad', cluster = 0)
-    lian = Node("Lian", parent=marc, type = 'base', cluster = 0)
-    dan = Node("Dan", parent=udo, type ='dad', cluster = 1)
-    jet = Node("Jet", parent=dan, type ='base', cluster = 0)
-    jan = Node("Jan", parent=dan, type ='base', cluster = 0)
-    joe = Node("Joe", parent=dan, type ='base', cluster = 0)
+    udo = anytree.Node("Udo", type = 'gene', cluster =-1)
+    marc = anytree.Node("Marc", parent=udo, type = 'dad', cluster = 0)
+    lian = anytree.Node("Lian", parent=marc, type = 'base', cluster = 0)
+    dan = anytree.Node("Dan", parent=udo, type ='dad', cluster = 1)
+    jet = anytree.Node("Jet", parent=dan, type ='base', cluster = 0)
+    jan = anytree.Node("Jan", parent=dan, type ='base', cluster = 0)
+    joe = anytree.Node("Joe", parent=dan, type ='base', cluster = 0)
     assert aq_clust_clusterutils.check_if_node_is_included(jet) == False
     assert aq_clust_clusterutils.check_if_node_is_included(lian) == True
     assert aq_clust_clusterutils.check_if_node_is_included(dan) == False
     assert aq_clust_clusterutils.check_if_node_is_included(marc) == True
 
 
-
-import anytree
-import alphaquant.cluster.cluster_utils as aq_cluster_utils
 
 
 def test_remove_unnecessary_attributes():
@@ -51,7 +48,7 @@ def test_remove_unnecessary_attributes():
     leaf2 = anytree.Node("leaf2", parent=child2, fcs="leaf2_fcs")
 
     # Invoke the spell to remove the 'fcs' attribute
-    aq_cluster_utils.remove_unnecessary_attributes(root, ["fcs"])
+    aq_clust_clusterutils.remove_unnecessary_attributes(root, ["fcs"])
 
     # Check if 'fcs' attribute is removed from all nodes
     all_nodes = [root, child1, child2, leaf1, leaf2]
@@ -65,26 +62,21 @@ def test_remove_unnecessary_attributes():
 
     print("All tests passed!")
 
-# Call the test function to verify the integrity of our magic
-test_remove_unnecessary_attributes()
 
 
-from anytree import Node
-import alphaquant.cluster.cluster_utils as aq_cluster_utils
 
 
-# Test function using anytree
 def test_traverse_and_add_included_leaves_anytree():
     # Constructing the tree
-    root = Node("root",  is_included=True, cluster=0)
-    node1 = Node("node1", parent=root, is_included=True, cluster=0)
-    node2 = Node("node2", parent=root, is_included=True, cluster=0)
-    leaf1 = Node("leaf1", parent=node1, is_included=True, cluster=0)
-    leaf2 = Node("leaf2", parent=node1, is_included=False, cluster=1)
-    leaf3 = Node("leaf3", parent=node2, is_included=True, cluster=0)
+    root = anytree.Node("root",  is_included=True, cluster=0)
+    node1 = anytree.Node("node1", parent=root, is_included=True, cluster=0)
+    node2 = anytree.Node("node2", parent=root, is_included=True, cluster=0)
+    leaf1 = anytree.Node("leaf1", parent=node1, is_included=True, cluster=0)
+    leaf2 = anytree.Node("leaf2", parent=node1, is_included=False, cluster=1)
+    leaf3 = anytree.Node("leaf3", parent=node2, is_included=True, cluster=0)
 
     list_of_included_leaves = []
-    aq_cluster_utils.traverse_and_add_included_leaves(root, list_of_included_leaves)
+    aq_clust_clusterutils.traverse_and_add_included_leaves(root, list_of_included_leaves)
     print(list_of_included_leaves)
     # Assert conditions
     assert leaf1 in list_of_included_leaves, "leaf1 is missing from the result."
@@ -92,15 +84,15 @@ def test_traverse_and_add_included_leaves_anytree():
     assert len(list_of_included_leaves) == 2, "The number of included leaves is incorrect."
 
 
-    root = Node("root",  is_included=True, cluster=0)
-    node1 = Node("node1", parent=root, is_included=False, cluster=1)
-    node2 = Node("node2", parent=root, is_included=True, cluster=0)
-    leaf1 = Node("leaf1", parent=node1, is_included=True, cluster=0)
-    leaf2 = Node("leaf2", parent=node1, is_included=False, cluster=1)
-    leaf3 = Node("leaf3", parent=node2, is_included=True, cluster=0)
+    root = anytree.Node("root",  is_included=True, cluster=0)
+    node1 = anytree.Node("node1", parent=root, is_included=False, cluster=1)
+    node2 = anytree.Node("node2", parent=root, is_included=True, cluster=0)
+    leaf1 = anytree.Node("leaf1", parent=node1, is_included=True, cluster=0)
+    leaf2 = anytree.Node("leaf2", parent=node1, is_included=False, cluster=1)
+    leaf3 = anytree.Node("leaf3", parent=node2, is_included=True, cluster=0)
 
     list_of_included_leaves = []
-    aq_cluster_utils.traverse_and_add_included_leaves(root, list_of_included_leaves)
+    aq_clust_clusterutils.traverse_and_add_included_leaves(root, list_of_included_leaves)
     print(list_of_included_leaves)
     # Assert conditions
     assert leaf1  not in list_of_included_leaves, "leaf1 should be excluded"
@@ -109,12 +101,8 @@ def test_traverse_and_add_included_leaves_anytree():
 
     print("All tests passed!")
 
-# Call the test function
 
 
-
-import alphaquant.cluster.cluster_utils as aq_cluster_utils
-import anytree
 
 
 def test_iterate_through_tree_levels_bottom_to_top():
@@ -130,7 +118,7 @@ def test_iterate_through_tree_levels_bottom_to_top():
         ["root"]                   # Level 0 node
     ]
 
-    for index, nodes in enumerate(aq_cluster_utils.iterate_through_tree_levels_bottom_to_top(root)):
+    for index, nodes in enumerate(aq_clust_clusterutils.iterate_through_tree_levels_bottom_to_top(root)):
         actual_level_node_names = [node.name for node in nodes]
         assert actual_level_node_names == expected_levels[index], f"Level {index} does not match expected nodes."
         print(f"Level {index} matches expected nodes.")

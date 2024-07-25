@@ -19,7 +19,6 @@ def generate_randarrays(number_arrays,size_of_array):
         randarray.append(np.random.normal(loc=shift, size=size_of_array))
     return np.array(randarray)
 
-import numpy as np
 
 def test_sampleshift():
     randarray = generate_randarrays(5, 1000)
