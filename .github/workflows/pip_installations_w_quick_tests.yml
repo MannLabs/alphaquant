@@ -29,7 +29,7 @@ jobs:
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_quicktests.sh
+          . ./run_e2e_tests_quick.sh
   loose_installation:
     name: Test loose pip installation on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -54,4 +54,4 @@ jobs:
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_quicktests.sh
+          . ./run_e2e_tests_quick.sh
