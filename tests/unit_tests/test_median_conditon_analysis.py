@@ -1,4 +1,4 @@
-import alphaquant.multicond.median_condition_analysis as aqmca
+import alphaquant.multicond.median_condition_analysis as aq_multicond_mca
 import anytree
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ def test_ProteoformConditionAligner1():
     expected_number_of_proteoforms = 3
     expected_peptide_groups = ["pep_0;pep_1;pep_3", "pep_2", "pep_4"]
     simulated_nodes = simulate_list_of_protein_nodes_from_cluster_matrix(cluster_matrix)
-    aligner = aqmca.ProteoformConditionAligner(simulated_nodes)
+    aligner = aq_multicond_mca.ProteoformConditionAligner(simulated_nodes)
     assert len(set(aligner.proteoform_df["proteoform_id"])) == expected_number_of_proteoforms
     assert set(aligner.proteoform_df["peptides"]) == set(expected_peptide_groups)
 
@@ -50,7 +50,7 @@ def test_ProteoformConditionAligner2():
     expected_number_of_proteoforms = 2
     expected_peptide_groups = ["pep_0", "pep_1;pep_2;pep_3"]
     simulated_nodes = simulate_list_of_protein_nodes_from_cluster_matrix(cluster_matrix)
-    aligner = aqmca.ProteoformConditionAligner(simulated_nodes)
+    aligner = aq_multicond_mca.ProteoformConditionAligner(simulated_nodes)
     assert len(set(aligner.proteoform_df["proteoform_id"])) == expected_number_of_proteoforms
     assert set(aligner.proteoform_df["peptides"]) == set(expected_peptide_groups)
 
@@ -64,7 +64,7 @@ def create_proteoform_peptide_df_creator(list_of_fcs, list_of_numpep_per_cluster
         create_protein_node(list_of_fcs, list_of_numpep_per_cluster, condition) 
         for condition in list_of_conditions
     ]
-    return aqmca.ProteoformPeptideDfCreator(nodes_same_protein_different_conditions)
+    return aq_multicond_mca.ProteoformPeptideDfCreator(nodes_same_protein_different_conditions)
 
 def create_protein_node(list_of_fcs, list_of_numpep_per_cluster, condition):
     condition_node = anytree.Node([condition, "median_reference"])
@@ -122,7 +122,7 @@ def test_proteoform_peptide_df_creator(list_of_fcs, list_of_numpep_per_cluster, 
 
 
 def create_proteoform_df_creator(groups_of_peptide_clusters, peptide_fc_df, protein_name):
-    return aqmca.ProteoformDfCreator(groups_of_peptide_clusters, peptide_fc_df, protein_name)
+    return aq_multicond_mca.ProteoformDfCreator(groups_of_peptide_clusters, peptide_fc_df, protein_name)
 
 def assert_initialization(creator):
     assert creator.proteoform_df is not None, "proteoform_df should not be None"
