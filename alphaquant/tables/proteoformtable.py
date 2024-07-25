@@ -67,6 +67,7 @@ class ValueDictCreator():
     def _get_value_dict_for_protein(self, protein):
         value_dict = {}
         cluster2peptides = self._get_cluster2peptides(protein)
+        quality_score_name = "predscore" if hasattr(protein.children[0], "predscore") else "consistency_score"
         for cluster, peptides in cluster2peptides.items():
             value_dict["protein"] = value_dict.get("protein", []) + [protein.name]
             value_dict["proteoform_id"] = value_dict.get("proteoform_id", []) + [f"{protein.name}_{cluster}"]
@@ -74,7 +75,7 @@ class ValueDictCreator():
             value_dict["is_reference"] = value_dict.get("is_reference", []) + [cluster==0]
             value_dict["peptides"] = value_dict.get("peptides", []) + [self._get_proetoform_peptides(peptides)]
             value_dict["num_peptides"] = value_dict.get("num_peptides", []) + [len(peptides)]
-            value_dict["quality_score"] = value_dict.get("quality_score", []) + [self._get_proteoform_quality_score(peptides)]
+            value_dict[quality_score_name] = value_dict.get(quality_score_name, []) + [self._get_proteoform_quality_score(peptides)]
             value_dict["log2fc"] = value_dict.get("log2fc", []) + [self._get_proteoform_log2fc(peptides)]
             value_dict["fraction_of_peptides"] =  value_dict.get("fraction_of_peptides", []) + [self._get_fraction_of_peptides(peptides, protein)]
             if self._phospho_scorer.phospho_scoring_available:
