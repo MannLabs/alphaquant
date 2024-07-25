@@ -178,11 +178,11 @@ class CombinedProteoformDfFormatter():
 
     
     def _define_protein_df_average(self):
-        self.protein_df_average = self.peptide_resolved_proteoform_df.groupby('protein').mean(numeric_only = True).reset_index()
+        self.protein_df_average = self.peptide_resolved_proteoform_df.groupby('protein').mean().reset_index()
     
     def _define_protein_df_pform0(self):
         is_first_proteoform = [x.endswith("_0") for x in self.peptide_resolved_proteoform_df["proteoform_id"]]
-        self.protein_df_pform0 = self.peptide_resolved_proteoform_df[is_first_proteoform].groupby('protein').mean(numeric_only = True).reset_index()
+        self.protein_df_pform0 = self.peptide_resolved_proteoform_df[is_first_proteoform].groupby('protein').mean().reset_index()
     
     def _define_proteoform_df(self):
         aggregation_dict1 = {"protein" : 'first', "peptides" : "first"}
