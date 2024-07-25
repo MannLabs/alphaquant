@@ -47,9 +47,9 @@ class TableFromNodeCreator():
         node_dict["number_of_ions"] = len(node.leaves)
         node_dict["counting_based"] = node.missingval
         if hasattr(node, "predscore"):
-            node_dict["quality_score"] = node.predscore
+            node_dict["predscore"] = node.predscore
         else:
-            node_dict["quality_score"] = node.fraction_consistent * len(node.leaves)
+            node_dict["consistency_score"] = node.fraction_consistent * len(node.leaves)
 
         if hasattr(node, "total_intensity"):
             node_dict["total_intensity"] = node.total_intensity
