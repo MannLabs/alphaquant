@@ -34,7 +34,6 @@ def test_check_if_node_is_included():
     assert aq_clust_clusterutils.check_if_node_is_included(dan) == False
     assert aq_clust_clusterutils.check_if_node_is_included(marc) == True
 
-test_check_if_node_is_included()
 
 
 import anytree
@@ -111,7 +110,6 @@ def test_traverse_and_add_included_leaves_anytree():
     print("All tests passed!")
 
 # Call the test function
-test_traverse_and_add_included_leaves_anytree()
 
 
 
@@ -137,6 +135,5 @@ def test_iterate_through_tree_levels_bottom_to_top():
         assert actual_level_node_names == expected_levels[index], f"Level {index} does not match expected nodes."
         print(f"Level {index} matches expected nodes.")
 
-test_iterate_through_tree_levels_bottom_to_top()
 
 

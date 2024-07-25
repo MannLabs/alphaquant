@@ -269,8 +269,3 @@ def _get_c1_c2_dfs(unnormed_df, labelmap_df, condpair, minrep = 2):
 
 
 
-
-test_that_pvalues_are_uniformly_distributed_multiple_scenarios()
-
-
-

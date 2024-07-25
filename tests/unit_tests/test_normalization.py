@@ -10,7 +10,6 @@ def test_merged_distribs():
     assert (aq_norm.merge_distribs(anchor_distrib, shift_distrib, counts_anchor_distrib, counts_shifted_distib)== np.array([1.2, 1.2, 1.2, 1.2, 1.2])).any()
     print("test_merged_distribs passed")
 
-test_merged_distribs() 
 
 
 def generate_randarrays(number_arrays,size_of_array):
@@ -34,6 +33,3 @@ def test_sampleshift():
     print(f"STDev {stdev}")
     assert (stdev <=1.2) 
     
-
-
-test_sampleshift()
