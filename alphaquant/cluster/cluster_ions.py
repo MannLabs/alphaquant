@@ -14,7 +14,6 @@ REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.
 LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 MAPPING_DICT = {'SEQ':'seq', 'MOD':'mod_seq', 'CHARGE':'mod_seq_charge', 'MS1ISOTOPES':'ms1_isotopes','FRGION':'frgion', 'PRECURSOR' : 'precursor'}
 FCDIFF_CUTOFF_CLUSTERMERGE = 0
-LEVEL2PVALTHRESH = {'ion_type':0.2, 'mod_seq_charge':0.2, 'mod_seq':0.2, 'seq':0.2} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here
 LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'seq':1e-20} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here. The threshold applies to the children of the node
 
 
