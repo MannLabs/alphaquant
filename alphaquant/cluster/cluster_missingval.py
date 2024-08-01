@@ -74,7 +74,7 @@ class MissingValProtNodeCreator:
 
     @staticmethod
     def _get_nodes_to_test(root_node): #get the nodes in the lowest level that is relevant for the binomial test
-        if root_node.height == 3:
+        if root_node.leaves[0].parent.type == "mod_seq": #when AlphaQuant works with precursors only (not fragments), the precursors themselves are the "base ions" and the "mod_seq_charge" node does not exist
             return root_node.children
         else:
             return anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
