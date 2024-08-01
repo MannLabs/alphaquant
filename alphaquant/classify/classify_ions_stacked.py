@@ -107,12 +107,19 @@ class PrecursorForTrainingSelector:
 
     
     def _select_precursors_for_training(self):
-        for protein_node in self._protein_nodes:
-            precursors = anytree.findall(protein_node, filter_= lambda x : (x.level == "mod_seq_charge"))
+        for protein_node in self._protein_nodes:  
+            precursors = self._get_precursors(protein_node)              
             if (abs(protein_node.fc) < self._prot_fc_cutoff) or (len(precursors)<self._precursor_cutoff):
                 self.precursors_not_suitable_for_training.extend(precursors)
             else:
                 self.precursors_suitable_for_training.extend(precursors)
+    
+    @staticmethod
+    def _get_precursors(protein_node):
+        if protein_node.leaves[0].parent.level == "mod_seq":
+            return protein_node.leaves
+        else:
+            return anytree.findall(protein_node, filter_= lambda x : (x.level == "mod_seq_charge"))
 
 
 class MLInputTableCreator:
