@@ -52,7 +52,6 @@ class MLInfoTableCreator():
         input_df = input_df.reset_index().drop(columns=ion_headers_merged)
         sample_column = config_dict.get("sample_ID")
         input_df = input_df.rename(columns={sample_column: "sample_ID"})
-        input_df["quant_id"] = input_df["quant_id"].apply(lambda x: x + '_')
         input_df = input_df.set_index(["quant_id", "sample_ID"])
         self._ml_info_df = input_df.select_dtypes(include=[np.number])
         self._ml_info_df = self._ml_info_df.reset_index()

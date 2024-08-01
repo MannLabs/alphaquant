@@ -10,7 +10,7 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
-REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes"), ("(SEQ.*MOD.*CHARGE.*PREC)(URSOR.*)", "precursor")], [("(SEQ.*MOD.*CHARGE.*)(FRG.*|MS1.*|PREC.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
+REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.*MOD.*CHARGE.*MS1)(ISO.*)", "ms1_isotopes"), ("(SEQ.*MOD.*CHARGE.*PREC)(URSOR.*)", "precursor")], [("(SEQ.*MOD.*CHARGE.*)(_FRG.*|_MS1.*|_PREC.*)", "mod_seq_charge")], [("(SEQ.*MOD.*)(CHARGE.*)", "mod_seq")], [("(SEQ.*)(MOD.*)", "seq")]]
 LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 MAPPING_DICT = {'SEQ':'seq', 'MOD':'mod_seq', 'CHARGE':'mod_seq_charge', 'MS1ISOTOPES':'ms1_isotopes','FRGION':'frgion', 'PRECURSOR' : 'precursor'}
 FCDIFF_CUTOFF_CLUSTERMERGE = 0
