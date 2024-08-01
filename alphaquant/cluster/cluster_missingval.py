@@ -74,7 +74,7 @@ class MissingValProtNodeCreator:
 
     @staticmethod
     def _get_nodes_to_test(root_node): #get the nodes in the lowest level that is relevant for the binomial test
-        if root_node.depth == 2:
+        if root_node.height == 3:
             return root_node.children
         else:
             return anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
