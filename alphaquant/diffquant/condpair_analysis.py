@@ -154,7 +154,7 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpai
     merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 
-def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both,  minrep_either, minrep_c1, minrep_c2):
+def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both =None,  minrep_either = None, minrep_c1 = None, minrep_c2 = None):
 
     min_samples = min(len(samples_c1), len(samples_c2))
 
@@ -185,6 +185,9 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_bot
         df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
             raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
+        
+    if (minrep_both is None) and (minrep_either is None) and (minrep_c1 is None) and (minrep_c2 is None):
+        raise Exception("no minrep set, please specify!")
 
 
 
