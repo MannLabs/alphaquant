@@ -25,7 +25,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
-                                         plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = False):
+                                         plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = True):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
     #add predictability scores to each precursor
