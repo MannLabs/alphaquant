@@ -52,8 +52,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    #stacked_regressor = init_and_train_stacked_regressor(ml_input_for_training.X, ml_input_for_training.y)
-    models = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=shorten_features_for_speed)
+    models, test_set_predictions = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=shorten_features_for_speed)
 
     y_pred = predict_on_models(models,ml_input_for_training.X)
     y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
@@ -68,7 +67,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
     aqutils.make_dir_w_existcheck(results_dir_plots)
     if plot_predictor_performance:
 
-        aq_plot_classify.scatter_ml_regression(ml_input_for_training.y, y_pred, results_dir_plots)
+        aq_plot_classify.scatter_ml_regression(test_set_predictions, results_dir_plots)
         #aq_plot_classify.compute_and_plot_feature_importances_stacked_rf(model=stacked_regressor, X_val=ml_input_for_training.X, y_val=ml_input_for_training.y, feature_names=ml_input_for_training.featurenames, top_n=10, results_dir=results_dir_plots)
         feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
         aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
@@ -206,37 +205,19 @@ def align_ml_input_tables_if_necessary(ml_input_1, ml_input_2):
     ml_input_2.featurenames = featurenames_common_ordered
 
 
-def init_and_train_stacked_regressor(X, y):
-
-    # Define the base models
-    base_models = [
-
-        ('rf', sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42))
-    ]
-
-    # Define the final model
-    final_model = sklearn.linear_model.LinearRegression()
-
-    # Create the stacking regressor
-    stacked_regressor = sklearn.ensemble.StackingRegressor(estimators=base_models, final_estimator=final_model)
-
-    # Fit the stacking regressor
-    stacked_regressor.fit(X, y)
-
-    return stacked_regressor
-
 
 
 def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5):
     kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
     models = []
+    test_set_predictions = []
 
     if shorten_features_for_speed:
         max_features = 'sqrt'
     else:
         max_features = None
 
-    for train_index, _ in kf.split(X):
+    for train_index, test_index in kf.split(X):
         X_train, y_train = X[train_index], y[train_index]
 
         model = sklearn.ensemble.RandomForestRegressor(n_estimators=50,  # Reduced number of trees
@@ -245,8 +226,9 @@ def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5)
                                                        max_features=max_features)  # Reduce the number of features
         model.fit(X_train, y_train)
         models.append(model)
+        test_set_predictions.append((y[test_index],model.predict(X[test_index])))
     
-    return models
+    return models, test_set_predictions
 
 
 def predict_on_models(models, X):
