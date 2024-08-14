@@ -24,7 +24,7 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
-def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
+def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0, replace_nans = False,
                                          plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = True):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
@@ -52,7 +52,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    models, test_set_predictions = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=shorten_features_for_speed)
+    models, test_set_predictions = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=False)
 
     y_pred = predict_on_models(models,ml_input_for_training.X)
     y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
@@ -67,7 +67,8 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
     aqutils.make_dir_w_existcheck(results_dir_plots)
     if plot_predictor_performance:
 
-        aq_plot_classify.scatter_ml_regression(test_set_predictions, results_dir_plots)
+        aq_plot_classify.scatter_ml_regression_testsets(test_set_predictions, results_dir_plots)
+        aq_plot_classify.scatter_ml_regression_combined(ml_input_for_training.y, y_pred, results_dir_plots)
         #aq_plot_classify.compute_and_plot_feature_importances_stacked_rf(model=stacked_regressor, X_val=ml_input_for_training.X, y_val=ml_input_for_training.y, feature_names=ml_input_for_training.featurenames, top_n=10, results_dir=results_dir_plots)
         feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
         aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
@@ -207,10 +208,29 @@ def align_ml_input_tables_if_necessary(ml_input_1, ml_input_2):
 
 
 
+import numpy as np
+import sklearn.ensemble
+import sklearn.model_selection
+from scipy.stats import rankdata
+
+def custom_loss(y_true, y_pred):
+    # Rank-based weighting to heavily prioritize high true values
+    ranks = rankdata(y_true)
+    weights = ranks ** 2  # Square the ranks to emphasize high values even more
+    return np.average((y_true - y_pred)**2, weights=weights)
+
+class HighTrueValueFocusedRandomForestRegressor(sklearn.ensemble.RandomForestRegressor):
+    def fit(self, X, y, sample_weight=None):
+        # Apply rank-based weighting to prioritize high true values
+        ranks = rankdata(y)
+        sample_weight = ranks ** 2  # Square the ranks for more aggressive weighting
+        return super().fit(X, y, sample_weight=sample_weight)
+
 def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5):
     kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
     models = []
     test_set_predictions = []
+    y = np.abs(y)
 
     if shorten_features_for_speed:
         max_features = 'sqrt'
@@ -218,18 +238,45 @@ def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5)
         max_features = None
 
     for train_index, test_index in kf.split(X):
-        X_train, y_train = X[train_index], y[train_index]
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
 
-        model = sklearn.ensemble.RandomForestRegressor(n_estimators=50,  # Reduced number of trees
-                                                       random_state=42,
-                                                       n_jobs=-1,  # Utilize all CPU cores
-                                                       max_features=max_features)  # Reduce the number of features
+        model = HighTrueValueFocusedRandomForestRegressor(
+            n_estimators=1000,
+            random_state=42,
+            n_jobs=-1,
+            max_features=max_features,
+            max_depth=8,  # Increased depth to allow more complex patterns
+            min_samples_leaf=1,  # Reduced to allow more specific predictions
+            bootstrap=True,
+            oob_score=True
+        )
+
         model.fit(X_train, y_train)
         models.append(model)
-        test_set_predictions.append((y[test_index],model.predict(X[test_index])))
-    
-    return models, test_set_predictions
 
+        y_pred = model.predict(X_test)
+        test_set_predictions.append((y_test, y_pred))
+
+        # Print custom loss for this fold
+        fold_loss = custom_loss(y_test, y_pred)
+        print(f"Fold custom loss: {fold_loss}")
+
+        # Print metrics focusing on high true values
+        high_value_threshold = np.percentile(y_test, 75)  # Top 25% of true values
+        high_true_mask = y_test >= high_value_threshold
+        high_true_mse = np.mean((y_test[high_true_mask] - y_pred[high_true_mask])**2)
+        print(f"MSE for high true values: {high_true_mse}")
+
+        # Print overall correlation
+        correlation = np.corrcoef(y_test, y_pred)[0, 1]
+        print(f"Overall correlation: {correlation}")
+
+        # Print correlation for high true values
+        high_true_correlation = np.corrcoef(y_test[high_true_mask], y_pred[high_true_mask])[0, 1]
+        print(f"Correlation for high true values: {high_true_correlation}")
+
+    return models, test_set_predictions
 
 def predict_on_models(models, X):
     y_preds = [model.predict(X) for model in models]
