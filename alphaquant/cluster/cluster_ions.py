@@ -273,8 +273,8 @@ def re_order_clusters_by_ml_score(nodes):
         cluster2scores[node.cluster] = cluster2scores.get(node.cluster, [])
         cluster2scores[node.cluster].append(abs(node.ml_score))
     clusters = list(cluster2scores.keys())
-    clusters.sort(key = lambda x : 1/len(cluster2scores.get(x))) 
-    clusters.sort(key = lambda x : np.nanmin(cluster2scores.get(x))) 
+    clusters.sort(key = lambda x : 1/len(cluster2scores.get(x))) #sort by the number of elements in the cluster
+    clusters.sort(key = lambda x : np.nanmax(cluster2scores.get(x)), reverse=True) #sort by the maximum score in the cluster, highest first
     clust2newclust = { clusters[x] :x for x in range(len(clusters))}
     for node in nodes:
         node.cluster =clust2newclust.get(node.cluster)
