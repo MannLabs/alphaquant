@@ -67,7 +67,7 @@ class ValueDictCreator():
     def _get_value_dict_for_protein(self, protein):
         value_dict = {}
         cluster2peptides = self._get_cluster2peptides(protein)
-        quality_score_name = "predscore" if hasattr(protein.children[0], "predscore") else "consistency_score"
+        quality_score_name = "ml_score" if hasattr(protein.children[0], "ml_score") else "consistency_score"
         for cluster, peptides in cluster2peptides.items():
             value_dict["protein"] = value_dict.get("protein", []) + [protein.name]
             value_dict["proteoform_id"] = value_dict.get("proteoform_id", []) + [f"{protein.name}_{cluster}"]
@@ -98,8 +98,8 @@ class ValueDictCreator():
     
     @staticmethod
     def _get_peptide_quality_score(peptide):
-        if hasattr(peptide, "predscore"):
-            return peptide.predscore
+        if hasattr(peptide, "ml_score"):
+            return peptide.ml_score
         else:
             return peptide.fraction_consistent * len(peptide.leaves)
     

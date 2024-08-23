@@ -81,8 +81,8 @@ class ClusterInfo():
 
     @staticmethod
     def _get_quality_score(peptide_nodes):
-        if hasattr(peptide_nodes[0], 'predscore'):
-            return min([abs(x.predscore) for x in peptide_nodes])
+        if hasattr(peptide_nodes[0], 'ml_score'):
+            return min([abs(x.ml_score) for x in peptide_nodes])
         else:
             return min(1/x.fraction_consistent for x in peptide_nodes)
 
@@ -186,9 +186,9 @@ class OutlierPeptideInfo(ProteinInfo):
         self._calc_protnormed_fc()
 
     def _get_quality_score(self, peptide_node):
-        has_predscore = hasattr(peptide_node, 'predscore')
-        if has_predscore:
-            return abs(peptide_node.predscore)
+        has_ml_score = hasattr(peptide_node, 'ml_score')
+        if has_ml_score:
+            return abs(peptide_node.ml_score)
         else:
             return 1/peptide_node.fraction_consistent
 

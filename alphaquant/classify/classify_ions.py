@@ -553,11 +553,11 @@ def fit_gaussian_to_subdist(dist, visualize, results_dir = None):
 
 # Cell
 def annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_total, ionnames_total, precursor_nodes):
-    precursor2predscore = {x:y for x, y in zip(ionnames_total, y_pred_total)}
+    precursor2ml_score = {x:y for x, y in zip(ionnames_total, y_pred_total)}
     for precursor in precursor_nodes:
-        predscore = precursor2predscore.get(precursor.name)
-        ml_excluded = not ((predscore>cutoff_neg) and (predscore<cutoff_pos))
-        precursor.predscore = predscore
+        ml_score = precursor2ml_score.get(precursor.name)
+        ml_excluded = not ((ml_score>cutoff_neg) and (ml_score<cutoff_pos))
+        precursor.ml_score = ml_score
         precursor.ml_excluded = bool(ml_excluded)
         precursor.cutoff = cutoff_pos #cutoff_pos is -cutoff_neg
 
