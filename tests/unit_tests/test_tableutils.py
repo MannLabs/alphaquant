@@ -49,7 +49,7 @@ def test_normalize_quality_score_consistency():
     assert np.isclose(quality_scores.max(), 1.0)
     print("test_normalize_quality_score_consistency passed")
 
-def test_perform_rank_normalization():
+def test_rank_normalization_ordered_scores():
     # Test case: Ordered scores
     scores1 = pd.Series([1, 2, 3, 4, 5])
     normalized_ranks_descending = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores1, higher_is_better=True)
@@ -58,28 +58,28 @@ def test_perform_rank_normalization():
     normalized_ranks_ascending = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores1, higher_is_better=False)
     assert np.allclose(normalized_ranks_ascending, [1.0, 0.8, 0.6, 0.4, 0.2])
 
-    # Test case: Unordered scores
+def test_rank_normalization_unordered_scores():
     scores2 = pd.Series([3, 1, 4, 5, 2])
     normalized_ranks_descending_unordered = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores2, higher_is_better=True)
     assert np.allclose(normalized_ranks_descending_unordered, [0.6, 0.2, 0.8, 1.0, 0.4])
     normalized_ranks_ascending_unordered = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores2, higher_is_better=False)
     assert np.allclose(normalized_ranks_ascending_unordered, [0.6, 1.0, 0.4, 0.2, 0.8])
 
-    # Test case: Negative scores
+def test_rank_normalization_negative_scores():
     scores3 = pd.Series([-5, -3, -1, 1, 3])
     normalized_ranks_descending_negative = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores3, higher_is_better=True)
     assert np.allclose(normalized_ranks_descending_negative, [0.2, 0.4, 0.6, 0.8, 1.0])
     normalized_ranks_ascending_negative = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores3, higher_is_better=False)
     assert np.allclose(normalized_ranks_ascending_negative, [1.0, 0.8, 0.6, 0.4, 0.2])
 
-    # Test case: All elements are identical
+def test_rank_normalization_identical_elements():
     scores4 = pd.Series([1, 1, 1, 1, 1])
     normalized_ranks_identical_higher = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores4, higher_is_better=True)
     assert np.allclose(normalized_ranks_identical_higher, [0.6, 0.6, 0.6, 0.6, 0.6])
     normalized_ranks_identical_lower = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores4, higher_is_better=False)
     assert np.allclose(normalized_ranks_identical_lower, [0.6, 0.6, 0.6, 0.6, 0.6])
 
-    # Test case: Some tied scores
+def test_rank_normalization_tied_scores():
     scores5 = pd.Series([1, 2, 2, 3, 3])
     normalized_ranks_ties_higher = aq_table_tableutils.QualityScoreNormalizer._perform_rank_normalization(scores5, higher_is_better=True)
     print(normalized_ranks_ties_higher)
