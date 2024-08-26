@@ -246,10 +246,10 @@ def exclude_node(node):
 import numpy as np
 def update_nodes_w_ml_score(protnodes):
     for prot in protnodes:
-        re_order_depending_on_predscore(prot)
+        re_order_depending_on_ml_score(prot)
 
 
-def re_order_depending_on_predscore(protnode):
+def re_order_depending_on_ml_score(protnode):
     for level_nodes in aqcluster_utils.iterate_through_tree_levels_bottom_to_top(protnode):
         node_types = list(set([node.type for node in level_nodes])) # a certain tree level can contain different types of nodes, for example level ion_type has ms1 isotopes and frgions
         if node_types == ["base"]:
@@ -260,21 +260,21 @@ def re_order_depending_on_predscore(protnode):
                 continue
             for type_node in type_nodes: #go through the nodes, re-order the children. Propagate the values from the newly ordered children to the type node
                 child_nodes = type_node.children
-                had_predscore = hasattr(child_nodes[0], 'predscore')
-                if had_predscore:
-                    re_order_clusters_by_predscore(child_nodes)
+                had_ml_score = hasattr(child_nodes[0], 'ml_score')
+                if had_ml_score:
+                    re_order_clusters_by_ml_score(child_nodes)
                     aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 
 
 
-def re_order_clusters_by_predscore(nodes):
+def re_order_clusters_by_ml_score(nodes):
     cluster2scores = {}
     for node in nodes:
         cluster2scores[node.cluster] = cluster2scores.get(node.cluster, [])
-        cluster2scores[node.cluster].append(abs(node.predscore))
+        cluster2scores[node.cluster].append(abs(node.ml_score))
     clusters = list(cluster2scores.keys())
-    clusters.sort(key = lambda x : 1/len(cluster2scores.get(x))) 
-    clusters.sort(key = lambda x : np.nanmin(cluster2scores.get(x))) 
+    clusters.sort(key = lambda x : 1/len(cluster2scores.get(x))) #sort by the number of elements in the cluster
+    clusters.sort(key = lambda x : np.nanmax(cluster2scores.get(x)), reverse=True) #sort by the maximum score in the cluster, highest first
     clust2newclust = { clusters[x] :x for x in range(len(clusters))}
     for node in nodes:
         node.cluster =clust2newclust.get(node.cluster)

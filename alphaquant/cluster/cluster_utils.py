@@ -67,11 +67,11 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     node.min_reps = min_reps
     node.missingval = False
 
-    if hasattr(node.children[0], 'predscore'):
-        predscores = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "predscore")
-        node.predscore = select_predscore_with_minimum_absval(predscores)
+    if hasattr(node.children[0], 'ml_score'):
+        ml_scores = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "ml_score")
+        node.ml_score = select_ml_score_with_minimum_absval(ml_scores)
         node.cutoff = childs[0].cutoff
-        node.ml_excluded = bool(abs(node.predscore)> node.cutoff)
+        node.ml_excluded = bool(abs(node.ml_score)> node.cutoff)
 
 
 def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
@@ -157,8 +157,8 @@ def calc_weighted_fold_change_from_included_leaves_fcs(node):
     return weighted_median
 
 def get_weight_of_leaf(leaf):
-    if hasattr(leaf, "predscore_fragion"):
-        return 2**-leaf.predscore_fragion
+    if hasattr(leaf, "ml_score_fragion"):
+        return 2**-leaf.ml_score_fragion
     else:
         return 1
 
@@ -201,11 +201,11 @@ def traverse_and_add_included_leaves(node, list_of_included_leaves, is_root=True
             # Recursive call with is_root set to False, as we are now dealing with child nodes
             traverse_and_add_included_leaves(child, list_of_included_leaves, is_root=False)
 
-def select_predscore_with_minimum_absval(predscores):
-    abs_predscores = [abs(x) for x in predscores]
-    min_value = min(abs_predscores)
-    min_index = abs_predscores.index(min_value)
-    return predscores[min_index]
+def select_ml_score_with_minimum_absval(ml_scores):
+    abs_ml_scores = [abs(x) for x in ml_scores]
+    min_value = min(abs_ml_scores)
+    min_index = abs_ml_scores.index(min_value)
+    return ml_scores[min_index]
 
 
 def get_grouped_mainclust_leafs(child_nodes):
