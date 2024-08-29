@@ -77,6 +77,8 @@ class ValueDictCreator():
             value_dict["num_peptides"] = value_dict.get("num_peptides", []) + [len(peptides)]
             value_dict[quality_score_name] = value_dict.get(quality_score_name, []) + [self._get_proteoform_quality_score(peptides)]
             value_dict["log2fc"] = value_dict.get("log2fc", []) + [self._get_proteoform_log2fc(peptides)]
+            value_dict["proteoform_pval"] = value_dict.get("proteoform_pval", []) + [peptides[0].proteoform_pval]
+            value_dict["proteoform_fcfc"] = value_dict.get("proteoform_fcfc", []) + [peptides[0].proteoform_fcfc]
             value_dict["fraction_of_peptides"] =  value_dict.get("fraction_of_peptides", []) + [self._get_fraction_of_peptides(peptides, protein)]
             if self._phospho_scorer.phospho_scoring_available:
                 value_dict["likely_phospho"] = value_dict.get("likely_phospho", []) + [self._phospho_scorer.check_if_cluster_likely_phospho(peptides)]
