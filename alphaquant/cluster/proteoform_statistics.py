@@ -23,7 +23,7 @@ def add_proteoform_statistics_to_nodes(node2cluster : dict, take_median_ions : b
 		None: The function modifies the nodes in place, annotating them with the computed proteoform statistics.
 	"""
 
-	if not _nodes_are_peptide_level(node2cluster.keys()):
+	if not _nodes_are_peptide_level(node2cluster):
 		return
 	 
 	cluster2nodes = _get_cluster2nodes(node2cluster)
@@ -42,7 +42,7 @@ def add_proteoform_statistics_to_nodes(node2cluster : dict, take_median_ions : b
 	_annotate_nodes_with_proteoform_stats(np.nan, np.nan, cluster_0_nodes)
 
 def _nodes_are_peptide_level(node2cluster : dict):
-	return all([node.is_peptide_level for node in node2cluster.keys()])
+	return all([node.type == "peptide" for node in node2cluster.keys()])
 
 def _get_cluster2nodes(node2cluster):
 	cluster2nodes = {}
