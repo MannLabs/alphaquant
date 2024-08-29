@@ -3,6 +3,8 @@ import scipy.cluster.hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.cluster.cluster_sorting as aq_cluster_sorting
 import alphaquant.diffquant.diffutils as aqutils
+import statsmodels.stats.multitest as multitest
+import numpy as np
 
 import alphaquant.config.config as aqconfig
 import logging
@@ -146,9 +148,12 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_distance_matrix = scipy.spatial.distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_distance(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
-                                                                                                   deedpair2doublediffdist, fcfc_threshold))
-    after_clust = scipy.cluster.hierarchy.ward(condensed_distance_matrix)
+    condensed_similarity_matrix = scipy.spatial.distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_similarity(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
+                                                                                                   deedpair2doublediffdist, fcfc_threshold)) #gives p-values of the pairwise comparisons of the ions
+    condensed_similarity_matrix_mt_corrected = get_multiple_testing_corrected_condensed_similarity_matrix(condensed_similarity_matrix)
+    condensed_distance_matrix_mt_corrected = 1/condensed_similarity_matrix_mt_corrected
+    
+    after_clust = scipy.cluster.hierarchy.ward(condensed_distance_matrix_mt_corrected)
     clustered = scipy.cluster.hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
 
@@ -162,6 +167,23 @@ def get_pval_threshold_basis(type_node, pval_threshold_basis): #the pval thresho
         return pval_threshold_basis
     else:
         return LEVEL2PVALTHRESH.get(type_node.level, 0.2)
+    
+def get_multiple_testing_corrected_condensed_similarity_matrix(condensed_distance_matrix: np.array):
+    """
+    condensed_distance_matrix contains all p-values of the pairwise comparisons of the ions. They are by definition dependent.
+    
+    Args:
+    condensed_distance_matrix (np.array): Condensed distance matrix containing p-values of pairwise comparisons.
+    
+    Returns:
+    np.array: Corrected condensed distance matrix.
+    """
+    # Apply Benjamini-Yekutieli correction
+    _, corrected_pvalues, _, _ = multitest.multipletests(condensed_distance_matrix, method='fdr_by')
+    
+    # Return the corrected condensed matrix
+    return corrected_pvalues
+
 
 def merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = 0.5):
     if type_node.level == "gene":
@@ -219,7 +241,29 @@ def update_childnode2clust(childnode2clust, old_clusters, new_clusters):
 import statistics
 import alphaquant.diffquant.doublediff_analysis as aqdd
 import numpy as np
-def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fcfc_threshold):
+def evaluate_similarity(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fcfc_threshold):
+    """
+    Evaluate the statistical similarity between two sets of ions based on their properties and fold changes.
+
+    This function calculates a p-value representing the statistical similarity between two sets of ions,
+    testing the null hypothesis that the two sets are not significantly different.
+
+    Args:
+        idx1 (int): Index of the first set of ions in the diffions list.
+        idx2 (int): Index of the second set of ions in the diffions list.
+        diffions (list): List of ion objects, each containing a 'name' attribute.
+        fcs (list): List of fold change values corresponding to each set of ions.
+        normed_c1 (array-like): Background distributions for condition 1.
+        normed_c2 (array-like): Background distributions for condition 2.
+        ion2diffDist (dict): Mapping of ion pairs to their difference distributions.
+        p2z (function): Function to convert p-values to z-scores.
+        deedpair2doublediffdist (dict): Mapping of ion pairs to their double difference distributions.
+        fcfc_threshold (float): Threshold for considering fold changes as similar.
+
+    Returns:
+        float: A p-value where higher values suggest greater similarity between ion sets.
+               Returns 0.99 for fold changes below fcfc_threshold.
+    """
     ions1 = [x.name for x in diffions[idx1]]
     ions2 = [x.name for x in diffions[idx2]]
     fc1 = fcs[idx1]
@@ -229,7 +273,7 @@ def evaluate_distance(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffD
         return 0.99 #
 
     fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
-    return 1/(pval + 1e-17)
+    return (pval + 1e-17)
 
 
 
