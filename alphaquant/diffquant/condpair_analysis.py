@@ -5,6 +5,7 @@ import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_ions_stacked as aq_class_stacked
+import alphaquant.cluster.ml_reorder as aq_clust_mlreorder
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
@@ -114,7 +115,7 @@ def analyze_condpair(*,runconfig, condpair):
 
 
         if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful
-            aqclust.update_nodes_w_ml_score(protnodes)
+            aq_clust_mlreorder.update_nodes_w_ml_score(protnodes)
             LOGGER.info(f"ML based quality score above quality threshold and added to the nodes.")
             runconfig.ml_based_quality_score = True
         else:
