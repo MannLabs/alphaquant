@@ -5,6 +5,7 @@ import alphaquant.cluster.cluster_sorting as aq_cluster_sorting
 import alphaquant.diffquant.diffutils as aqutils
 import statsmodels.stats.multitest as multitest
 import numpy as np
+import alphaquant.cluster.proteoform_statistics as aq_cluster_pfstats
 
 import alphaquant.config.config as aqconfig
 import logging
@@ -115,6 +116,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                     childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold) #the clustering is performed on the child nodes
                     childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                     childnode2clust = aq_cluster_sorting.decide_cluster_order(childnode2clust)
+                    aq_cluster_pfstats.add_proteoform_statistics_to_nodes(childnode2clust, take_median_ion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist)
                 
                 aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
                 aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
@@ -159,6 +161,7 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
 
     childnode2clust = [(type_node.children[ion_idx],clust_idx) for ion_idx, clust_idx in zip(list(range(len(clustered))),clustered)]
     childnode2clust = sorted(childnode2clust, key = lambda x : x[0].name) #sort list for reproducibility
+
 
     return childnode2clust
 
