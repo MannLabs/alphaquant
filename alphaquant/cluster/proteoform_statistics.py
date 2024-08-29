@@ -2,7 +2,7 @@ import numpy as np
 import alphaquant.cluster.cluster_utils as aq_clust_utils
 import alphaquant.diffquant.doublediff_analysis as aq_diff_double
 
-def assign_proteoform_statistics(childnode2clust_ordered : dict, take_median_ions : bool, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist):
+def add_proteoform_statistics_to_nodes(childnode2clust_ordered : dict, take_median_ions : bool, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist):
 
 	if next(iter(childnode2clust_ordered)).type != "sequence":
 		return
