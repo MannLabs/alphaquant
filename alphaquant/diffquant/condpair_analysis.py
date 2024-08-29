@@ -4,9 +4,7 @@ import alphaquant.norm.normalization as aqnorm
 import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
-import alphaquant.classify.classify_ions as aqclass
 import alphaquant.classify.classify_ions_stacked as aq_class_stacked
-import alphaquant.classify.classify_fragment_ions_stacked as aq_class_stacked_frag
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
