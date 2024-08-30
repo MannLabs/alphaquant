@@ -84,9 +84,9 @@ def test_get_cluster2ions():
 
 def test_assign_proteoform_statisitcs():
     # Create a tree structure
-    root = Node("root", type="sequence")
-    child1 = Node("child1", parent=root, type="sequence")
-    child2 = Node("child2", parent=root, type="sequence")
+    root = Node("root", type="seq")
+    child1 = Node("child1", parent=root, type="seq")
+    child2 = Node("child2", parent=root, type="seq")
     leaf1 = Node("ion1", parent=child1)
     leaf2 = Node("ion2", parent=child2)
     leaf3 = Node("ion3", parent=child2)
@@ -103,7 +103,7 @@ def test_assign_proteoform_statisitcs():
 
     # Mock calc_doublediff_score function
     with patch('alphaquant.diffquant.doublediff_analysis.calc_doublediff_score', return_value=(1.5, 0.05)) as mock_calc:
-        aq_clust_pformpvals.assign_proteoform_statisitcs(
+        aq_clust_pformpvals.add_proteoform_statistics_to_nodes(
             childnode2clust_ordered, False, normed_c1, normed_c2,
             ion2diffDist, p2z, deedpair2doublediffdist
         )
@@ -119,5 +119,5 @@ def test_assign_proteoform_statisitcs():
     # Assert proteoform stats were annotated correctly
     assert np.isnan(child1.proteoform_fcfc)
     assert np.isnan(child1.proteoform_pval)
-    assert child2.proteoform_fcfc == 1.5
+    assert child2.proteoform_fcfc == -1.5
     assert child2.proteoform_pval == 0.05
