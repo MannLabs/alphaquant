@@ -44,6 +44,7 @@ class ProteoFormTableAnnotator():
     def __init__(self, proteoform_df):
         self.proteoform_df = proteoform_df
         self._annotate_fcdiff_column()
+        self._annotate_fdr_column()
     
     def _annotate_fcdiff_column(self):
         all_rows = []
@@ -56,6 +57,13 @@ class ProteoFormTableAnnotator():
                 row["abs_fcdiff"] = abs(row["fcdiff"])
                 all_rows.append(row)
         self.proteoform_df = pd.DataFrame(all_rows)
+    
+    def _annotate_fdr_column(self):
+        mask_of_outlier_pforms = self.proteoform_df["proteoform_pval"].notna()
+        pvals = self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_pval"].tolist()
+        fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+        self.proteoform_df["proteoform_fdr"] = np.nan
+        self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_fdr"] = fdrs
 
 
 class ValueDictCreator():
