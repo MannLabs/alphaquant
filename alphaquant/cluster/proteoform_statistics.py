@@ -25,7 +25,7 @@ def add_proteoform_statistics_to_nodes(node2cluster : dict, take_median_ions : b
 
 	if not _nodes_are_peptide_level(node2cluster):
 		return
-	 
+	
 	cluster2nodes = _get_cluster2nodes(node2cluster)
 	cluster2ions = _get_cluster2ions(cluster2nodes, take_median_ions)
 	non_zero_clusters = [cluster for cluster in cluster2ions.keys() if cluster >0]
@@ -37,12 +37,12 @@ def add_proteoform_statistics_to_nodes(node2cluster : dict, take_median_ions : b
 									   normed_c1=normed_c1, normed_c2=normed_c2, ion2diffDist=ion2diffDist, p2z=p2z, 
 									   deedpair2doublediffdist=deedpair2doublediffdist)
 		nodes = cluster2nodes[nz_cluster]
-		_annotate_nodes_with_proteoform_stats(fcfc, pval, nodes)
+		_annotate_nodes_with_proteoform_stats(nodes, fcfc, pval)
 	
-	_annotate_nodes_with_proteoform_stats(np.nan, np.nan, cluster_0_nodes)
+	_annotate_nodes_with_proteoform_stats(cluster_0_nodes, np.nan, np.nan)
 
 def _nodes_are_peptide_level(node2cluster : dict):
-	return all([node.type == "peptide" for node in node2cluster.keys()])
+	return all([node.type == "seq" for node in node2cluster.keys()])
 
 def _get_cluster2nodes(node2cluster):
 	cluster2nodes = {}
@@ -71,7 +71,7 @@ def _get_leavenames_from_node(node, take_median_ion):
 	leavenames = [leaf.name for leaf in middle_leaves]
 	return leavenames
 
-def _annotate_nodes_with_proteoform_stats(fcfc, pval, nodes):
+def _annotate_nodes_with_proteoform_stats(nodes, fcfc, pval):
 	for node in nodes:
 		node.proteoform_fcfc = fcfc
 		node.proteoform_pval = pval
