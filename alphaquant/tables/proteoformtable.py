@@ -61,9 +61,12 @@ class ProteoFormTableAnnotator():
     def _annotate_fdr_column(self):
         mask_of_outlier_pforms = self.proteoform_df["proteoform_pval"].notna()
         pvals = self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_pval"].tolist()
-        fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
-        self.proteoform_df["proteoform_fdr"] = np.nan
-        self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_fdr"] = fdrs
+        if len(pvals)>0:
+            fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+            self.proteoform_df["proteoform_fdr"] = np.nan
+            self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_fdr"] = fdrs
+        else:
+            self.proteoform_df["proteoform_fdr"] = np.nan
 
 
 class ValueDictCreator():
