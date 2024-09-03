@@ -29,7 +29,7 @@ def add_proteoform_statistics_to_nodes(node2cluster : dict, take_median_ions : b
 	
 
 	cluster2nodes = _get_cluster2nodes(node2cluster)
-	cluster2ions = _get_cluster2ions(cluster2nodes, take_median_ions)
+	cluster2ions = _get_cluster2ions(cluster2nodes, take_median_ions, take_median_node=True)
 	non_zero_clusters = [cluster for cluster in cluster2ions.keys() if cluster >0]
 	cluster_0_ions = cluster2ions[0]
 	cluster_0_nodes = cluster2nodes[0]
@@ -54,14 +54,23 @@ def _get_cluster2nodes(node2cluster):
 		cluster2nodes[cluster].append(node)
 	return cluster2nodes
 
-def _get_cluster2ions(cluster2nodes, take_median_ions):
+
+
+def _get_cluster2ions(cluster2nodes, take_median_ions, take_median_node):
 	cluster2ions = {}
 	for cluster, nodes in cluster2nodes.items():
 		cluster2ions[cluster] = []
+		if take_median_node:
+			nodes = [_select_median_node(nodes)]
 		for node in nodes:
 			leavenames = _get_leavenames_from_node(node, take_median_ions)
 			cluster2ions[cluster].extend(leavenames)
 	return cluster2ions
+
+def _select_median_node(nodes):
+    sorted_nodes = sorted(nodes, key=lambda x: x.fc)
+    median_index = len(sorted_nodes) // 2
+    return sorted_nodes[median_index]
 
 def _get_leavenames_from_node(node, take_median_ion):
 	leaves = node.leaves
