@@ -52,8 +52,8 @@ def test_get_cluster2nodes():
 def test_get_cluster2ions():
     # Create a tree structure
     root = Node("root")
-    child1 = Node("child1", parent=root)
-    child2 = Node("child2", parent=root)
+    child1 = Node("child1", parent=root, fc = 0.5)
+    child2 = Node("child2", parent=root, fc = 1)
     leaf1 = Node("ion1", parent=child1)
     leaf2 = Node("ion2", parent=child2)
     leaf3 = Node("ion3", parent=child2)
@@ -65,7 +65,7 @@ def test_get_cluster2ions():
     }
 
     # Test with take_median_ions=False
-    result = aq_clust_pformpvals._get_cluster2ions(cluster2nodes, take_median_ions=False)
+    result = aq_clust_pformpvals._get_cluster2ions(cluster2nodes, take_median_ions=False, take_median_node=True)
 
     # Assert the results
     assert len(result) == 2
@@ -74,7 +74,7 @@ def test_get_cluster2ions():
 
     # Test with take_median_ions=True
     with patch('alphaquant.cluster.cluster_utils.select_middle_leafs', side_effect=lambda leaves: [leaves[0]]):
-        result = aq_clust_pformpvals._get_cluster2ions(cluster2nodes, take_median_ions=True)
+        result = aq_clust_pformpvals._get_cluster2ions(cluster2nodes, take_median_ions=True, take_median_node=True)
 
         # Assert the results
         assert len(result) == 2
@@ -85,8 +85,8 @@ def test_get_cluster2ions():
 def test_assign_proteoform_statisitcs():
     # Create a tree structure
     root = Node("root", type="seq")
-    child1 = Node("child1", parent=root, type="seq")
-    child2 = Node("child2", parent=root, type="seq")
+    child1 = Node("child1", parent=root, type="seq", fc = 0.5)
+    child2 = Node("child2", parent=root, type="seq", fc = 1)
     leaf1 = Node("ion1", parent=child1)
     leaf2 = Node("ion2", parent=child2)
     leaf3 = Node("ion3", parent=child2)
