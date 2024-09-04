@@ -36,30 +36,30 @@ def get_clust2newclust(nodes):
     return clust2newclust
 
 def re_assign_proteoform_stats(nodes, clust2newclust):
-	if nodes[0].level !="sequence":
-		return
-	zero_cluster_has_changed = clust2newclust[0] != 0
-	if zero_cluster_has_changed:
-		change_pformstats_from_old_to_new_cluster(nodes, 0, clust2newclust[0])
+    if nodes[0].level !="sequence":
+        return
+    zero_cluster_has_changed = clust2newclust[0] != 0
+    if zero_cluster_has_changed:
+        change_pformstats_from_old_to_new_cluster(nodes, 0, clust2newclust[0])
 
 
 def change_pformstats_from_old_to_new_cluster(nodes, zero_cluster, new_zero_cluster):
-	nodes_zero = [node for node in nodes if node.cluster == zero_cluster]
-	nodes_new_zero = [node for node in nodes if node.cluster == new_zero_cluster]
+    nodes_zero = [node for node in nodes if node.cluster == zero_cluster]
+    nodes_new_zero = [node for node in nodes if node.cluster == new_zero_cluster]
     
-	proteoform_fcfc_old = nodes_zero[0].proteoform_fcfc
-	proteoform_pval_old = nodes_new_zero[0].proteoform_pval
-      
-	proteoform_fcfc_new = nodes_new_zero[0].proteoform_fcfc
-	proteoform_pval_new = nodes_new_zero[0].proteoform_pval
-      
-	for node in nodes_zero:
-		node.proteoform_fcfc = proteoform_fcfc_new
-		node.proteoform_pval = proteoform_pval_new
+    proteoform_fcfc_old = nodes_zero[0].proteoform_fcfc
+    proteoform_pval_old = nodes_new_zero[0].proteoform_pval
+    
+    proteoform_fcfc_new = nodes_new_zero[0].proteoform_fcfc
+    proteoform_pval_new = nodes_new_zero[0].proteoform_pval
+    
+    for node in nodes_zero:
+        node.proteoform_fcfc = proteoform_fcfc_new
+        node.proteoform_pval = proteoform_pval_new
 
-	for node in nodes_new_zero:
-		node.proteoform_fcfc = proteoform_fcfc_old
-		node.proteoform_pval = proteoform_pval_old
+    for node in nodes_new_zero:
+        node.proteoform_fcfc = proteoform_fcfc_old
+        node.proteoform_pval = proteoform_pval_old
 
 
 def re_order_clusters_by_ml_score(nodes, clust2newclust):
