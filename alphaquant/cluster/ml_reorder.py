@@ -31,7 +31,7 @@ def get_clust2newclust(nodes):
         cluster2scores[node.cluster].append(abs(node.ml_score))
     clusters = list(cluster2scores.keys())
     clusters.sort(key = lambda x : 1/len(cluster2scores.get(x))) 
-    clusters.sort(key = lambda x : np.nanmin(cluster2scores.get(x))) 
+    clusters.sort(key = lambda x : np.nanmin(cluster2scores.get(x))) #second sort preserves the order of the first sort (see test_ml_reorder.py)
     clust2newclust = { clusters[x] :x for x in range(len(clusters))}
     return clust2newclust
 
