@@ -3,9 +3,13 @@ import scipy.cluster.hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 import alphaquant.cluster.cluster_sorting as aq_cluster_sorting
 import alphaquant.diffquant.diffutils as aqutils
+import alphaquant.diffquant.diff_analysis as aq_diff_analysis
+import alphaquant.diffquant.background_distributions as aq_diff_background
 import statsmodels.stats.multitest as multitest
 import numpy as np
 import alphaquant.cluster.proteoform_statistics as aq_cluster_pfstats
+import alphaquant.diffquant.doublediff_analysis as aq_diff_double
+import numpy as np
 
 import alphaquant.config.config as aqconfig
 import logging
@@ -238,34 +242,38 @@ def update_childnode2clust(childnode2clust, old_clusters, new_clusters):
 
 
 
-
-# Cell
-import statistics
-import alphaquant.diffquant.doublediff_analysis as aqdd
-import numpy as np
-def evaluate_similarity(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, fcfc_threshold):
+def evaluate_similarity(idx1: int, idx2: int, 
+                        diffions: list[aq_diff_analysis.DifferentialIon], 
+                        fcs: list[list[int]],
+                        normed_c1: aq_diff_background.BackGroundDistribution, 
+                        normed_c2: aq_diff_background.BackGroundDistribution,
+                        ion2diffDist: dict[str, aq_diff_background.SubtractedBackgrounds],
+                        p2z: dict[str, str], 
+                        deedpair2doublediffdist: dict[tuple[aq_diff_background.SubtractedBackgrounds, aq_diff_background.SubtractedBackgrounds],aq_diff_background.SubtractedBackgrounds],
+                        fcfc_threshold: float) -> float:
     """
     Evaluate the statistical similarity between two sets of ions based on their properties and fold changes.
-
+    
     This function calculates a p-value representing the statistical similarity between two sets of ions,
     testing the null hypothesis that the two sets are not significantly different.
-
+    
     Args:
         idx1 (int): Index of the first set of ions in the diffions list.
         idx2 (int): Index of the second set of ions in the diffions list.
-        diffions (list): List of ion objects, each containing a 'name' attribute.
-        fcs (list): List of fold change values corresponding to each set of ions.
-        normed_c1 (array-like): Background distributions for condition 1.
-        normed_c2 (array-like): Background distributions for condition 2.
-        ion2diffDist (dict): Mapping of ion pairs to their difference distributions.
-        p2z (function): Function to convert p-values to z-scores.
-        deedpair2doublediffdist (dict): Mapping of ion pairs to their double difference distributions.
+        diffions (list[aq_diff_analysis.DifferentialIon]): List of ion objects, each containing a 'name' attribute.
+        fcs (list[list]): List of fold change values corresponding to each set of ions.
+        normed_c1 (aq_diff_background.BackGroundDistribution): Background distributions for condition 1.
+        normed_c2 (aq_diff_background.BackGroundDistribution): Background distributions for condition 2.
+        ion2diffDist (dict[str, aq_diff_background.SubtractedBackgrounds]): Mapping of ion pairs to their difference distributions.
+        p2z (dict[str, str]): Dictionary for converting p-values to z-scores.
+        deedpair2doublediffdist (dict[tuple[aq_diff_background.SubtractedBackgrounds, aq_diff_background.SubtractedBackgrounds], aq_diff_background.SubtractedBackgrounds]): Mapping of ion pairs to their double difference distributions.
         fcfc_threshold (float): Threshold for considering fold changes as similar.
-
+    
     Returns:
         float: A p-value where higher values suggest greater similarity between ion sets.
                Returns 0.99 for fold changes below fcfc_threshold.
     """
+
     ions1 = [x.name for x in diffions[idx1]]
     ions2 = [x.name for x in diffions[idx2]]
     fc1 = fcs[idx1]
@@ -274,7 +282,7 @@ def evaluate_similarity(idx1, idx2, diffions, fcs, normed_c1, normed_c2, ion2dif
     if abs((fc1-fc2)) < fcfc_threshold:
         return 0.99 #
 
-    fcfc, pval = aqdd.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
+    fcfc, pval = aq_diff_double.calc_doublediff_score(ions1, ions2, normed_c1, normed_c2,ion2diffDist,p2z, deedpair2doublediffdist)
     return (pval + 1e-17)
 
 
