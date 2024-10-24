@@ -18,7 +18,7 @@ __all__ = ['AlphaPeptColorMap', 'IonPlotColorGetter', 'plot_pvals', 'plot_bgdist
            'plot_violin_plots_log2fcs', 'plot_beeswarm_plot_log2fcs', 'get_longformat_df', 'plot_feature_importances',
            'filter_sort_top_n', 'visualize_gaussian_mixture_fit', 'visualize_gaussian_nomix_subfit',
            'visualize_filtered_non_filtered_precursors', 'plot_fcs_node', 'plot_predictability_roc_curve',
-           'plot_predictability_precision_recall_curve', 'plot_outlier_fraction', 'get_true_false_to_predscores',
+           'plot_predictability_precision_recall_curve', 'plot_outlier_fraction', 'get_true_false_to_ml_scores',
            'plot_true_false_fcs_of_test_set', 'plot_fc_dist_of_test_set', 'plot_roc_curve',
            'plot_precision_recall_curve', 'compare_fcs_unperturbed_vs_perturbed_and_clustered',
            'CondpairQuantificationInfo', 'ProteinIntensityDataFrameGetter', 'ProteoformIntensityDataframeGetter',
@@ -1475,14 +1475,14 @@ def visualize_gaussian_nomix_subfit(mean, var, y_pred, y_subset):
 # Cell
 import matplotlib.pyplot as plt
 
-def visualize_filtered_non_filtered_precursors(all_precursors, predscore = None):
+def visualize_filtered_non_filtered_precursors(all_precursors, ml_score = None):
 
     fcs_unfilt = [x.fc for x in all_precursors]
-    if predscore is not None:
-        fcs_filt = [x.fc for x in all_precursors if abs(x.predscore)<predscore]
+    if ml_score is not None:
+        fcs_filt = [x.fc for x in all_precursors if abs(x.ml_score)<ml_score]
     else:
         fcs_filt = [x.fc for x in all_precursors if not x.ml_excluded]
-    plt.hist([x.predscore for x in all_precursors],  histtype='step', bins=60)
+    plt.hist([x.ml_score for x in all_precursors],  histtype='step', bins=60)
     plt.show()
     plt.hist(fcs_unfilt, histtype='step', bins=60, label=f"unfilt ({len(fcs_unfilt)})", density=True)
     plt.hist(fcs_filt, histtype='step', bins=60, label = f"filt ({len(fcs_filt)})", density=True)
@@ -1496,7 +1496,7 @@ import matplotlib.pyplot as plt
 def plot_fcs_node(nodes, percentile, node_filterfunction = None):
     if node_filterfunction is not None:
         nodes = [x for x in nodes if node_filterfunction(x)]
-    nodes_sorted = sorted(nodes,key= lambda x : abs(x.predscore))
+    nodes_sorted = sorted(nodes,key= lambda x : abs(x.ml_score))
     nodes_sorted = nodes_sorted[:int(len(nodes_sorted)*percentile)]
     sns.stripplot(data = [x.fc for x in nodes_sorted])
    # plt.show()
@@ -1515,28 +1515,28 @@ import seaborn as sns
 
 
 
-def plot_predictability_roc_curve( true_falses, predscores, reference_scores, ax = None, percentile_cutoff_indication = None):
+def plot_predictability_roc_curve( true_falses, ml_scores, reference_scores, ax = None, percentile_cutoff_indication = None):
 
     if percentile_cutoff_indication is not None:
         ax.axhline(percentile_cutoff_indication, color = 'lightgrey')
-    plot_roc_curve(true_falses, predscores, "AlphaQuant score", ax)
+    plot_roc_curve(true_falses, ml_scores, "AlphaQuant score", ax)
     plot_roc_curve(true_falses, reference_scores, f"reference score", ax)
     true_falses = random.sample(true_falses, len(true_falses))
-    plot_roc_curve(true_falses, predscores, f"random score", ax)
+    plot_roc_curve(true_falses, ml_scores, f"random score", ax)
     ax.set_title('ROC curve')
     ax.set_xlabel('FPR')
     ax.set_ylabel('TPR')
     ax.legend()
 
 
-def plot_predictability_precision_recall_curve( true_falses, predscores, reference_scores, ax = None, percentile_cutoff_indication = None):
+def plot_predictability_precision_recall_curve( true_falses, ml_scores, reference_scores, ax = None, percentile_cutoff_indication = None):
 
     if percentile_cutoff_indication is not None:
         ax.axvline(percentile_cutoff_indication, color = 'lightgrey')
-    plot_precision_recall_curve(true_falses, predscores, "AlphaQuant score", ax)
+    plot_precision_recall_curve(true_falses, ml_scores, "AlphaQuant score", ax)
     plot_precision_recall_curve(true_falses, reference_scores, "reference score", ax)
     true_falses = random.sample(true_falses, len(true_falses))
-    plot_precision_recall_curve(true_falses, predscores, "random score", ax)
+    plot_precision_recall_curve(true_falses, ml_scores, "random score", ax)
     ax.set_title('Precision-recall curve')
     ax.set_xlabel('recall')
     ax.set_ylabel('precision')
@@ -1561,9 +1561,9 @@ def plot_outlier_fraction(node_df, reference_df, expected_log2fc, outlier_thresh
 
 
 
-def get_true_false_to_predscores(nodes, expected_fc, fc_cutoff_bad = 1, fc_cutoff_good = 0.3, reverse = False):
+def get_true_false_to_ml_scores(nodes, expected_fc, fc_cutoff_bad = 1, fc_cutoff_good = 0.3, reverse = False):
     true_falses = []
-    predscores = []
+    ml_scores = []
     reference_scores = []
     fcs = []
 
@@ -1571,22 +1571,22 @@ def get_true_false_to_predscores(nodes, expected_fc, fc_cutoff_bad = 1, fc_cutof
         fc_diff = abs(node.fc - expected_fc)
         if fc_diff>fc_cutoff_bad:
             true_falses.append(False)
-            predscores.append(1/abs(node.predscore))
+            ml_scores.append(1/abs(node.ml_score))
             reference_scores.append(node.default_quality_score)
             fcs.append(node.fc)
         if fc_diff<fc_cutoff_good:
             true_falses.append(True)
-            predscores.append(1/abs(node.predscore))
+            ml_scores.append(1/abs(node.ml_score))
             reference_scores.append(node.default_quality_score)
             fcs.append(node.fc)
 
     if reverse:
         true_falses = [not x for x in true_falses]
-        predscores = [1/x for x in predscores]
+        ml_scores = [1/x for x in ml_scores]
 
     print(f"num trues{sum(true_falses)}\tnum falses {len(true_falses) - sum(true_falses)}")
 
-    return true_falses, predscores, reference_scores, fcs
+    return true_falses, ml_scores, reference_scores, fcs
 
 def plot_true_false_fcs_of_test_set(fcs, true_falses, ax):
     plot_dict = {'fcs': fcs, 'true_false' : true_falses}

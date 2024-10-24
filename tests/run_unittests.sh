@@ -2,6 +2,6 @@
 conda activate alphaquant
 pip install pytest
 cd unit_tests
-pytest test_*.py -v
+python -m pytest -v
 cd ..
 conda deactivate

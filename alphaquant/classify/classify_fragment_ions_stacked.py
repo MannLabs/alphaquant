@@ -254,13 +254,13 @@ def annotate_fragion_basenodes(all_fragions_basenodes, ionnames_total, y_pred_to
     ion2pred = dict(zip(ionnames_total, y_pred_total))
     for fragion in all_fragions_basenodes:
         y_pred = ion2pred.get(fragion.name)
-        fragion.predscore_fragion = abs(y_pred)
+        fragion.ml_score_fragion = abs(y_pred)
     
 
 
 def update_fold_change_of_the_fragion_iontype_node(all_fragions_iontype_nodes): #the iontype nodes are the parents of the basenodes
     for fragion_iontype in all_fragions_iontype_nodes:
-        weigths = [2**-abs(fragion.predscore_fragion) for fragion in fragion_iontype.children]
+        weigths = [2**-abs(fragion.ml_score_fragion) for fragion in fragion_iontype.children]
         fcs = [fragion.fc for fragion in fragion_iontype.children]
         fragion_iontype.fc = np.average(fcs, weights=weigths)
         
@@ -285,19 +285,19 @@ def propagate_new_fcs_along_the_tree(protein_nodes):
 # def update_nodes_w_ml_score(protnodes):
 #     typefilter = globally_initialized_typefilter
 #     for prot in protnodes:
-#         re_order_depending_on_predscore(prot, typefilter)
+#         re_order_depending_on_ml_score(prot, typefilter)
 
 
-# def re_order_depending_on_predscore(protnode, typefilter):
+# def re_order_depending_on_ml_score(protnode, typefilter):
 #     for idx in range(len(typefilter.type)):
 #         type_nodes = anytree.search.findall(protnode, filter_=lambda node: node.type == typefilter.type[idx])
 #         if len(type_nodes)==0:
 #             continue
 #         for type_node in type_nodes: #go through the nodes, re-order the children. Propagate the values from the newly ordered children to the type node
 #             child_nodes = type_node.children
-#             had_predscore = hasattr(child_nodes[0], 'predscore')
-#             if had_predscore:
-#                 re_order_clusters_by_predscore(child_nodes)
+#             had_ml_score = hasattr(child_nodes[0], 'ml_score')
+#             if had_ml_score:
+#                 re_order_clusters_by_ml_score(child_nodes)
 #                 aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
 import copy
 
@@ -330,7 +330,7 @@ def create_cluster2allscores_dict_fragions(fragion_basenodes): #lower score mean
     cluster2scores = {}
     for node in fragion_basenodes:
         cluster2scores[node.cluster] = cluster2scores.get(node.cluster, [])
-        cluster2scores[node.cluster].append(abs(node.predscore_fragion))
+        cluster2scores[node.cluster].append(abs(node.ml_score_fragion))
     return cluster2scores
 
 
