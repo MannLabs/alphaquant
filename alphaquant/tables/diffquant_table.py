@@ -46,8 +46,8 @@ class TableFromNodeCreator():
         node_dict["log2fc"] = node.fc
         node_dict["number_of_ions"] = len(node.leaves)
         node_dict["counting_based"] = node.missingval
-        if hasattr(node, "predscore"):
-            node_dict["predscore"] = node.predscore
+        if hasattr(node, "ml_score"):
+            node_dict["ml_score"] = node.ml_score
         else:
             node_dict["consistency_score"] = node.fraction_consistent * len(node.leaves)
 

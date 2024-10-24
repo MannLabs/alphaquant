@@ -54,9 +54,10 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
     models, test_set_predictions = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=False)
 
-    y_pred = predict_on_models(models,ml_input_for_training.X)
+    y_pred = predict_on_models(models,ml_input_for_training.X) #prediction returns absolute values
     y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
     y_pred_total = np.concatenate([y_pred, y_pred_remaining])
+    ml_scores = convert_y_pred_to_ml_score(y_pred_total) #convert to 0-1 scale where higher is better
 
     performance_metrics["r2_score"] = sklearn.metrics.r2_score(ml_input_for_training.y, y_pred)
 
@@ -73,7 +74,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
         feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
         aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
         aq_plot_classify.plot_feature_importance_per_model(models, ml_input_for_training.featurenames, 10, results_dir_plots)
-        aq_plot_classify.plot_value_histogram(y_pred_total, results_dir_plots)
+        aq_plot_classify.plot_value_histogram(ml_scores, results_dir_plots)
 
 
     mean, cutoff_neg, cutoff_pos = aq_class_ions.fit_gaussian_to_subdist(y_pred, visualize=plot_predictor_performance,results_dir = results_dir_plots)
@@ -84,7 +85,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
     all_precursors = precursor_selector.precursors_suitable_for_training + precursor_selector.precursors_not_suitable_for_training
     
     #annotate the precursor nodes
-    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, y_pred_total, ionnames_total, all_precursors) #two new variables added to each node:
+    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, ml_scores, ionnames_total, all_precursors) #two new variables added to each node:
     return True
 
 
@@ -282,5 +283,45 @@ def predict_on_models(models, X):
     y_preds = [model.predict(X) for model in models]
     y_pred = np.mean(y_preds, axis=0)
     return y_pred
+
+def convert_y_pred_to_ml_score(y_pred):
+    """
+    Convert model predictions to normalized ML scores.
+
+    This function takes the absolute values of the predictions, normalizes them
+    to a 0-1 scale, and then inverts the scale so that higher scores represent
+    better predictions.
+
+    Args:
+        y_pred (numpy.ndarray): An array of model predictions. Can contain
+            positive or negative float values.
+
+    Returns:
+        numpy.ndarray: An array of ML scores normalized between 0 and 1, where
+            higher scores indicate better predictions. If all input predictions
+            are 0, the function returns an array of 1s.
+
+    Note:
+        - If the input array contains all zeros, the output will be an array of ones.
+        - The function assumes that lower original predictions are better, and
+          the output inverts this so that higher ML scores are better.
+    """
+
+    # Take the absolute values to ensure all predictions are non-negative
+    abs_values = np.abs(y_pred)
+
+    # Normalize these values to a 0-1 scale
+    max_value = np.max(abs_values)
+    if max_value > 0:
+        normalized_scores = abs_values / max_value
+    else:
+        normalized_scores = abs_values  # If max_value is 0, all values are zero and hence already normalized
+
+    # Reverse the order so that higher scores are better
+    ml_score = 1 - normalized_scores
+
+    return ml_score
+
+
 
 
