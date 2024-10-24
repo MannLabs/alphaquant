@@ -10,6 +10,7 @@ import alphaquant.diffquant.background_distributions as aqbg
 import alphaquant.benchm.benchmarking as aqbm
 import alphaquant.diffquant.diff_analysis as aqdiff
 import alphaquant.cluster.cluster_utils as aq_clust_utils
+import alphaquant.cluster.cluster_ions as aq_clust_ions
 import os
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -190,3 +191,36 @@ def test_correct_clustering(generated_diffions):
 
     num_total_recalls = sum([x == 1 for x in recalls])
     assert num_total_recalls == len(recalls)
+
+
+def test_get_multiple_testing_corrected_condensed_similarity_matrix():
+    # Test output type and shape
+    input_matrix = np.array([0.001, 0.02, 0.03, 0.04, 0.05, 0.8])
+    result = aq_clust_ions.get_multiple_testing_corrected_condensed_similarity_matrix(input_matrix)
+    assert isinstance(result, np.ndarray), "Output should be a numpy array"
+    assert result.shape == input_matrix.shape, "Output shape should match input shape"
+
+    # Test order preservation
+    assert np.all(np.argsort(result) == np.argsort(input_matrix)), "Order of values should be preserved"
+
+    # Test correction applied
+    assert not np.allclose(result, input_matrix), "Values should be corrected"
+    assert np.all(result >= input_matrix), "Corrected p-values should be >= original p-values"
+
+    # Test extreme values
+    extreme_input = np.array([0, 1, 0.5])
+    extreme_result = aq_clust_ions.get_multiple_testing_corrected_condensed_similarity_matrix(extreme_input)
+    assert extreme_result[0] == 0, "Zero p-value should remain zero after correction"
+    assert extreme_result[1] == 1, "P-value of 1 should remain 1 after correction"
+
+    # Test all ones
+    ones_input = np.ones(10)
+    ones_result = aq_clust_ions.get_multiple_testing_corrected_condensed_similarity_matrix(ones_input)
+    assert np.all(ones_result == 1), "Array of ones should remain unchanged"
+
+    # Test random large input
+    np.random.seed(42)
+    large_input = np.random.random(1000)
+    large_result = aq_clust_ions.get_multiple_testing_corrected_condensed_similarity_matrix(large_input)
+    assert large_result.shape == large_input.shape, "Shape should be preserved for large inputs"
+    assert np.all(large_result >= large_input), "All corrected p-values should be >= original p-values"

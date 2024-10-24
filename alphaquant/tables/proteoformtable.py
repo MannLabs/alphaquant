@@ -44,6 +44,7 @@ class ProteoFormTableAnnotator():
     def __init__(self, proteoform_df):
         self.proteoform_df = proteoform_df
         self._annotate_fcdiff_column()
+        self._annotate_fdr_column()
     
     def _annotate_fcdiff_column(self):
         all_rows = []
@@ -56,6 +57,16 @@ class ProteoFormTableAnnotator():
                 row["abs_fcdiff"] = abs(row["fcdiff"])
                 all_rows.append(row)
         self.proteoform_df = pd.DataFrame(all_rows)
+    
+    def _annotate_fdr_column(self):
+        mask_of_outlier_pforms = self.proteoform_df["proteoform_pval"].notna()
+        pvals = self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_pval"].tolist()
+        if len(pvals)>0:
+            fdrs = mt.multipletests(pvals, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+            self.proteoform_df["proteoform_fdr"] = np.nan
+            self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_fdr"] = fdrs
+        else:
+            self.proteoform_df["proteoform_fdr"] = np.nan
 
 
 class ValueDictCreator():
@@ -77,6 +88,8 @@ class ValueDictCreator():
             value_dict["num_peptides"] = value_dict.get("num_peptides", []) + [len(peptides)]
             value_dict[quality_score_name] = value_dict.get(quality_score_name, []) + [self._get_proteoform_quality_score(peptides)]
             value_dict["log2fc"] = value_dict.get("log2fc", []) + [self._get_proteoform_log2fc(peptides)]
+            value_dict["proteoform_pval"] = value_dict.get("proteoform_pval", []) + [peptides[0].proteoform_pval]
+            value_dict["proteoform_fcfc"] = value_dict.get("proteoform_fcfc", []) + [peptides[0].proteoform_fcfc]
             value_dict["fraction_of_peptides"] =  value_dict.get("fraction_of_peptides", []) + [self._get_fraction_of_peptides(peptides, protein)]
             if self._phospho_scorer.phospho_scoring_available:
                 value_dict["likely_phospho"] = value_dict.get("likely_phospho", []) + [self._phospho_scorer.check_if_cluster_likely_phospho(peptides)]
