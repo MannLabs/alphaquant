@@ -52,7 +52,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    models, test_set_predictions, y_pred_cv = train_gradient_boosting_with_random_search(ml_input_for_training.X, ml_input_for_training.y,
+    models, test_set_predictions, y_pred_cv = train_lightgbm(ml_input_for_training.X, ml_input_for_training.y,
                                                                            num_splits=5, shorten_features_for_speed=False)
 
     # Use out-of-fold predictions for ml_input_for_training.X
@@ -433,6 +433,59 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
         print(f"Overall correlation in fold {fold_num}: {correlation}")
     
+    return models, test_set_predictions, y_pred_cv
+
+
+import numpy as np
+import lightgbm as lgb
+import sklearn.model_selection
+
+def train_lightgbm(X, y, shorten_features_for_speed, num_splits=5):
+    # Take the absolute value of y to predict magnitudes only
+    y = np.abs(y)
+
+    models = []
+    test_set_predictions = []
+    y_pred_cv = np.zeros_like(y)
+
+    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
+
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        lgb_reg = lgb.LGBMRegressor(
+            n_estimators=1000,
+            learning_rate=0.05,
+            num_leaves=31,
+            subsample=0.8,
+            colsample_bytree=0.8 if shorten_features_for_speed else 1.0,
+            random_state=42 + fold_num,
+            n_jobs=-1
+        )
+
+        # Use early stopping to reduce training time
+        lgb_reg.fit(
+            X_train, y_train,
+            eval_set=[(X_test, y_test)],
+            early_stopping_rounds=50,
+            verbose=False
+        )
+
+        y_pred_test = lgb_reg.predict(X_test, num_iteration=lgb_reg.best_iteration_)
+        y_pred_cv[test_index] = y_pred_test
+
+        models.append(lgb_reg)
+        test_set_predictions.append((y_test, y_pred_test))
+
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        print(f"Fold {fold_num} MSE: {fold_mse}")
+
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        print(f"Overall correlation in fold {fold_num}: {correlation}")
+        print(f"Fold {fold_num} Best iteration: {lgb_reg.best_iteration_}")
+
     return models, test_set_predictions, y_pred_cv
 
 
