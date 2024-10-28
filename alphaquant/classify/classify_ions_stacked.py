@@ -52,9 +52,12 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    models, test_set_predictions = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=False)
+    models, test_set_predictions, y_pred_cv = train_gradient_boosting_with_random_search(ml_input_for_training.X, ml_input_for_training.y,
+                                                                           num_splits=5, shorten_features_for_speed=False)
 
-    y_pred = predict_on_models(models,ml_input_for_training.X) #prediction returns absolute values
+    # Use out-of-fold predictions for ml_input_for_training.X
+    y_pred = y_pred_cv
+
     y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
     y_pred_total = np.concatenate([y_pred, y_pred_remaining])
     ml_scores = convert_y_pred_to_ml_score(y_pred_total) #convert to 0-1 scale where higher is better
@@ -212,72 +215,276 @@ def align_ml_input_tables_if_necessary(ml_input_1, ml_input_2):
 import numpy as np
 import sklearn.ensemble
 import sklearn.model_selection
-from scipy.stats import rankdata
 
-def custom_loss(y_true, y_pred):
-    # Rank-based weighting to heavily prioritize high true values
-    ranks = rankdata(y_true)
-    weights = ranks ** 2  # Square the ranks to emphasize high values even more
-    return np.average((y_true - y_pred)**2, weights=weights)
+def train_random_forest_with_grid_search(X, y, shorten_features_for_speed, num_splits=5):
+    y = np.abs(y)
+    models = []
+    test_set_predictions = []
+    y_pred_cv = np.zeros_like(y)
 
-class HighTrueValueFocusedRandomForestRegressor(sklearn.ensemble.RandomForestRegressor):
-    def fit(self, X, y, sample_weight=None):
-        # Apply rank-based weighting to prioritize high true values
-        ranks = rankdata(y)
-        sample_weight = ranks ** 2  # Square the ranks for more aggressive weighting
-        return super().fit(X, y, sample_weight=sample_weight)
+    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
 
-def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5):
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        # Define the parameter grid for GridSearchCV
+        param_grid = {
+            'n_estimators': [100, 200],
+            'max_depth': [None, 5, 10],
+            'min_samples_leaf': [1, 5],
+            'max_features': ['auto', 'sqrt'],
+            'max_samples': [None, 0.8]
+        }
+
+        # Adjust max_features based on the flag
+        if shorten_features_for_speed:
+            param_grid['max_features'] = ['sqrt']
+        else:
+            param_grid['max_features'] = ['auto', 'sqrt']
+
+        # Initialize the Random Forest Regressor
+        rf = sklearn.ensemble.RandomForestRegressor(random_state=42 + fold_num)
+
+        # Initialize GridSearchCV
+        grid_search = sklearn.model_selection.GridSearchCV(
+            estimator=rf,
+            param_grid=param_grid,
+            cv=sklearn.model_selection.KFold(n_splits=3, shuffle=True, random_state=42),
+            scoring='r2',
+            n_jobs=-1,
+            verbose=0,
+            return_train_score=True
+        )
+
+        # Fit the GridSearchCV on the training data
+        grid_search.fit(X_train, y_train)
+
+        # Get the best estimator
+        best_model = grid_search.best_estimator_
+
+        # Print the best parameters
+        print(f"Fold {fold_num} Best parameters found:", grid_search.best_params_)
+
+        # Predict on the test set
+        y_pred_test = best_model.predict(X_test)
+        y_pred_cv[test_index] = y_pred_test
+
+        # Collect the model
+        models.append(best_model)
+
+        # Collect test set predictions
+        test_set_predictions.append((y_test, y_pred_test))
+
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        print(f"Fold {fold_num} MSE: {fold_mse}")
+
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        print(f"Overall correlation in fold {fold_num}: {correlation}")
+
+    # Return the list of models, test set predictions, and out-of-fold predictions
+    return models, test_set_predictions, y_pred_cv
+
+
+
+import numpy as np
+import sklearn.ensemble
+import sklearn.model_selection
+
+def train_gradient_boosting_with_grid_search(X, y, shorten_features_for_speed, num_splits=5):
+    # Do not take the absolute value of y
+    y = np.abs(y)  # Ensure y retains its sign
+
+    models = []
+    test_set_predictions = []
+    y_pred_cv = np.zeros_like(y)
+
+    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
+
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        # Define the parameter grid for GridSearchCV
+        param_grid = {
+            'n_estimators': [100, 200],
+            'learning_rate': [0.01, 0.1, 0.2],
+            'max_depth': [3, 5, 7],
+            'min_samples_leaf': [1, 5],
+            'max_features': ['auto', 'sqrt'],
+            'subsample': [1.0, 0.8]
+        }
+
+        # Adjust max_features based on the flag
+        if shorten_features_for_speed:
+            param_grid['max_features'] = ['sqrt']
+        else:
+            param_grid['max_features'] = ['auto', 'sqrt']
+
+        # Initialize the Gradient Boosting Regressor
+        gbr = sklearn.ensemble.GradientBoostingRegressor(random_state=42 + fold_num)
+
+        # Initialize GridSearchCV
+        grid_search = sklearn.model_selection.GridSearchCV(
+            estimator=gbr,
+            param_grid=param_grid,
+            cv=sklearn.model_selection.KFold(n_splits=3, shuffle=True, random_state=42),
+            scoring='r2',
+            n_jobs=-1,
+            verbose=0,
+            return_train_score=True
+        )
+
+        # Fit the GridSearchCV on the training data
+        grid_search.fit(X_train, y_train)
+
+        # Get the best estimator
+        best_model = grid_search.best_estimator_
+
+        # Print the best parameters
+        print(f"Fold {fold_num} Best parameters found:", grid_search.best_params_)
+
+        # Predict on the test set
+        y_pred_test = best_model.predict(X_test)
+        y_pred_cv[test_index] = y_pred_test
+
+        # Collect the model
+        models.append(best_model)
+
+        # Collect test set predictions
+        test_set_predictions.append((y_test, y_pred_test))
+
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        print(f"Fold {fold_num} MSE: {fold_mse}")
+
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        print(f"Overall correlation in fold {fold_num}: {correlation}")
+
+    # Return the list of models, test set predictions, and out-of-fold predictions
+    return models, test_set_predictions, y_pred_cv
+
+
+import numpy as np
+import sklearn.ensemble
+import sklearn.model_selection
+
+def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed, num_splits=5, n_iter=10):
+    # Take the absolute value of y to predict magnitudes only
+    y = np.abs(y)
+    
+    models = []
+    test_set_predictions = []
+    y_pred_cv = np.zeros_like(y)
+    
+    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
+    
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+        
+        # Define the parameter distributions for RandomizedSearchCV
+        param_distributions = {
+            'n_estimators': [100, 200],
+            'learning_rate': [0.01, 0.05, 0.1],
+            'max_depth': [3, 5, 7],
+            'min_samples_leaf': [1, 5],
+            'max_features': ['auto', 'sqrt'],
+            'subsample': [1.0, 0.8]
+        }
+        
+        # Adjust max_features based on the flag
+        if shorten_features_for_speed:
+            param_distributions['max_features'] = ['sqrt']
+        else:
+            param_distributions['max_features'] = ['auto', 'sqrt']
+        
+        gbr = sklearn.ensemble.GradientBoostingRegressor(random_state=42 + fold_num)
+        
+        random_search = sklearn.model_selection.RandomizedSearchCV(
+            estimator=gbr,
+            param_distributions=param_distributions,
+            n_iter=n_iter,
+            cv=3,
+            scoring='neg_mean_squared_error',
+            n_jobs=-1,
+            verbose=0,
+            random_state=42,
+            return_train_score=True
+        )
+        
+        # Fit the RandomizedSearchCV on the training data
+        random_search.fit(X_train, y_train)
+        best_model = random_search.best_estimator_
+        
+        print(f"Fold {fold_num} Best parameters found:", random_search.best_params_)
+        
+        y_pred_test = best_model.predict(X_test)
+        y_pred_cv[test_index] = y_pred_test
+        
+        models.append(best_model)
+        test_set_predictions.append((y_test, y_pred_test))
+        
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        print(f"Fold {fold_num} MSE: {fold_mse}")
+        
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        print(f"Overall correlation in fold {fold_num}: {correlation}")
+    
+    return models, test_set_predictions, y_pred_cv
+
+
+
+import numpy as np
+import sklearn.ensemble
+import sklearn.model_selection
+
+
+def train_random_forest_simple(X, y, shorten_features_for_speed, num_splits=5):
     kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
     models = []
     test_set_predictions = []
     y = np.abs(y)
 
-    if shorten_features_for_speed:
-        max_features = 'sqrt'
-    else:
-        max_features = None
 
-    for train_index, test_index in kf.split(X):
+    y_pred_cv = np.zeros_like(y)
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
-        model = HighTrueValueFocusedRandomForestRegressor(
-            n_estimators=1000,
-            random_state=42,
+        model = sklearn.ensemble.RandomForestRegressor(
+            n_estimators=100,
+            random_state=42 + fold_num,
             n_jobs=-1,
-            max_features=max_features,
-            max_depth=8,  # Increased depth to allow more complex patterns
-            min_samples_leaf=1,  # Reduced to allow more specific predictions
+            max_features='sqrt',
+            max_depth=5,
+            min_samples_leaf=5,
             bootstrap=True,
-            oob_score=True
+            max_samples=0.8
         )
 
         model.fit(X_train, y_train)
         models.append(model)
 
-        y_pred = model.predict(X_test)
-        test_set_predictions.append((y_test, y_pred))
+        y_pred_test = model.predict(X_test)
+        y_pred_cv[test_index] = y_pred_test
 
-        # Print custom loss for this fold
-        fold_loss = custom_loss(y_test, y_pred)
-        print(f"Fold custom loss: {fold_loss}")
+        test_set_predictions.append((y_test, y_pred_test))
 
-        # Print metrics focusing on high true values
-        high_value_threshold = np.percentile(y_test, 75)  # Top 25% of true values
-        high_true_mask = y_test >= high_value_threshold
-        high_true_mse = np.mean((y_test[high_true_mask] - y_pred[high_true_mask])**2)
-        print(f"MSE for high true values: {high_true_mse}")
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        print(f"Fold {fold_num} MSE: {fold_mse}")
 
-        # Print overall correlation
-        correlation = np.corrcoef(y_test, y_pred)[0, 1]
-        print(f"Overall correlation: {correlation}")
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        print(f"Overall correlation in fold {fold_num}: {correlation}")
 
-        # Print correlation for high true values
-        high_true_correlation = np.corrcoef(y_test[high_true_mask], y_pred[high_true_mask])[0, 1]
-        print(f"Correlation for high true values: {high_true_correlation}")
+    return models, test_set_predictions, y_pred_cv
 
-    return models, test_set_predictions
+
+
+
 
 def predict_on_models(models, X):
     y_preds = [model.predict(X) for model in models]
