@@ -1,14 +1,14 @@
 import alphaquant.diffquant.diffutils as aqutils
-import alphaquant.classify.classify_ions as aq_class_ions
 import alphaquant.config.config as aqconfig
 import alphaquant.plotting.classify as aq_plot_classify
 import alphaquant.classify.ml_info_table as aq_ml_info_table
+import alphaquant.config.variables as aq_conf_vars
+import alphaquant.classify.classification_utils as aq_class_utils
+
 
 import numpy as np
 import anytree
-import alphaquant.config.variables as aq_conf_vars
 import pandas as pd
-import alphaquant.classify.classification_utils as aq_class_utils
 
 import sklearn.ensemble
 import sklearn.linear_model
@@ -83,15 +83,13 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
         aq_plot_classify.plot_value_histogram(ml_scores, results_dir_plots)
 
 
-    mean, cutoff_neg, cutoff_pos = aq_class_ions.fit_gaussian_to_subdist(y_pred, visualize=plot_predictor_performance,results_dir = results_dir_plots)
-
 
     
     ionnames_total = ml_input_for_training.ionnames + ml_input_remaining.ionnames
     all_precursors = precursor_selector.precursors_suitable_for_training + precursor_selector.precursors_not_suitable_for_training
     
     #annotate the precursor nodes
-    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, ml_scores, ionnames_total, all_precursors) #two new variables added to each node:
+    aq_class_utils.annotate_precursor_nodes( ml_scores, ionnames_total, all_precursors) #two new variables added to each node:
     return True
 
 
@@ -152,7 +150,7 @@ class MLInputTableCreator:
             self._define_y()
 
     def _define_merged_df(self):
-        node_features_df = aq_class_ions.collect_node_parameters(self._precursors)
+        node_features_df = aq_class_utils.collect_node_parameters(self._precursors)
         self._merged_df = aqutils.merge_acquisition_df_parameter_df(self._acquisition_info_df, node_features_df)
 
     def _define_ionnames(self):
