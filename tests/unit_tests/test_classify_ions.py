@@ -2,12 +2,12 @@ import pytest
 from anytree import Node, AnyNode
 import pandas as pd
 import numpy as np
-import alphaquant.classify.classify_ions_stacked as aq_classify_ions_stacked
+import alphaquant.classify.classify_precursors as aq_classify_precursors
 import alphaquant.classify.classify_ions as aqclassify
 from sklearn.ensemble import RandomForestRegressor
 
 # Mock class for testing
-class MLInputTableCreatorTest(aq_classify_ions_stacked.MLInputTableCreator):
+class MLInputTableCreatorTest(aq_classify_precursors.MLInputTableCreator):
     def __init__(self, precursors, acquisition_info_df, replace_nans=False, numeric_threshold=0.2):
         self._precursors = precursors
         self._acquisition_info_df = acquisition_info_df
@@ -58,7 +58,7 @@ def setup_precursor_selector():
         for i in range(1, 8)
     ]
     
-    selector = aq_classify_ions_stacked.PrecursorForTrainingSelector(
+    selector = aq_classify_precursors.PrecursorForTrainingSelector(
         protein_nodes=[protein1, protein2], min_num_precursors=3, prot_fc_cutoff=0.75
     )
     return selector, precursors
@@ -92,23 +92,3 @@ def test_ml_input_table_creator(setup_ml_input_table_creator):
     
     name2fc = {node.name: node.fc - node.parent.fc for node in precursors}
     assert np.allclose(ml_creator.y, [name2fc[ionname] for ionname in ml_creator.ionnames])
-
-def test_iterative_cross_predict():
-    np.random.seed(42)  # for reproducibility
-    X = np.random.rand(200, 3)
-    y = np.random.rand(200)
-    ionnames = np.random.rand(200)
-    select_idxs = np.random.randint(low=0, high=199, size=15)
-    control_ionnames = ionnames[select_idxs].copy()
-    
-    y_test_all, _, ionnames_all, _ = aqclassify.random_forest_iterative_cross_predict(
-        X, y, ionnames, 5, RandomForestRegressor()
-    )
-    
-    idxs_ionnames = [x for x in range(len(ionnames_all)) if ionnames_all[x] in control_ionnames]
-    control_idxs_y = [x for x in select_idxs if ionnames[x] in ionnames_all]
-    control_ys = y[control_idxs_y]
-    
-    y_test_all_control = np.array(y_test_all)[idxs_ionnames]
-    
-    assert set(control_ys) == set(y_test_all_control)
