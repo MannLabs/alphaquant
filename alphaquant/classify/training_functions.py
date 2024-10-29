@@ -33,7 +33,7 @@ def train_random_forest_with_grid_search(X, y, shorten_features_for_speed, num_s
             'n_estimators': [100, 200],
             'max_depth': [None, 5, 10],
             'min_samples_leaf': [1, 5],
-            'max_features': ['auto', 'sqrt'],
+            'max_features': [None, 'sqrt'],
             'max_samples': [None, 0.8]
         }
 
@@ -41,7 +41,7 @@ def train_random_forest_with_grid_search(X, y, shorten_features_for_speed, num_s
         if shorten_features_for_speed:
             param_grid['max_features'] = ['sqrt']
         else:
-            param_grid['max_features'] = ['auto', 'sqrt']
+            param_grid['max_features'] = [None, 'sqrt']
 
         # Initialize the Random Forest Regressor
         rf = sklearn.ensemble.RandomForestRegressor(random_state=42 + fold_num)
@@ -109,7 +109,7 @@ def train_gradient_boosting_with_grid_search(X, y, shorten_features_for_speed, n
             'learning_rate': [0.01, 0.1, 0.2],
             'max_depth': [3, 5, 7],
             'min_samples_leaf': [1, 5],
-            'max_features': ['auto', 'sqrt'],
+            'max_features': [None, 'sqrt'],
             'subsample': [1.0, 0.8]
         }
 
@@ -117,7 +117,7 @@ def train_gradient_boosting_with_grid_search(X, y, shorten_features_for_speed, n
         if shorten_features_for_speed:
             param_grid['max_features'] = ['sqrt']
         else:
-            param_grid['max_features'] = ['auto', 'sqrt']
+            param_grid['max_features'] = [None, 'sqrt']
 
         # Initialize the Gradient Boosting Regressor
         gbr = sklearn.ensemble.GradientBoostingRegressor(random_state=42 + fold_num)
@@ -184,7 +184,7 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
             'learning_rate': [0.01, 0.05, 0.1],
             'max_depth': [3, 5, 7],
             'min_samples_leaf': [1, 5],
-            'max_features': ['auto', 'sqrt'],
+            'max_features': [None, 'sqrt'],
             'subsample': [1.0, 0.8]
         }
         
@@ -192,7 +192,7 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
         if shorten_features_for_speed:
             param_distributions['max_features'] = ['sqrt']
         else:
-            param_distributions['max_features'] = ['auto', 'sqrt']
+            param_distributions['max_features'] = [None, 'sqrt']
         
         gbr = sklearn.ensemble.GradientBoostingRegressor(random_state=42 + fold_num)
         
