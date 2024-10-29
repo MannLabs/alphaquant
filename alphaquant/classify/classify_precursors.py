@@ -260,7 +260,7 @@ def train_random_forest_with_grid_search(X, y, shorten_features_for_speed, num_s
         best_model = grid_search.best_estimator_
 
         # Print the best parameters
-        print(f"Fold {fold_num} Best parameters found:", grid_search.best_params_)
+        LOGGER.info(f"Fold {fold_num} Best parameters found:", grid_search.best_params_)
 
         # Predict on the test set
         y_pred_test = best_model.predict(X_test)
@@ -274,10 +274,10 @@ def train_random_forest_with_grid_search(X, y, shorten_features_for_speed, num_s
 
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        print(f"Fold {fold_num} MSE: {fold_mse}")
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
 
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        print(f"Overall correlation in fold {fold_num}: {correlation}")
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
 
     # Return the list of models, test set predictions, and out-of-fold predictions
     return models, test_set_predictions, y_pred_cv
@@ -336,7 +336,7 @@ def train_gradient_boosting_with_grid_search(X, y, shorten_features_for_speed, n
         best_model = grid_search.best_estimator_
 
         # Print the best parameters
-        print(f"Fold {fold_num} Best parameters found:", grid_search.best_params_)
+        LOGGER.info(f"Fold {fold_num} Best parameters found:", grid_search.best_params_)
 
         # Predict on the test set
         y_pred_test = best_model.predict(X_test)
@@ -350,10 +350,10 @@ def train_gradient_boosting_with_grid_search(X, y, shorten_features_for_speed, n
 
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        print(f"Fold {fold_num} MSE: {fold_mse}")
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
 
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        print(f"Overall correlation in fold {fold_num}: {correlation}")
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
 
     # Return the list of models, test set predictions, and out-of-fold predictions
     return models, test_set_predictions, y_pred_cv
@@ -408,7 +408,7 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
         random_search.fit(X_train, y_train)
         best_model = random_search.best_estimator_
         
-        print(f"Fold {fold_num} Best parameters found:", random_search.best_params_)
+        LOGGER.info(f"Fold {fold_num} Best parameters found:", random_search.best_params_)
         
         y_pred_test = best_model.predict(X_test)
         y_pred_cv[test_index] = y_pred_test
@@ -418,10 +418,10 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
         
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        print(f"Fold {fold_num} MSE: {fold_mse}")
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
         
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        print(f"Overall correlation in fold {fold_num}: {correlation}")
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
     
     return models, test_set_predictions, y_pred_cv
 
@@ -454,7 +454,7 @@ def train_xgboost(X, y, shorten_features_for_speed, num_splits=5):
             X_train, 
             y_train,
             eval_set=[(X_test, y_test)],
-            verbose=True
+            verbose=False
         )
         
         y_pred_test = xgb_reg.predict(X_test)
@@ -464,10 +464,9 @@ def train_xgboost(X, y, shorten_features_for_speed, num_splits=5):
         
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        print(f"Fold {fold_num} MSE: {fold_mse}")
+        (f"Fold {fold_num} MSE: {fold_mse}")
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        print(f"Overall correlation in fold {fold_num}: {correlation}")
-        print(f"Fold {fold_num} Best iteration: {xgb_reg.best_iteration}")
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
     
     return models, test_set_predictions, y_pred_cv
 
@@ -483,7 +482,7 @@ def train_xgboost_optimized(X, y, shorten_features_for_speed, num_splits=5, n_it
         model.fit(X, y)
         selector = SelectFromModel(model, prefit=True, threshold='median')
         X = selector.transform(X)
-        print(f"Reduced features to {X.shape[1]} using feature selection.")
+        LOGGER.info(f"Reduced features to {X.shape[1]} using feature selection.")
     
     models = []
     test_set_predictions = []
@@ -503,7 +502,7 @@ def train_xgboost_optimized(X, y, shorten_features_for_speed, num_splits=5, n_it
     }
     
     for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
-        print(f"Starting fold {fold_num}")
+        LOGGER.info(f"Starting fold {fold_num}")
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
         
@@ -527,7 +526,7 @@ def train_xgboost_optimized(X, y, shorten_features_for_speed, num_splits=5, n_it
         
         randomized_search.fit(X_train, y_train)
         best_model = randomized_search.best_estimator_
-        print(f"Fold {fold_num} Best parameters: {randomized_search.best_params_}")
+        LOGGER.info(f"Fold {fold_num} Best parameters: {randomized_search.best_params_}")
         
         # Early stopping
         best_model.set_params(early_stopping_rounds=30, eval_metric='rmse')
@@ -544,10 +543,10 @@ def train_xgboost_optimized(X, y, shorten_features_for_speed, num_splits=5, n_it
         
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        print(f"Fold {fold_num} MSE: {fold_mse}")
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        print(f"Fold {fold_num} Correlation: {correlation}")
-        print(f"Fold {fold_num} Best iteration: {best_model.best_iteration}")
+        LOGGER.info(f"Fold {fold_num} Correlation: {correlation}")
+        LOGGER.info(f"Fold {fold_num} Best iteration: {best_model.best_iteration}")
     
     return models, test_set_predictions, y_pred_cv
 
@@ -585,10 +584,10 @@ def train_random_forest_simple(X, y, shorten_features_for_speed, num_splits=5):
 
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        print(f"Fold {fold_num} MSE: {fold_mse}")
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
 
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        print(f"Overall correlation in fold {fold_num}: {correlation}")
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
 
     return models, test_set_predictions, y_pred_cv
 
