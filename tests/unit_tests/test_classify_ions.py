@@ -3,8 +3,6 @@ from anytree import Node, AnyNode
 import pandas as pd
 import numpy as np
 import alphaquant.classify.classify_precursors as aq_classify_precursors
-import alphaquant.classify.classify_ions as aqclassify
-from sklearn.ensemble import RandomForestRegressor
 
 # Mock class for testing
 class MLInputTableCreatorTest(aq_classify_precursors.MLInputTableCreator):
