@@ -1,7 +1,7 @@
 from alphaquant.config.variables import QUANT_ID
 import pandas as pd
 import scipy.stats
-
+import numpy as np
 
 def find_node_parent_at_level(node, level):
     if node.level == level:
