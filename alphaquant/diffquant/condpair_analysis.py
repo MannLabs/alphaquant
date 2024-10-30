@@ -4,7 +4,7 @@ import alphaquant.norm.normalization as aqnorm
 import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
-import alphaquant.classify.classify_ions_stacked as aq_class_stacked
+import alphaquant.classify.classify_precursors as aq_class_precursors
 import alphaquant.cluster.ml_reorder as aq_clust_mlreorder
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
@@ -110,7 +110,7 @@ def analyze_condpair(*,runconfig, condpair):
 
         #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions", 
          #                           min_num_fragions=5, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
-        ml_successfull =aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), ml_info_file=runconfig.ml_input_file,
+        ml_successfull =aq_class_precursors.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), ml_info_file=runconfig.ml_input_file,
                                         samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=runconfig.runtime_plots)
 
 

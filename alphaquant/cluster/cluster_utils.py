@@ -70,8 +70,6 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     if hasattr(node.children[0], 'ml_score'):
         ml_scores = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "ml_score")
         node.ml_score = select_ml_score_with_minimum_absval(ml_scores)
-        node.cutoff = childs[0].cutoff
-        node.ml_excluded = bool(abs(node.ml_score)> node.cutoff)
 
 
 def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):

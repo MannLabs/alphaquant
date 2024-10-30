@@ -6,20 +6,44 @@ import numpy as np
 
 def plot_value_histogram(y, results_dir = None):
     fig, ax = plt.subplots()
+    ax.set_xlabel("ml score")
     sns.histplot(y, ax = ax)
     if results_dir is not None:
-        fig.savefig(f"{results_dir}/value_histogram.pdf")
+        fig.savefig(f"{results_dir}/ml_score_histogram.pdf")
     plt.show()
 
 
-def scatter_ml_regression(y_test, y_pred, results_dir = None):
+def scatter_ml_regression_combined(y_test, y_pred, results_dir = None):
     fig, ax = plt.subplots()
 
-    sns.regplot(x = y_test, y = y_pred, scatter_kws=dict(alpha=0.1), ax = ax)
-    err = sklearn.metrics.mean_squared_error(y_test, y_pred)
+    sns.regplot(x = abs(y_test), y = y_pred, scatter_kws=dict(alpha=0.1), ax = ax)
+    err = sklearn.metrics.mean_squared_error(y_test, y_pred, squared=True)
     r2 = sklearn.metrics.r2_score(y_test, y_pred)
 
+    ax.set_xlabel("true offset")
+    ax.set_ylabel("predicted offset")
+
     ax.set_title(f"MSE: {err:.2f}, R2: {r2:.2f}")
+
+    if results_dir is not None:
+        fig.savefig(f"{results_dir}/ml_regression.pdf")
+    plt.show()
+
+def scatter_ml_regression_testsets(test_set_predictions, results_dir = None):
+
+    fig, axes = plt.subplots(ncols=len(test_set_predictions), figsize=(2.5 * len(test_set_predictions), 4))
+
+    for idx in range(len(test_set_predictions)):
+        y_true, y_pred = test_set_predictions[idx]
+        ax = axes[idx]
+
+        sns.regplot(x = y_true, y = y_pred, scatter_kws=dict(alpha=0.1), ax = ax)
+        err = sklearn.metrics.mean_squared_error(y_true, y_pred, squared=True)
+        r2 = sklearn.metrics.r2_score(y_true, y_pred)
+        ax.set_xlabel("true offset")
+        ax.set_ylabel("predicted offset")
+
+        ax.set_title(f"MSE: {err:.2f}, R2: {r2:.2f}")
 
     if results_dir is not None:
         fig.savefig(f"{results_dir}/ml_regression.pdf")

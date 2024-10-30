@@ -1,31 +1,23 @@
 import alphaquant.diffquant.diffutils as aqutils
-import alphaquant.classify.classify_ions as aq_class_ions
 import alphaquant.config.config as aqconfig
 import alphaquant.plotting.classify as aq_plot_classify
 import alphaquant.classify.ml_info_table as aq_ml_info_table
+import alphaquant.config.variables as aq_conf_vars
+import alphaquant.classify.classification_utils as aq_class_utils
+import alphaquant.classify.training_functions as aq_class_train
 
+import sklearn
 import numpy as np
 import anytree
-import alphaquant.config.variables as aq_conf_vars
 import pandas as pd
-import alphaquant.classify.classification_utils as aq_class_utils
-
-import sklearn.ensemble
-import sklearn.linear_model
-import sklearn.impute
-import sklearn.metrics
-import sklearn.model_selection
-
-
-
 
 import logging
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
-def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0.75, replace_nans = False,
-                                         plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = False):
+def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0, replace_nans = False,
+                                         plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = True):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
     #add predictability scores to each precursor
@@ -51,33 +43,30 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
 
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
-    LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    #stacked_regressor = init_and_train_stacked_regressor(ml_input_for_training.X, ml_input_for_training.y)
-    models = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=shorten_features_for_speed)
+    LOGGER.info(f"starting ML prediction using features {featurenames_str}")
+    models, test_set_predictions, y_pred_cv = aq_class_train.train_fast_gradient_boosting(ml_input_for_training.X, ml_input_for_training.y,
+                                                                           num_splits=5, shorten_features_for_speed=False)
 
-    y_pred = predict_on_models(models,ml_input_for_training.X) #prediction returns absolute values
+    # Use out-of-fold predictions for ml_input_for_training.X
+    y_pred = y_pred_cv
+
     y_pred_remaining = predict_on_models(models, ml_input_remaining.X)
     y_pred_total = np.concatenate([y_pred, y_pred_remaining])
     ml_scores = convert_y_pred_to_ml_score(y_pred_total) #convert to 0-1 scale where higher is better
 
     performance_metrics["r2_score"] = sklearn.metrics.r2_score(ml_input_for_training.y, y_pred)
 
-    LOGGER.info("performed RF prediction")
+    LOGGER.info("performed ML prediction")
 
     #define plot outdir
     results_dir_plots =f"{results_dir}/{name}"
     aqutils.make_dir_w_existcheck(results_dir_plots)
     if plot_predictor_performance:
 
-        aq_plot_classify.scatter_ml_regression(ml_input_for_training.y, y_pred, results_dir_plots)
-        #aq_plot_classify.compute_and_plot_feature_importances_stacked_rf(model=stacked_regressor, X_val=ml_input_for_training.X, y_val=ml_input_for_training.y, feature_names=ml_input_for_training.featurenames, top_n=10, results_dir=results_dir_plots)
-        feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
-        aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
+        aq_plot_classify.scatter_ml_regression_testsets(test_set_predictions, results_dir_plots)
         aq_plot_classify.plot_feature_importance_per_model(models, ml_input_for_training.featurenames, 10, results_dir_plots)
         aq_plot_classify.plot_value_histogram(ml_scores, results_dir_plots)
 
-
-    mean, cutoff_neg, cutoff_pos = aq_class_ions.fit_gaussian_to_subdist(y_pred, visualize=plot_predictor_performance,results_dir = results_dir_plots)
 
 
     
@@ -85,7 +74,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
     all_precursors = precursor_selector.precursors_suitable_for_training + precursor_selector.precursors_not_suitable_for_training
     
     #annotate the precursor nodes
-    aq_class_ions.annotate_precursor_nodes(cutoff_neg, cutoff_pos, ml_scores, ionnames_total, all_precursors) #two new variables added to each node:
+    aq_class_utils.annotate_precursor_nodes( ml_scores, ionnames_total, all_precursors) #two new variables added to each node:
     return True
 
 
@@ -146,7 +135,7 @@ class MLInputTableCreator:
             self._define_y()
 
     def _define_merged_df(self):
-        node_features_df = aq_class_ions.collect_node_parameters(self._precursors)
+        node_features_df = aq_class_utils.collect_node_parameters(self._precursors)
         self._merged_df = aqutils.merge_acquisition_df_parameter_df(self._acquisition_info_df, node_features_df)
 
     def _define_ionnames(self):
@@ -206,48 +195,6 @@ def align_ml_input_tables_if_necessary(ml_input_1, ml_input_2):
     ml_input_1.featurenames = featurenames_common_ordered
     ml_input_2.featurenames = featurenames_common_ordered
 
-
-def init_and_train_stacked_regressor(X, y):
-
-    # Define the base models
-    base_models = [
-
-        ('rf', sklearn.ensemble.RandomForestRegressor(n_estimators=100, random_state=42))
-    ]
-
-    # Define the final model
-    final_model = sklearn.linear_model.LinearRegression()
-
-    # Create the stacking regressor
-    stacked_regressor = sklearn.ensemble.StackingRegressor(estimators=base_models, final_estimator=final_model)
-
-    # Fit the stacking regressor
-    stacked_regressor.fit(X, y)
-
-    return stacked_regressor
-
-
-
-def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5):
-    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
-    models = []
-
-    if shorten_features_for_speed:
-        max_features = 'sqrt'
-    else:
-        max_features = None
-
-    for train_index, _ in kf.split(X):
-        X_train, y_train = X[train_index], y[train_index]
-
-        model = sklearn.ensemble.RandomForestRegressor(n_estimators=50,  # Reduced number of trees
-                                                       random_state=42,
-                                                       n_jobs=-1,  # Utilize all CPU cores
-                                                       max_features=max_features)  # Reduce the number of features
-        model.fit(X_train, y_train)
-        models.append(model)
-    
-    return models
 
 
 def predict_on_models(models, X):
