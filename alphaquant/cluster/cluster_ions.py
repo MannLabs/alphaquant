@@ -115,7 +115,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                 else:
                     if take_median_ion:
                         grouped_mainclust_leafs = aqcluster_utils.select_median_fc_leafs(grouped_mainclust_leafs)
-                    diffions = aqcluster_utils.map_grouped_leafs_to_diffions(grouped_mainclust_leafs, ionname2diffion)
+                    diffions = aqcluster_utils.map_grouped_leafs_to_diffions(grouped_mainclust_leafs, ionname2diffion) #the diffions are the ions that are actually compared
                     childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold) #the clustering is performed on the child nodes
                     childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                     childnode2clust = aq_cluster_sorting.decide_cluster_order(childnode2clust)
