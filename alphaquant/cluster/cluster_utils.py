@@ -7,6 +7,12 @@ import collections
 import alphaquant.config.variables as aqvariables
 from anytree import Node, LevelOrderGroupIter
 import alphaquant.utils.diffquant_utils as aq_utils_diffquant
+import re
+
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
@@ -247,10 +253,22 @@ def select_middle_leafs(leaf_group):
 def map_grouped_leafs_to_diffions(grouped_leafs, ionname2diffion):
     grouped_diffions = []
     for leafs in grouped_leafs:
+        if aqvariables.PREFER_PRECURSORS_FOR_CLUSTERING:
+            leafs = _subset_to_precursors(leafs)
         diffions = [ionname2diffion.get(x.name) for x in leafs]
         grouped_diffions.append(diffions)
     return grouped_diffions
 
+def _subset_to_precursors(leafs):
+    precursor_leafs =  [x for x in leafs if _leaf_is_precursor(x)]
+    if len(precursor_leafs) == 0:
+        return leafs
+    else:
+        return precursor_leafs
+
+def _leaf_is_precursor(leaf):
+    pattern = r'.*_PRECURSOR_\d+$'
+    return bool(re.match(pattern, leaf.name))
 
 def annotate_mainclust_leaves(childnode2clust):
     #annotate each leaf that has reached the current level with the level name, allows to visualize how the leafs are propagated
