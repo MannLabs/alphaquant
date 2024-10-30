@@ -229,6 +229,97 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
     
     return models, test_set_predictions, y_pred_cv
 
+
+import numpy as np
+from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.model_selection import RandomizedSearchCV, KFold
+from sklearn.inspection import permutation_importance
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger(__name__)
+
+def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
+    # Take the absolute value of y to predict magnitudes only
+    y = np.abs(y)
+
+    # Define the parameter distributions for RandomizedSearchCV
+    param_distributions = {
+        'learning_rate': [0.01, 0.05, 0.1],
+        'max_depth': [3, 5],
+        'min_samples_leaf': [1, 5],
+        'max_iter': [100, 200],
+        'max_bins': [255],
+        'max_leaf_nodes': [31],
+        'l2_regularization': [0, 0.1],
+        'early_stopping': [True],
+    }
+
+    # Set max_features based on the flag
+    if shorten_features_for_speed:
+        param_distributions['max_features'] = [0.5]  # Use 50% of features
+    else:
+        param_distributions['max_features'] = [None, 0.5, 0.75]  # None or specific fractions
+
+    hgb = HistGradientBoostingRegressor(random_state=42)
+
+    random_search = RandomizedSearchCV(
+        estimator=hgb,
+        param_distributions=param_distributions,
+        n_iter=n_iter,
+        cv=3,
+        scoring='neg_mean_squared_error',
+        n_jobs=-1,
+        verbose=0,
+        random_state=42,
+        return_train_score=True
+    )
+
+    # Fit RandomizedSearchCV on the entire dataset
+    random_search.fit(X, y)
+    best_params = random_search.best_params_
+    LOGGER.info(f"Best parameters found: {best_params}")
+
+    # Now do cross-validation using best_params
+    models = []
+    test_set_predictions = []
+    y_pred_cv = np.zeros_like(y)
+    kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
+
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        model = HistGradientBoostingRegressor(**best_params, random_state=42 + fold_num)
+        model.fit(X_train, y_train)
+
+        # Compute permutation feature importances
+        perm_importance = permutation_importance(
+            model, X_test, y_test, n_repeats=5, random_state=42
+        )
+        feature_importances = perm_importance.importances_mean
+        LOGGER.info(f"Fold {fold_num} feature importances: {feature_importances}")
+        model.feature_importances_ = feature_importances
+
+        y_pred_test = model.predict(X_test)
+        y_pred_cv[test_index] = y_pred_test
+
+        models.append(model)
+        test_set_predictions.append((y_test, y_pred_test))
+
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
+
+    return models, test_set_predictions, y_pred_cv
+
+
+
+
+
 def train_xgboost(X, y, shorten_features_for_speed, num_splits=5):
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)

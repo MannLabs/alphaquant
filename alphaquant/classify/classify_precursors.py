@@ -44,7 +44,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    models, test_set_predictions, y_pred_cv = aq_class_train.train_xgboost(ml_input_for_training.X, ml_input_for_training.y,
+    models, test_set_predictions, y_pred_cv = aq_class_train.train_fast_gradient_boosting(ml_input_for_training.X, ml_input_for_training.y,
                                                                            num_splits=5, shorten_features_for_speed=False)
 
     # Use out-of-fold predictions for ml_input_for_training.X
@@ -66,7 +66,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
         aq_plot_classify.scatter_ml_regression_testsets(test_set_predictions, results_dir_plots)
         aq_plot_classify.scatter_ml_regression_combined(ml_input_for_training.y, y_pred, results_dir_plots)
         #aq_plot_classify.compute_and_plot_feature_importances_stacked_rf(model=stacked_regressor, X_val=ml_input_for_training.X, y_val=ml_input_for_training.y, feature_names=ml_input_for_training.featurenames, top_n=10, results_dir=results_dir_plots)
-        feature_importances = np.mean([model.feature_importances_ for model in models], axis=0)
+        feature_importances = np.zeros(len(ml_input_for_training.featurenames))# np.mean([model.feature_importances_ for model in models], axis=0) #JUST A DUMMY HERE
         aq_plot_classify.plot_feature_importances(feature_importances, ml_input_for_training.featurenames, 10, results_dir_plots)
         aq_plot_classify.plot_feature_importance_per_model(models, ml_input_for_training.featurenames, 10, results_dir_plots)
         aq_plot_classify.plot_value_histogram(ml_scores, results_dir_plots)
