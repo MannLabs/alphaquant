@@ -1,15 +1,13 @@
 import numpy as np
 import pytest
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-import xgboost as xgb
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
 
 
 from alphaquant.classify.training_functions import (
 	train_random_forest_with_grid_search,
 	train_gradient_boosting_with_grid_search,
 	train_gradient_boosting_with_random_search,
-	train_xgboost,
-	train_xgboost_optimized,
+	train_fast_gradient_boosting,
 	train_random_forest_simple
 )
 
@@ -65,8 +63,7 @@ def check_model_outputs(models, test_set_predictions, y_pred_cv, y_true, expecte
 	(train_random_forest_with_grid_search, RandomForestRegressor),
 	(train_gradient_boosting_with_grid_search, GradientBoostingRegressor),
 	(train_gradient_boosting_with_random_search, GradientBoostingRegressor),
-	(train_xgboost, xgb.XGBRegressor),
-	(train_xgboost_optimized, xgb.XGBRegressor),
+	(train_fast_gradient_boosting, HistGradientBoostingRegressor),
 	(train_random_forest_simple, RandomForestRegressor)
 ])
 def test_model_training(train_func, expected_model_type):
@@ -82,14 +79,13 @@ def test_model_training(train_func, expected_model_type):
 		'train_random_forest_with_grid_search',
 		'train_gradient_boosting_with_grid_search',
 		'train_gradient_boosting_with_random_search',
-		'train_xgboost',
-		'train_xgboost_optimized',
+		'train_fast_gradient_boosting',
 		'train_random_forest_simple'
 	]:
 		y_transformed = np.abs(y)
 
 	# Adjust parameters for functions that require n_iter
-	if train_func in [train_gradient_boosting_with_random_search, train_xgboost_optimized]:
+	if train_func in [train_gradient_boosting_with_random_search, train_fast_gradient_boosting]:
 		n_iter = 5  # Reduced for testing purposes
 		models, test_set_predictions, y_pred_cv = train_func(
 			X, y, shorten_features_for_speed, num_splits=num_splits, n_iter=n_iter
