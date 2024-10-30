@@ -77,7 +77,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         samplemap_df = median_manager.samplemap_df_extended
         del median_manager #delete the object as it needs not be in the runconfig
     
-    aqvariables.determine_variables(input_file_reformat)
+    aqvariables.determine_variables(input_file_reformat, input_type)
 
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
