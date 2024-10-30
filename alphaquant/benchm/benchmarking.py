@@ -916,7 +916,7 @@ def read_reformat_filtered_df(filtered_file, input_type_to_use, samplemap_file, 
 import alphaquant.benchm.benchmarking as aqbench
 import alphaquant.plotting.base_functions as aqplot
 import numpy as np
-import alphaquant.classify.classify_ions as aqclass
+import alphaquant.classify.classify_precursors as aqclass
 import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.cluster.cluster_ions as aqclust
 import anytree
