@@ -5,10 +5,11 @@ import sklearn.linear_model
 import sklearn.impute
 import sklearn.metrics
 import sklearn.model_selection
-import xgboost as xgb
 
 from sklearn.model_selection import KFold, RandomizedSearchCV
-from sklearn.feature_selection import SelectFromModel
+from sklearn.ensemble import HistGradientBoostingRegressor
+from sklearn.model_selection import RandomizedSearchCV, KFold
+from sklearn.inspection import permutation_importance
 
 import logging
 aqconfig.setup_logging()
@@ -230,15 +231,9 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
     return models, test_set_predictions, y_pred_cv
 
 
-import numpy as np
-#from sklearn.experimental import enable_hist_gradient_boosting  # noqa
-from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.model_selection import RandomizedSearchCV, KFold
-from sklearn.inspection import permutation_importance
-import logging
 
 
-def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
+def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=5, n_iter=10):
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)
 
@@ -304,7 +299,7 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
 
         # Normalize importances
         feature_importances = feature_importances / np.sum(feature_importances)
-        LOGGER.info(f"Fold {fold_num} feature importances: {feature_importances}")
+        LOGGER.info(f"Fold {fold_num}")
         model.feature_importances_ = feature_importances
 
         y_pred_test = model.predict(X_test)
@@ -323,133 +318,6 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
 
 
 
-
-
-
-def train_xgboost(X, y, shorten_features_for_speed, num_splits=5):
-    # Take the absolute value of y to predict magnitudes only
-    y = np.abs(y)
-    models = []
-    test_set_predictions = []
-    y_pred_cv = np.zeros_like(y)
-    
-    kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
-    
-    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        
-        xgb_reg = xgb.XGBRegressor(
-            n_estimators=1000,
-            learning_rate=0.05,
-            max_depth=6,
-            subsample=0.8,
-            colsample_bytree=0.8 if shorten_features_for_speed else 1.0,
-            random_state=42 + fold_num,
-            n_jobs=-1,
-            eval_metric='rmse',     # Moved eval_metric here
-            early_stopping_rounds=50
-        )
-        
-        xgb_reg.fit(
-            X_train, 
-            y_train,
-            eval_set=[(X_test, y_test)],
-            verbose=False
-        )
-        
-        y_pred_test = xgb_reg.predict(X_test)
-        y_pred_cv[test_index] = y_pred_test
-        models.append(xgb_reg)
-        test_set_predictions.append((y_test, y_pred_test))
-        
-        # Evaluate performance
-        fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        (f"Fold {fold_num} MSE: {fold_mse}")
-        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
-    
-    return models, test_set_predictions, y_pred_cv
-
-
-
-def train_xgboost_optimized(X, y, shorten_features_for_speed, num_splits=5, n_iter=20):
-    # Take the absolute value of y to predict magnitudes only
-    y = np.abs(y)
-    
-    # Feature selection
-    if shorten_features_for_speed:
-        model = xgb.XGBRegressor()
-        model.fit(X, y)
-        selector = SelectFromModel(model, prefit=True, threshold='median')
-        X = selector.transform(X)
-        LOGGER.info(f"Reduced features to {X.shape[1]} using feature selection.")
-    
-    models = []
-    test_set_predictions = []
-    y_pred_cv = np.zeros_like(y)
-    
-    kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
-    
-    param_distributions = {
-        'n_estimators': [100, 200, 500],
-        'learning_rate': [0.05, 0.1],
-        'max_depth': [3, 4, 5],
-        'subsample': [0.8],
-        'colsample_bytree': [0.6, 0.8],
-        'gamma': [0],
-        'reg_alpha': [0],
-        'reg_lambda': [1]
-    }
-    
-    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
-        LOGGER.info(f"Starting fold {fold_num}")
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        
-        xgb_reg = xgb.XGBRegressor(
-            objective='reg:squarederror',
-            random_state=42 + fold_num,
-            n_jobs=-1,
-            tree_method='hist'
-        )
-        
-        randomized_search = RandomizedSearchCV(
-            estimator=xgb_reg,
-            param_distributions=param_distributions,
-            n_iter=n_iter,
-            scoring='neg_mean_squared_error',
-            cv=3,
-            random_state=42,
-            verbose=0,
-            n_jobs=-1
-        )
-        
-        randomized_search.fit(X_train, y_train)
-        best_model = randomized_search.best_estimator_
-        LOGGER.info(f"Fold {fold_num} Best parameters: {randomized_search.best_params_}")
-        
-        # Early stopping
-        best_model.set_params(early_stopping_rounds=30, eval_metric='rmse')
-        best_model.fit(
-            X_train, y_train,
-            eval_set=[(X_test, y_test)],
-            verbose=False
-        )
-        
-        y_pred_test = best_model.predict(X_test)
-        y_pred_cv[test_index] = y_pred_test
-        models.append(best_model)
-        test_set_predictions.append((y_test, y_pred_test))
-        
-        # Evaluate performance
-        fold_mse = np.mean((y_test - y_pred_test) ** 2)
-        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
-        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-        LOGGER.info(f"Fold {fold_num} Correlation: {correlation}")
-        LOGGER.info(f"Fold {fold_num} Best iteration: {best_model.best_iteration}")
-    
-    return models, test_set_predictions, y_pred_cv
 
 
 def train_random_forest_simple(X, y, shorten_features_for_speed, num_splits=5):
