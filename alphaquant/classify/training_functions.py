@@ -231,14 +231,12 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
 
 
 import numpy as np
+#from sklearn.experimental import enable_hist_gradient_boosting  # noqa
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.model_selection import RandomizedSearchCV, KFold
 from sklearn.inspection import permutation_importance
 import logging
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
 
 def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
     # Take the absolute value of y to predict magnitudes only
@@ -260,7 +258,7 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
     if shorten_features_for_speed:
         param_distributions['max_features'] = [0.5]  # Use 50% of features
     else:
-        param_distributions['max_features'] = [None, 0.5, 0.75]  # None or specific fractions
+        param_distributions['max_features'] = [0.5, 0.75, 1.0]  # Valid fractions
 
     hgb = HistGradientBoostingRegressor(random_state=42)
 
@@ -273,7 +271,8 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         n_jobs=-1,
         verbose=0,
         random_state=42,
-        return_train_score=True
+        return_train_score=True,
+        error_score='raise'  # Raise an error if a fit fails
     )
 
     # Fit RandomizedSearchCV on the entire dataset
@@ -296,9 +295,15 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
 
         # Compute permutation feature importances
         perm_importance = permutation_importance(
-            model, X_test, y_test, n_repeats=5, random_state=42
+            model, X_test, y_test, n_repeats=5, random_state=42, scoring='neg_mean_squared_error'
         )
         feature_importances = perm_importance.importances_mean
+
+        # Handle negative importances
+        feature_importances = np.maximum(feature_importances, 0)
+
+        # Normalize importances
+        feature_importances = feature_importances / np.sum(feature_importances)
         LOGGER.info(f"Fold {fold_num} feature importances: {feature_importances}")
         model.feature_importances_ = feature_importances
 
@@ -315,6 +320,7 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
 
     return models, test_set_predictions, y_pred_cv
+
 
 
 
