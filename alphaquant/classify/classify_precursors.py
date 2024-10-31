@@ -16,7 +16,7 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
-def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0, replace_nans = False,
+def assign_predictability_scores(protein_nodes, results_dir, ml_info_file ,name,samples_used, min_num_precursors=3, prot_fc_cutoff =  0, replace_nans = False,
                                          plot_predictor_performance = False, performance_metrics = {}, shorten_features_for_speed = True):
     #protnorm peptides should always be true, except when the dataset run tests different injection amounts
 
@@ -54,7 +54,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, ml_info_fil
     y_pred_total = np.concatenate([y_pred, y_pred_remaining])
     ml_scores = convert_y_pred_to_ml_score(y_pred_total) #convert to 0-1 scale where higher is better
 
-    performance_metrics["r2_score"] = sklearn.metrics.r2_score(ml_input_for_training.y, y_pred)
+    performance_metrics["r2_score"] = aq_class_utils.calculate_average_r2_score(test_set_predictions)
 
     LOGGER.info("performed ML prediction")
 

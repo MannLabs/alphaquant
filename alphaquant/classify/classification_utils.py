@@ -2,6 +2,7 @@ from alphaquant.config.variables import QUANT_ID
 import pandas as pd
 import scipy.stats
 import numpy as np
+import sklearn.metrics
 
 def find_node_parent_at_level(node, level):
     if node.level == level:
@@ -100,4 +101,9 @@ def calc_variance_for_node(node):
     #LOGGER.info(f"fcs children are {fcs_children}, variance is {np.var(fcs_children)}")
 
     return scipy.stats.variation(fcs_children)
+    
+
+def calculate_average_r2_score(test_set_predictions):
+    r2_scores = [sklearn.metrics.r2_score(y_true, y_pred) for y_true, y_pred in test_set_predictions]
+    return np.mean(r2_scores)
 
