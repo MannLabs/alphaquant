@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
 import alphaquant.ptm.phospho_inference as aq_phospho_inference
-import anytree
 import statsmodels.stats.multitest as mt
-import os
 import alphaquant.tables.tableutils as aqtableutils
 
 
