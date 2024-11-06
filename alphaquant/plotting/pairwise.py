@@ -113,8 +113,10 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     if alpha is None:
         alpha = max(0.1, min(0.7, 0.7 - 0.6 * (len(fdrs) / 1000)))
 
-    sns.scatterplot(data=results_df, x=fc_header, y='-log10(fdr)', 
+    scatter = sns.scatterplot(data=results_df, x=fc_header, y='-log10(fdr)', 
                     c=results_df['color'].to_list(), ax=ax, legend=None, alpha = alpha)
+    for scatter_collection in scatter.collections:
+        scatter_collection.set_rasterized(True)
     
     # Drawing vertical lines for fold change thresholds and horizontal lines for p-value threshold
     if draw_vertical_lines:
