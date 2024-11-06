@@ -233,9 +233,18 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
 
 
 
-def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=5, n_iter=10):
+def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)
+
+    # Apply feature selection if needed
+    if shorten_features_for_speed:
+        # For example, select top 50% features
+        from sklearn.feature_selection import SelectKBest, f_regression
+        selector = SelectKBest(score_func=f_regression, k=int(X.shape[1] * 0.5))
+        X = selector.fit_transform(X, y)
+    else:
+        selector = None
 
     # Define the parameter distributions for RandomizedSearchCV
     param_distributions = {
@@ -247,13 +256,8 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=5,
         'max_leaf_nodes': [31],
         'l2_regularization': [0, 0.1],
         'early_stopping': [True],
+        # Removed 'max_features' since it's not supported in older versions
     }
-
-    # Set max_features based on the flag
-    if shorten_features_for_speed:
-        param_distributions['max_features'] = [0.5]  # Use 50% of features
-    else:
-        param_distributions['max_features'] = [0.5, 0.75, 1.0]  # Valid fractions
 
     hgb = HistGradientBoostingRegressor(random_state=42)
 
@@ -298,8 +302,11 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=5,
         feature_importances = np.maximum(feature_importances, 0)
 
         # Normalize importances
-        feature_importances = feature_importances / np.sum(feature_importances)
-        LOGGER.info(f"Fold {fold_num}")
+        if np.sum(feature_importances) > 0:
+            feature_importances = feature_importances / np.sum(feature_importances)
+        else:
+            feature_importances = np.zeros_like(feature_importances)
+        LOGGER.info(f"Fold {fold_num} feature importances: {feature_importances}")
         model.feature_importances_ = feature_importances
 
         y_pred_test = model.predict(X_test)
