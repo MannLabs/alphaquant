@@ -89,6 +89,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
     if condpairs_list == None:
         conds = samplemap_df["condition"].unique()
+        conds = sorted(conds)
         condpairs_list = combinations(conds, 2)
         
     num_cores = get_num_cores_to_use(use_multiprocessing)
