@@ -12,6 +12,11 @@ import alphamap.uniprot_integration
 import alphaquant.plotting.fcviz as aq_plot_fc
 import alphaquant.plotting.colors as aq_plot_colors
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 
 class AlphaMapVisualizer:
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
@@ -107,6 +112,9 @@ class AlphaMapDfGenerator:
         rows = []
         for protein in condpair_node.children:
             protein_name = self._gene2protein_mapper.get_swissprot_id_if_gene(protein.name)
+            if protein_name is None:
+                LOGGER.warning(f"Could not find a swissprot id for protein {protein.name}, skipping")
+                continue
             peptides = anytree.findall(protein, filter_=lambda node: node.type == 'seq')
             for peptide in peptides:
                 naked_sequence = aqutils.cut_trailing_parts_seqstring(peptide.name) # Replace this with aqutils if needed
@@ -131,9 +139,10 @@ class Gene2ProteinMapper:
     
     def get_swissprot_id_if_gene(self, protein):
         if protein in self._gene2protein_dict:
+            protein = protein.split(";")[0]
             return self._gene2protein_dict[protein]
         else:
-            return protein
+            return None
     
     def _generate_gene2protein_dict(self, organism):
         organism_smallcaps = organism.lower()
