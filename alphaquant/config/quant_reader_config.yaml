@@ -1116,61 +1116,6 @@ spectronaut_ptm_fragion_ms1:
   annotation_columns:
     - PEP.StrippedSequence
 
-spectronaut_precursor_fragion_ms1:
-  format: longtable
-  sample_ID: R.Label
-  quant_ID:
-    fragion: F.PeakArea
-    ms1iso: FG.MS1IsotopeIntensities (Measured)
-    precursor: FG.Quantity
-  protein_cols:
-   - PG.Genes
-  split_cols:
-    FG.MS1IsotopeIntensities (Measured): ";"
-  ion_hierarchy:
-    precursor:
-      order: [SEQ, MOD, CHARGE, PRECURSOR]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - EG.ModifiedSequence
-        CHARGE: 
-         - FG.Charge
-        PRECURSOR:
-          - FG.Charge
-    fragion:
-      order: [SEQ, MOD, CHARGE, FRGION]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - EG.ModifiedSequence
-        CHARGE: 
-         - FG.Charge
-        FRGION: 
-         - F.FrgIon
-         - F.FrgLossType
-         - F.Charge
-    ms1iso:
-      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - EG.ModifiedSequence
-        CHARGE: 
-         - FG.Charge
-        MS1ISOTOPES:
-         - FG.MS1IsotopeIntensities (Measured)
-  filters:
-    fragion_intensity:
-      param: F.PeakArea
-      comparator: ">"
-      value: 5.0
-  use_iontree: True
-  ml_level: CHARGE
-
 spectronaut_precursor_fragion_ms1_protein:
   format: longtable
   sample_ID: R.Label
@@ -1227,22 +1172,89 @@ spectronaut_precursor_fragion_ms1_protein:
   ml_level: CHARGE
 
 
-spectronaut_fragion_ms1:
+spectronaut_precursor_fragion_ms1_gene:
   format: longtable
   sample_ID: R.Label
   quant_ID:
     fragion: F.PeakArea
     ms1iso: FG.MS1IsotopeIntensities (Measured)
+    precursor: FG.Quantity
   protein_cols:
    - PG.Genes
-  ion_cols:
-   - FG.Id
-   - F.FrgIon
-   - F.FrgLossType
-   - F.Charge
   split_cols:
     FG.MS1IsotopeIntensities (Measured): ";"
   ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE, PRECURSOR]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        PRECURSOR:
+          - FG.Charge
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        FRGION: 
+         - F.FrgIon
+         - F.FrgLossType
+         - F.Charge
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        MS1ISOTOPES:
+         - FG.MS1IsotopeIntensities (Measured)
+  filters:
+    fragion_intensity:
+      param: F.PeakArea
+      comparator: ">"
+      value: 5.0
+    gene_unique:
+      param: PEP.IsGeneSpecific
+      comparator: "=="
+      value: "True"
+  use_iontree: True
+  ml_level: CHARGE
+
+
+spectronaut_precursor_fragion_ms1_gene_unspecific: #legacy to handle sn tables given by the old sn table config by alphaquant
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    fragion: F.PeakArea
+    ms1iso: FG.MS1IsotopeIntensities (Measured)
+    precursor: FG.Quantity
+  protein_cols:
+   - PG.Genes
+  split_cols:
+    FG.MS1IsotopeIntensities (Measured): ";"
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE, PRECURSOR]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        PRECURSOR:
+          - FG.Charge
     fragion:
       order: [SEQ, MOD, CHARGE, FRGION]
       mapping:
@@ -1274,6 +1286,7 @@ spectronaut_fragion_ms1:
       value: 5.0
   use_iontree: True
   ml_level: CHARGE
+
 
 
 spectronaut_fragion_ms1_protein:
@@ -1327,6 +1340,59 @@ spectronaut_fragion_ms1_protein:
     - PG.Genes
 
 
+spectronaut_fragion_ms1_gene:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    fragion: F.PeakArea
+    ms1iso: FG.MS1IsotopeIntensities (Measured)
+  protein_cols:
+   - PG.Genes
+  ion_cols:
+   - FG.Id
+   - F.FrgIon
+   - F.FrgLossType
+   - F.Charge
+  split_cols:
+    FG.MS1IsotopeIntensities (Measured): ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        FRGION: 
+         - F.FrgIon
+         - F.FrgLossType
+         - F.Charge
+    ms1iso:
+      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
+      mapping:
+        SEQ: 
+         - PEP.StrippedSequence
+        MOD: 
+         - EG.ModifiedSequence
+        CHARGE: 
+         - FG.Charge
+        MS1ISOTOPES:
+         - FG.MS1IsotopeIntensities (Measured)
+  filters:
+    fragion_intensity:
+      param: F.PeakArea
+      comparator: ">"
+      value: 5.0
+    gene_unique:
+      param: PEP.IsGeneSpecific
+      comparator: "=="
+      value: "True"
+  use_iontree: True
+  ml_level: CHARGE
+
+
 spectronaut_fragion_protein:
   format: longtable
   sample_ID: R.Label
@@ -1363,24 +1429,17 @@ spectronaut_fragion_protein:
   annotation_columns:
     - PG.Genes
 
-spectronaut_fragion_ms1_frag_height:
+
+spectronaut_precursor_gene:
   format: longtable
   sample_ID: R.Label
   quant_ID:
-    fragion: F.PeakHeight
-    ms1iso: FG.MS1IsotopeIntensities (Measured)
+    precursor: FG.Quantity
   protein_cols:
    - PG.Genes
-  ion_cols:
-   - FG.Id
-   - F.FrgIon
-   - F.FrgLossType
-   - F.Charge
-  split_cols:
-    FG.MS1IsotopeIntensities (Measured): ";"
   ion_hierarchy:
-    fragion:
-      order: [SEQ, MOD, CHARGE, FRGION]
+    precursor:
+      order: [SEQ, MOD, CHARGE]
       mapping:
         SEQ: 
          - PEP.StrippedSequence
@@ -1388,97 +1447,15 @@ spectronaut_fragion_ms1_frag_height:
          - EG.ModifiedSequence
         CHARGE: 
          - FG.Charge
-        FRGION: 
-         - F.FrgIon
-         - F.FrgLossType
-         - F.Charge
-    ms1iso:
-      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - EG.ModifiedSequence
-        CHARGE: 
-         - FG.Charge
-        MS1ISOTOPES:
-         - FG.MS1IsotopeIntensities (Measured)
   filters:
-    fragion_intensity:
-      param: F.PeakHeight
-      comparator: ">"
-      value: 5.0
+    gene_unique:
+      param: PEP.IsGeneSpecific
+      comparator: "=="
+      value: "True"
   use_iontree: True
   ml_level: CHARGE
 
-
-spectronaut_fragion_ms1_filtered:
-  format: longtable
-  sample_ID: R.Label
-  quant_ID:
-    fragion: F.PeakArea
-    ms1iso: FG.MS1IsotopeIntensities (Measured)
-  protein_cols:
-   - PG.Genes
-  ion_cols:
-   - FG.Id
-   - F.FrgIon
-   - F.FrgLossType
-   - F.Charge
-  split_cols:
-    FG.MS1IsotopeIntensities (Measured): ";"
-  ion_hierarchy:
-    fragion:
-      order: [SEQ, MOD, CHARGE, FRGION]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - EG.ModifiedSequence
-        CHARGE: 
-         - FG.Charge
-        FRGION: 
-         - F.FrgIon
-         - F.FrgLossType
-         - F.Charge
-    ms1iso:
-      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
-      mapping:
-        SEQ: 
-         - PEP.StrippedSequence
-        MOD: 
-         - EG.ModifiedSequence
-        CHARGE: 
-         - FG.Charge
-        MS1ISOTOPES:
-         - FG.MS1IsotopeIntensities (Measured)
-  filters:
-    fragion_intensity:
-      param: F.PeakArea
-      comparator: ">"
-      value: 5.0
-    used_for_quant:
-      param: EG.UsedForPeptideQuantity
-      comparator: "=="
-      value: True
-    decoy_filt:
-      param: EG.IsDecoy
-      comparator: "=="
-      value: False
-    shape_quality: 
-      param: FG.ShapeQualityScore
-      comparator: ">"
-      value: 0.4
-    fragion_interference:
-      param: F.PossibleInterference
-      comparator: "=="
-      value: False
-  use_iontree: True
-  ml_level: CHARGE
-
-
-
-spectronaut_precursor:
+spectronaut_precursor_gene_unspecific:
   format: longtable
   sample_ID: R.Label
   quant_ID:
@@ -1533,6 +1510,10 @@ spectronaut_sequence:
       param: EG.IsDecoy
       comparator: "=="
       value: False
+    gene_unique:
+      param: PEP.IsGeneSpecific
+      comparator: "=="
+      value: "True"
 
 spectronaut_protein:
   format: longtable
