@@ -58,7 +58,7 @@ class FoldChangeVisualizer():
         results_figures = []
         for protein_of_interest in list_of_proteins:
             if protein_of_interest not in self.protein2node.keys():
-                LOGGER.warn(f"Protein {protein_of_interest} not found in the tree.")
+                LOGGER.warning(f"Protein {protein_of_interest} not found in the tree.")
                 continue
             protein_fig = self.plot_protein(protein_of_interest)
             results_figures.append(protein_fig)
@@ -495,7 +495,7 @@ class ProteinQuantDfAnnotator():
 
         if not rows_with_na.empty:
             print("Rows with NA values in the specified columns:")
-            LOGGER.warn("NA values detected in the specified columns.")
+            LOGGER.warning("NA values detected in the specified columns.")
             LOGGER.info(rows_with_na)
             melted_df = melted_df.dropna(subset=columns_to_check)
         
