@@ -37,7 +37,7 @@ class MLInfoTableCreator():
                     FRGION: 
                     - Fragment.Quant.Corrected
         """
-        input_df = pd.read_csv(self._input_file, sep="\t")
+        input_df = pd.read_csv(self._input_file, sep="\t",encoding='latin-1')
         _, config_dict, _ = ab_config_loader.get_input_type_and_config_dict(self._input_file, self._input_type_to_use)
         ion_hierarchy = config_dict.get("ion_hierarchy")
         #get first dict entry
@@ -52,7 +52,6 @@ class MLInfoTableCreator():
         input_df = input_df.reset_index().drop(columns=ion_headers_merged)
         sample_column = config_dict.get("sample_ID")
         input_df = input_df.rename(columns={sample_column: "sample_ID"})
-        input_df["quant_id"] = input_df["quant_id"].apply(lambda x: x + '_')
         input_df = input_df.set_index(["quant_id", "sample_ID"])
         self._ml_info_df = input_df.select_dtypes(include=[np.number])
         self._ml_info_df = self._ml_info_df.reset_index()

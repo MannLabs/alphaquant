@@ -17,7 +17,7 @@ __all__ = ['get_tps_fps', 'annotate_dataframe', 'compare_to_reference', 'compare
            'generate_precursor_nodes_from_protein_nodes', 'convert_tree_ionname_to_simple_ionname_sn',
            'convert_tree_ionname_to_simple_ionname_diann', 'filter_score_from_original_df',
            'filter_top_percentile_reference_df', 'read_reformat_filtered_df', 'benchmark_configs_and_datasets',
-           'load_tree_assign_predscores', 'intersect_with_diann', 'get_benchmark_setting_name', 'predscore_cutoff',
+           'load_tree_assign_ml_scores', 'intersect_with_diann', 'get_benchmark_setting_name', 'ml_score_cutoff',
            'ResultsTable', 'ResultsTableRatios', 'ResultsTableSpectronaut', 'ResultsTableAlphaQuant',
            'MergedResultsTable', 'SpeciesAnnotator', 'ClassificationBenchmarker']
 
@@ -377,7 +377,7 @@ def format_condpair_input(samplemap_df, condpair, minrep, input_file):
     LOGGER.info(condpair)
     samples_c1, samples_c2 = aqdiffutils.get_samples_used_from_samplemap_df(samplemap_df, condpair[0], condpair[1])
     input_df_local = aq_condpair.get_unnormed_df_condpair(input_file = input_file, samplemap_df = samplemap_df, condpair = condpair, file_has_alphaquant_format = True)
-    df_c1, df_c2 = aq_condpair.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep)
+    df_c1, df_c2 = aq_condpair.get_per_condition_dataframes(samples_c1, samples_c2, input_df_local, minrep_both=minrep)
     return df_c1, df_c2, samples_c1, samples_c2
 
 def get_filtered_protnodes(condpair, results_dir_unfiltered):
@@ -621,83 +621,6 @@ def eval_clustered_results(results_perturbed):
 
 # Prepare Benchmarking Sets
 
-from pyopenms import ProteaseDigestion, AASequence
-import pyfasta
-import pandas as pd
-
-
-def read_and_filter_output_table_to_single_organism(input_table, fastas,desired_organism , software_filter_function = None):
-
-    undesired_peptides = get_peptides_set(fastas)
-    LOGGER.info("got undesired peptides")
-    pd.DataFrame({"peptide" : list(undesired_peptides)}).to_csv(f"{input_table}.undesired_peptides.tsv", sep = "\t")
-    LOGGER.info("start filtering")
-    if software_filter_function == None:
-        software_filter_function = decide_filter_function(input_table = input_table)
-    tableit = pd.read_csv(input_table, sep = "\t", chunksize=1000_000)
-    tables = []
-    for table_df in tableit:
-        table_df = software_filter_function(table_df, undesired_peptides, desired_organism)
-        tables.append(table_df)
-
-    yeast_df = pd.concat(tables, ignore_index = True)
-    return yeast_df
-
-
-def get_peptides_set(fastas):
-    peps_merged = set()
-    for fasta in fastas:
-        # try:
-        #     peps = set(pd.read_csv(f"{fasta}.all_peptides.tsv", sep = "\t")["peptide"])
-        # except:
-            #LOGGER.info("could not find digested version of the fasta, try to digest")
-        peps = retrieve_all_peptides_from_fasta_and_save(fasta)
-        peps_merged = peps_merged.union(peps)
-    return peps_merged
-
-def retrieve_all_peptides_from_fasta_and_save(fasta):
-
-    digestor = ProteaseDigestion()
-    digestor.setEnzyme('Trypsin/P')
-
-    digestor.setMissedCleavages(2)
-
-    f = pyfasta.Fasta(fasta)
-
-    all_results = []
-    for key in f.keys():
-        protseq = str(f.get(key))
-        peptides = get_peptides_from_protein_sequence(protseq=protseq, digestor=digestor)
-        all_results.extend(peptides)
-
-    df = pd.DataFrame({'peptide' : all_results})
-    df.to_csv(f"{fasta}.all_peptides.tsv", index = None)
-    return set(df["peptide"])
-
-
-def get_peptides_from_protein_sequence(protseq, digestor):
-    val = AASequence.fromString(protseq)
-    peptides = []
-    digestor.digest(val, peptides, 4, 60)
-    for pep in peptides:
-        hass_pref = pep.hasPrefix(pep)
-        if not hass_pref:
-            LOGGER.info(pep)
-    peptides = [str(x) for x in peptides]
-    if len(peptides)>0:
-        n_terminal_peptide = peptides[0]
-        m_removed_peptides = get_m_replaced_peps(peptides)
-        peptides += m_removed_peptides #add the m-removed peptides
-    return peptides
-
-
-def get_m_replaced_peps(peptides):
-    m_removed_peptides = []
-    for peptide in peptides:
-        m_removed_peptide = peptide[0].replace("M", "") + peptide[1:]
-        m_removed_peptides.append(m_removed_peptide)
-    return m_removed_peptides
-
 
 
 def spectronaut_filtering(table_df, undesired_peptides, desired_organism):
@@ -735,7 +658,7 @@ import copy
 import numpy as np
 
 
-def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_used, name, original_input_file, samplemap,quant_level_aq, quant_level_reference, tolerance_interval, xlim_lower, xlim_upper, savedir, predscore_cutoff, ml_exclude, percentile_to_retain, num_reps):
+def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_used, name, original_input_file, samplemap,quant_level_aq, quant_level_reference, tolerance_interval, xlim_lower, xlim_upper, savedir, ml_score_cutoff, ml_exclude, percentile_to_retain, num_reps):
 
     fig, ax = plt.subplots(nrows = 3, ncols = 3, figsize=(15,15))
     fig.suptitle(f"{software_used}, {aqdiffutils.get_condpairname(condpair)}")
@@ -744,16 +667,16 @@ def compare_aq_to_reference(protein_nodes, expected_log2fc, condpair, software_u
 
     #aqplot.plot_fc_dist_of_test_set(fcs = [x.fc for x in nodes_precursors], ax = ax[2][2])
 
-    true_falses, predscores, reference_scores, fcs = aqplot.get_true_false_to_predscores(nodes_precursors, expected_log2fc)
+    true_falses, ml_scores, reference_scores, fcs = aqplot.get_true_false_to_ml_scores(nodes_precursors, expected_log2fc)
 
     aqplot.plot_true_false_fcs_of_test_set(fcs=fcs, true_falses=true_falses, ax= ax[0][0])
-    aqplot.plot_predictability_roc_curve(true_falses=true_falses, predscores=predscores, reference_scores=reference_scores, ax = ax[0][1], percentile_cutoff_indication=percentile_to_retain)
-    aqplot.plot_predictability_precision_recall_curve(true_falses=true_falses, predscores=predscores, reference_scores=reference_scores, ax=ax[0][2], percentile_cutoff_indication=percentile_to_retain)
+    aqplot.plot_predictability_roc_curve(true_falses=true_falses, ml_scores=ml_scores, reference_scores=reference_scores, ax = ax[0][1], percentile_cutoff_indication=percentile_to_retain)
+    aqplot.plot_predictability_precision_recall_curve(true_falses=true_falses, ml_scores=ml_scores, reference_scores=reference_scores, ax=ax[0][2], percentile_cutoff_indication=percentile_to_retain)
 
 
-    if predscore_cutoff is not None:
-        nodes_precursors = [x for x in nodes_precursors if abs(x.predscore)<predscore_cutoff]
-    if (predscore_cutoff is None) and (ml_exclude):
+    if ml_score_cutoff is not None:
+        nodes_precursors = [x for x in nodes_precursors if abs(x.ml_score)<ml_score_cutoff]
+    if (ml_score_cutoff is None) and (ml_exclude):
         nodes_precursors = [x for x in nodes_precursors if not x.ml_excluded]
 
 
@@ -813,7 +736,7 @@ def get_top_percentile_node_df(nodes, percentile, node_filterfunction = None):
 
     if node_filterfunction is not None:
         nodes = [x for x in nodes if node_filterfunction(x)]
-    nodes_sorted = sorted(nodes,key= lambda x : abs(x.predscore))
+    nodes_sorted = sorted(nodes,key= lambda x : abs(x.ml_score))
     nodes_sorted = nodes_sorted[:int(len(nodes_sorted)*percentile)]
     return get_node_df(nodes_sorted)
 
@@ -831,8 +754,8 @@ def filter_top_qualityscore_percentiles(df_original, df_nodes, nodes_precursors,
 def get_top_percentile_peptides(nodes_precursors, percentile, method, node_filterfunction = None):
     if node_filterfunction is not None:
         nodes_precursors = [x for x in nodes_precursors if node_filterfunction(x)]
-    nodes_aqscore_sorted = sorted(nodes_precursors, key = lambda x : abs(x.predscore))
-    nodes_default_quality_score_sorted = sorted(nodes_precursors, key = lambda x : abs(x.default_quality_score), reverse=True) #the quality scores are higher is better, the predscore is lower is better
+    nodes_aqscore_sorted = sorted(nodes_precursors, key = lambda x : abs(x.ml_score))
+    nodes_default_quality_score_sorted = sorted(nodes_precursors, key = lambda x : abs(x.default_quality_score), reverse=True) #the quality scores are higher is better, the ml_score is lower is better
 
     #get the percentiles
     nodes_default_quality_score_sorted = nodes_default_quality_score_sorted[:int(percentile*len(nodes_default_quality_score_sorted))]
@@ -993,14 +916,14 @@ def read_reformat_filtered_df(filtered_file, input_type_to_use, samplemap_file, 
 import alphaquant.benchm.benchmarking as aqbench
 import alphaquant.plotting.base_functions as aqplot
 import numpy as np
-import alphaquant.classify.classify_ions as aqclass
+import alphaquant.classify.classify_precursors as aqclass
 import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.cluster.cluster_ions as aqclust
 import anytree
 
 
 def benchmark_configs_and_datasets(*,results_dir, expected_log2fcs,condpairs_to_check, original_input_file, samplemap_reference,  software_used, quant_levels_reference, quant_levels_aq = ['mod_seq_charge'], replace_nans = [True], distort_every_nth_precursor = [5, np.inf],
-predscore_cutoff = None, ml_exclude = False, percentile_to_retain = 0.7, num_reps = 9, num_splits_ml_set = 5):
+ml_score_cutoff = None, ml_exclude = False, percentile_to_retain = 0.7, num_reps = 9, num_splits_ml_set = 5):
     """obtain """
 
     for idx_condpair in range(len(condpairs_to_check)):
@@ -1009,7 +932,7 @@ predscore_cutoff = None, ml_exclude = False, percentile_to_retain = 0.7, num_rep
 
             for distort_modulo in distort_every_nth_precursor:
                 name_analysis_level = get_benchmark_setting_name(condpair = condpair, replace_nan=replace_nan, distort_number=distort_modulo)
-                protein_nodes = load_tree_assign_predscores(c1 = condpair[0], c2 = condpair[1], samplemap=samplemap_reference,name= name_analysis_level, results_folder = results_dir, replace_nans= replace_nan,distort_precursor_modulo = distort_modulo,
+                protein_nodes = load_tree_assign_ml_scores(c1 = condpair[0], c2 = condpair[1], samplemap=samplemap_reference,name= name_analysis_level, results_folder = results_dir, replace_nans= replace_nan,distort_precursor_modulo = distort_modulo,
                 re_run_assignment=True, num_splits_ml_set = num_splits_ml_set)
                 for quant_idx in range(len(quant_levels_aq)):
 
@@ -1019,17 +942,17 @@ predscore_cutoff = None, ml_exclude = False, percentile_to_retain = 0.7, num_rep
                     LOGGER.info(f"TESTING: {name}")
 
                     compare_aq_to_reference(protein_nodes, expected_log2fcs[idx_condpair], condpair=condpair, software_used=software_used, name = name, original_input_file=original_input_file, samplemap=samplemap_reference, quant_level_aq=quant_level_aq, quant_level_reference=quant_level_reference,
-                    tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5,savedir = results_dir,predscore_cutoff = predscore_cutoff, ml_exclude = ml_exclude, percentile_to_retain=percentile_to_retain, num_reps = num_reps)
+                    tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5,savedir = results_dir,ml_score_cutoff = ml_score_cutoff, ml_exclude = ml_exclude, percentile_to_retain=percentile_to_retain, num_reps = num_reps)
 
 
-def load_tree_assign_predscores(c1, c2, samplemap,name,results_folder, re_run_assignment  = False, results_folder_diann = None, replace_nans = False, distort_precursor_modulo = np.inf, num_splits_ml_set = 5):
+def load_tree_assign_ml_scores(c1, c2, samplemap,name,results_folder, re_run_assignment  = False, results_folder_diann = None, replace_nans = False, distort_precursor_modulo = np.inf, num_splits_ml_set = 5):
     """retrieve the predictability scores from a previously run differential analysis. Re-run the predictability score analysis in case they are not available, or if specified"""
     s1, s2 = aqdiffutils.get_samples_used_from_samplemap_file(samplemap, c1, c2)
     cpair_tree = aqutils.read_condpair_tree(c1, c2, results_folder=results_folder)
     cpair_tree.type = "asd"
     protnodes = anytree.findall(cpair_tree, filter_= lambda x : (x.type == "gene"),maxlevel=2)
 
-    if hasattr(protnodes[0],'predscore') and not re_run_assignment:
+    if hasattr(protnodes[0],'ml_score') and not re_run_assignment:
         return protnodes
 
     aqclass.assign_predictability_scores(protnodes,results_folder,name = name, samples_used=s1+s2, precursor_cutoff=2, fc_cutoff=0, number_splits=num_splits_ml_set, plot_predictor_performance=True, replace_nans=replace_nans, distort_precursor_modulo = distort_precursor_modulo)
@@ -1136,7 +1059,7 @@ class ResultsTableSpectronaut(ResultsTable):
 class ResultsTableAlphaQuant(ResultsTable):
     def __init__(self, input_file, input_name, fdr_threshold = 0.05, pre_calculated_table = None):
         super().__init__(input_file=input_file, input_name=input_name, fdr_threshold=fdr_threshold)
-        self.predscore_column = "predscore"
+        self.ml_score_column = "prediction_score"
         self.consistencyscore_column = "consistency_score"
         if input_file is not None:
             results_df = self.__read_input_file()
@@ -1147,8 +1070,8 @@ class ResultsTableAlphaQuant(ResultsTable):
         self.formated_dataframe = self.__subset_to_relevant_columns()
 
     def reduce_formatted_df_to_best_available_score_quantile(self, percentile_to_retain):
-        if self.predscore_column in self.formated_dataframe.columns:
-            self.reduce_formatted_df_to_predscore_quantile(percentile_to_retain)
+        if self.ml_score_column in self.formated_dataframe.columns:
+            self.reduce_formatted_df_to_ml_score_quantile(percentile_to_retain)
         else:
             self.reduce_formatted_df_to_consistency_score_quantile(percentile_to_retain)
 
@@ -1157,14 +1080,14 @@ class ResultsTableAlphaQuant(ResultsTable):
         self.__subset_formated_df_to_top_rows(sorted_df, percentile_to_retain)
 
 
-    def reduce_formatted_df_to_predscore_quantile(self, percentile_to_retain):
-        sorted_df = self.__sort_by_predscore()
+    def reduce_formatted_df_to_ml_score_quantile(self, percentile_to_retain):
+        sorted_df = self.__sort_by_ml_score()
         self.__subset_formated_df_to_top_rows(sorted_df, percentile_to_retain)
 
 
-    def __sort_by_predscore(self):
-        df = self.__set_predscore_values_absolute()
-        df = self.__sort_dataframe_ascending_by_predscore(df)
+    def __sort_by_ml_score(self):
+        df = self.__set_ml_score_values_absolute()
+        df = self.__sort_dataframe_ascending_by_ml_score(df)
         return df
 
     def __subset_formated_df_to_top_rows(self, sorted_df, percentile_to_retain):
@@ -1180,12 +1103,12 @@ class ResultsTableAlphaQuant(ResultsTable):
     def __sort_dataframe_descending_by_consistency_score(self, df):
         return df.sort_values(by = self.consistencyscore_column, ascending = False).reset_index()
 
-    def __sort_dataframe_ascending_by_predscore(self, df):
-        return df.sort_values(by = self.predscore_column, ascending = True).reset_index()
+    def __sort_dataframe_ascending_by_ml_score(self, df):
+        return df.sort_values(by = self.ml_score_column, ascending = True).reset_index()
 
-    def __set_predscore_values_absolute(self):
+    def __set_ml_score_values_absolute(self):
         df = self._formated_dataframe_nofilter
-        df[self.predscore_column] = abs(self._formated_dataframe_nofilter[self.predscore_column])
+        df[self.ml_score_column] = abs(self._formated_dataframe_nofilter[self.ml_score_column])
         return df
 
 

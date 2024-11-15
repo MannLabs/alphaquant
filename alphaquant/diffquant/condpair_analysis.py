@@ -4,9 +4,8 @@ import alphaquant.norm.normalization as aqnorm
 import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
-import alphaquant.classify.classify_ions as aqclass
-import alphaquant.classify.classify_ions_stacked as aq_class_stacked
-import alphaquant.classify.classify_fragment_ions_stacked as aq_class_stacked_frag
+import alphaquant.classify.classify_precursors as aq_class_precursors
+import alphaquant.cluster.ml_reorder as aq_clust_mlreorder
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
@@ -111,12 +110,12 @@ def analyze_condpair(*,runconfig, condpair):
 
         #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions", 
          #                           min_num_fragions=5, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
-        ml_successfull =aq_class_stacked.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), ml_info_file=runconfig.ml_input_file,
+        ml_successfull =aq_class_precursors.assign_predictability_scores_stacked(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), ml_info_file=runconfig.ml_input_file,
                                         samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=runconfig.runtime_plots)
 
 
         if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful
-            aqclust.update_nodes_w_ml_score(protnodes)
+            aq_clust_mlreorder.update_nodes_w_ml_score(protnodes)
             LOGGER.info(f"ML based quality score above quality threshold and added to the nodes.")
             runconfig.ml_based_quality_score = True
         else:
@@ -154,7 +153,7 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpai
     merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 
-def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both,  minrep_either, minrep_c1, minrep_c2):
+def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both =None,  minrep_either = None, minrep_c1 = None, minrep_c2 = None):
 
     min_samples = min(len(samples_c1), len(samples_c2))
 
@@ -185,6 +184,9 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_bot
         df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
             raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
+        
+    if (minrep_both is None) and (minrep_either is None) and (minrep_c1 is None) and (minrep_c2 is None):
+        raise Exception("no minrep set, please specify!")
 
 
 

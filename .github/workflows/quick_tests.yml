@@ -26,8 +26,13 @@ jobs:
         run: |
           cd misc
           . ./loose_pip_install.sh
-      - name: Unittests
+      - name: Unit tests
         shell: bash -l {0}
         run: |
           cd tests
-          . ./run_quicktests.sh
+          . ./run_unittests.sh
+      - name: Quicktests
+        shell: bash -l {0}
+        run: |
+          cd tests
+          . ./run_e2e_tests_quick.sh

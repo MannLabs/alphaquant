@@ -32,10 +32,11 @@ class PTMResultsNormalizer():
                 continue
             table_normalizer = PTMtableNormalizer(ptm_file, protfile, organism)
             df_normed = table_normalizer.results_df
-            df_summary = table_normalizer.info_df
-            df_normed = self._update_fdr_column_normed_df(df_normed)
-            self._write_normed_df(df_normed, ptm_file)
-            self._write_summary_df(df_summary, ptm_file)
+            if len(df_normed.index)> 0:
+                df_summary = table_normalizer.info_df
+                df_normed = self._update_fdr_column_normed_df(df_normed)
+                self._write_normed_df(df_normed, ptm_file)
+                self._write_summary_df(df_summary, ptm_file)
         
     def _write_normalized_tables_multicond(self):
         aq_multicond_ptmnorm.combine_results_tables_if_they_exist(self.results_dir_protnormed)
