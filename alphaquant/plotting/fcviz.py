@@ -15,8 +15,7 @@ LOGGER = logging.getLogger(__name__)
 class FoldChangeVisualizer():
 
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
-                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq',
-                                                        protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
+                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
                                                         narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
                                                         figsize = None, showfliers = True):
                                                         
@@ -194,10 +193,10 @@ import anytree
 
 
 class ProteinPlot():
-    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig, selected_peptides = None):
+    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig, selected_peptides = None, fig=None, axes=None):
 
-        self.fig = None
-        self.axes = None
+        self.fig = fig
+        self.axes = axes
 
         self._protein_node = protein_node
         self._quantification_info = quantification_info
@@ -225,7 +224,7 @@ class ProteinPlot():
         self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
     
     def _plot_fcs(self):
-        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
+        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig, fig=self.fig, axes=self.axes)
         self.fig =  pcplotter._fig
         self.axes = pcplotter._axes
     
