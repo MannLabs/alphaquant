@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 class FoldChangeVisualizerMedianref():
 
-    def __init__(self, results_directory, samplemap_file, order_along_protein_sequence = False, organism = 'Human', colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', fig = None, axes = None, protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, figsize = None, showfliers = True):
+    def __init__(self, results_directory, samplemap_file, order_along_protein_sequence = False, organism = 'Human', colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, figsize = None, showfliers = True):
     
         """
         Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
@@ -36,14 +36,11 @@ class FoldChangeVisualizerMedianref():
 
         """
 
-        self.fig = fig
-        self.axes = axes
-        
-        self._init_fig_and_axes_if_none()
 
         self.plotconfig = aq_plot_fcviz.PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence, figsize=figsize, showfliers=showfliers)
 
         self.condpairs = MedianRefConditionPairGetter(results_directory).condition_pairs
+        
 
         samplemap_file = self._get_samplemap_file_w_median_condition(samplemap_file)
         self.quantification_infos = [aq_plot_fcviz.CondpairQuantificationInfo((condition1, condition2), results_directory, samplemap_file) for condition1, condition2 in self.condpairs]
@@ -52,24 +49,23 @@ class FoldChangeVisualizerMedianref():
         self.condpair_trees = [aq_utils.read_condpair_tree(condition1, condition2, results_folder=results_directory) for condition1, condition2 in self.condpairs]
 
         self.protein2nodes = [{x.name : x for x in condpair_tree.children} for  condpair_tree in self.condpair_trees]
-        self.protein2peptides_of_interest = self._get_protein2peptides_of_interest(results_directory)
+        self.protein2peptides_of_interest = self._get_protein2peptides_of_interest(results_directory)  
 
-
-        
-
-    def plot_protein_over_conditions(self, protein_of_interest):
+    def plot_protein_over_conditions(self, protein_of_interest, fig = None, axes = None):
             # Get valid condition pairs where protein exists
             valid_pairs = [(idx, pair) for idx, pair in enumerate(self.condpairs)
                         if protein_of_interest in self.protein2nodes[idx]]
             
-            if not valid_pairs:
+            if len(valid_pairs) == 0:
                 return None
-
-            return self._plot_individual_figures(protein_of_interest, valid_pairs)
+            
+            fig, axes = self._init_fig_and_axes_if_none(fig, axes)
+            
+            return self._plot_individual_figures(protein_of_interest, valid_pairs, fig, axes)
     
-    def _init_fig_and_axes_if_none(self):
-        if self.fig is None or self.axes is None:
-            self.fig, self.axes = plt.subplots(nrows=len(self.condpairs), ncols=1, figsize=(10, 5*len(self.condpairs)))
+    def _init_fig_and_axes_if_none(self, fig, axes):
+        if fig is None or axes is None:
+            return plt.subplots(nrows=len(self.condpairs), ncols=1, figsize=(10, 5*len(self.condpairs)), squeeze=False)
     
     def _get_samplemap_file_w_median_condition(self, samplemap_file):
         return samplemap_file.replace(".tsv", "_w_median.tsv")
@@ -80,18 +76,15 @@ class FoldChangeVisualizerMedianref():
         protein2peptide_map = protein2peptide_map_df.groupby("protein")["peptide"].agg(list).to_dict()
         return protein2peptide_map
 
-    def _plot_individual_figures(self, protein_of_interest, valid_pairs):
+    def _plot_individual_figures(self, protein_of_interest, valid_pairs, fig, axes):
         """Helper method to create individual figures (original behavior)"""
-        axes = []
         for idx, condpair in valid_pairs:
+            protein_node = self.protein2nodes[idx][protein_of_interest]
             try:
-                protein_node = self.protein2nodes[idx][protein_of_interest]
-                cluster_plotter = aq_plot_fcviz.ProteinPlot(protein_node, self.quantification_infos[idx], self.plotconfig, selected_peptides=self.protein2peptides_of_interest[protein_of_interest])
-                axes.append(cluster_plotter.axes)
+                aq_plot_fcviz.ProteinPlot(protein_node, self.quantification_infos[idx], self.plotconfig, selected_peptides=self.protein2peptides_of_interest[protein_of_interest], fig=fig, axes=axes[idx])
                 LOGGER.info(f"Plotted protein {protein_of_interest} for condition pair {condpair}")
             except Exception as e:
-                LOGGER.error(f"Error plotting protein {protein_of_interest} for condition pair {condpair}: {str(e)}")
-        return axes
+                LOGGER.error(f"Failed to plot protein {protein_of_interest} for condition pair {condpair}: {e}")
     
     def _get_available_proteins(self):
         """Get list of all available proteins across all condition pairs."""
@@ -109,40 +102,3 @@ class MedianRefConditionPairGetter():
         all_files = glob.glob(f"{results_directory}/*_VS_median_reference.normed.tsv")
         all_conds = [os.path.basename(x).split("_VS_")[0] for x in all_files]
         return [[x, "median_reference"] for x in all_conds]
-
-
-class ProteinPlotMedianref():
-    def __init__(self, protein_node, quantification_info: aq_plot_fcviz.CondpairQuantificationInfo, plotconfig : aq_plot_fcviz.PlotConfig, selected_peptides = None):
-
-        self.fig = None
-        self.axes = None
-
-        self._protein_node = protein_node
-        self._quantification_info = quantification_info
-        self._plotconfig = plotconfig
-        self._selected_peptides = selected_peptides
-
-        self._shorten_protein_node_according_to_plotconfig()
-        self._subset_protein_node_to_selected_peptides_if_applicable()
-        self._sort_tree_according_to_plotconfig()
-        self._plot_fcs()
-    
-    def _shorten_protein_node_according_to_plotconfig(self):
-        self._protein_node = aqclustutils.clone_tree(self._protein_node)
-        self._protein_node = aqclustutils.shorten_root_to_level(self._protein_node,parent_level=self._plotconfig.parent_level)
-
-    def _subset_protein_node_to_selected_peptides_if_applicable(self): #would also work for different levels at the current implementation, however makes most sense for the peptide level
-        if self._selected_peptides is not None:
-            peptide_nodes = anytree.findall(self._protein_node, filter_= lambda x : x.level == "seq")
-            peptide_nodes_to_exclude = [x for x in peptide_nodes if x.name not in self._selected_peptides]
-            for peptide_node in peptide_nodes_to_exclude:
-                peptide_node.parent = None
-
-    
-    def _sort_tree_according_to_plotconfig(self):
-        self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
-    
-    def _plot_fcs(self):
-        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
-        self.fig =  pcplotter._fig
-        self.axes = pcplotter._axes
