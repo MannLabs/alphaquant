@@ -65,7 +65,7 @@ class FoldChangeVisualizerMedianref():
     
     def _init_fig_and_axes_if_none(self, fig, axes):
         if fig is None or axes is None:
-            return plt.subplots(nrows=len(self.condpairs), ncols=1, figsize=(10, 5*len(self.condpairs)), squeeze=False)
+            return plt.subplots(nrows=len(self.condpairs), ncols=1, figsize=(3.5, len(self.condpairs)*1.5), squeeze=False)
     
     def _get_samplemap_file_w_median_condition(self, samplemap_file):
         return samplemap_file.replace(".tsv", "_w_median.tsv")
@@ -85,6 +85,7 @@ class FoldChangeVisualizerMedianref():
                 LOGGER.info(f"Plotted protein {protein_of_interest} for condition pair {condpair}")
             except Exception as e:
                 LOGGER.error(f"Failed to plot protein {protein_of_interest} for condition pair {condpair}: {e}")
+        return fig, axes
     
     def _get_available_proteins(self):
         """Get list of all available proteins across all condition pairs."""
