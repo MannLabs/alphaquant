@@ -14,7 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 class FoldChangeVisualizerMedianref():
 
-    def __init__(self, results_directory, samplemap_file, order_along_protein_sequence = False, organism = 'Human', colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, figsize = None, showfliers = True):
+    def __init__(self, results_directory, samplemap_file, order_along_protein_sequence = False, organism = 'Human', colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, figsize = None, showfliers = True, condpairs_to_plot = None):
     
         """
         Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
@@ -39,7 +39,10 @@ class FoldChangeVisualizerMedianref():
 
         self.plotconfig = aq_plot_fcviz.PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence, figsize=figsize, showfliers=showfliers)
 
-        self.condpairs = MedianRefConditionPairGetter(results_directory).condition_pairs
+        if condpairs_to_plot is None:
+            self.condpairs = MedianRefConditionPairGetter(results_directory).condition_pairs
+        else:
+            self.condpairs = condpairs_to_plot
         
 
         samplemap_file = self._get_samplemap_file_w_median_condition(samplemap_file)
@@ -66,6 +69,8 @@ class FoldChangeVisualizerMedianref():
     def _init_fig_and_axes_if_none(self, fig, axes):
         if fig is None or axes is None:
             return plt.subplots(nrows=len(self.condpairs), ncols=1, figsize=(3.5, len(self.condpairs)*1.5), squeeze=False)
+        else:
+            return fig, axes
     
     def _get_samplemap_file_w_median_condition(self, samplemap_file):
         return samplemap_file.replace(".tsv", "_w_median.tsv")
@@ -81,7 +86,8 @@ class FoldChangeVisualizerMedianref():
         for idx, condpair in valid_pairs:
             protein_node = self.protein2nodes[idx][protein_of_interest]
             try:
-                aq_plot_fcviz.ProteinPlot(protein_node, self.quantification_infos[idx], self.plotconfig, selected_peptides=self.protein2peptides_of_interest[protein_of_interest], fig=fig, axes=axes[idx])
+                aq_plot_fcviz.ProteinPlot(protein_node, self.quantification_infos[idx], self.plotconfig, selected_peptides=None, fig=fig, axes=axes[idx])
+                axes[idx][0].set_title(f"{protein_of_interest} in {condpair[0]} vs {condpair[1]}")
                 LOGGER.info(f"Plotted protein {protein_of_interest} for condition pair {condpair}")
             except Exception as e:
                 LOGGER.error(f"Failed to plot protein {protein_of_interest} for condition pair {condpair}: {e}")
