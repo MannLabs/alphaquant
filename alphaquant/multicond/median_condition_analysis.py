@@ -12,10 +12,10 @@ def analyze_and_write_median_condition_results(results_dir):
 
     Outputs:
     - Writes several TSV files to the results directory:
-        - medianref_peptides.tsv
-        - medianref_proteoforms.tsv
-        - medianref_protein_avg.tsv
-        - medianref_protein_alphaquant.tsv
+        - medianref_peptides.tsv,  all peptides and their respective fold changes relative to the median reference condition.
+        - medianref_proteoforms.tsv, all proteoform groups and their respective fold changes relative to the median reference condition.
+        - medianref_protein_avg.tsv, all protein groups and their average fold changes relative to the median reference condition.
+        - medianref_protein_alphaquant.tsv, all protein groups and the fold changes of the reference proteoform in each group relative to the median reference condition.
     """
     condpair2tree = MedianRefResultLoader(results_dir).condpair2tree
     peptide_resolved_proteoform_df = MedianRefConditionCombiner(condpair2tree).peptide_resolved_proteoform_df
