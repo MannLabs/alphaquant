@@ -889,6 +889,77 @@ def read_reformat_filtered_df(filtered_file, input_type_to_use, samplemap_file, 
     return annotated_df
 
 
+# Cell
+import alphaquant.benchm.benchmarking as aqbench
+import alphaquant.plotting.base_functions as aqplot
+import numpy as np
+import alphaquant.classify.classify_precursors as aqclass
+import alphaquant.diffquant.diffutils as aqdiffutils
+import alphaquant.cluster.cluster_ions as aqclust
+import anytree
+
+
+def benchmark_configs_and_datasets(*,results_dir, expected_log2fcs,condpairs_to_check, original_input_file, samplemap_reference,  software_used, quant_levels_reference, quant_levels_aq = ['mod_seq_charge'], replace_nans = [True], distort_every_nth_precursor = [5, np.inf],
+ml_score_cutoff = None, ml_exclude = False, percentile_to_retain = 0.7, num_reps = 9, num_splits_ml_set = 5):
+    """obtain """
+
+    for idx_condpair in range(len(condpairs_to_check)):
+        condpair = condpairs_to_check[idx_condpair]
+        for replace_nan in replace_nans:
+
+            for distort_modulo in distort_every_nth_precursor:
+                name_analysis_level = get_benchmark_setting_name(condpair = condpair, replace_nan=replace_nan, distort_number=distort_modulo)
+                protein_nodes = load_tree_assign_ml_scores(c1 = condpair[0], c2 = condpair[1], samplemap=samplemap_reference,name= name_analysis_level, results_folder = results_dir, replace_nans= replace_nan,distort_precursor_modulo = distort_modulo,
+                re_run_assignment=True, num_splits_ml_set = num_splits_ml_set)
+                for quant_idx in range(len(quant_levels_aq)):
+
+                    quant_level_aq = quant_levels_aq[quant_idx]
+                    quant_level_reference = quant_levels_reference[quant_idx]
+                    name = name_analysis_level+quant_level_reference
+                    LOGGER.info(f"TESTING: {name}")
+
+                    compare_aq_to_reference(protein_nodes, expected_log2fcs[idx_condpair], condpair=condpair, software_used=software_used, name = name, original_input_file=original_input_file, samplemap=samplemap_reference, quant_level_aq=quant_level_aq, quant_level_reference=quant_level_reference,
+                    tolerance_interval = 1, xlim_lower = -1, xlim_upper = 3.5,savedir = results_dir,ml_score_cutoff = ml_score_cutoff, ml_exclude = ml_exclude, percentile_to_retain=percentile_to_retain, num_reps = num_reps)
+
+
+def load_tree_assign_ml_scores(c1, c2, samplemap,name,results_folder, re_run_assignment  = False, results_folder_diann = None, replace_nans = False, distort_precursor_modulo = np.inf, num_splits_ml_set = 5):
+    """retrieve the predictability scores from a previously run differential analysis. Re-run the predictability score analysis in case they are not available, or if specified"""
+    s1, s2 = aqdiffutils.get_samples_used_from_samplemap_file(samplemap, c1, c2)
+    cpair_tree = aqutils.read_condpair_tree(c1, c2, results_folder=results_folder)
+    cpair_tree.type = "asd"
+    protnodes = anytree.findall(cpair_tree, filter_= lambda x : (x.type == "gene"),maxlevel=2)
+
+    if hasattr(protnodes[0],'ml_score') and not re_run_assignment:
+        return protnodes
+
+    aqclass.assign_predictability_scores(protnodes,results_folder,name = name, samples_used=s1+s2, precursor_cutoff=2, fc_cutoff=0, number_splits=num_splits_ml_set, plot_predictor_performance=True, replace_nans=replace_nans, distort_precursor_modulo = distort_precursor_modulo)
+    if results_folder_diann is None:
+        aqclust.update_nodes_w_ml_score(protnodes)
+    return protnodes
+
+def intersect_with_diann(c1, c2, protnodes,results_folder, results_folder_diann):
+    diann_intersect = aqclass.get_intersect_sn_diann_precursors(c1, c2, results_folder, results_folder_diann)
+    for protein in protnodes:
+        precursors = anytree.findall(protein, filter_= lambda x : (x.type == "mod_seq_charge"))
+        for precursor in precursors:
+            if precursor.name not in diann_intersect:
+                precursor.parent = None
+
+
+def get_benchmark_setting_name(condpair, replace_nan, distort_number, diann_intersect_dir = None):
+    name = f"{condpair[0]}_{condpair[1]}_distort_every{distort_number}_"
+    if replace_nan:
+        name+="nanreplace_"
+    if diann_intersect_dir:#in the case that e.g. Spectronaut results are overlayed with DIANN results
+        if "no_mbr" in diann_intersect_dir:
+            name+="diann_intersect_no_mbr"
+        else:
+            name+="diann_intersect_mbr"
+
+    return name
+
+# Ratio Comparisons
+
 ## Classification tests
 
 import pandas as pd

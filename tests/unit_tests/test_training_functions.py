@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
-import xgboost as xgb
 
 
 from alphaquant.classify.training_functions import (
@@ -9,7 +8,7 @@ from alphaquant.classify.training_functions import (
 	train_gradient_boosting_with_grid_search,
 	train_gradient_boosting_with_random_search,
 	train_fast_gradient_boosting,
-	train_random_forest_simple,
+	train_random_forest_simple
 )
 
 def check_model_outputs(models, test_set_predictions, y_pred_cv, y_true, expected_model_type, num_splits):
@@ -86,7 +85,7 @@ def test_model_training(train_func, expected_model_type):
 		y_transformed = np.abs(y)
 
 	# Adjust parameters for functions that require n_iter
-	if train_func in [train_gradient_boosting_with_random_search]:
+	if train_func in [train_gradient_boosting_with_random_search, train_fast_gradient_boosting]:
 		n_iter = 5  # Reduced for testing purposes
 		models, test_set_predictions, y_pred_cv = train_func(
 			X, y, shorten_features_for_speed, num_splits=num_splits, n_iter=n_iter
