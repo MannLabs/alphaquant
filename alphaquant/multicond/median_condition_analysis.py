@@ -162,7 +162,7 @@ class ProteoformPeptideDfCreator():
             pepfc_series = pd.Series(index=[x.name for x in peptides_for_cond], data=[getattr(x, attribute) for x in peptides_for_cond])
             pepfc_series.name = protein_node.parent.name[0]
             list_of_pepfc_series.append(pepfc_series)
-        return pd.DataFrame(list_of_pepfc_series).T #The resulting dataframe will return NaN values for peptides that are not present in a condition, via the 
+        return pd.DataFrame(list_of_pepfc_series).T #The resulting dataframe will return NaN values for peptides that are not present in a condition.
     
 
 class ProteoformDfCreator():
