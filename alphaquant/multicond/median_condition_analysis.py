@@ -64,7 +64,7 @@ class MedianRefConditionCombiner():
         self._condpair2tree = condpair2tree
 
         self.protein2nodes = {}
-        self.peptide_resolved_proteoform_df = None
+        self.peptide_resolved_proteoform_df: pd.DataFrame = None
 
         self._define_protein2nodes()      
         self._define_combined_dataframe()
