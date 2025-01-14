@@ -142,7 +142,7 @@ class MainWidget(object):
             self.project_description,
             pn.layout.HSpacer(width=500),
            # self.manual,
-            background='#eaeaea',
+           # background='#eaeaea',
             align='center',
             sizing_mode='stretch_width',
             height=190,
@@ -276,7 +276,7 @@ class RunPipeline(BaseWidget):
             sizing_mode='stretch_width',
             #height=1000,
             margin=(5, 8, 10, 8),
-            css_classes=['background']
+            #css_classes=['background']
         )
         self.path_analysis_file.param.watch(
             self.activate_after_analysis_file_upload,
