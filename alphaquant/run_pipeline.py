@@ -43,6 +43,7 @@ def run_pipeline(input_file: str,
                 results_dir: str = "./results",
                 multicond_median_analysis: bool = False,
                 condpairs_list: Optional[List[Tuple[str, str]]] = None,
+                file_has_alphaquant_format: bool = False,
                 minrep_both: int = 2,
                 minrep_either: Optional[int] = None,
                 minrep_c1: Optional[int] = None,
@@ -82,6 +83,7 @@ def run_pipeline(input_file: str,
     results_dir (str): Output directory for analysis results. Defaults to "./results".
     multicond_median_analysis (bool): Whether to compare all conditions to a median condition. Defaults to False.
     condpairs_list (list): Specific condition pairs to compare. If None, performs all pairwise comparisons.
+    file_has_alphaquant_format (bool): Whether the input file is already in AlphaQuant matrix format. Defaults to False.
     minrep_both (int): Minimum replicate count required in both conditions. Defaults to 2.
     minrep_either (int): Minimum replicate count required in either condition.
     minrep_c1 (int): Minimum replicate count required in condition 1.
