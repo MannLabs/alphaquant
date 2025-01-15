@@ -53,6 +53,7 @@ def run_pipeline(input_file: str,
                 organism: Optional[str] = None,
                 cluster_threshold_pval: float = 0.001,
                 cluster_threshold_fcfc: float = 0,
+                fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
@@ -93,6 +94,7 @@ def run_pipeline(input_file: str,
     organism (str): Organism name for PTM mapping (e.g., 'human', 'mouse'). Required if perform_ptm_mapping is True.
     cluster_threshold_pval (float): P-value threshold for statistical clustering. Defaults to 0.001.
     cluster_threshold_fcfc (float): Fold change threshold for clustering. Defaults to 0.
+    fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     take_median_ion (bool): Use median-centered fragment ions for peptide comparisons. Defaults to True.
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
