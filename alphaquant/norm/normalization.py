@@ -293,7 +293,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 # Cell
 import pandas as pd
 
-def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None,prenormed_file = None): 
+def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None): 
 
     if normalize_within_conds:
         df_c1 = normalize_within_cond(df_c=df_c1, samples_c= c1_samples)
