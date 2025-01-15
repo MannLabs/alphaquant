@@ -306,7 +306,6 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
             feature_importances = feature_importances / np.sum(feature_importances)
         else:
             feature_importances = np.zeros_like(feature_importances)
-        LOGGER.info(f"Fold {fold_num} feature importances: {feature_importances}")
         model.feature_importances_ = feature_importances
 
         y_pred_test = model.predict(X_test)
