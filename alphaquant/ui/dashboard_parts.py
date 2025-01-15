@@ -372,7 +372,7 @@ class RunPipeline(BaseWidget):
                 input_file=self.path_analysis_file.value,
                 samplemap_df=self.samplemap_table.value,
                 results_dir=self.path_output_folder.value,
-                condpair_combinations=cond_combinations
+                condpairs_list=cond_combinations
             )
         except Exception as e:
             self.run_pipeline_error.object = f"Error running pipeline: {e}"
