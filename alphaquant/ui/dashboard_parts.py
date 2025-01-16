@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import anytree
+import matplotlib
+matplotlib.use('agg') 
 
 # alphaquant imports
 import alphaquant.utils.utils as aqutils
@@ -141,13 +143,16 @@ class MainWidget(param.Parameterized):
 class RunPipeline(BaseWidget):
     """
     Widget to gather file inputs, define condition pairs, and run an analysis pipeline.
+    Includes advanced configuration options.
     """
     def __init__(self, **params):
         super().__init__(**params)
+        self._setup_matplotlib()
         self._make_widgets()
         self.layout = None
 
     def _make_widgets(self):
+        # Original widgets
         self.path_analysis_file = pn.widgets.TextInput(
             name='Analysis file:',
             placeholder='Path to MQ/Spectronaut/DIA-NN file',
@@ -178,7 +183,79 @@ class RunPipeline(BaseWidget):
             margin=(5, 5, 5, 5),
             name='Select condition pairs'
         )
-        # RUN PIPELINE
+
+        # New configuration widgets
+        self.modification_type = pn.widgets.TextInput(
+            name='Modification type:',
+            placeholder='e.g., [Phospho (STY)] for Spectronaut',
+            width=300
+        )
+        self.input_type = pn.widgets.TextInput(
+            name='Input type:',
+            placeholder='Type of quantitative information',
+            width=300
+        )
+        self.organism = pn.widgets.TextInput(
+            name='Organism:',
+            placeholder='e.g., human, mouse',
+            width=300
+        )
+        self.minrep_both = pn.widgets.IntInput(
+            name='Min replicates (both conditions):',
+            value=2,
+            start=1,
+            width=300
+        )
+        self.min_num_ions = pn.widgets.IntInput(
+            name='Min number of ions per peptide:',
+            value=1,
+            start=1,
+            width=300
+        )
+        self.minpep = pn.widgets.IntInput(
+            name='Min peptides per protein:',
+            value=1,
+            start=1,
+            width=300
+        )
+        self.cluster_threshold_pval = pn.widgets.FloatInput(
+            name='Clustering p-value threshold:',
+            value=0.001,
+            start=0,
+            end=1,
+            width=300
+        )
+        self.volcano_fdr = pn.widgets.FloatInput(
+            name='Volcano plot FDR:',
+            value=0.05,
+            start=0,
+            end=1,
+            width=300
+        )
+        self.volcano_fcthresh = pn.widgets.FloatInput(
+            name='Volcano plot fold change threshold:',
+            value=0.5,
+            start=0,
+            width=300
+        )
+
+        # Boolean switches
+        self.switches = {
+            'multicond_median_analysis': pn.widgets.Switch(name='Use median condition analysis', value=False),
+            'use_ml': pn.widgets.Switch(name='Enable machine learning', value=True),
+            'take_median_ion': pn.widgets.Switch(name='Use median-centered ions', value=True),
+            'perform_ptm_mapping': pn.widgets.Switch(name='Enable PTM mapping', value=False),
+            'perform_phospho_inference': pn.widgets.Switch(name='Enable phospho inference', value=False),
+            'outlier_correction': pn.widgets.Switch(name='Enable outlier correction', value=True),
+            'normalize': pn.widgets.Switch(name='Enable normalization', value=True),
+            'use_iontree_if_possible': pn.widgets.Switch(name='Use ion tree when possible', value=True),
+            'write_out_results_tree': pn.widgets.Switch(name='Write results tree', value=True),
+            'use_multiprocessing': pn.widgets.Switch(name='Enable multiprocessing', value=False),
+            'runtime_plots': pn.widgets.Switch(name='Generate runtime plots', value=True),
+            'protnorm_peptides': pn.widgets.Switch(name='Enable protein-level normalization', value=True),
+        }
+
+        # Run pipeline widgets
         self.run_pipeline_button = pn.widgets.Button(
             name='Run pipeline',
             button_type='primary',
@@ -220,6 +297,30 @@ class RunPipeline(BaseWidget):
         """
         Build and return the main layout for the pipeline widget.
         """
+        # Configuration card with all the settings
+        config_card = pn.Card(
+            pn.Column(
+                "### Basic Settings",
+                self.modification_type,
+                self.input_type,
+                self.organism,
+                pn.layout.Divider(),
+                "### Threshold Settings",
+                self.minrep_both,
+                self.min_num_ions,
+                self.minpep,
+                self.cluster_threshold_pval,
+                self.volcano_fdr,
+                self.volcano_fcthresh,
+                pn.layout.Divider(),
+                "### Analysis Options",
+                pn.Column(*list(self.switches.values())),
+            ),
+            title='Advanced Configuration',
+            collapsed=True,
+            margin=(5, 5, 5, 5)
+        )
+
         left_col = pn.Column(
             "### Input Files",
             self.path_analysis_file,
@@ -240,6 +341,7 @@ class RunPipeline(BaseWidget):
                 collapsed=True,
                 margin=(5, 5, 5, 5)
             ),
+            config_card,
             sizing_mode='stretch_width'
         )
 
@@ -271,16 +373,70 @@ class RunPipeline(BaseWidget):
         )
         return self.layout
 
-    # ---------------
-    # HELPER METHODS
-    # ---------------
-    def natural_sort(self, l):
-        convert = lambda text: int(text) if text.isdigit() else text.lower()
-        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
-        return sorted(l, key=alphanum_key)
+    def _setup_matplotlib(self):
+        """Configure matplotlib to use a non-GUI backend"""
+        import matplotlib
+        matplotlib.use('agg')  # Use the 'agg' backend which doesn't require GUI
+        import matplotlib.pyplot as plt
+        plt.ioff()  # Turn off interactive mode
 
+    def _run_pipeline(self, *events):
+        """Run the alphaquant pipeline when the button is clicked."""
+        if not hasattr(self, 'data') or self.data.empty:
+            self.run_pipeline_error.object = "No valid data loaded."
+            self.run_pipeline_error.visible = True
+            return
+
+        self.run_pipeline_progress.active = True
+        self.run_pipeline_error.visible = False
+
+        # Get condition combinations from the CrossSelector
+        if self.assign_cond_pairs.value:
+            cond_combinations = [
+                tuple(pair.split('_vs_')) 
+                for pair in self.assign_cond_pairs.value
+            ]
+        else:
+            cond_combinations = [
+                tuple(pair.split('_vs_')) 
+                for pair in self.assign_cond_pairs.options
+            ]
+
+        try:
+            # Collect all configuration parameters
+            pipeline_params = {
+                'input_file': self.path_analysis_file.value,
+                'samplemap_df': self.samplemap_table.value,
+                'results_dir': self.path_output_folder.value,
+                'condpairs_list': cond_combinations,
+                'modification_type': self.modification_type.value or None,
+                'input_type_to_use': self.input_type.value or None,
+                'organism': self.organism.value or None,
+                'minrep_both': self.minrep_both.value,
+                'min_num_ions': self.min_num_ions.value,
+                'minpep': self.minpep.value,
+                'cluster_threshold_pval': self.cluster_threshold_pval.value,
+                'volcano_fdr': self.volcano_fdr.value,
+                'volcano_fcthresh': self.volcano_fcthresh.value,
+            }
+
+            # Add all switch values
+            pipeline_params.update({
+                key: switch.value for key, switch in self.switches.items()
+            })
+
+            # Run the pipeline with all parameters
+            diffmgr.run_pipeline(**pipeline_params)
+
+        except Exception as e:
+            self.run_pipeline_error.object = f"Error running pipeline: {e}"
+            self.run_pipeline_error.visible = True
+
+        self.trigger_dependency()
+        self.run_pipeline_progress.active = False
+
+    # Other methods remain the same as in your original code
     def _activate_after_analysis_file_upload(self, *events):
-        """When user sets the path to the data file, set a default output folder, import data, etc."""
         self._set_default_output_folder()
         self._import_exp_data()
         self._extract_sample_names()
@@ -311,7 +467,6 @@ class RunPipeline(BaseWidget):
             })
 
     def _update_samplemap(self, *events):
-        """Load a user-provided sample map from CSV/TSV."""
         if not self.samplemap.value:
             return
         file_ext = os.path.splitext(self.samplemap.filename)[-1].lower()
@@ -328,7 +483,6 @@ class RunPipeline(BaseWidget):
             self.run_pipeline_error.visible = True
 
     def _add_conditions_for_assignment(self, *events):
-        """When the samplemap changes, update the CrossSelector with new condition combos."""
         if self.samplemap_table.value is None:
             return
         df = self.samplemap_table.value
@@ -340,53 +494,14 @@ class RunPipeline(BaseWidget):
             ]
             self.assign_cond_pairs.options = comb_condit
 
-    def _run_pipeline(self, *events):
-        """Run the alphaquant pipeline when the button is clicked."""
-        if not hasattr(self, 'data') or self.data.empty:
-            self.run_pipeline_error.object = "No valid data loaded."
-            self.run_pipeline_error.visible = True
-            return
-
-        self.run_pipeline_progress.active = True
-        self.run_pipeline_error.visible = False
-
-        data_processed, samplemap_df_processed = aqdiffutils.prepare_loaded_tables(
-            self.data,
-            self.samplemap_table.value
-        )
-
-        # Gather condition combinations from the CrossSelector
-        if self.assign_cond_pairs.value:
-            cond_combinations = [
-                tuple(pair.split('_vs_')) 
-                for pair in self.assign_cond_pairs.value
-            ]
-        else:
-            cond_combinations = [
-                tuple(pair.split('_vs_')) 
-                for pair in self.assign_cond_pairs.options
-            ]
-
-        try:
-            diffmgr.run_pipeline(
-                input_file=self.path_analysis_file.value,
-                samplemap_df=self.samplemap_table.value,
-                results_dir=self.path_output_folder.value,
-                condpairs_list=cond_combinations
-            )
-        except Exception as e:
-            self.run_pipeline_error.object = f"Error running pipeline: {e}"
-            self.run_pipeline_error.visible = True
-
-        self.trigger_dependency()
-        self.run_pipeline_progress.active = False
-
     def _visualize_data(self, *events):
-        """
-        Allow switching to the next step (visualization) when data is ready.
-        """
         self.run_pipeline_error.visible = False
         self.trigger_dependency()
+
+    def natural_sort(self, l):
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+        return sorted(l, key=alphanum_key)
 
 
 class SingleComparison(param.Parameterized):
@@ -601,11 +716,13 @@ class Tabs(param.Parameterized):
     """
     pipeline = param.ClassSelector(class_=RunPipeline)
     main_tabs = param.ClassSelector(class_=pn.Tabs, allow_None=True)
+    current_layout = param.Parameter()
 
     def __init__(self, pipeline, **params):
         super().__init__(pipeline=pipeline, **params)
         self.main_tabs = None
-        # We watch pipeline.update_event to create the tabs after pipeline has run.
+        self.current_layout = None
+        # Watch pipeline.update_event to create the tabs after pipeline has run
         self.pipeline.param.watch(self._create_tabs_if_possible, 'update_event')
 
     def _create_tabs_if_possible(self, *events):
@@ -614,13 +731,19 @@ class Tabs(param.Parameterized):
         """
         if (self.pipeline.path_output_folder.value 
                 and self.pipeline.visualize_data_button.clicks > 0):
-            # Collapse the pipeline card
-            self.pipeline.layout.collapsed = True
-            self._build_tabs()
+            try:
+                self._build_tabs()
+                # Update the current layout
+                self.current_layout = self.main_tabs
+            except Exception as e:
+                print(f"Error creating visualization tabs: {str(e)}")
+                self.current_layout = pn.pane.Markdown(
+                    f"Error creating visualization: {str(e)}"
+                )
 
     def _build_tabs(self):
         """
-        Build a Panel Tabs layout with whichever comparisons you want.
+        Build a Panel Tabs layout with visualization components.
         """
         if self.main_tabs is None:
             self.main_tabs = pn.Tabs(
@@ -628,27 +751,35 @@ class Tabs(param.Parameterized):
                 sizing_mode='stretch_width',
                 margin=(10, 10, 10, 10)
             )
-            # Single Comparison tab
-            single_comp = SingleComparison(
-                self.pipeline.path_output_folder.value,
-                self.pipeline.samplemap_table.value
-            )
-            self.main_tabs.append(
-                ('Single Comparison', single_comp.layout)
-            )
-            # If you want a multiple comparison tab, you could add it here
+
+            # Initialize visualization components
+            try:
+                # Single Comparison tab
+                single_comp = SingleComparison(
+                    self.pipeline.path_output_folder.value,
+                    self.pipeline.samplemap_table.value
+                )
+                self.main_tabs.append(
+                    ('Single Comparison', single_comp.layout)
+                )
+                # Could add more tabs here for multiple comparisons, etc.
+            except Exception as e:
+                print(f"Error initializing comparison tab: {str(e)}")
+                self.main_tabs.append(
+                    ('Error', pn.pane.Markdown(f"Error creating visualization: {str(e)}"))
+                )
 
     def create(self):
         """
-        Return the tabs object if it exists, else a placeholder message.
+        Return the current view - either tabs or a message.
         """
-        if self.main_tabs is not None:
-            return self.main_tabs
+        if self.current_layout is not None:
+            return self.current_layout
         else:
             return pn.pane.Markdown(
-                "## No results yet.\nPlease run the pipeline and click **Visualize data**."
+                "## No results yet.\nPlease run the pipeline and click **Visualize data**.",
+                sizing_mode='stretch_width'
             )
-
 
 # ----------------
 # BUILD DASHBOARD
