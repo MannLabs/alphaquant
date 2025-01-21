@@ -149,8 +149,18 @@ class RunPipeline(BaseWidget):
         self._make_widgets()
         self.layout = None
 
+    def _setup_matplotlib(self):
+        """Configure matplotlib to use a non-GUI backend and turn off interactive mode."""
+        import matplotlib
+        matplotlib.use('agg')
+        import matplotlib.pyplot as plt
+        plt.ioff()
+
     def _make_widgets(self):
-        # Original widgets
+        """
+        Create all Panel/Param widgets used in the layout.
+        """
+        # File paths
         self.path_analysis_file = pn.widgets.TextInput(
             name='Analysis file:',
             placeholder='Path to MQ/Spectronaut/DIA-NN file',
@@ -163,6 +173,8 @@ class RunPipeline(BaseWidget):
             width=700,
             sizing_mode='fixed'
         )
+
+        # Sample map + condition pairs
         self.samplemap_title = pn.pane.Markdown('**Load an experiments-to-conditions file**')
         self.samplemap = pn.widgets.FileInput(
             accept='.tsv,.csv,.txt',
@@ -182,7 +194,7 @@ class RunPipeline(BaseWidget):
             name='Select condition pairs'
         )
 
-        # New configuration widgets
+        # Advanced configuration widgets
         self.modification_type = pn.widgets.TextInput(
             name='Modification type:',
             placeholder='e.g., [Phospho (STY)] for Spectronaut',
@@ -253,7 +265,7 @@ class RunPipeline(BaseWidget):
             'protnorm_peptides': pn.widgets.Switch(name='Enable protein-level normalization', value=True),
         }
 
-        # Run pipeline widgets
+        # Pipeline execution widgets
         self.run_pipeline_button = pn.widgets.Button(
             name='Run pipeline',
             button_type='primary',
@@ -280,14 +292,12 @@ class RunPipeline(BaseWidget):
             margin=(5, 5, 5, 5),
         )
 
-        # Attach watchers
+        # Watchers
         self.path_analysis_file.param.watch(
             self._activate_after_analysis_file_upload, 'value'
         )
         self.samplemap.param.watch(self._update_samplemap, 'value')
-        self.samplemap_table.param.watch(
-            self._add_conditions_for_assignment, 'value'
-        )
+        self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
         self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
         self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
 
@@ -295,7 +305,20 @@ class RunPipeline(BaseWidget):
         """
         Build and return the main layout for the pipeline widget.
         """
-        # Configuration card with all the settings
+        # 1) Instructions Card (collapsed by default, placed ABOVE main pipeline card)
+        instructions_card = pn.Card(
+            "### Instructions",
+            gui_textfields.Descriptions.project_instruction,
+            gui_textfields.Cards.spectronaut,
+            gui_textfields.Cards.diann,
+            gui_textfields.Cards.alphapept,
+            gui_textfields.Cards.maxquant,
+            title='Instructions',
+            collapsed=True,
+            margin=(5, 5, 5, 5)
+        )
+
+        # 2) Advanced Configuration Card
         config_card = pn.Card(
             pn.Column(
                 "### Basic Settings",
@@ -319,67 +342,61 @@ class RunPipeline(BaseWidget):
             margin=(5, 5, 5, 5)
         )
 
+        # 3) "Samples and Conditions" card
+        samples_conditions_card = pn.Card(
+            pn.Column(
+                self.samplemap_title,
+                self.samplemap,
+                pn.Spacer(height=10),
+                self.samplemap_table,
+                pn.Spacer(height=10),
+                self.assign_cond_pairs,
+            ),
+            title='Samples and Conditions',
+            collapsed=False,
+            margin=(5, 5, 5, 5)
+        )
+
+        # Left Column
         left_col = pn.Column(
             "### Input Files",
             self.path_analysis_file,
             self.path_output_folder,
             pn.Spacer(height=15),
-            self.samplemap_title,
-            self.samplemap,
-            pn.Spacer(height=10),
-            pn.Card(
-                self.samplemap_table,
-                title='Experiment → Condition map',
-                collapsed=False,
-                margin=(5, 5, 5, 5)
-            ),
-            pn.Card(
-                self.assign_cond_pairs,
-                title='Condition pairs for analysis',
-                collapsed=True,
-                margin=(5, 5, 5, 5)
-            ),
+            samples_conditions_card,
             config_card,
             sizing_mode='stretch_width'
         )
 
+        # Right Column
         right_col = pn.Column(
-            "### Instructions",
-            gui_textfields.Descriptions.project_instruction,
-            gui_textfields.Cards.spectronaut,
-            gui_textfields.Cards.diann,
-            gui_textfields.Cards.alphapept,
-            gui_textfields.Cards.maxquant,
-            pn.Spacer(height=10),
             pn.Row(self.run_pipeline_button, self.run_pipeline_progress),
             self.visualize_data_button,
             self.run_pipeline_error,
             sizing_mode='stretch_width'
         )
 
-        self.layout = pn.Card(
-            pn.Row(
-                left_col,
-                right_col,
-                sizing_mode='stretch_width'
-            ),
+        # Main pipeline card
+        main_pipeline_card = pn.Card(
+            pn.Row(left_col, right_col, sizing_mode='stretch_width'),
             title='Run Pipeline | Visualize Data',
             header_color='#333',
             header_background='#eaeaea',
             sizing_mode='stretch_width',
             margin=(10, 10, 10, 10)
         )
+
+        # Final layout: instructions card ABOVE the main pipeline card
+        self.layout = pn.Column(
+            instructions_card,
+            main_pipeline_card
+        )
         return self.layout
 
-    def _setup_matplotlib(self):
-        """Configure matplotlib to use a non-GUI backend"""
-        import matplotlib
-        matplotlib.use('agg')  # Use the 'agg' backend which doesn't require GUI
-        import matplotlib.pyplot as plt
-        plt.ioff()  # Turn off interactive mode
-
     def _run_pipeline(self, *events):
-        """Run the alphaquant pipeline when the button is clicked."""
+        """
+        Run the alphaquant pipeline when the button is clicked.
+        """
         if not hasattr(self, 'data') or self.data.empty:
             self.run_pipeline_error.object = "No valid data loaded."
             self.run_pipeline_error.visible = True
@@ -423,7 +440,7 @@ class RunPipeline(BaseWidget):
                 key: switch.value for key, switch in self.switches.items()
             })
 
-            # Run the pipeline with all parameters
+            # Run the pipeline
             diffmgr.run_pipeline(**pipeline_params)
 
         except Exception as e:
@@ -433,8 +450,10 @@ class RunPipeline(BaseWidget):
         self.trigger_dependency()
         self.run_pipeline_progress.active = False
 
-    # Other methods remain the same as in your original code
     def _activate_after_analysis_file_upload(self, *events):
+        """
+        When a new analysis file is entered, set default output folder and import data.
+        """
         self._set_default_output_folder()
         self._import_exp_data()
         self._extract_sample_names()
@@ -447,7 +466,9 @@ class RunPipeline(BaseWidget):
     def _import_exp_data(self):
         if self.path_analysis_file.value:
             try:
-                self.data = aqdiffutils.import_data(input_file=self.path_analysis_file.value)
+                self.data = aqdiffutils.import_data(
+                    input_file=self.path_analysis_file.value
+                )
             except Exception as e:
                 self.run_pipeline_error.object = f"Error importing data: {e}"
                 self.run_pipeline_error.visible = True
@@ -465,6 +486,9 @@ class RunPipeline(BaseWidget):
             })
 
     def _update_samplemap(self, *events):
+        """
+        When a sample map file is uploaded, parse it into the Tabulator widget.
+        """
         if not self.samplemap.value:
             return
         file_ext = os.path.splitext(self.samplemap.filename)[-1].lower()
@@ -481,6 +505,9 @@ class RunPipeline(BaseWidget):
             self.run_pipeline_error.visible = True
 
     def _add_conditions_for_assignment(self, *events):
+        """
+        Whenever the samplemap table is updated, auto-generate condition pairs.
+        """
         if self.samplemap_table.value is None:
             return
         df = self.samplemap_table.value
@@ -493,14 +520,20 @@ class RunPipeline(BaseWidget):
             self.assign_cond_pairs.options = comb_condit
 
     def _visualize_data(self, *events):
+        """
+        Trigger an update event for any dependent tabs/components to load results.
+        """
         self.run_pipeline_error.visible = False
         self.trigger_dependency()
 
     def natural_sort(self, l):
+        """
+        Sort a list in a way that numbers are sorted numerically rather than alphabetically.
+        """
         convert = lambda text: int(text) if text.isdigit() else text.lower()
         alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
         return sorted(l, key=alphanum_key)
-
+    
 
 class Tabs(param.Parameterized):
     """
