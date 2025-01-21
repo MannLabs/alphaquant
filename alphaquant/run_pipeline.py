@@ -77,7 +77,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
         samplemap_df = median_manager.samplemap_df_extended
         del median_manager #delete the object as it needs not be in the runconfig
     
-    aqvariables.determine_variables(input_file_reformat)
+    aqvariables.determine_variables(input_file_reformat, input_type)
 
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
@@ -89,6 +89,7 @@ def run_pipeline(*,input_file = None, samplemap_file=None, samplemap_df = None, 
 
     if condpairs_list == None:
         conds = samplemap_df["condition"].unique()
+        conds = sorted(conds)
         condpairs_list = combinations(conds, 2)
         
     num_cores = get_num_cores_to_use(use_multiprocessing)

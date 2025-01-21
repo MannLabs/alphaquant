@@ -29,9 +29,9 @@ def simulate_protein_node_w_clustermatrix_subset(list_of_cluster_idxs_of_every_p
 
 def test_ProteoformConditionAligner1():
     cluster_matrix = [[0, 0, 1, 0],
-                    [1, 1, 0, 1],
+                    [0, 0, 1, 0],
                     [0, 0, 1, 1],
-                    [1, 1, 0, 1],
+                    [0, 0, 1, 0],
                     [1, 2, 3, 4]
                     ]
     expected_number_of_proteoforms = 3
@@ -45,7 +45,7 @@ def test_ProteoformConditionAligner1():
 def test_ProteoformConditionAligner2():
     cluster_matrix = [[0, 1, 1, 0], 
                     [1, 1, 0, 1], 
-                    [0, 0, 1, 0], 
+                    [1, 1, 0, 1], 
                     [1, 1, 0, 1]]
     expected_number_of_proteoforms = 2
     expected_peptide_groups = ["pep_0", "pep_1;pep_2;pep_3"]

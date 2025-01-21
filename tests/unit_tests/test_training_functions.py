@@ -68,8 +68,8 @@ def check_model_outputs(models, test_set_predictions, y_pred_cv, y_true, expecte
 ])
 def test_model_training(train_func, expected_model_type):
 	np.random.seed(42)
-	X = np.random.rand(200, 5)
-	y = np.random.rand(200)
+	X = np.random.rand(500, 5)
+	y = np.random.rand(500)
 	shorten_features_for_speed = False
 	num_splits = 5
 

@@ -7,6 +7,12 @@ import collections
 import alphaquant.config.variables as aqvariables
 from anytree import Node, LevelOrderGroupIter
 import alphaquant.utils.diffquant_utils as aq_utils_diffquant
+import re
+
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
 
 TYPES = ["base","frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene"]
 LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
@@ -69,7 +75,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
 
     if hasattr(node.children[0], 'ml_score'):
         ml_scores = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "ml_score")
-        node.ml_score = select_ml_score_with_minimum_absval(ml_scores)
+        node.ml_score = sum_ml_scores(ml_scores)
 
 
 def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
@@ -199,11 +205,9 @@ def traverse_and_add_included_leaves(node, list_of_included_leaves, is_root=True
             # Recursive call with is_root set to False, as we are now dealing with child nodes
             traverse_and_add_included_leaves(child, list_of_included_leaves, is_root=False)
 
-def select_ml_score_with_minimum_absval(ml_scores):
+def sum_ml_scores(ml_scores):
     abs_ml_scores = [abs(x) for x in ml_scores]
-    min_value = min(abs_ml_scores)
-    min_index = abs_ml_scores.index(min_value)
-    return ml_scores[min_index]
+    return sum(abs_ml_scores)
 
 
 def get_grouped_mainclust_leafs(child_nodes):
@@ -247,10 +251,22 @@ def select_middle_leafs(leaf_group):
 def map_grouped_leafs_to_diffions(grouped_leafs, ionname2diffion):
     grouped_diffions = []
     for leafs in grouped_leafs:
+        if aqvariables.PREFER_PRECURSORS_FOR_CLUSTERING:
+            leafs = _subset_to_precursors(leafs)
         diffions = [ionname2diffion.get(x.name) for x in leafs]
         grouped_diffions.append(diffions)
     return grouped_diffions
 
+def _subset_to_precursors(leafs):
+    precursor_leafs =  [x for x in leafs if _leaf_is_precursor(x)]
+    if len(precursor_leafs) == 0:
+        return leafs
+    else:
+        return precursor_leafs
+
+def _leaf_is_precursor(leaf):
+    pattern = r'.*_PRECURSOR_\d+$'
+    return bool(re.match(pattern, leaf.name))
 
 def annotate_mainclust_leaves(childnode2clust):
     #annotate each leaf that has reached the current level with the level name, allows to visualize how the leafs are propagated

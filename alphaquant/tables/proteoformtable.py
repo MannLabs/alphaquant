@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
 import alphaquant.ptm.phospho_inference as aq_phospho_inference
-import anytree
 import statsmodels.stats.multitest as mt
-import os
 import alphaquant.tables.tableutils as aqtableutils
 
 
@@ -107,7 +105,7 @@ class ValueDictCreator():
         return ";".join([peptide.name for peptide in peptides])
     
     def _get_proteoform_quality_score(self, peptides):
-        return max([self._get_peptide_quality_score(peptide) for peptide in peptides])#heuristic: take the highest score of all peptides in the proteoform, thereby increasing the chance for a good score, less strong than summation of scores
+        return sum([self._get_peptide_quality_score(peptide) for peptide in peptides])
     
     @staticmethod
     def _get_peptide_quality_score(peptide):
