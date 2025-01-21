@@ -7,7 +7,7 @@ import pandas as pd
 # visualization
 import panel as pn
 import bokeh.server.views.ws
-import alphaquant.ui.dashboard_parts as dashboard_parts
+import alphaquant.ui.dashboard_parts_run_pipeline as dashboard_parts
 
 
 def get_css_style(
