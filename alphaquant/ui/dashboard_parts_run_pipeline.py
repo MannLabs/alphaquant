@@ -175,7 +175,7 @@ class RunPipeline(BaseWidget):
         )
 
         # Sample map + condition pairs
-        self.samplemap_title = pn.pane.Markdown('**Load an experiments-to-conditions file**')
+        self.samplemap_title = pn.pane.Markdown('### Load an experiments-to-conditions file')
         self.samplemap = pn.widgets.FileInput(
             accept='.tsv,.csv,.txt',
             margin=(5, 5, 10, 0)
@@ -347,9 +347,12 @@ class RunPipeline(BaseWidget):
             pn.Column(
                 self.samplemap_title,
                 self.samplemap,
+                "### Sample to Condition Mapping",
                 pn.Spacer(height=10),
                 self.samplemap_table,
                 pn.Spacer(height=10),
+                "### Available Condition Comparisons", 
+                pn.pane.Markdown("Select the condition pairs you want to analyze:"),
                 self.assign_cond_pairs,
             ),
             title='Samples and Conditions',
