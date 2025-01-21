@@ -360,28 +360,29 @@ class RunPipeline(BaseWidget):
             margin=(5, 5, 5, 5)
         )
 
-        # Left Column
-        left_col = pn.Column(
+
+        main_col = pn.Column(
             "### Input Files",
             self.path_analysis_file,
             self.path_output_folder,
             pn.Spacer(height=15),
             samples_conditions_card,
             config_card,
-            sizing_mode='stretch_width'
-        )
-
-        # Right Column
-        right_col = pn.Column(
-            pn.Row(self.run_pipeline_button, self.run_pipeline_progress),
-            self.visualize_data_button,
+            pn.Spacer(height=15),
+            "### Pipeline Controls",
+            pn.Row(
+                self.run_pipeline_button,
+                self.run_pipeline_progress,
+                self.visualize_data_button,
+                sizing_mode='stretch_width'
+            ),
             self.run_pipeline_error,
             sizing_mode='stretch_width'
         )
 
         # Main pipeline card
         main_pipeline_card = pn.Card(
-            pn.Row(left_col, right_col, sizing_mode='stretch_width'),
+            main_col,
             title='Run Pipeline | Visualize Data',
             header_color='#333',
             header_background='#eaeaea',
