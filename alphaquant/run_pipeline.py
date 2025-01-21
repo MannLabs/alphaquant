@@ -17,6 +17,7 @@ config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.a
 
 import alphaquant.classify.ml_info_table as aq_ml_info_table
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
+import alphaquant.tables.alphadia_reader as aq_table_alphadiareader
 import alphaquant.diffquant.condpair_analysis as aqcondpair
 import alphaquant.multicond.median_condition_creation as aqmediancreation
 import alphaquant.multicond.median_condition_analysis as aqmediancond
@@ -129,7 +130,11 @@ def run_pipeline(input_file: str,
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
         input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
         ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
-
+    
+    elif "fragment_precursorfilt.matrix" in input_file_original:
+        alphadia_tableprocessor = aq_table_alphadiareader.AlphaDIAFragTableProcessor(input_file_original)
+        input_file_reformat = alphadia_tableprocessor.input_file_reformat
+        ml_input_file = alphadia_tableprocessor.ml_info_file
     else:
         input_file_reformat = load_input_file(input_file_original, input_type)
         ml_input_file = load_ml_info_file(input_file_original, input_type)
