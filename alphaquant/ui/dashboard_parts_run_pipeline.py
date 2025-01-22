@@ -305,7 +305,7 @@ class RunPipeline(BaseWidget):
         """
         Build and return the main layout for the pipeline widget.
         """
-        # 1) Instructions Card (collapsed by default, placed ABOVE main pipeline card)
+        # 1) Instructions Card
         instructions_card = pn.Card(
             "### Instructions",
             gui_textfields.Descriptions.project_instruction,
@@ -315,7 +315,8 @@ class RunPipeline(BaseWidget):
             gui_textfields.Cards.maxquant,
             title='Instructions',
             collapsed=True,
-            margin=(5, 5, 5, 5)
+            margin=(5, 5, 5, 5),
+            sizing_mode='stretch_width'
         )
 
         # 2) Advanced Configuration Card
@@ -339,7 +340,8 @@ class RunPipeline(BaseWidget):
             ),
             title='Advanced Configuration',
             collapsed=True,
-            margin=(5, 5, 5, 5)
+            margin=(5, 5, 5, 5),
+            sizing_mode='stretch_width'
         )
 
         # 3) "Samples and Conditions" card
@@ -351,16 +353,17 @@ class RunPipeline(BaseWidget):
                 pn.Spacer(height=10),
                 self.samplemap_table,
                 pn.Spacer(height=10),
-                "### Available Condition Comparisons", 
+                "### Available Condition Comparisons",
                 pn.pane.Markdown("Select the condition pairs you want to analyze:"),
                 self.assign_cond_pairs,
             ),
             title='Samples and Conditions',
             collapsed=False,
-            margin=(5, 5, 5, 5)
+            margin=(5, 5, 5, 5),
+            sizing_mode='stretch_width'
         )
 
-
+        # Main layout
         main_col = pn.Column(
             "### Input Files",
             self.path_analysis_file,
@@ -390,7 +393,7 @@ class RunPipeline(BaseWidget):
             margin=(10, 10, 10, 10)
         )
 
-        # Final layout: instructions card ABOVE the main pipeline card
+        # Final layout
         self.layout = pn.Column(
             instructions_card,
             main_pipeline_card
@@ -537,7 +540,7 @@ class RunPipeline(BaseWidget):
         convert = lambda text: int(text) if text.isdigit() else text.lower()
         alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
         return sorted(l, key=alphanum_key)
-    
+
 
 class Tabs(param.Parameterized):
     """
