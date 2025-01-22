@@ -269,9 +269,12 @@ class RunPipeline(BaseWidget):
 			visible=True
 		)
 
-
-		self.medianref_analysis_switch = pn.widgets.Switch(name='Use median condition analysis', value=False)
-
+		# Replace the medianref_analysis_switch with a dropdown menu
+		self.analysis_type = pn.widgets.Select(
+			name='Select Analysis Type:',
+			options=['Select an analysis', 'Median Condition Analysis', 'Pairwise Comparison'],
+			value='Select an analysis'
+		)
 
 		# A pane for showing the "comparing every condition..." message
 		# which is hidden by default
@@ -329,7 +332,7 @@ class RunPipeline(BaseWidget):
 		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
 		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
-		self.medianref_analysis_switch.param.watch(self._toggle_medianref, 'value')
+		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
 
 
 	def create(self):
@@ -401,7 +404,7 @@ class RunPipeline(BaseWidget):
 			self.samplemap,
 			# Insert the switch right below the file input
 			pn.Spacer(height=10),
-			self.medianref_analysis_switch,
+			self.analysis_type,
 			pn.Spacer(height=10),
 
 			# Headers and instructions for condition comparisons
@@ -419,6 +422,7 @@ class RunPipeline(BaseWidget):
 			"### Input Files",
 			self.path_analysis_file,
 			self.path_output_folder,
+			self.analysis_type,  # Added dropdown for analysis type
 			pn.Spacer(height=15),
 			samples_conditions_layout,  # Updated to include samples and conditions directly
 			config_card_basic,
@@ -433,6 +437,24 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error,
 			sizing_mode='stretch_width'
 		)
+
+		# Show/hide components based on selected analysis type
+		if self.analysis_type.value == 'Select an analysis':
+			self.medianref_message.visible = False
+			self.assign_cond_pairs.visible = False
+			self.condition_comparison_header.visible = False
+			self.condition_comparison_instructions.visible = False
+		else:
+			if self.analysis_type.value == 'Median Condition Analysis':
+				self.medianref_message.visible = True
+				self.assign_cond_pairs.visible = False
+				self.condition_comparison_header.visible = False
+				self.condition_comparison_instructions.visible = False
+			else:
+				self.medianref_message.visible = False
+				self.assign_cond_pairs.visible = True
+				self.condition_comparison_header.visible = True
+				self.condition_comparison_instructions.visible = True
 
 		# Main pipeline card
 		main_pipeline_card = pn.Card(
@@ -455,6 +477,11 @@ class RunPipeline(BaseWidget):
 		"""
 		Run the alphaquant pipeline when the button is clicked.
 		"""
+		if self.analysis_type.value == 'Select an analysis':
+			self.run_pipeline_error.object = "Please select an analysis type before running the pipeline."
+			self.run_pipeline_error.visible = True
+			return
+
 		if not hasattr(self, 'data') or self.data.empty:
 			self.run_pipeline_error.object = "No valid data loaded."
 			self.run_pipeline_error.visible = True
@@ -507,6 +534,20 @@ class RunPipeline(BaseWidget):
 
 		self.trigger_dependency()
 		self.run_pipeline_progress.active = False
+
+		# Show/hide components based on selected analysis type
+		if self.analysis_type.value == 'Median Condition Analysis':
+			# Show components related to median condition analysis
+			self.medianref_message.visible = True
+			self.assign_cond_pairs.visible = False
+			self.condition_comparison_header.visible = False
+			self.condition_comparison_instructions.visible = False
+		else:
+			# Show components related to pairwise comparison
+			self.medianref_message.visible = False
+			self.assign_cond_pairs.visible = True
+			self.condition_comparison_header.visible = True
+			self.condition_comparison_instructions.visible = True
 
 	def _activate_after_analysis_file_upload(self, *events):
 		"""
@@ -596,16 +637,16 @@ class RunPipeline(BaseWidget):
 		alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
 		return sorted(l, key=alphanum_key)
 
-	def _toggle_medianref(self, event):
-		"""Show/hide CrossSelector and message based on median reference switch."""
-		if event.new:  # switch is turned ON
+	def _toggle_analysis_type(self, event):
+		"""Show/hide CrossSelector and message based on analysis type."""
+		if event.new == 'Median Condition Analysis':
 			# Hide CrossSelector and its explanatory text
 			self.assign_cond_pairs.visible = False
 			self.condition_comparison_header.visible = False
 			self.condition_comparison_instructions.visible = False
 			# Show median reference message
 			self.medianref_message.visible = True
-		else:  # switch is turned OFF
+		else:
 			self.assign_cond_pairs.visible = True
 			self.condition_comparison_header.visible = True
 			self.condition_comparison_instructions.visible = True
