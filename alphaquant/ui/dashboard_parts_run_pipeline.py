@@ -309,7 +309,7 @@ class RunPipeline(BaseWidget):
             collapsed=True,
             margin=(5, 5, 5, 5),
             sizing_mode='fixed',
-            width =400
+            width=400
         )
 
         # 2) Advanced Configuration Card
@@ -337,23 +337,17 @@ class RunPipeline(BaseWidget):
             sizing_mode='stretch_width'
         )
 
-        # 3) "Samples and Conditions" card
-        samples_conditions_card = pn.Card(
-            pn.Column(
-                self.samplemap_title,
-                self.samplemap,
-                "### Sample to Condition Mapping",
-                pn.Spacer(height=10),
-                self.samplemap_table,
-                pn.Spacer(height=10),
-                "### Available Condition Comparisons",
-                pn.pane.Markdown("Select the condition pairs you want to analyze:"),
-                self.assign_cond_pairs,
-            ),
-            title='Samples and Conditions',
-            collapsed=False,
-            margin=(5, 5, 5, 5),
-            sizing_mode='stretch_width'
+        # 3) Integrate "Samples and Conditions" directly into the main layout
+        samples_conditions_layout = pn.Column(
+            self.samplemap_title,
+            self.samplemap,
+            "### Sample to Condition Mapping",
+            pn.Spacer(height=10),
+            self.samplemap_table,
+            pn.Spacer(height=10),
+            "### Available Condition Comparisons",
+            pn.pane.Markdown("Select the condition pairs you want to analyze:"),
+            self.assign_cond_pairs,
         )
 
         # Main layout
@@ -362,7 +356,7 @@ class RunPipeline(BaseWidget):
             self.path_analysis_file,
             self.path_output_folder,
             pn.Spacer(height=15),
-            samples_conditions_card,
+            samples_conditions_layout,  # Updated to include samples and conditions directly
             config_card,
             pn.Spacer(height=15),
             "### Pipeline Controls",
