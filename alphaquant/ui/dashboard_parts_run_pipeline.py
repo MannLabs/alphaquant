@@ -117,13 +117,6 @@ class MainWidget(param.Parameterized):
             margin=(10, 0, 10, 0),
             sizing_mode='stretch_width'
         )
-        self.manual = pn.widgets.FileDownload(
-            file=self.manual_path,
-            label='Download Manual',
-            button_type='default',
-            auto=True,
-            margin=(5, 5, 5, 5)
-        )
 
     def create(self):
         """
@@ -131,7 +124,6 @@ class MainWidget(param.Parameterized):
         """
         layout = pn.Column(
             self.project_description,
-            self.manual,
             sizing_mode='stretch_width',
             margin=(5, 5, 5, 5)
         )
