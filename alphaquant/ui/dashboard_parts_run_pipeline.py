@@ -308,7 +308,8 @@ class RunPipeline(BaseWidget):
             title='Instructions',
             collapsed=True,
             margin=(5, 5, 5, 5),
-            sizing_mode='stretch_width'
+            sizing_mode='fixed',
+            width =400
         )
 
         # 2) Advanced Configuration Card
