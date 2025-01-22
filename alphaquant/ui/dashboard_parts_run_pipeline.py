@@ -259,7 +259,26 @@ class RunPipeline(BaseWidget):
 			width=300
 		)
 
+		self.condition_comparison_header = pn.pane.Markdown(
+		"### Available Condition Comparisons",
+		visible=True
+		)
+
+		self.condition_comparison_instructions = pn.pane.Markdown(
+			"Select the condition pairs you want to analyze:",
+			visible=True
+		)
+
+
 		self.medianref_analysis_switch = pn.widgets.Switch(name='Use median condition analysis', value=False)
+
+
+		# A pane for showing the "comparing every condition..." message
+		# which is hidden by default
+		self.medianref_message = pn.pane.Markdown(
+			"Comparing every condition against median reference",
+			visible=False,  # start hidden
+		)
 		# Boolean switches
 		self.switches = {
 			'use_ml': pn.widgets.Switch(name='Enable machine learning', value=True),
@@ -310,6 +329,8 @@ class RunPipeline(BaseWidget):
 		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
 		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
+		self.medianref_analysis_switch.param.watch(self._toggle_medianref, 'value')
+
 
 	def create(self):
 		"""
@@ -378,10 +399,20 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table,
 			"### Load a Sample to Condition File",
 			self.samplemap,
-			"### Available Condition Comparisons",
-			"Select the condition pairs you want to analyze:",
+			# Insert the switch right below the file input
+			pn.Spacer(height=10),
+			self.medianref_analysis_switch,
+			pn.Spacer(height=10),
+
+			# Headers and instructions for condition comparisons
+			self.condition_comparison_header,
+			self.condition_comparison_instructions,
 			self.assign_cond_pairs,
+
+			# The message that is shown when 'Use median condition analysis' is ON
+			self.medianref_message,
 		)
+
 
 		# Main layout
 		main_col = pn.Column(
@@ -564,6 +595,22 @@ class RunPipeline(BaseWidget):
 		convert = lambda text: int(text) if text.isdigit() else text.lower()
 		alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
 		return sorted(l, key=alphanum_key)
+
+	def _toggle_medianref(self, event):
+		"""Show/hide CrossSelector and message based on median reference switch."""
+		if event.new:  # switch is turned ON
+			# Hide CrossSelector and its explanatory text
+			self.assign_cond_pairs.visible = False
+			self.condition_comparison_header.visible = False
+			self.condition_comparison_instructions.visible = False
+			# Show median reference message
+			self.medianref_message.visible = True
+		else:  # switch is turned OFF
+			self.assign_cond_pairs.visible = True
+			self.condition_comparison_header.visible = True
+			self.condition_comparison_instructions.visible = True
+			self.medianref_message.visible = False
+
 
 
 class Tabs(param.Parameterized):
