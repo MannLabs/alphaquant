@@ -176,17 +176,19 @@ class RunPipeline(BaseWidget):
             width=300
         )
 
-
 		self.samplemap = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
-			margin=(5, 5, 10, 0)
+			margin=(5, 5, 10, 20),
+			visible=True  # Add this line explicitly
 		)
+		# In _make_widgets(), when initializing samplemap_table, add visible=False:
 		self.samplemap_table = pn.widgets.Tabulator(
 			layout='fit_data_fill',
 			height=250,
 			show_index=False,
 			width=500,
-			margin=(5, 5, 5, 5)
+			margin=(5, 5, 5, 5),
+			visible=False  # Add this line
 		)
 		self.assign_cond_pairs = pn.widgets.CrossSelector(
 			width=600,
@@ -406,27 +408,31 @@ class RunPipeline(BaseWidget):
 			sizing_mode='stretch_width'
 		)
 
-		# 3) Integrate "Samples and Conditions" directly into the main layout
+		# Create samples and conditions layout
 		samples_conditions_layout = pn.Column(
 			self.sample_mapping_mode,
-			self.samplemap,  # Will be hidden/shown based on mode
-			self.samplemap_table,  # Will be hidden/shown based on mode
-			self.condition_comparison_header,
+			self.samplemap,
+			self.samplemap_table
+		)
+
+		# Create condition comparison layout (without the header)
+		condition_comparison_layout = pn.Column(
 			self.condition_comparison_instructions,
-			self.analysis_type,  # Added dropdown for analysis type
 			self.assign_cond_pairs,
 			self.medianref_message,
 		)
 
-		self._toggle_sample_mapping_mode(
-			type('Event', (), {'new': self.sample_mapping_mode.value})()
-		)
 		# Main layout
 		main_col = pn.Column(
+			"### Input Files",
 			self.path_analysis_file,
 			self.path_output_folder,
-			samples_conditions_layout,  # Updated to include samples and conditions directly
+			pn.Spacer(height=15),
+			samples_conditions_layout,
+			self.analysis_type,
+			condition_comparison_layout,
 			config_card_basic,
+			pn.Spacer(height=15),
 			"### Pipeline Controls",
 			pn.Row(
 				self.run_pipeline_button,
@@ -558,7 +564,6 @@ class RunPipeline(BaseWidget):
 		else:
 			self.samplemap.visible = False
 			self.samplemap_table.visible = True
-
 
 	def _activate_after_analysis_file_upload(self, *events):
 		"""
