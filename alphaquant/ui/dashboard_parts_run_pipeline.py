@@ -213,30 +213,47 @@ class RunPipeline(BaseWidget):
 			placeholder='e.g., human, mouse',
 			width=300
 		)
+		self.filtering_options = pn.widgets.Select(
+			name='Filtering Options:',
+			options=[
+				'min. valid values in condition1 OR condition2',
+				'min. valid values in condition1 AND condition2',
+				'set min. valid values per condition'
+			],
+			value='min. valid values in condition1 OR condition2',
+			width=300
+		)
+
+		self.minrep_either = pn.widgets.IntInput(
+			value=2,
+			start=0,
+			width=300,
+			visible=True  # Initially visible as it's the default option
+		)
+
+		self.minrep_both = pn.widgets.IntInput(
+			value=2,
+			start=1,
+			width=300,
+			visible=False
+		)
+
 		self.minrep_c1 = pn.widgets.IntInput(
-				name='Min replicates (condition 1):',
-				value=2,
-				start=1,
-				width=300
-			)
+			name='Min replicates (condition 1):',
+			value=2,
+			start=0,
+			width=300,
+			visible=False
+		)
+
 		self.minrep_c2 = pn.widgets.IntInput(
 			name='Min replicates (condition 2):',
-			value = 2,
-			start = 0,
-			width = 300
+			value=2,
+			start=0,
+			width=300,
+			visible=False
 		)
-		self.minrep_both = pn.widgets.IntInput(
-						name='Min replicates in both conditions',
-						value=2,
-						start=1,
-						width=300
-					)
-		self.minrep_either = pn.widgets.IntInput(
-						name='Min replicates in either condition (other condition can be 0, counting statistics will be used)',
-						value=0,
-						start=0,
-						width=300
-					)
+
 		self.min_num_ions = pn.widgets.IntInput(
 			name='Min number of ions per peptide:',
 			value=1,
@@ -345,6 +362,7 @@ class RunPipeline(BaseWidget):
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
 		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
 		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
+		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
 
 
 	def create(self):
@@ -366,22 +384,6 @@ class RunPipeline(BaseWidget):
 			width=400
 		)
 
-		config_card_basic = pn.Card(
-			pn.Column(
-				"### Basic Settings",
-				self.minrep_both,
-				self.minrep_either,
-				self.min_num_ions,
-				self.minpep,
-				"### PTM/Proteoform Settings",
-				self.modification_type,
-				self.organism,
-			),
-			title='Basic Settings',
-			collapsed=False,
-			margin=(5, 5, 5, 5),
-			sizing_mode='stretch_width'
-		)
 
 		# 2) Advanced Configuration Card
 		config_card_advanced = pn.Card(
@@ -431,11 +433,12 @@ class RunPipeline(BaseWidget):
 			samples_conditions_layout,
 			self.analysis_type,
 			condition_comparison_layout,
-			"### Basic Settings",
-			self.minrep_both,
-			self.minrep_either,
-			self.min_num_ions,
-			self.minpep,
+            "### Basic Settings",
+            self.filtering_options,
+            self.minrep_either,
+            self.minrep_both,
+            self.minrep_c1,
+            self.minrep_c2,
 			"### PTM/Proteoform Settings",
 			self.modification_type,
 			self.organism,
@@ -524,18 +527,25 @@ class RunPipeline(BaseWidget):
 				'modification_type': self.modification_type.value or None,
 				'input_type_to_use': self.input_type.value or None,
 				'organism': self.organism.value or None,
-				'minrep_both': self.minrep_both.value,
 				'min_num_ions': self.min_num_ions.value,
 				'minpep': self.minpep.value,
 				'cluster_threshold_pval': self.cluster_threshold_pval.value,
 				'volcano_fdr': self.volcano_fdr.value,
 				'volcano_fcthresh': self.volcano_fcthresh.value,
 			}
-
 			# Add all switch values
 			pipeline_params.update({
 				key: switch.value for key, switch in self.switches.items()
 			})
+
+			if self.filtering_options.value == 'min. valid values in condition1 OR condition2':
+				pipeline_params['minrep_either'] = self.minrep_either.value
+			elif self.filtering_options.value == 'min. valid values in condition1 AND condition2':
+				pipeline_params['minrep_both'] = self.minrep_both.value
+			else:  # set min. valid values per condition
+				pipeline_params['minrep_c1'] = self.minrep_c1.value
+				pipeline_params['minrep_c2'] = self.minrep_c2.value
+
 
 			# Run the pipeline
 			diffmgr.run_pipeline(**pipeline_params)
@@ -676,7 +686,22 @@ class RunPipeline(BaseWidget):
 			self.condition_comparison_instructions.visible = True
 			self.medianref_message.visible = False
 
+	def _toggle_filtering_options(self, event):
+		"""Toggle visibility of replicate input fields based on filtering option."""
+		# Hide all first
+		self.minrep_either.visible = False
+		self.minrep_both.visible = False
+		self.minrep_c1.visible = False
+		self.minrep_c2.visible = False
 
+		# Show relevant widgets based on selection
+		if event.new == 'min. valid values in condition1 OR condition2':
+			self.minrep_either.visible = True
+		elif event.new == 'min. valid values in condition1 AND condition2':
+			self.minrep_both.visible = True
+		else:  # set min. valid values per condition
+			self.minrep_c1.visible = True
+			self.minrep_c2.visible = True
 
 class Tabs(param.Parameterized):
 	"""
