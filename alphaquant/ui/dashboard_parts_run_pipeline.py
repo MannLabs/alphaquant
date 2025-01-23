@@ -474,7 +474,7 @@ class RunPipeline(BaseWidget):
 		# Main pipeline card
 		main_pipeline_card = pn.Card(
 			main_col,
-			title='Run Pipeline | Visualize Data',
+			title='Run Pipeline',
 			header_color='#333',
 			header_background='#eaeaea',
 			sizing_mode='stretch_width',
