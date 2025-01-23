@@ -2,13 +2,11 @@ import os
 import re
 from io import StringIO
 import itertools
+import pathlib
 
 import param
 import panel as pn
 import pandas as pd
-import numpy as np
-from scipy import stats
-import anytree
 import matplotlib
 matplotlib.use('agg')
 
@@ -16,6 +14,9 @@ matplotlib.use('agg')
 import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.ui.gui_textfields as gui_textfields
+
+import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
+config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
 
 # If using Plotly in Panel
 pn.extension('plotly')
@@ -176,7 +177,7 @@ class RunPipeline(BaseWidget):
             width=300
         )
 
-		self.samplemap = pn.widgets.FileInput(
+		self.samplemap_fileupload = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
 			margin=(5, 5, 10, 20),
 			visible=True  # Add this line explicitly
@@ -356,7 +357,7 @@ class RunPipeline(BaseWidget):
 		self.path_analysis_file.param.watch(
 			self._activate_after_analysis_file_upload, 'value'
 		)
-		self.samplemap.param.watch(self._update_samplemap, 'value')
+		self.samplemap_fileupload.param.watch(self._update_samplemap_table, 'value')
 		self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
 		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
@@ -413,7 +414,7 @@ class RunPipeline(BaseWidget):
 		# Create samples and conditions layout
 		samples_conditions_layout = pn.Column(
 			self.sample_mapping_mode,
-			self.samplemap,
+			self.samplemap_fileupload,
 			self.samplemap_table
 		)
 
@@ -497,10 +498,6 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 			return
 
-		if not hasattr(self, 'data') or self.data.empty:
-			self.run_pipeline_error.object = "No valid data loaded."
-			self.run_pipeline_error.visible = True
-			return
 
 		self.run_pipeline_progress.active = True
 		self.run_pipeline_error.visible = False
@@ -519,6 +516,7 @@ class RunPipeline(BaseWidget):
 
 		try:
 			# Collect all configuration parameters
+			print(self.samplemap_table.value)
 			pipeline_params = {
 				'input_file': self.path_analysis_file.value,
 				'samplemap_df': self.samplemap_table.value,
@@ -574,59 +572,63 @@ class RunPipeline(BaseWidget):
 	def _toggle_sample_mapping_mode(self, event):
 		"""Toggle visibility of sample mapping components based on selected mode."""
 		if event.new == 'Upload sample to condition file':
-			self.samplemap.visible = True
+			self.samplemap_fileupload.visible = True
 			# Only show table if there's data in it
-			self.samplemap_table.visible = hasattr(self, 'data') and not self.data.empty
+			#self.samplemap_table.visible = hasattr(self, 'data') and not self.data.empty
 		else:
-			self.samplemap.visible = False
+			self.samplemap_fileupload.visible = False
 			self.samplemap_table.visible = True
+			self._import_sample_names()
+			self._init_samplemap_df_template()
+
 
 	def _activate_after_analysis_file_upload(self, *events):
 		"""
 		When a new analysis file is entered, set default output folder and import data.
 		"""
 		self._set_default_output_folder()
-		self._import_exp_data()
-		self._extract_sample_names()
+
+
 
 	def _set_default_output_folder(self):
 		if (not self.path_output_folder.value) and self.path_analysis_file.value:
 			base_path = os.path.dirname(self.path_analysis_file.value)
 			self.path_output_folder.value = os.path.join(base_path, 'results')
 
-	def _import_exp_data(self):
+	def _import_sample_names(self):
 		if self.path_analysis_file.value:
 			try:
-				self.data = aqdiffutils.import_data(
-					input_file=self.path_analysis_file.value
-				)
+				input_file = self.path_analysis_file.value
+				_, config_dict, sep = config_dict_loader.get_input_type_and_config_dict(input_file)
+				sample_column = config_dict["sample_ID"]
+				sample_names = set()
+				for chunk in pd.read_csv(input_file, sep=sep, usecols=[sample_column], chunksize=400000):
+					sample_names.update(chunk[sample_column].unique())
+				self.sample_names = sample_names
 			except Exception as e:
 				self.run_pipeline_error.object = f"Error importing data: {e}"
 				self.run_pipeline_error.visible = True
-				self.data = pd.DataFrame()
-		else:
-			self.data = pd.DataFrame()
 
-	def _extract_sample_names(self):
-		if hasattr(self, 'data') and not self.data.empty:
-			sample_names = aqdiffutils.get_samplenames_from_input_df(self.data)
+	def _init_samplemap_df_template(self):
+		if hasattr(self, 'sample_names'):
+			sample_names = self.sample_names
 			sorted_names = self.natural_sort(sample_names)
 			self.samplemap_table.value = pd.DataFrame({
 				'sample': sorted_names,
 				'condition': [''] * len(sorted_names)
 			})
 
-	def _update_samplemap(self, *events):
+	def _update_samplemap_table(self, *events):
 		"""
 		When a sample map file is uploaded, parse it into the Tabulator widget and show the table.
 		"""
-		if not self.samplemap.value:
+		if not self.samplemap_fileupload.value:
 			return
-		file_ext = os.path.splitext(self.samplemap.filename)[-1].lower()
+		file_ext = os.path.splitext(self.samplemap_fileupload.filename)[-1].lower()
 		sep = ',' if file_ext == '.csv' else '\t'
 		try:
 			df = pd.read_csv(
-				StringIO(self.samplemap.value.decode('utf-8')),
+				StringIO(self.samplemap_fileupload.value.decode('utf-8')),
 				sep=sep,
 				dtype=str
 			)
