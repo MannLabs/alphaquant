@@ -279,7 +279,7 @@ class RunPipeline(BaseWidget):
 		# A pane for showing the "comparing every condition..." message
 		# which is hidden by default
 		self.medianref_message = pn.pane.Markdown(
-			"Comparing every condition against median reference",
+			"Every condition will be compared against the median reference",
 			visible=False,  # start hidden
 		)
 		# Boolean switches
