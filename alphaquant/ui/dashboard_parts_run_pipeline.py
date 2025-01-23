@@ -402,10 +402,6 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table,
 			"### Load a Sample to Condition File",
 			self.samplemap,
-			# Insert the switch right below the file input
-			pn.Spacer(height=10),
-			self.analysis_type,
-			pn.Spacer(height=10),
 
 			# Headers and instructions for condition comparisons
 			self.condition_comparison_header,
