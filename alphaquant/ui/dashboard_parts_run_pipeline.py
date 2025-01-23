@@ -166,8 +166,17 @@ class RunPipeline(BaseWidget):
 			sizing_mode='fixed'
 		)
 
-		# Sample map + condition pairs
-		self.samplemap_title = pn.pane.Markdown('### Load an experiments-to-conditions file')
+		self.sample_mapping_mode = pn.widgets.Select(
+            name='Sample Mapping Mode:',
+            options=[
+                'Upload sample to condition file',
+                'Generate new sample to condition map'
+            ],
+            value='Upload sample to condition file',
+            width=300
+        )
+
+
 		self.samplemap = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
 			margin=(5, 5, 10, 0)
@@ -324,6 +333,7 @@ class RunPipeline(BaseWidget):
 		)
 
 		# Watchers
+		self.sample_mapping_mode.param.watch(self._toggle_sample_mapping_mode, 'value')
 		self.path_analysis_file.param.watch(
 			self._activate_after_analysis_file_upload, 'value'
 		)
@@ -398,21 +408,18 @@ class RunPipeline(BaseWidget):
 
 		# 3) Integrate "Samples and Conditions" directly into the main layout
 		samples_conditions_layout = pn.Column(
-			"### Sample to Condition Mapping",
-			self.samplemap_table,
-			"### Load a Sample to Condition File",
-			self.samplemap,
-
-			# Headers and instructions for condition comparisons
+			self.sample_mapping_mode,
+			self.samplemap,  # Will be hidden/shown based on mode
+			self.samplemap_table,  # Will be hidden/shown based on mode
 			self.condition_comparison_header,
 			self.condition_comparison_instructions,
 			self.assign_cond_pairs,
-
-			# The message that is shown when 'Use median condition analysis' is ON
 			self.medianref_message,
 		)
 
-
+		self._toggle_sample_mapping_mode(
+			type('Event', (), {'new': self.sample_mapping_mode.value})()
+		)
 		# Main layout
 		main_col = pn.Column(
 			"### Input Files",
@@ -544,6 +551,18 @@ class RunPipeline(BaseWidget):
 			self.assign_cond_pairs.visible = True
 			self.condition_comparison_header.visible = True
 			self.condition_comparison_instructions.visible = True
+
+	def _toggle_sample_mapping_mode(self, event):
+		"""Toggle visibility of sample mapping components based on selected mode."""
+		if event.new == 'Upload sample to condition file':
+			# Show only file upload
+			self.samplemap.visible = True
+			self.samplemap_table.visible = False
+		else:
+			# Show only mapping table
+			self.samplemap.visible = False
+			self.samplemap_table.visible = True
+
 
 	def _activate_after_analysis_file_upload(self, *events):
 		"""
