@@ -193,7 +193,7 @@ class RunPipeline(BaseWidget):
 		self.assign_cond_pairs = pn.widgets.CrossSelector(
 			width=600,
 			height=250,
-			margin=(5, 5, 5, 5),
+			margin=(5, 5, 10, 20),
 			name='Select condition pairs'
 		)
 
@@ -282,8 +282,8 @@ class RunPipeline(BaseWidget):
 
 		# Replace the medianref_analysis_switch with a dropdown menu
 		self.analysis_type = pn.widgets.Select(
-			name='Select Analysis Type:',
-			options=['Select an analysis', 'Median Condition Analysis', 'Pairwise Comparison'],
+			name='Select Condition Analysis Type:',
+			options=['Pairwise Comparison', 'Median Condition Analysis'],
 			value='Select an analysis'
 		)
 
@@ -427,12 +427,18 @@ class RunPipeline(BaseWidget):
 			"### Input Files",
 			self.path_analysis_file,
 			self.path_output_folder,
-			pn.Spacer(height=15),
+			"### Samples and Conditions",
 			samples_conditions_layout,
 			self.analysis_type,
 			condition_comparison_layout,
-			config_card_basic,
-			pn.Spacer(height=15),
+			"### Basic Settings",
+			self.minrep_both,
+			self.minrep_either,
+			self.min_num_ions,
+			self.minpep,
+			"### PTM/Proteoform Settings",
+			self.modification_type,
+			self.organism,
 			"### Pipeline Controls",
 			pn.Row(
 				self.run_pipeline_button,
