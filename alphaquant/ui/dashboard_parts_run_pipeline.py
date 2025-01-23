@@ -167,7 +167,7 @@ class RunPipeline(BaseWidget):
 		)
 
 		self.sample_mapping_mode = pn.widgets.Select(
-            name='Sample Mapping Mode:',
+            name='Select Sample Mapping Mode:',
             options=[
                 'Upload sample to condition file',
                 'Generate new sample to condition map'
@@ -413,6 +413,7 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table,  # Will be hidden/shown based on mode
 			self.condition_comparison_header,
 			self.condition_comparison_instructions,
+			self.analysis_type,  # Added dropdown for analysis type
 			self.assign_cond_pairs,
 			self.medianref_message,
 		)
@@ -422,14 +423,10 @@ class RunPipeline(BaseWidget):
 		)
 		# Main layout
 		main_col = pn.Column(
-			"### Input Files",
 			self.path_analysis_file,
 			self.path_output_folder,
-			self.analysis_type,  # Added dropdown for analysis type
-			pn.Spacer(height=15),
 			samples_conditions_layout,  # Updated to include samples and conditions directly
 			config_card_basic,
-			pn.Spacer(height=15),
 			"### Pipeline Controls",
 			pn.Row(
 				self.run_pipeline_button,
@@ -555,11 +552,10 @@ class RunPipeline(BaseWidget):
 	def _toggle_sample_mapping_mode(self, event):
 		"""Toggle visibility of sample mapping components based on selected mode."""
 		if event.new == 'Upload sample to condition file':
-			# Show only file upload
 			self.samplemap.visible = True
-			self.samplemap_table.visible = False
+			# Only show table if there's data in it
+			self.samplemap_table.visible = hasattr(self, 'data') and not self.data.empty
 		else:
-			# Show only mapping table
 			self.samplemap.visible = False
 			self.samplemap_table.visible = True
 
@@ -601,7 +597,7 @@ class RunPipeline(BaseWidget):
 
 	def _update_samplemap(self, *events):
 		"""
-		When a sample map file is uploaded, parse it into the Tabulator widget.
+		When a sample map file is uploaded, parse it into the Tabulator widget and show the table.
 		"""
 		if not self.samplemap.value:
 			return
@@ -614,6 +610,8 @@ class RunPipeline(BaseWidget):
 				dtype=str
 			)
 			self.samplemap_table.value = df
+			# Show the table after successful upload
+			self.samplemap_table.visible = True
 		except Exception as e:
 			self.run_pipeline_error.object = f"Error reading sample map: {e}"
 			self.run_pipeline_error.visible = True
