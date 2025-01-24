@@ -153,6 +153,17 @@ class RunPipeline(BaseWidget):
 		"""
 		Create all Panel/Param widgets used in the layout.
 		"""
+		# Add a new loading indicator
+		self.loading_samples_indicator = pn.indicators.LoadingSpinner(
+			value=False,
+			color='primary',
+			visible=False
+		)
+		self.loading_samples_message = pn.pane.Markdown(
+			"Loading sample names...",
+			visible=False
+		)
+
 		# File paths
 		self.path_analysis_file = pn.widgets.TextInput(
 			name='Analysis file:',
@@ -414,6 +425,10 @@ class RunPipeline(BaseWidget):
 		# Create samples and conditions layout
 		samples_conditions_layout = pn.Column(
 			self.sample_mapping_mode,
+			pn.Row(
+				self.loading_samples_indicator,
+				self.loading_samples_message
+			),
 			self.samplemap_fileupload,
 			self.samplemap_table
 		)
@@ -598,6 +613,10 @@ class RunPipeline(BaseWidget):
 	def _import_sample_names(self):
 		if self.path_analysis_file.value:
 			try:
+				# Show loading indicator
+				self.loading_samples_indicator.visible = True
+				self.loading_samples_message.visible = True
+
 				input_file = self.path_analysis_file.value
 				_, config_dict, sep = config_dict_loader.get_input_type_and_config_dict(input_file)
 				sample_column = config_dict["sample_ID"]
@@ -605,9 +624,14 @@ class RunPipeline(BaseWidget):
 				for chunk in pd.read_csv(input_file, sep=sep, usecols=[sample_column], chunksize=400000):
 					sample_names.update(chunk[sample_column].unique())
 				self.sample_names = sample_names
+
 			except Exception as e:
 				self.run_pipeline_error.object = f"Error importing data: {e}"
 				self.run_pipeline_error.visible = True
+			finally:
+				# Hide loading indicator
+				self.loading_samples_indicator.visible = False
+				self.loading_samples_message.visible = False
 
 	def _init_samplemap_df_template(self):
 		if hasattr(self, 'sample_names'):
