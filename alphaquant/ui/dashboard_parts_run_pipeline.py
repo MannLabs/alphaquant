@@ -219,9 +219,10 @@ class RunPipeline(BaseWidget):
 			placeholder='Type of quantitative information',
 			width=300
 		)
-		self.organism = pn.widgets.TextInput(
+		self.organism = pn.widgets.Select(
 			name='Organism:',
-			placeholder='e.g., human, mouse',
+			options=['human', 'mouse'],
+			value='human',  # Set default value
 			width=300
 		)
 		self.filtering_options = pn.widgets.Select(
@@ -439,6 +440,19 @@ class RunPipeline(BaseWidget):
 			self.medianref_message,
 		)
 
+		# Create PTM settings card with fixed width
+		ptm_settings_card = pn.Card(
+			pn.Column(
+				self.modification_type,
+				self.organism,
+			),
+			title='PTM Settings',
+			collapsed=True,
+			margin=(5, 5, 5, 5),
+			sizing_mode='fixed',
+			width=400
+		)
+
 		# Main layout
 		main_col = pn.Column(
 			"### Input Files",
@@ -448,15 +462,13 @@ class RunPipeline(BaseWidget):
 			samples_conditions_layout,
 			self.analysis_type,
 			condition_comparison_layout,
-            "### Basic Settings",
-            self.filtering_options,
-            self.minrep_either,
-            self.minrep_both,
-            self.minrep_c1,
-            self.minrep_c2,
-			"### PTM/Proteoform Settings",
-			self.modification_type,
-			self.organism,
+			"### Basic Settings",
+			self.filtering_options,
+			self.minrep_either,
+			self.minrep_both,
+			self.minrep_c1,
+			self.minrep_c2,
+			ptm_settings_card,
 			"### Pipeline Controls",
 			pn.Row(
 				self.run_pipeline_button,
