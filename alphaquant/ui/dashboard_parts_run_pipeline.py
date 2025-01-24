@@ -179,7 +179,6 @@ class RunPipeline(BaseWidget):
 		)
 
 		self.sample_mapping_mode = pn.widgets.Select(
-            name='Select Sample Mapping Mode:',
             options=[
                 'Upload sample to condition file',
                 'Generate new sample to condition map'
