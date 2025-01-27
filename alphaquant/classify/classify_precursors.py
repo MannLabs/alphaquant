@@ -24,9 +24,9 @@ def assign_predictability_scores(protein_nodes, results_dir, ml_info_file ,name,
     #prepare the input table with all the relevant features for machine learning
 
     protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
-    
+
     precursor_selector = PrecursorForTrainingSelector(protein_nodes, min_num_precursors = min_num_precursors, prot_fc_cutoff = prot_fc_cutoff)
-    
+
     LOGGER.info(f"{precursor_selector.num_precursors_suitable_for_training} of {precursor_selector.num_precursors_total} selected for training")
 
     if len(precursor_selector.precursors_suitable_for_training)<100:
@@ -34,7 +34,7 @@ def assign_predictability_scores(protein_nodes, results_dir, ml_info_file ,name,
         return False
 
 
-    
+
     acquisition_info_df = aq_ml_info_table.MLInfoTableLoader(ml_info_file, samples_used).ml_info_df
 
     ml_input_for_training = MLInputTableCreator(precursor_selector.precursors_suitable_for_training, acquisition_info_df, define_y = True, replace_nans = replace_nans)
@@ -42,8 +42,7 @@ def assign_predictability_scores(protein_nodes, results_dir, ml_info_file ,name,
     align_ml_input_tables_if_necessary(ml_input_for_training, ml_input_remaining)
 
 
-    featurenames_str = ', '.join(ml_input_for_training.featurenames)
-    LOGGER.info(f"starting ML prediction using features {featurenames_str}")
+    LOGGER.info("starting ML prediction")
     models, test_set_predictions, y_pred_cv = aq_class_train.train_fast_gradient_boosting(ml_input_for_training.X, ml_input_for_training.y,
                                                                            num_splits=5, shorten_features_for_speed=False)
 
@@ -69,10 +68,10 @@ def assign_predictability_scores(protein_nodes, results_dir, ml_info_file ,name,
 
 
 
-    
+
     ionnames_total = ml_input_for_training.ionnames + ml_input_remaining.ionnames
     all_precursors = precursor_selector.precursors_suitable_for_training + precursor_selector.precursors_not_suitable_for_training
-    
+
     #annotate the precursor nodes
     aq_class_utils.annotate_precursor_nodes( ml_scores, ionnames_total, all_precursors) #two new variables added to each node:
     return True
@@ -95,15 +94,15 @@ class PrecursorForTrainingSelector:
         self.num_precursors_not_suitable_for_training = len(self.precursors_not_suitable_for_training)
         self.num_precursors_total = self.num_precursors_suitable_for_training + self.num_precursors_not_suitable_for_training
 
-    
+
     def _select_precursors_for_training(self):
-        for protein_node in self._protein_nodes:  
-            precursors = self._get_precursors(protein_node)              
+        for protein_node in self._protein_nodes:
+            precursors = self._get_precursors(protein_node)
             if (abs(protein_node.fc) < self._prot_fc_cutoff) or (len(precursors)<self._precursor_cutoff):
                 self.precursors_not_suitable_for_training.extend(precursors)
             else:
                 self.precursors_suitable_for_training.extend(precursors)
-    
+
     @staticmethod
     def _get_precursors(protein_node):
         if protein_node.leaves[0].parent.level == "mod_seq":
@@ -120,7 +119,7 @@ class MLInputTableCreator:
         self._numeric_threshold = numeric_threshold
 
         self._merged_df = None
-        
+
         self.X = None # the input for the ML model which has corresponding y values, so it is possible to train with this table
         self.y = None
         self.featurenames = None
@@ -140,18 +139,18 @@ class MLInputTableCreator:
 
     def _define_ionnames(self):
         self.ionnames = list(self._merged_df[aq_conf_vars.QUANT_ID])
-        
+
 
     def _remove_non_numeric_columns_from_merged_df(self):
         columns_to_drop = []
         self._merged_df = self._merged_df.drop(columns=[aq_conf_vars.QUANT_ID])
         self._merged_df = self._merged_df.apply(lambda col: pd.to_numeric(col, errors='coerce')) #'coerce' will turn non-numeric values into NaN
-        
+
         for column in self._merged_df.columns:
             proportion_non_nans = self._merged_df[column].notna().mean()
             if proportion_non_nans < self._numeric_threshold:
                 columns_to_drop.append(column)
-        
+
         self._merged_df = self._merged_df.drop(columns=columns_to_drop)
 
     def _define_featurenames(self):
@@ -165,12 +164,12 @@ class MLInputTableCreator:
             self.X =  X_imputed
         else:
             self.X = X_df.to_numpy()
-    
+
 
     def _define_y(self):
         ion2fc = {x.name: self._get_protnormed_fc(x) for x in self._precursors}
         self.y = np.array([ion2fc.get(ion) for ion in self.ionnames])
-    
+
     @staticmethod
     def _get_protnormed_fc(precursor_node):
         fc_precursor = precursor_node.fc
