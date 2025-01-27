@@ -180,7 +180,9 @@ class RunPipeline(BaseWidget):
 			description='Specify where you want the analysis results to be saved'
 		)
 
-		self.sample_mapping_mode = pn.widgets.Select(
+		# Create a Row with the Select widget and its description
+		self.sample_mapping_select = pn.widgets.Select(
+			name='Sample Mapping Mode',
 			options=[
 				'Upload sample to condition file',
 				'Generate new sample to condition map'
@@ -188,6 +190,11 @@ class RunPipeline(BaseWidget):
 			value='Upload sample to condition file',
 			width=300,
 			description='Choose whether to upload an existing sample-to-condition mapping file or create a new one'
+		)
+
+		self.sample_mapping_mode_container = pn.Row(
+			self.sample_mapping_select,
+			align='start'
 		)
 
 		self.samplemap_fileupload = pn.widgets.FileInput(
@@ -224,10 +231,11 @@ class RunPipeline(BaseWidget):
 			width=300
 		)
 		self.organism = pn.widgets.Select(
-			name='Organism:',
+			name='Organism',
 			options=['human', 'mouse'],
-			value='human',  # Set default value
-			width=300
+			value='human',
+			width=300,
+			description='Select the organism your samples come from'
 		)
 		self.filtering_options = pn.widgets.Select(
 			name='Filtering Options:',
@@ -314,11 +322,12 @@ class RunPipeline(BaseWidget):
 			visible=True
 		)
 
-		# Replace the medianref_analysis_switch with a dropdown menu
+		# Replace the analysis_type Select widget
 		self.analysis_type = pn.widgets.Select(
-			name='Select Condition Analysis Type:',
+			name='Select Condition Analysis Type',
 			options=['Pairwise Comparison', 'Median Condition Analysis'],
-			value='Select an analysis'
+			value='Select an analysis',
+			description='Choose between comparing pairs of conditions or comparing each condition against a median reference'
 		)
 
 		# A pane for showing the "comparing every condition..." message
@@ -415,7 +424,7 @@ class RunPipeline(BaseWidget):
 		)
 
 		# Watchers
-		self.sample_mapping_mode.param.watch(self._toggle_sample_mapping_mode, 'value')
+		self.sample_mapping_select.param.watch(self._toggle_sample_mapping_mode, 'value')
 		self.path_analysis_file.param.watch(
 			self._activate_after_analysis_file_upload, 'value'
 		)
@@ -477,7 +486,7 @@ class RunPipeline(BaseWidget):
 
 		# Create samples and conditions layout
 		samples_conditions_layout = pn.Column(
-			self.sample_mapping_mode,
+			self.sample_mapping_mode_container,
 			pn.Row(
 				self.loading_samples_indicator,
 				self.loading_samples_message
