@@ -164,28 +164,31 @@ class RunPipeline(BaseWidget):
 			visible=False
 		)
 
-		# File paths
+		# File paths with descriptions
 		self.path_analysis_file = pn.widgets.TextInput(
 			name='Analysis file:',
 			placeholder='Path to MQ/Spectronaut/DIA-NN file',
 			width=700,
-			sizing_mode='fixed'
+			sizing_mode='fixed',
+			description='Enter the full path to your input file from MaxQuant, Spectronaut, or DIA-NN'
 		)
 		self.path_output_folder = pn.widgets.TextInput(
 			name='Output folder:',
 			placeholder='Path to output folder',
 			width=700,
-			sizing_mode='fixed'
+			sizing_mode='fixed',
+			description='Specify where you want the analysis results to be saved'
 		)
 
 		self.sample_mapping_mode = pn.widgets.Select(
-            options=[
-                'Upload sample to condition file',
-                'Generate new sample to condition map'
-            ],
-            value='Upload sample to condition file',
-            width=300
-        )
+			options=[
+				'Upload sample to condition file',
+				'Generate new sample to condition map'
+			],
+			value='Upload sample to condition file',
+			width=300,
+			description='Choose whether to upload an existing sample-to-condition mapping file or create a new one'
+		)
 
 		self.samplemap_fileupload = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
@@ -208,11 +211,12 @@ class RunPipeline(BaseWidget):
 			name='Select condition pairs'
 		)
 
-		# Advanced configuration widgets
+		# Advanced configuration widgets with descriptions
 		self.modification_type = pn.widgets.TextInput(
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
-			width=300
+			width=300,
+			description='Specify the modification type exactly as it appears in your data (e.g., [Phospho (STY)] for Spectronaut)'
 		)
 		self.input_type = pn.widgets.TextInput(
 			name='Input type:',
@@ -233,7 +237,8 @@ class RunPipeline(BaseWidget):
 				'set min. valid values per condition'
 			],
 			value='min. valid values in condition1 OR condition2',
-			width=300
+			width=300,
+			description='Choose how to filter your data based on the number of valid values in each condition'
 		)
 
 		self.minrep_either = pn.widgets.IntInput(
@@ -322,27 +327,72 @@ class RunPipeline(BaseWidget):
 			"Every condition will be compared against the median reference",
 			visible=False,  # start hidden
 		)
-		# Boolean switches
+		# Boolean switches with descriptions
 		self.switches = {
-			'use_ml': pn.widgets.Switch(name='Enable machine learning', value=True),
-			'take_median_ion': pn.widgets.Switch(name='Use median-centered ions', value=True),
-			'perform_ptm_mapping': pn.widgets.Switch(name='Enable PTM mapping', value=False),
-			'perform_phospho_inference': pn.widgets.Switch(name='Enable phospho inference', value=False),
-			'outlier_correction': pn.widgets.Switch(name='Enable outlier correction', value=True),
-			'normalize': pn.widgets.Switch(name='Enable normalization', value=True),
-			'use_iontree_if_possible': pn.widgets.Switch(name='Use ion tree when possible', value=True),
-			'write_out_results_tree': pn.widgets.Switch(name='Write results tree', value=True),
-			'use_multiprocessing': pn.widgets.Switch(name='Enable multiprocessing', value=False),
-			'runtime_plots': pn.widgets.Switch(name='Generate runtime plots', value=True),
+			'use_ml': pn.widgets.Switch(
+				name='Enable machine learning',
+				value=True
+			),
+			'take_median_ion': pn.widgets.Switch(
+				name='Use median-centered ions',
+				value=True
+			),
+			'perform_ptm_mapping': pn.widgets.Switch(
+				name='Enable PTM mapping',
+				value=False
+			),
+			'perform_phospho_inference': pn.widgets.Switch(
+				name='Enable phospho inference',
+				value=False
+			),
+			'outlier_correction': pn.widgets.Switch(
+				name='Enable outlier correction',
+				value=True
+			),
+			'normalize': pn.widgets.Switch(
+				name='Enable normalization',
+				value=True
+			),
+			'use_iontree_if_possible': pn.widgets.Switch(
+				name='Use ion tree when possible',
+				value=True
+			),
+			'write_out_results_tree': pn.widgets.Switch(
+				name='Write results tree',
+				value=True
+			),
+			'use_multiprocessing': pn.widgets.Switch(
+				name='Enable multiprocessing',
+				value=False
+			),
+			'runtime_plots': pn.widgets.Switch(
+				name='Generate runtime plots',
+				value=True
+			),
 		}
 
-		# Pipeline execution widgets
+		# If you want to keep the descriptions, you can add them separately as Markdown panes
+		self.switch_descriptions = {
+			'use_ml': pn.pane.Markdown('Use machine learning for improved data analysis'),
+			'take_median_ion': pn.pane.Markdown('Center ion intensities around their median values'),
+			'perform_ptm_mapping': pn.pane.Markdown('Map post-translational modifications to proteins'),
+			'perform_phospho_inference': pn.pane.Markdown('Infer phosphorylation sites from the data'),
+			'outlier_correction': pn.pane.Markdown('Automatically detect and correct outliers in the data'),
+			'normalize': pn.pane.Markdown('Normalize data to account for technical variations'),
+			'use_iontree_if_possible': pn.pane.Markdown('Use hierarchical ion structure when available'),
+			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
+			'use_multiprocessing': pn.pane.Markdown('Use multiple CPU cores to speed up processing (may use more memory)'),
+			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
+		}
+
+		# Pipeline execution widgets with descriptions
 		self.run_pipeline_button = pn.widgets.Button(
 			name='Run pipeline',
 			button_type='primary',
 			height=35,
 			width=170,
-			margin=(10, 0, 0, 5)
+			margin=(10, 0, 0, 5),
+			description='Start the analysis pipeline with current settings'
 		)
 		self.run_pipeline_progress = pn.indicators.Progress(
 			active=False,
@@ -355,7 +405,8 @@ class RunPipeline(BaseWidget):
 			button_type='success',
 			height=35,
 			width=170,
-			margin=(10, 0, 0, 5)
+			margin=(10, 0, 0, 5),
+			description='View analysis results and generate visualizations'
 		)
 		self.run_pipeline_error = pn.pane.Alert(
 			alert_type="danger",
@@ -398,13 +449,8 @@ class RunPipeline(BaseWidget):
 
 
 		# 2) Advanced Configuration Card
-		config_card_advanced = pn.Card(
+		advanced_settings_card = pn.Card(
 			pn.Column(
-				"### Basic Settings",
-				self.modification_type,
-				self.input_type,
-				self.organism,
-				pn.layout.Divider(),
 				"### Threshold Settings",
 				self.minrep_both,
 				self.min_num_ions,
@@ -414,12 +460,19 @@ class RunPipeline(BaseWidget):
 				self.volcano_fcthresh,
 				pn.layout.Divider(),
 				"### Analysis Options",
-				pn.Column(*list(self.switches.values())),
+				pn.Column(*[
+					pn.Row(
+						switch,
+						self.switch_descriptions[key],
+						align='center'
+					) for key, switch in self.switches.items()
+				]),
 			),
 			title='Advanced Configuration',
 			collapsed=True,
 			margin=(5, 5, 5, 5),
-			sizing_mode='stretch_width'
+			sizing_mode='fixed',
+			width=400
 		)
 
 		# Create samples and conditions layout
@@ -469,6 +522,7 @@ class RunPipeline(BaseWidget):
 			self.minrep_c1,
 			self.minrep_c2,
 			ptm_settings_card,
+			advanced_settings_card,
 			"### Pipeline Controls",
 			pn.Row(
 				self.run_pipeline_button,
