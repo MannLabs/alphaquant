@@ -249,18 +249,21 @@ class RunPipeline(BaseWidget):
 			description='Choose how to filter your data based on the number of valid values in each condition'
 		)
 
+		# Update threshold settings widgets with descriptions
 		self.minrep_either = pn.widgets.IntInput(
+			name='Min replicates (either condition):',
 			value=2,
 			start=0,
 			width=300,
-			visible=True  # Initially visible as it's the default option
+			description='Minimum number of valid values required in at least one of the conditions'
 		)
 
 		self.minrep_both = pn.widgets.IntInput(
+			name='Min replicates (both conditions):',
 			value=2,
 			start=1,
 			width=300,
-			visible=False
+			description='Minimum number of valid values required in both conditions'
 		)
 
 		self.minrep_c1 = pn.widgets.IntInput(
@@ -268,6 +271,7 @@ class RunPipeline(BaseWidget):
 			value=2,
 			start=0,
 			width=300,
+			description='Minimum number of valid values required in condition 1',
 			visible=False
 		)
 
@@ -276,6 +280,7 @@ class RunPipeline(BaseWidget):
 			value=2,
 			start=0,
 			width=300,
+			description='Minimum number of valid values required in condition 2',
 			visible=False
 		)
 
@@ -283,33 +288,42 @@ class RunPipeline(BaseWidget):
 			name='Min number of ions per peptide:',
 			value=1,
 			start=1,
-			width=300
+			width=300,
+			description='Minimum number of ions required for each peptide to be included in the analysis'
 		)
+
 		self.minpep = pn.widgets.IntInput(
 			name='Min peptides per protein:',
 			value=1,
 			start=1,
-			width=300
+			width=300,
+			description='Minimum number of peptides required for each protein to be included in the analysis'
 		)
+
 		self.cluster_threshold_pval = pn.widgets.FloatInput(
 			name='Clustering p-value threshold:',
 			value=0.001,
 			start=0,
 			end=1,
-			width=300
+			width=300,
+			description='P-value threshold used for clustering analysis'
 		)
+
 		self.volcano_fdr = pn.widgets.FloatInput(
 			name='Volcano plot FDR:',
 			value=0.05,
 			start=0,
 			end=1,
-			width=300
+			width=300,
+			description='False Discovery Rate threshold for the volcano plot'
 		)
+
 		self.volcano_fcthresh = pn.widgets.FloatInput(
 			name='Volcano plot fold change threshold:',
 			value=0.5,
 			start=0,
-			width=300
+			width=300,
+			description='Fold change threshold for highlighting significant changes in the volcano plot'
 		)
 
 		self.condition_comparison_header = pn.pane.Markdown(
