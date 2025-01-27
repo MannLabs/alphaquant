@@ -139,6 +139,7 @@ class RunPipeline(BaseWidget):
 	def __init__(self, **params):
 		super().__init__(**params)
 		self._setup_matplotlib()
+		self._setup_logger()
 		self._make_widgets()
 		self.layout = None
 
@@ -148,6 +149,27 @@ class RunPipeline(BaseWidget):
 		matplotlib.use('agg')
 		import matplotlib.pyplot as plt
 		plt.ioff()
+
+	def _setup_logger(self):
+		"""Configure logging to capture output in the console widget."""
+		import logging
+		import io
+
+		# Create a StringIO object to capture log output
+		self.log_stream = io.StringIO()
+
+		# Create a handler that writes to our StringIO object
+		self.stream_handler = logging.StreamHandler(self.log_stream)
+		self.stream_handler.setLevel(logging.INFO)
+
+		# Create a formatter and set it for the handler
+		formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+		self.stream_handler.setFormatter(formatter)
+
+		# Get the root logger and add our handler
+		self.logger = logging.getLogger()
+		self.logger.addHandler(self.stream_handler)
+		self.logger.setLevel(logging.INFO)
 
 	def _make_widgets(self):
 		"""
@@ -437,6 +459,14 @@ class RunPipeline(BaseWidget):
 			margin=(5, 5, 5, 5),
 		)
 
+		# Add console output widget
+		self.console_output = pn.widgets.TextAreaInput(
+			placeholder='Pipeline output will appear here...',
+			height=800,
+			width=400,
+			disabled=True
+		)
+
 		# Watchers
 		self.sample_mapping_select.param.watch(self._toggle_sample_mapping_mode, 'value')
 		self.path_analysis_file.param.watch(
@@ -529,7 +559,7 @@ class RunPipeline(BaseWidget):
 			width=400
 		)
 
-		# Main layout
+		# Main column without scroll
 		main_col = pn.Column(
 			"### Input Files",
 			self.path_analysis_file,
@@ -554,30 +584,29 @@ class RunPipeline(BaseWidget):
 				sizing_mode='stretch_width'
 			),
 			self.run_pipeline_error,
+			sizing_mode='stretch_width'  # Removed scroll and height
+		)
+
+		# Console output column wrapped in a Row for padding
+		console_col = pn.Row(
+			pn.Column(
+				self.console_output,
+				width=400
+			),
+			width=425,
+			align='start'
+		)
+
+		# Main layout
+		main_layout = pn.Row(
+			main_col,
+			console_col,
 			sizing_mode='stretch_width'
 		)
 
-		# Show/hide components based on selected analysis type
-		if self.analysis_type.value == 'Select an analysis':
-			self.medianref_message.visible = False
-			self.assign_cond_pairs.visible = False
-			self.condition_comparison_header.visible = False
-			self.condition_comparison_instructions.visible = False
-		else:
-			if self.analysis_type.value == 'Median Condition Analysis':
-				self.medianref_message.visible = True
-				self.assign_cond_pairs.visible = False
-				self.condition_comparison_header.visible = False
-				self.condition_comparison_instructions.visible = False
-			else:
-				self.medianref_message.visible = False
-				self.assign_cond_pairs.visible = True
-				self.condition_comparison_header.visible = True
-				self.condition_comparison_instructions.visible = True
-
 		# Main pipeline card
 		main_pipeline_card = pn.Card(
-			main_col,
+			main_layout,
 			title='Run Pipeline',
 			header_color='#333',
 			header_background='#eaeaea',
@@ -588,7 +617,8 @@ class RunPipeline(BaseWidget):
 		# Final layout
 		self.layout = pn.Column(
 			instructions_card,
-			main_pipeline_card
+			main_pipeline_card,
+			sizing_mode='stretch_width'
 		)
 		return self.layout
 
@@ -601,23 +631,28 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 			return
 
-
 		self.run_pipeline_progress.active = True
 		self.run_pipeline_error.visible = False
+		self.console_output.value = "Starting pipeline...\n"
 
-		# Get condition combinations from the CrossSelector
-		if self.assign_cond_pairs.value:
-			cond_combinations = [
-				tuple(pair.split('_vs_'))
-				for pair in self.assign_cond_pairs.value
-			]
-		else:
-			cond_combinations = [
-				tuple(pair.split('_vs_'))
-				for pair in self.assign_cond_pairs.options
-			]
+		# Create a periodic callback to update the console
+		self.console_update_cb = pn.state.add_periodic_callback(
+			self._update_console, period=100  # Update every 100ms
+		)
 
 		try:
+			# Get condition combinations from the CrossSelector
+			if self.assign_cond_pairs.value:
+				cond_combinations = [
+					tuple(pair.split('_vs_'))
+					for pair in self.assign_cond_pairs.value
+				]
+			else:
+				cond_combinations = [
+					tuple(pair.split('_vs_'))
+					for pair in self.assign_cond_pairs.options
+				]
+
 			# Collect all configuration parameters
 			print(self.samplemap_table.value)
 			pipeline_params = {
@@ -647,16 +682,30 @@ class RunPipeline(BaseWidget):
 				pipeline_params['minrep_c1'] = self.minrep_c1.value
 				pipeline_params['minrep_c2'] = self.minrep_c2.value
 
+			# Update console output
+			self.console_output.value += f"Running pipeline with parameters:\n{pipeline_params}\n"
 
 			# Run the pipeline
 			diffmgr.run_pipeline(**pipeline_params)
 
-		except Exception as e:
-			self.run_pipeline_error.object = f"Error running pipeline: {e}"
-			self.run_pipeline_error.visible = True
+			self.logger.info("Pipeline completed successfully!")
 
-		self.trigger_dependency()
-		self.run_pipeline_progress.active = False
+		except Exception as e:
+			error_message = f"Error running pipeline: {e}"
+			self.run_pipeline_error.object = error_message
+			self.run_pipeline_error.visible = True
+			self.logger.error(error_message)
+
+		finally:
+			# Do one final update of the console
+			self._update_console()
+
+			# Remove the periodic callback
+			if hasattr(self, 'console_update_cb'):
+				self.console_update_cb.stop()
+
+			self.trigger_dependency()
+			self.run_pipeline_progress.active = False
 
 		# Show/hide components based on selected analysis type
 		if self.analysis_type.value == 'Median Condition Analysis':
@@ -816,6 +865,30 @@ class RunPipeline(BaseWidget):
 		else:  # set min. valid values per condition
 			self.minrep_c1.visible = True
 			self.minrep_c2.visible = True
+
+	def _update_console(self):
+		"""Update the console output widget with new log messages."""
+		# Get any new log messages
+		self.log_stream.seek(0)
+		new_logs = self.log_stream.read()
+
+		# Update the console widget
+		if new_logs:
+			current_text = self.console_output.value or ""
+			self.console_output.value = current_text + new_logs
+
+			# Clear the StringIO buffer
+			self.log_stream.truncate(0)
+			self.log_stream.seek(0)
+
+			# Auto-scroll to bottom
+			self.console_output.update()
+
+	def __del__(self):
+		"""Clean up logging handler when the widget is destroyed."""
+		if hasattr(self, 'stream_handler'):
+			self.logger.removeHandler(self.stream_handler)
+			self.stream_handler.close()
 
 class Tabs(param.Parameterized):
 	"""
