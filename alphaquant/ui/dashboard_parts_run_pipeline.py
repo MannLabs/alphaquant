@@ -881,9 +881,6 @@ class RunPipeline(BaseWidget):
 			self.log_stream.truncate(0)
 			self.log_stream.seek(0)
 
-			# Auto-scroll to bottom
-			self.console_output.update()
-
 	def __del__(self):
 		"""Clean up logging handler when the widget is destroyed."""
 		if hasattr(self, 'stream_handler'):
