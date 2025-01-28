@@ -72,8 +72,8 @@ def run_pipeline(input_file: str,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False) -> None:
-    """Run differential analyses following the AlphaQuant pipeline. This function processes proteomics data through multiple steps including 
-        preprocessing, if applicable PTM site mapping, if applicable median condition creation, normalization, statistical testing, visualizations 
+    """Run differential analyses following the AlphaQuant pipeline. This function processes proteomics data through multiple steps including
+        preprocessing, if applicable PTM site mapping, if applicable median condition creation, normalization, statistical testing, visualizations
         and writing of results tables.
 
     Args:
@@ -124,21 +124,21 @@ def run_pipeline(input_file: str,
 
     input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
     annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
-    
+
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
         input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
         ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
-    
-    elif "fragment_precursorfilt.matrix" in input_file_original:
+
+    elif "fragment_precursorfiltered.matrix" in input_file_original:
         alphadia_tableprocessor = aq_table_alphadiareader.AlphaDIAFragTableProcessor(input_file_original)
         input_file_reformat = alphadia_tableprocessor.input_file_reformat
         ml_input_file = alphadia_tableprocessor.ml_info_file
     else:
         input_file_reformat = load_input_file(input_file_original, input_type)
         ml_input_file = load_ml_info_file(input_file_original, input_type)
-    
+
     if peptides_to_exclude_file is not None:
         remove_peptides_to_exclude_from_input_file(input_file_reformat, peptides_to_exclude_file)
 
@@ -148,7 +148,7 @@ def run_pipeline(input_file: str,
         input_file_reformat = median_manager.input_filename_adapted
         samplemap_df = median_manager.samplemap_df_extended
         del median_manager #delete the object as it needs not be in the runconfig
-    
+
     aqvariables.determine_variables(input_file_reformat, input_type)
 
     #use runconfig object to store the parameters
@@ -163,7 +163,7 @@ def run_pipeline(input_file: str,
         conds = samplemap_df["condition"].unique()
         conds = sorted(conds)
         condpairs_list = combinations(conds, 2)
-        
+
     num_cores = get_num_cores_to_use(use_multiprocessing)
 
     if num_cores == 1:
@@ -171,7 +171,7 @@ def run_pipeline(input_file: str,
 
     else:
         run_analysis_multiprocess(condpair_combinations=condpairs_list, runconfig=runconfig, num_cores=num_cores)
-    
+
     if multicond_median_analysis:
         aqmediancond.analyze_and_write_median_condition_results(results_dir)
 
@@ -212,12 +212,12 @@ def write_ptm_mapped_input(input_file, results_dir, samplemap_df, modification_t
     return ptm_mapped_file
 
 
-def load_input_file(input_file, input_type):    
+def load_input_file(input_file, input_type):
     reformatted_input_filename = aq_utils.get_progress_folder_filename(input_file, f".{input_type}.aq_reformat.tsv", remove_extension=False)
     if os.path.exists(reformatted_input_filename):#in case there already is a reformatted file, we don't need to reformat it again
         LOGGER.info(f"Reformatted input file already exists. Using reformatted file of type {input_type}")
         return reformatted_input_filename
-    else: 
+    else:
         reformatted_input_file_initial = abquantreader.reformat_and_save_input_file(input_file, input_type_to_use = input_type, use_alphaquant_format=True)
         shutil.move(reformatted_input_file_initial, reformatted_input_filename)
 
@@ -232,7 +232,7 @@ def load_annotation_file(input_file, input_type, annotation_columns):
         return annotation_filename
     else:
         return aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type, annotation_columns).annotation_filename
-        
+
 def load_ml_info_file(input_file, input_type, modification_type = None):
     ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
     if os.path.exists(ml_info_filename):#in case there already is a reformatted file, we don't need to reformat it again
@@ -250,7 +250,7 @@ def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_f
         df_input["peptide"] = [re.search(pattern, peptide).group(1) for peptide in df_input[aqvariables.QUANT_ID]]
     except:
         raise Exception("parsing of peptide sequence from QUANT_ID failed. The QUANT_ID column should contain the peptide sequence in the format SEQ_<peptide>_")
-    
+
     not_in_peptides_to_exclude = ~df_input["peptide"].isin(peptides_to_exclude)
     df_input = df_input[not_in_peptides_to_exclude]
     df_input = df_input.drop(columns = ["peptide"])
