@@ -8,6 +8,7 @@ import pandas as pd
 import panel as pn
 import bokeh.server.views.ws
 import alphaquant.ui.dashboard_parts_run_pipeline as dashboard_parts
+import alphaquant.ui.gui_textfields as gui_textfields
 
 
 def get_css_style(
@@ -123,6 +124,21 @@ class AlphaQuantGUI(GUI):
             self.manual_path
         )
 
+        # Create instructions card
+        self.instructions_card = pn.Card(
+            "### Instructions",
+            gui_textfields.Descriptions.project_instruction,
+            gui_textfields.Cards.spectronaut,
+            gui_textfields.Cards.diann,
+            gui_textfields.Cards.alphapept,
+            gui_textfields.Cards.maxquant,
+            title='Instructions',
+            collapsed=True,
+            margin=(5, 5, 5, 5),
+            sizing_mode='fixed',
+            width=400
+        )
+
         # ERROR/WARNING MESSAGES
         self.error_message_upload = "The selected file can't be uploaded. Please check the instructions for data uploading."
 
@@ -142,6 +158,7 @@ class AlphaQuantGUI(GUI):
 
         self.layout += [
             self.main_widget.create(),
+            self.instructions_card,
             self.tab_layout
         ]
 

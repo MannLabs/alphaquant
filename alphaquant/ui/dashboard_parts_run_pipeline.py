@@ -487,23 +487,9 @@ class RunPipeline(BaseWidget):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
-		# 1) Instructions Card
-		instructions_card = pn.Card(
-			"### Instructions",
-			gui_textfields.Descriptions.project_instruction,
-			gui_textfields.Cards.spectronaut,
-			gui_textfields.Cards.diann,
-			gui_textfields.Cards.alphapept,
-			gui_textfields.Cards.maxquant,
-			title='Instructions',
-			collapsed=True,
-			margin=(5, 5, 5, 5),
-			sizing_mode='fixed',
-			width=400
-		)
 
 
-		# 2) Advanced Configuration Card
+		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
 				"### Threshold Settings",
@@ -618,7 +604,6 @@ class RunPipeline(BaseWidget):
 
 		# Final layout
 		self.layout = pn.Column(
-			instructions_card,
 			main_pipeline_card,
 			sizing_mode='stretch_width'
 		)
