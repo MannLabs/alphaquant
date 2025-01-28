@@ -113,15 +113,15 @@ class AlphaQuantGUI(GUI):
             name="AlphaQuant",
             github_url='https://github.com/MannLabs/alphaquant',
         )
-        self.project_description = """### AlphaQuant is an open-source package for sensitive detection of protein abundance changes."""
-        self.manual_path = os.path.join(
-            os.path.dirname(__file__),
-            "docs",
-            'Empty_manual.pdf'
-        )
-        self.main_widget = dashboard_parts.MainWidget(
-            self.project_description,
-            self.manual_path
+        self.project_description = """<div style="color: #2F4F4F; font-size: 1.3em; margin-top: -10px; margin-bottom: 20px;">AlphaQuant is an open-source package for sensitive detection of protein abundance changes.</div>"""
+
+        # Create a centered row for the project description
+        self.description_row = pn.Row(
+            pn.Spacer(sizing_mode='stretch_width'),
+            pn.pane.HTML(self.project_description, align='center'),
+            pn.Spacer(sizing_mode='stretch_width'),
+            sizing_mode='stretch_width',
+            margin=(0, 0, 20, 0)  # top, right, bottom, left
         )
 
         # Create instructions card
@@ -136,7 +136,14 @@ class AlphaQuantGUI(GUI):
             collapsed=True,
             margin=(5, 5, 5, 5),
             sizing_mode='fixed',
-            width=400
+        )
+
+        # Wrap instructions card in a Row for horizontal centering
+        self.instructions_row = pn.Row(
+            pn.Spacer(sizing_mode='stretch_width'),
+            self.instructions_card,
+            pn.Spacer(sizing_mode='stretch_width'),
+            sizing_mode='stretch_width'
         )
 
         # ERROR/WARNING MESSAGES
@@ -157,8 +164,8 @@ class AlphaQuantGUI(GUI):
         )
 
         self.layout += [
-            self.main_widget.create(),
-            self.instructions_card,
+            self.description_row,
+            self.instructions_row,
             self.tab_layout
         ]
 
