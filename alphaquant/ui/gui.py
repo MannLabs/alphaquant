@@ -19,12 +19,23 @@ def get_css_style(
         "style"
     )
 ):
+    custom_css = """
+    .bk-tab {
+        font-size: 16px !important;
+        font-weight: bold !important;
+        padding: 12px 30px !important;
+    }
+    .bk-tab.bk-active {
+        background-color: #f0f0f0 !important;
+    }
+    """
+
     file = os.path.join(
         directory,
         file_name
     )
     with open(file) as f:
-        return f.read()
+        return f.read() + custom_css
 
 
 def init_panel():
