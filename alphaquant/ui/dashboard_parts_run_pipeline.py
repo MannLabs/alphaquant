@@ -481,6 +481,7 @@ class RunPipeline(BaseWidget):
 		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
 		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
 		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
+		self.path_output_folder.param.watch(self._update_visualization_tab, 'value')
 
 
 	def create(self):
@@ -800,41 +801,50 @@ class RunPipeline(BaseWidget):
 		"""Set minrep_both to 0 when minrep_either is changed."""
 		self.minrep_both.value = 0
 
+	def _update_visualization_tab(self, event):
+		"""Update the Visualize tab whenever the output folder changes."""
+		if event.new:  # Only update if there's a value
+			try:
+				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+					results_dir=event.new
+				)
+
+				# Find and update the Plotting tab
+				for p in self.layout.select(pn.Tabs):
+					if 'Plotting' in [t[0] for t in p]:
+						p[1] = ('Plotting', plotting_tab.panel())
+						break
+
+			except Exception as e:
+				error_msg = f"Error updating visualization tab: {str(e)}"
+				for p in self.layout.select(pn.Tabs):
+					if 'Plotting' in [t[0] for t in p]:
+						p[1] = ('Plotting', pn.pane.Markdown(
+							f"### Visualization Error\n\n{error_msg}"
+						))
+						break
+
 	def _visualize_data(self, *events):
 		"""
 		Update the Visualize tab with the results.
 		"""
 		try:
-			if (self.path_output_folder.value and
-				self.samplemap_table.value is not None):
-
-				# Get condition pairs
-				cond_pairs = []
-				if self.assign_cond_pairs.value:
-					cond_pairs = [pair.split('_VS_') for pair in self.assign_cond_pairs.value]
-				elif self.assign_cond_pairs.options:
-					cond_pairs = [pair.split('_VS_') for pair in self.assign_cond_pairs.options]
-
-				# Create visualization layout
-				results_dir = self.path_output_folder.value
+			if self.path_output_folder.value:
 				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
-					results_dir_phospho=results_dir,
-					results_dir_proteome=results_dir,
-					cond_pairs=cond_pairs
+					results_dir=self.path_output_folder.value
 				)
 
-				# Find the parent tabs widget and update the Visualize tab
+				# Find and update the Plotting tab
 				for p in self.layout.select(pn.Tabs):
-					if 'Visualize' in [t[0] for t in p]:
-						p[1] = ('Visualize', plotting_tab.panel())
+					if 'Plotting' in [t[0] for t in p]:
+						p[1] = ('Plotting', plotting_tab.panel())
 						break
 
 		except Exception as e:
 			error_msg = f"Error updating visualization tab: {str(e)}"
-			# Update the Visualize tab with error message
 			for p in self.layout.select(pn.Tabs):
-				if 'Visualize' in [t[0] for t in p]:
-					p[1] = ('Visualize', pn.pane.Markdown(
+				if 'Plotting' in [t[0] for t in p]:
+					p[1] = ('Plotting', pn.pane.Markdown(
 						f"### Visualization Error\n\n{error_msg}"
 					))
 					break
@@ -929,9 +939,7 @@ class Tabs(param.Parameterized):
 			('Single Comparison', pn.pane.Markdown(
 				"## No data loaded\nPlease load data in the Pipeline tab first."
 			)),
-			('Plotting', pn.pane.Markdown(
-				"## No data loaded\nPlease load data in the Pipeline tab first."
-			)),
+			('Plotting', dashboad_parts_visualize_static.PlottingTab().panel()),
 			tabs_location='above',
 			sizing_mode='stretch_width',
 			margin=(10, 10, 10, 10)
@@ -942,17 +950,6 @@ class Tabs(param.Parameterized):
 		try:
 			if (self.pipeline.path_output_folder.value and
 				self.pipeline.samplemap_table.value is not None):
-
-				# Get condition pairs
-				cond_pairs = []
-				if self.pipeline.assign_cond_pairs.value:
-					cond_pairs = [pair.split('_VS_') for pair in self.pipeline.assign_cond_pairs.value]
-				elif self.pipeline.assign_cond_pairs.options:
-					cond_pairs = [pair.split('_VS_') for pair in self.pipeline.assign_cond_pairs.options]
-
-				print(f"Using condition pairs: {cond_pairs}")
-				print(f"Results directory: {self.pipeline.path_output_folder.value}")
-				print(f"Sample mapping: {self.pipeline.samplemap_table.value}")
 
 				# Update Single Comparison tab
 				sample_mapping_df = self.pipeline.samplemap_table.value.copy()
@@ -966,15 +963,10 @@ class Tabs(param.Parameterized):
 				self.main_tabs[0] = ('Single Comparison', single_comp.layout)
 
 				# Update Plotting tab
-				results_dir = self.pipeline.path_output_folder.value
 				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
-					results_dir_phospho=results_dir,
-					results_dir_proteome=results_dir,
-					cond_pairs=cond_pairs
+					results_dir=self.pipeline.path_output_folder.value
 				)
 				self.main_tabs[1] = ('Plotting', plotting_tab.panel())
-
-				print("Tabs updated successfully")
 
 		except Exception as e:
 			error_msg = f"Error updating visualization tabs: {str(e)}"

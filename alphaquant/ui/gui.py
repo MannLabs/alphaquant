@@ -9,6 +9,7 @@ import panel as pn
 import bokeh.server.views.ws
 import alphaquant.ui.dashboard_parts_run_pipeline as dashboard_parts
 import alphaquant.ui.gui_textfields as gui_textfields
+import alphaquant.ui.dashboad_parts_visualize_static as dashboad_parts_visualize_static
 
 
 def get_css_style(
@@ -152,12 +153,10 @@ class AlphaQuantGUI(GUI):
         # Create pipeline instance
         self.run_pipeline = dashboard_parts.RunPipeline()
 
-        # Create initial empty tabs with pipeline
+        # Create initial empty tabs with pipeline and plotting tab
         self.tab_layout = pn.Tabs(
             ('Run Pipeline', self.run_pipeline.create()),
-            ('Visualize Results', pn.pane.Markdown(
-                "## No data loaded\nPlease load data in the Run Pipeline tab first."
-            )),
+            ('Visualize Results', dashboad_parts_visualize_static.PlottingTab().panel()),
             dynamic=True,
             tabs_location='above',
             sizing_mode='stretch_width'
