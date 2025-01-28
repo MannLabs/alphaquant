@@ -487,8 +487,6 @@ class RunPipeline(BaseWidget):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
-
-
 		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
@@ -527,7 +525,7 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table
 		)
 
-		# Create condition comparison layout (without the header)
+		# Create condition comparison layout
 		condition_comparison_layout = pn.Column(
 			self.condition_comparison_instructions,
 			self.assign_cond_pairs,
@@ -572,7 +570,7 @@ class RunPipeline(BaseWidget):
 				sizing_mode='stretch_width'
 			),
 			self.run_pipeline_error,
-			sizing_mode='stretch_width'  # Removed scroll and height
+			sizing_mode='stretch_width'
 		)
 
 		# Console output column wrapped in a Row for padding
@@ -585,28 +583,24 @@ class RunPipeline(BaseWidget):
 			align='start'
 		)
 
-		# Main layout
-		main_layout = pn.Row(
-			main_col,
-			console_col,
-			sizing_mode='stretch_width'
-		)
-
-		# Main pipeline card
-		main_pipeline_card = pn.Card(
-			main_layout,
-			title='Run Pipeline',
-			header_color='#333',
-			header_background='#eaeaea',
-			sizing_mode='stretch_width',
-			margin=(10, 10, 10, 10)
-		)
-
-		# Final layout
+		# Main layout with frame
 		self.layout = pn.Column(
-			main_pipeline_card,
-			sizing_mode='stretch_width'
+			pn.Row(
+				main_col,
+				console_col,
+				sizing_mode='stretch_width'
+			),
+			css_classes=['custom-frame'],  # For custom styling if needed
+			margin=(20, 20, 20, 20),  # This handles both outer and inner spacing
+			sizing_mode='stretch_width',
+			styles={
+				'background': '#f8f9fa',    # Light gray background
+				'border': '1px solid #dee2e6',  # Light gray border
+				'border-radius': '5px',         # Rounded corners
+				'box-shadow': '0 1px 3px rgba(0,0,0,0.12)'  # Subtle shadow
+			}
 		)
+
 		return self.layout
 
 	def _run_pipeline(self, *events):
