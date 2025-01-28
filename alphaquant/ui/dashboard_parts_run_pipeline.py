@@ -823,10 +823,42 @@ class RunPipeline(BaseWidget):
 
 	def _visualize_data(self, *events):
 		"""
-		Trigger an update event for any dependent tabs/components to load results.
+		Update the Visualize tab with the results.
 		"""
-		self.run_pipeline_error.visible = False
-		self.trigger_dependency()
+		try:
+			if (self.path_output_folder.value and
+				self.samplemap_table.value is not None):
+
+				# Get condition pairs
+				cond_pairs = []
+				if self.assign_cond_pairs.value:
+					cond_pairs = [pair.split('_VS_') for pair in self.assign_cond_pairs.value]
+				elif self.assign_cond_pairs.options:
+					cond_pairs = [pair.split('_VS_') for pair in self.assign_cond_pairs.options]
+
+				# Create visualization layout
+				results_dir = self.path_output_folder.value
+				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+					results_dir_phospho=results_dir,
+					results_dir_proteome=results_dir,
+					cond_pairs=cond_pairs
+				)
+
+				# Find the parent tabs widget and update the Visualize tab
+				for p in self.layout.select(pn.Tabs):
+					if 'Visualize' in [t[0] for t in p]:
+						p[1] = ('Visualize', plotting_tab.panel())
+						break
+
+		except Exception as e:
+			error_msg = f"Error updating visualization tab: {str(e)}"
+			# Update the Visualize tab with error message
+			for p in self.layout.select(pn.Tabs):
+				if 'Visualize' in [t[0] for t in p]:
+					p[1] = ('Visualize', pn.pane.Markdown(
+						f"### Visualization Error\n\n{error_msg}"
+					))
+					break
 
 	def natural_sort(self, l):
 		"""
@@ -890,6 +922,12 @@ class RunPipeline(BaseWidget):
 			self.stream_handler.close()
 
 class Tabs(param.Parameterized):
+	"""
+	This class creates a single pn.Tabs layout containing:
+	  1. Pipeline
+	  2. Single Comparison
+	  3. Plotting
+	"""
 	pipeline = param.ClassSelector(class_=RunPipeline)
 	main_tabs = param.ClassSelector(class_=pn.Tabs, allow_None=True)
 
@@ -984,35 +1022,41 @@ def build_dashboard():
 		),
 		manual_path="path/to/manual.pdf"
 	)
-	pipeline = RunPipeline()
-	tab_manager = Tabs(pipeline)
 
-	# Create a main card that contains both the pipeline and visualization tabs
-	main_card = pn.Card(
-		pn.Column(
-			pipeline.create(),
-			pn.layout.Divider(),
-			tab_manager.create(),
-			sizing_mode='stretch_width'
-		),
-		title='Run Pipeline',
-		header_color='#333',
-		header_background='#eaeaea',
-		sizing_mode='stretch_width',
-		margin=(10, 10, 10, 10)
+	# Create pipeline instance
+	pipeline = RunPipeline()
+	pipeline_layout = pipeline.create()
+
+	# Create tab manager with pipeline tab
+	tab_manager = Tabs(pipeline)
+	tabs = tab_manager.create()
+
+	# Create tabs with Pipeline as the first tab
+	all_tabs = pn.Tabs(
+		('Pipeline', pipeline_layout),
+		('Single Comparison', tabs[0][1]),
+		('Plotting', tabs[1][1]),
+		dynamic=True,
+		tabs_location='above',
+		sizing_mode='stretch_width'
+	)
+
+	# Main layout
+	main_layout = pn.Column(
+		header.create(),
+		pn.layout.Divider(),
+		main_text.create(),
+		all_tabs,
+		sizing_mode='stretch_width'
 	)
 
 	template = pn.template.FastListTemplate(
 		title="AlphaQuant Analysis",
 		sidebar=[],
-		main=[
-			header.create(),
-			pn.layout.Divider(),
-			main_text.create(),
-			main_card
-		],
+		main=[main_layout],
 		theme='dark',
-		main_max_width="1200px"
+		main_max_width="1200px",
+		main_layout="width"
 	)
 	return template
 

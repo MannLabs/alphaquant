@@ -107,7 +107,6 @@ class GUI(object):
 
 
 class AlphaQuantGUI(GUI):
-    # TODO: docstring
     def __init__(self, start_server=False):
         super().__init__(
             name="AlphaQuant",
@@ -127,14 +126,25 @@ class AlphaQuantGUI(GUI):
         # ERROR/WARNING MESSAGES
         self.error_message_upload = "The selected file can't be uploaded. Please check the instructions for data uploading."
 
+        # Create pipeline instance
         self.run_pipeline = dashboard_parts.RunPipeline()
-        self.tabs = dashboard_parts.Tabs(self.run_pipeline)
+
+        # Create initial empty tabs with pipeline
+        self.tab_layout = pn.Tabs(
+            ('Run Pipeline', self.run_pipeline.create()),
+            ('Visualize', pn.pane.Markdown(
+                "## No data loaded\nPlease load data in the Run Pipeline tab first."
+            )),
+            dynamic=True,
+            tabs_location='above',
+            sizing_mode='stretch_width'
+        )
 
         self.layout += [
             self.main_widget.create(),
-            self.run_pipeline.create(),
-            self.tabs.create(),
+            self.tab_layout
         ]
+
         if start_server:
             self.start_server()
 
