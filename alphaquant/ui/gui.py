@@ -19,23 +19,12 @@ def get_css_style(
         "style"
     )
 ):
-    custom_css = """
-    .bk-tab {
-        font-size: 16px !important;
-        font-weight: bold !important;
-        padding: 12px 30px !important;
-    }
-    .bk-tab.bk-active {
-        background-color: #f0f0f0 !important;
-    }
-    """
-
     file = os.path.join(
         directory,
         file_name
     )
     with open(file) as f:
-        return f.read() + custom_css
+        return f.read()
 
 
 def init_panel():
@@ -143,7 +132,7 @@ class AlphaQuantGUI(GUI):
         # Create initial empty tabs with pipeline
         self.tab_layout = pn.Tabs(
             ('Run Pipeline', self.run_pipeline.create()),
-            ('Visualize', pn.pane.Markdown(
+            ('Visualize Results', pn.pane.Markdown(
                 "## No data loaded\nPlease load data in the Run Pipeline tab first."
             )),
             dynamic=True,
