@@ -11,14 +11,12 @@ import matplotlib
 matplotlib.use('agg')
 
 # alphaquant imports
-import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.run_pipeline as diffmgr
-import alphaquant.ui.gui_textfields as gui_textfields
 import alphaquant.ui.dashboad_parts_visualize_static as dashboad_parts_visualize_static
 import alphaquant.ui.dashboard_parts_visualize_interactive as dashboard_parts_single_comparison
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
-config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
+config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
 
 # If using Plotly in Panel
 pn.extension('plotly')
