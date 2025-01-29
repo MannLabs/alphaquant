@@ -156,7 +156,7 @@ class AlphaQuantGUI(GUI):
         # Create initial empty tabs with pipeline and plotting tab
         self.tab_layout = pn.Tabs(
             ('Run Pipeline', self.run_pipeline.create()),
-            ('Visualize Results', dashboad_parts_plots_basic.PlottingTab().panel()),
+            ('Basic Plots', dashboad_parts_plots_basic.PlottingTab().panel()),
             dynamic=True,
             tabs_location='above',
             sizing_mode='stretch_width'
