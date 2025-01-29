@@ -110,7 +110,16 @@ class PlottingTab(param.Parameterized):
         self.samplemap_file = event.new
 
     def _on_tree_level_changed(self, event):
-        if self.fc_visualizer and self.protein_input.value:
+        """Handle tree level changes."""
+        self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+            condition1=self.cond1,
+            condition2=self.cond2,
+            results_directory=self.results_dir,
+            samplemap_file=self.samplemap_file,
+            tree_level=event.new
+        )
+        if self.protein_input.value:
+            # Update the plot
             self._update_protein_plot(self.protein_input.value)
 
     def _extract_condpairs(self):
@@ -189,11 +198,15 @@ class PlottingTab(param.Parameterized):
         if not self.result_df.empty:
             volcano_figure = aq_plot_base.plot_volcano_plotly(self.result_df)
             # Enable clicking in the plot configuration
-            volcano_figure.update_layout(clickmode='event+select')
+            volcano_figure.update_layout(
+                clickmode='event+select',
+                width=800,  # Set fixed width for volcano plot
+                height=600
+            )
             volcano_pane = pn.pane.Plotly(
                 volcano_figure,
                 config={'responsive': True, 'displayModeBar': True},
-                sizing_mode='stretch_width'
+                sizing_mode='fixed'  # Changed to fixed size
             )
             # Connect click event
             volcano_pane.param.watch(self._on_volcano_click, 'click_data')
@@ -217,6 +230,7 @@ class PlottingTab(param.Parameterized):
         if self.fc_visualizer:
             # Update tree level
             self.fc_visualizer.plotconfig.tree_level = self.tree_level_select.value
+            self.fc_visualizer.plotconfig.figsize = (10, 6)  # Set smaller figure size
 
             # Generate plot
             fig = self.fc_visualizer.plot_protein(protein_name)
