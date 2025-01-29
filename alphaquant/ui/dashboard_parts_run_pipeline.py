@@ -636,7 +636,6 @@ class RunPipeline(BaseWidget):
 				]
 
 			# Collect all configuration parameters
-			print(self.samplemap_table.value)
 			pipeline_params = {
 				'input_file': self.path_analysis_file.value,
 				'samplemap_df': self.samplemap_table.value,
@@ -970,7 +969,6 @@ class Tabs(param.Parameterized):
 
 		except Exception as e:
 			error_msg = f"Error updating visualization tabs: {str(e)}"
-			print(error_msg)
 			self.main_tabs[0] = ('Single Comparison', pn.pane.Markdown(
 				f"### Visualization Error\n\n{error_msg}"
 			))
