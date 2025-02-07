@@ -32,8 +32,9 @@ class PlottingTab(param.Parameterized):
     result_df = pd.DataFrame()
     fc_visualizer = None
 
-    def __init__(self, results_dir=None, samplemap_file=None, **params):
-        super().__init__(results_dir=results_dir or "", samplemap_file=samplemap_file or "", **params)
+    def __init__(self, state, **params):
+        super().__init__(**params)
+        self.state = state
 
         # Create widgets
         self.condpairname_select = pn.widgets.Select(
@@ -68,7 +69,7 @@ class PlottingTab(param.Parameterized):
             placeholder='Enter path to results directory',
             width=600
         )
-        self.results_dir_input.param.watch(self._on_results_dir_changed, 'value')
+        self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
         self.samplemap_input = pn.widgets.TextInput(
             name='Samplemap File:',
@@ -76,7 +77,7 @@ class PlottingTab(param.Parameterized):
             placeholder='Enter path to samplemap file',
             width=600
         )
-        self.samplemap_input.param.watch(self._on_samplemap_changed, 'value')
+        self.samplemap_input.param.watch(self.on_samplemap_file_changed, 'value')
 
         # Plot panes
         self.volcano_pane = pn.Column()
@@ -102,12 +103,16 @@ class PlottingTab(param.Parameterized):
         """Return the main panel layout."""
         return self.main_layout
 
-    def _on_results_dir_changed(self, event):
-        self.results_dir = event.new
-        self._extract_condpairs()
+    def on_results_dir_changed(self, new_value):
+        """Handle changes to results directory from other components."""
+        if self.results_dir_input.value != new_value:
+            self.results_dir_input.value = new_value
+            self._extract_condpairs()
 
-    def _on_samplemap_changed(self, event):
-        self.samplemap_file = event.new
+    def on_samplemap_file_changed(self, new_value):
+        """Handle changes to samplemap file from other components."""
+        if self.samplemap_input.value != new_value:
+            self.samplemap_input.value = new_value
 
     def _on_tree_level_changed(self, event):
         """Handle tree level changes."""

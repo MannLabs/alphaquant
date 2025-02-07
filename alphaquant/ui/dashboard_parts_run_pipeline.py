@@ -135,8 +135,9 @@ class RunPipeline(BaseWidget):
 	Widget to gather file inputs, define condition pairs, and run an analysis pipeline.
 	Includes advanced configuration options.
 	"""
-	def __init__(self, **params):
+	def __init__(self, state, **params):
 		super().__init__(**params)
+		self.state = state
 		self._setup_matplotlib()
 		self._setup_logger()
 		self._make_widgets()
@@ -478,7 +479,9 @@ class RunPipeline(BaseWidget):
 		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
 		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
 		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
-		self.path_output_folder.param.watch(self._update_visualization_tab, 'value')
+		self.path_output_folder.param.watch(self._update_results_dir, 'value')
+		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
+		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
 
 
 	def create(self):
@@ -797,53 +800,20 @@ class RunPipeline(BaseWidget):
 		"""Set minrep_both to 0 when minrep_either is changed."""
 		self.minrep_both.value = 0
 
-	def _update_visualization_tab(self, event):
-		"""Update the Visualize tab whenever the output folder changes."""
-		if event.new:  # Only update if there's a value
-			try:
-				plotting_tab = dashboad_parts_plots_basic.PlottingTab(
-					results_dir=event.new
-				)
+	def _update_results_dir(self, event):
+		"""Update central state with new results directory."""
+		self.state.results_dir = event.new
+		self.state.notify_subscribers('results_dir')
 
-				# Find and update the Plotting tab
-				for p in self.layout.select(pn.Tabs):
-					if 'Plotting' in [t[0] for t in p]:
-						p[1] = ('Plotting', plotting_tab.panel())
-						break
+	def _update_analysis_file(self, event):
+		"""Update central state with new analysis file."""
+		self.state.analysis_file = event.new
+		self.state.notify_subscribers('analysis_file')
 
-			except Exception as e:
-				error_msg = f"Error updating visualization tab: {str(e)}"
-				for p in self.layout.select(pn.Tabs):
-					if 'Plotting' in [t[0] for t in p]:
-						p[1] = ('Plotting', pn.pane.Markdown(
-							f"### Visualization Error\n\n{error_msg}"
-						))
-						break
-
-	def _visualize_data(self, *events):
-		"""
-		Update the Visualize tab with the results.
-		"""
-		try:
-			if self.path_output_folder.value:
-				plotting_tab = dashboad_parts_plots_basic.PlottingTab(
-					results_dir=self.path_output_folder.value
-				)
-
-				# Find and update the Plotting tab
-				for p in self.layout.select(pn.Tabs):
-					if 'Plotting' in [t[0] for t in p]:
-						p[1] = ('Plotting', plotting_tab.panel())
-						break
-
-		except Exception as e:
-			error_msg = f"Error updating visualization tab: {str(e)}"
-			for p in self.layout.select(pn.Tabs):
-				if 'Plotting' in [t[0] for t in p]:
-					p[1] = ('Plotting', pn.pane.Markdown(
-						f"### Visualization Error\n\n{error_msg}"
-					))
-					break
+	def _update_samplemap(self, event):
+		"""Update central state with new sample map file."""
+		self.state.samplemap_file = event.new
+		self.state.notify_subscribers('samplemap_file')
 
 	def natural_sort(self, l):
 		"""
@@ -906,6 +876,25 @@ class RunPipeline(BaseWidget):
 			self.logger.removeHandler(self.stream_handler)
 			self.stream_handler.close()
 
+	def _visualize_data(self, event):
+		"""Handle visualization button clicks."""
+		try:
+			# Update state with current values
+			self.state.results_dir = self.path_output_folder.value
+			self.state.samplemap_file = self.samplemap_fileupload.value
+
+			# Notify all subscribers of the updates
+			self.state.notify_subscribers('results_dir')
+			self.state.notify_subscribers('samplemap_file')
+
+			# Switch to the visualization tab
+			if hasattr(self, 'main_tabs'):
+				self.main_tabs.active = 1  # Switch to the second tab (0-based index)
+
+		except Exception as e:
+			self.run_pipeline_error.object = f"Error preparing visualization: {str(e)}"
+			self.run_pipeline_error.visible = True
+
 class Tabs(param.Parameterized):
 	"""
 	This class creates a single pn.Tabs layout containing:
@@ -919,15 +908,24 @@ class Tabs(param.Parameterized):
 	def __init__(self, pipeline, **params):
 		super().__init__(pipeline=pipeline, **params)
 		self._build_initial_tabs()
+		# Watch for changes in the pipeline's output folder
+		self.pipeline.path_output_folder.param.watch(self._sync_results_dir, 'value')
 		self.pipeline.param.watch(
 			self._update_tabs,
 			'update_event',
 			onlychanged=True
 		)
 
-	def create(self):
-		"""Return the tabs layout."""
-		return self.main_tabs
+	def _sync_results_dir(self, event):
+		"""Sync the results directory between Pipeline and Plotting tabs."""
+		if event.new:  # Only update if there's a value
+			try:
+				# Update the Plotting tab's results directory
+				plotting_tab = self.main_tabs[1][1]  # Access the plotting tab content
+				if isinstance(plotting_tab, dashboad_parts_plots_basic.PlottingTab):
+					plotting_tab.results_dir_input.value = event.new
+			except Exception as e:
+				print(f"Error syncing results directory: {str(e)}")
 
 	def _build_initial_tabs(self):
 		"""Create initial empty tabs."""
@@ -979,7 +977,7 @@ def build_dashboard():
 	)
 
 	# Create pipeline instance
-	pipeline = RunPipeline()
+	pipeline = RunPipeline(state=None)
 	pipeline_layout = pipeline.create()
 
 	# Create tab manager with pipeline tab
