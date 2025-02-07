@@ -5,6 +5,8 @@ import param
 import panel as pn
 import pandas as pd
 import matplotlib.pyplot as plt
+import itertools
+from io import StringIO
 
 import alphaquant.plotting.fcviz as aq_plot_fcviz
 import alphaquant.plotting.base_functions as aq_plot_base
@@ -71,13 +73,27 @@ class PlottingTab(param.Parameterized):
         )
         self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
-        self.samplemap_input = pn.widgets.TextInput(
-            name='Samplemap File:',
-            value=self.samplemap_file,
-            placeholder='Enter path to samplemap file',
-            width=600
+        self.samplemap_status = pn.widgets.StaticText(
+            name='Sample Map Status:',
+            value='No sample map loaded'
         )
-        self.samplemap_input.param.watch(self.on_samplemap_file_changed, 'value')
+
+        # Add file upload widget
+        self.samplemap_fileupload = pn.widgets.FileInput(
+            name='Upload Sample Map',
+            accept='.tsv,.csv,.txt',
+            margin=(5, 5, 10, 20)
+        )
+        self.samplemap_fileupload.param.watch(self._handle_samplemap_upload, 'value')
+
+        # Create a row for samplemap controls
+        self.samplemap_controls = pn.Row(
+            pn.Column(
+                self.samplemap_fileupload,
+                self.samplemap_status
+            ),
+            margin=(5, 5, 5, 5)
+        )
 
         # Plot panes
         self.volcano_pane = pn.Column()
@@ -87,7 +103,7 @@ class PlottingTab(param.Parameterized):
         self.main_layout = pn.Column(
             "## Protein Visualization",
             self.results_dir_input,
-            self.samplemap_input,
+            self.samplemap_controls,
             self.condpairname_select,
             self.volcano_pane,
             pn.Row(self.tree_level_select),
@@ -105,24 +121,99 @@ class PlottingTab(param.Parameterized):
 
     def on_results_dir_changed(self, new_value):
         """Handle changes to results directory from other components."""
-        if self.results_dir_input.value != new_value:
-            self.results_dir_input.value = new_value
-            self._extract_condpairs()
+        if isinstance(new_value, param.Event):
+            value = new_value.new
+        elif hasattr(new_value, 'new'):  # Handle Panel event objects
+            value = new_value.new
+        else:
+            value = new_value
 
-    def on_samplemap_file_changed(self, new_value):
-        """Handle changes to samplemap file from other components."""
-        if self.samplemap_input.value != new_value:
-            self.samplemap_input.value = new_value
+        if value is not None:
+            value = str(value)
+            if self.results_dir_input.value != value:
+                self.results_dir_input.value = value
+                self._extract_condpairs()
+
+    def _handle_samplemap_upload(self, event):
+        """Handle new samplemap file uploads."""
+        if not event.new:
+            return
+
+        try:
+            # Determine file type and separator
+            file_ext = os.path.splitext(self.samplemap_fileupload.filename)[-1].lower()
+            sep = ',' if file_ext == '.csv' else '\t'
+
+            # Parse the uploaded file into DataFrame
+            df = pd.read_csv(
+                StringIO(event.new.decode('utf-8')),
+                sep=sep,
+                dtype=str
+            )
+
+            # Update the state with the new DataFrame
+            self.state.samplemap_df = df
+            self.state.notify_subscribers('samplemap_df')
+
+        except Exception as e:
+            self.samplemap_status.value = f"Error loading sample map: {str(e)}"
+
+    def on_samplemap_df_changed(self, new_df):
+        """Handle changes to samplemap DataFrame from other components."""
+        if not new_df.empty:
+            # Update status
+            num_samples = len(new_df)
+            num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
+            self.samplemap_status.value = f"Loaded: {num_samples} samples, {num_conditions} conditions"
+
+            # Update condition pairs and other visualizations
+            self._update_condition_pairs_from_df(new_df)
+        else:
+            self.samplemap_status.value = "No sample map loaded"
+
+    def _update_condition_pairs_from_df(self, df):
+        """Update condition pairs based on the samplemap DataFrame."""
+        if 'condition' in df.columns:
+            unique_conditions = df['condition'].dropna().unique()
+            pairs = [(c1, c2) for c1, c2 in itertools.permutations(unique_conditions, 2)]
+            self.cond_pairs = pairs
+            pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in pairs]
+            self.condpairname_select.options = ["No conditions"] + pairs_str
+
+    def _update_fc_visualizer(self):
+        """Update FoldChangeVisualizer with current settings."""
+        if hasattr(self, 'fc_visualizer') and self.cond1 and self.cond2:
+            try:
+                # Save DataFrame temporarily if needed
+                if self.state.samplemap_df is not None and not self.state.samplemap_df.empty:
+                    temp_dir = os.path.join(self.results_dir_input.value, 'temp')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    temp_path = os.path.join(temp_dir, 'current_samplemap.tsv')
+                    self.state.samplemap_df.to_csv(temp_path, sep='\t', index=False)
+
+                    # Initialize visualizer with file path
+                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                        condition1=self.cond1,
+                        condition2=self.cond2,
+                        results_directory=self.results_dir_input.value,
+                        samplemap_file=temp_path,  # Use file path instead of DataFrame
+                        tree_level=self.tree_level_select.value
+                    )
+                else:
+                    # Initialize without samplemap if none available
+                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                        condition1=self.cond1,
+                        condition2=self.cond2,
+                        results_directory=self.results_dir_input.value,
+                        tree_level=self.tree_level_select.value
+                    )
+            except Exception as e:
+                print(f"Error initializing FoldChangeVisualizer: {str(e)}")
+                self.fc_visualizer = None
 
     def _on_tree_level_changed(self, event):
         """Handle tree level changes."""
-        self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-            condition1=self.cond1,
-            condition2=self.cond2,
-            results_directory=self.results_dir,
-            samplemap_file=self.samplemap_file,
-            tree_level=event.new
-        )
+        self._update_fc_visualizer()
         if self.protein_input.value:
             # Update the plot
             self._update_protein_plot(self.protein_input.value)
@@ -163,6 +254,11 @@ class PlottingTab(param.Parameterized):
             return
 
         self.cond1, self.cond2 = selected_str.split("_VS_")
+
+        # Debug print
+        print(f"Loading data for conditions: {self.cond1} vs {self.cond2}")
+        print(f"Results directory: {self.results_dir_input.value}")
+
         self._update_data_for_condpair()
         self._build_volcano_plot()
 
@@ -170,52 +266,63 @@ class PlottingTab(param.Parameterized):
         """Load the results data and initialize FoldChangeVisualizer."""
         # Clear existing data
         self.result_df = pd.DataFrame()
-        self.fc_visualizer = None
 
         # Load results
-        results_file = os.path.join(self.results_dir, f"{self.cond1}_VS_{self.cond2}.results.tsv")
+        results_file = os.path.join(self.results_dir_input.value, f"{self.cond1}_VS_{self.cond2}.results.tsv")
+        print(f"Looking for results file: {results_file}")
+        print(f"File exists: {os.path.exists(results_file)}")
+
         if os.path.exists(results_file):
-            self.result_df = aq_plot_base.get_diffresult_dataframe(
-                self.cond1, self.cond2, results_folder=self.results_dir
-            )
+            try:
+                self.result_df = aq_plot_base.get_diffresult_dataframe(
+                    self.cond1, self.cond2,
+                    results_folder=self.results_dir_input.value
+                )
+                print(f"Loaded DataFrame with shape: {self.result_df.shape}")
 
-            # Initialize FoldChangeVisualizer
-            self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                condition1=self.cond1,
-                condition2=self.cond2,
-                results_directory=self.results_dir,
-                samplemap_file=self.samplemap_file,
-                tree_level=self.tree_level_select.value
-            )
+                # Initialize FoldChangeVisualizer
+                self._update_fc_visualizer()
 
-        # Update protein selector
-        if not self.result_df.empty and 'protein' in self.result_df.columns:
-            prot_list = self.result_df['protein'].dropna().unique().tolist()
-            self.protein_input.options = prot_list
-            self.protein_input.disabled = False
+                # Update protein selector
+                if not self.result_df.empty and 'protein' in self.result_df.columns:
+                    prot_list = self.result_df['protein'].dropna().unique().tolist()
+                    self.protein_input.options = prot_list
+                    self.protein_input.disabled = False
+                else:
+                    print("No proteins found in results DataFrame")
+                    self.protein_input.options = []
+                    self.protein_input.disabled = True
+            except Exception as e:
+                print(f"Error loading results: {str(e)}")
+                self.result_df = pd.DataFrame()
         else:
-            self.protein_input.options = []
-            self.protein_input.disabled = True
+            print(f"Results file not found: {results_file}")
 
     def _build_volcano_plot(self):
         """Build and display the volcano plot."""
         self.volcano_pane.clear()
         if not self.result_df.empty:
-            volcano_figure = aq_plot_base.plot_volcano_plotly(self.result_df)
-            # Enable clicking in the plot configuration
-            volcano_figure.update_layout(
-                clickmode='event+select',
-                width=800,  # Set fixed width for volcano plot
-                height=600
-            )
-            volcano_pane = pn.pane.Plotly(
-                volcano_figure,
-                config={'responsive': True, 'displayModeBar': True},
-                sizing_mode='fixed'  # Changed to fixed size
-            )
-            # Connect click event
-            volcano_pane.param.watch(self._on_volcano_click, 'click_data')
-            self.volcano_pane.append(volcano_pane)
+            try:
+                volcano_figure = aq_plot_base.plot_volcano_plotly(self.result_df)
+                # Enable clicking in the plot configuration
+                volcano_figure.update_layout(
+                    clickmode='event+select',
+                    width=800,  # Set fixed width for volcano plot
+                    height=600
+                )
+                volcano_pane = pn.pane.Plotly(
+                    volcano_figure,
+                    config={'responsive': True, 'displayModeBar': True},
+                    sizing_mode='fixed'  # Changed to fixed size
+                )
+                # Connect click event
+                volcano_pane.param.watch(self._on_volcano_click, 'click_data')
+                self.volcano_pane.append(volcano_pane)
+                print("Volcano plot created successfully")
+            except Exception as e:
+                print(f"Error creating volcano plot: {str(e)}")
+        else:
+            print("No data available for volcano plot")
 
     def _on_volcano_click(self, event):
         """Handle volcano plot click events."""

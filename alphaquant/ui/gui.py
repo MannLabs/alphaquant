@@ -42,7 +42,7 @@ init_panel()
 class DashboardState(param.Parameterized):
     """Central state manager for the dashboard."""
     results_dir = param.String(default="")
-    samplemap_file = param.String(default="")
+    samplemap_df = param.DataFrame(default=pd.DataFrame())
     analysis_file = param.String(default="")
     condition_pairs = param.List(default=[])
     selected_condition_pair = param.String(default="")
@@ -59,7 +59,8 @@ class DashboardState(param.Parameterized):
         """Notify all subscribers of a state change."""
         for subscriber in self.subscribers:
             if hasattr(subscriber, f'on_{changed_param}_changed'):
-                getattr(subscriber, f'on_{changed_param}_changed')(getattr(self, changed_param))
+                value = getattr(self, changed_param)
+                getattr(subscriber, f'on_{changed_param}_changed')(value)
 
 
 class GUI(object):

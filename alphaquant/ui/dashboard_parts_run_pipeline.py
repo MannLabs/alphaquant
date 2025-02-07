@@ -715,18 +715,23 @@ class RunPipeline(BaseWidget):
 			self._init_samplemap_df_template()
 
 
-	def _activate_after_analysis_file_upload(self, *events):
-		"""
-		When a new analysis file is entered, set default output folder and import data.
-		"""
-		self._set_default_output_folder()
-
-
+	def _activate_after_analysis_file_upload(self, event):
+		"""Handle analysis file upload."""
+		if event.new:
+			self._set_default_output_folder()
+			self.path_output_folder.disabled = False
+			self.run_pipeline_button.disabled = False
 
 	def _set_default_output_folder(self):
-		if (not self.path_output_folder.value) and self.path_analysis_file.value:
+		"""Set default output folder based on analysis file path."""
+		if self.path_analysis_file.value:
 			base_path = os.path.dirname(self.path_analysis_file.value)
-			self.path_output_folder.value = os.path.join(base_path, 'results')
+			output_path = os.path.join(base_path, 'results')
+			# Update local widget
+			self.path_output_folder.value = output_path
+			# Update state directly with string value
+			self.state.results_dir = output_path
+			self.state.notify_subscribers('results_dir')
 
 	def _import_sample_names(self):
 		if self.path_analysis_file.value:
@@ -762,21 +767,30 @@ class RunPipeline(BaseWidget):
 
 	def _update_samplemap_table(self, *events):
 		"""
-		When a sample map file is uploaded, parse it into the Tabulator widget and show the table.
+		When a sample map file is uploaded, parse it into a DataFrame and update the state.
 		"""
 		if not self.samplemap_fileupload.value:
 			return
+
 		file_ext = os.path.splitext(self.samplemap_fileupload.filename)[-1].lower()
 		sep = ',' if file_ext == '.csv' else '\t'
+
 		try:
+			# Parse the uploaded file into DataFrame
 			df = pd.read_csv(
 				StringIO(self.samplemap_fileupload.value.decode('utf-8')),
 				sep=sep,
 				dtype=str
 			)
+
+			# Update the table widget
 			self.samplemap_table.value = df
-			# Show the table after successful upload
 			self.samplemap_table.visible = True
+
+			# Update the state with the DataFrame
+			self.state.samplemap_df = df
+			self.state.notify_subscribers('samplemap_df')
+
 		except Exception as e:
 			self.run_pipeline_error.object = f"Error reading sample map: {e}"
 			self.run_pipeline_error.visible = True
@@ -802,8 +816,19 @@ class RunPipeline(BaseWidget):
 
 	def _update_results_dir(self, event):
 		"""Update central state with new results directory."""
-		self.state.results_dir = event.new
-		self.state.notify_subscribers('results_dir')
+		if isinstance(event, param.Event):
+			value = event.new
+		elif hasattr(event, 'new'):  # Handle Panel event objects
+			value = event.new
+		else:
+			value = event
+
+		if value is not None:
+			# Ensure we're working with a string
+			value = str(value)
+			# Update state
+			self.state.results_dir = value
+			self.state.notify_subscribers('results_dir')
 
 	def _update_analysis_file(self, event):
 		"""Update central state with new analysis file."""
@@ -812,8 +837,25 @@ class RunPipeline(BaseWidget):
 
 	def _update_samplemap(self, event):
 		"""Update central state with new sample map file."""
-		self.state.samplemap_file = event.new
-		self.state.notify_subscribers('samplemap_file')
+		if event.new:
+			try:
+				# Parse the uploaded file into DataFrame
+				file_ext = os.path.splitext(self.samplemap_fileupload.filename)[-1].lower()
+				sep = ',' if file_ext == '.csv' else '\t'
+
+				df = pd.read_csv(
+					StringIO(event.new.decode('utf-8')),
+					sep=sep,
+					dtype=str
+				)
+
+				# Update the state with the DataFrame
+				self.state.samplemap_df = df
+				self.state.notify_subscribers('samplemap_df')
+
+			except Exception as e:
+				self.run_pipeline_error.object = f"Error reading sample map: {str(e)}"
+				self.run_pipeline_error.visible = True
 
 	def natural_sort(self, l):
 		"""
