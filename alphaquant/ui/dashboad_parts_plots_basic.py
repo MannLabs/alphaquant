@@ -208,7 +208,6 @@ class PlottingTab(param.Parameterized):
                         tree_level=self.tree_level_select.value
                     )
             except Exception as e:
-                print(f"Error initializing FoldChangeVisualizer: {str(e)}")
                 self.fc_visualizer = None
 
     def _on_tree_level_changed(self, event):
@@ -254,11 +253,6 @@ class PlottingTab(param.Parameterized):
             return
 
         self.cond1, self.cond2 = selected_str.split("_VS_")
-
-        # Debug print
-        print(f"Loading data for conditions: {self.cond1} vs {self.cond2}")
-        print(f"Results directory: {self.results_dir_input.value}")
-
         self._update_data_for_condpair()
         self._build_volcano_plot()
 
@@ -269,8 +263,6 @@ class PlottingTab(param.Parameterized):
 
         # Load results
         results_file = os.path.join(self.results_dir_input.value, f"{self.cond1}_VS_{self.cond2}.results.tsv")
-        print(f"Looking for results file: {results_file}")
-        print(f"File exists: {os.path.exists(results_file)}")
 
         if os.path.exists(results_file):
             try:
@@ -278,7 +270,6 @@ class PlottingTab(param.Parameterized):
                     self.cond1, self.cond2,
                     results_folder=self.results_dir_input.value
                 )
-                print(f"Loaded DataFrame with shape: {self.result_df.shape}")
 
                 # Initialize FoldChangeVisualizer
                 self._update_fc_visualizer()
@@ -289,14 +280,10 @@ class PlottingTab(param.Parameterized):
                     self.protein_input.options = prot_list
                     self.protein_input.disabled = False
                 else:
-                    print("No proteins found in results DataFrame")
                     self.protein_input.options = []
                     self.protein_input.disabled = True
             except Exception as e:
-                print(f"Error loading results: {str(e)}")
                 self.result_df = pd.DataFrame()
-        else:
-            print(f"Results file not found: {results_file}")
 
     def _build_volcano_plot(self):
         """Build and display the volcano plot."""
@@ -318,11 +305,8 @@ class PlottingTab(param.Parameterized):
                 # Connect click event
                 volcano_pane.param.watch(self._on_volcano_click, 'click_data')
                 self.volcano_pane.append(volcano_pane)
-                print("Volcano plot created successfully")
             except Exception as e:
-                print(f"Error creating volcano plot: {str(e)}")
-        else:
-            print("No data available for volcano plot")
+                pass
 
     def _on_volcano_click(self, event):
         """Handle volcano plot click events."""
