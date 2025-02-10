@@ -89,6 +89,7 @@ class PlottingTab(param.Parameterized):
         # Create a row for samplemap controls
         self.samplemap_controls = pn.Row(
             pn.Column(
+                pn.widgets.StaticText(name='', value='Sample Map:', styles={'font-weight': 'normal'}),
                 self.samplemap_fileupload,
                 self.samplemap_status
             ),
