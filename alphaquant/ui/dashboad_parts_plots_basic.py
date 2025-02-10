@@ -73,11 +73,6 @@ class PlottingTab(param.Parameterized):
         )
         self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
-        self.samplemap_status = pn.widgets.StaticText(
-            name='Sample Map Status:',
-            value='No sample map loaded'
-        )
-
         # Add file upload widget
         self.samplemap_fileupload = pn.widgets.FileInput(
             name='Upload Sample Map',
@@ -89,9 +84,12 @@ class PlottingTab(param.Parameterized):
         # Create a row for samplemap controls
         self.samplemap_controls = pn.Row(
             pn.Column(
-                pn.widgets.StaticText(name='', value='Sample Map:', styles={'font-weight': 'normal'}),
+                pn.widgets.StaticText(
+                    name='',
+                    value='Sample Map: No sample map loaded',
+                    styles={'font-weight': 'normal'}
+                ),
                 self.samplemap_fileupload,
-                self.samplemap_status
             ),
             margin=(5, 5, 5, 5)
         )
@@ -157,7 +155,7 @@ class PlottingTab(param.Parameterized):
             self.state.notify_subscribers('samplemap_df')
 
         except Exception as e:
-            self.samplemap_status.value = f"Error loading sample map: {str(e)}"
+            self.samplemap_controls[0][0].value = f"Error loading sample map: {str(e)}"
 
     def on_samplemap_df_changed(self, new_df):
         """Handle changes to samplemap DataFrame from other components."""
@@ -165,12 +163,13 @@ class PlottingTab(param.Parameterized):
             # Update status
             num_samples = len(new_df)
             num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
-            self.samplemap_status.value = f"Loaded: {num_samples} samples, {num_conditions} conditions"
+            status_text = f"Sample Map: Already loaded {num_samples} samples, {num_conditions} conditions"
+            self.samplemap_controls[0][0].value = status_text
 
             # Update condition pairs and other visualizations
             self._update_condition_pairs_from_df(new_df)
         else:
-            self.samplemap_status.value = "No sample map loaded"
+            self.samplemap_controls[0][0].value = "Sample Map: No sample map loaded"
 
     def _update_condition_pairs_from_df(self, df):
         """Update condition pairs based on the samplemap DataFrame."""
