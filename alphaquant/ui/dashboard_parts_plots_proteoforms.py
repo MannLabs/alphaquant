@@ -68,11 +68,10 @@ class ProteoformPlottingTab(param.Parameterized):
 
         self.proteoform_view_select = pn.widgets.Select(
             name="Visualization Type",
-            options=['Sequence Plot', 'Fold Change Plot'],
+            options=['Sequence Plot'],
             value='Sequence Plot',
             width=200
         )
-        self.proteoform_view_select.param.watch(self._on_view_type_changed, 'value')
 
         # Input fields for paths
         self.results_dir_input = pn.widgets.TextInput(
@@ -182,26 +181,27 @@ class ProteoformPlottingTab(param.Parameterized):
                 print("Selected condition pair:", event.new)
                 print(f"Parsed conditions: {condition1=}, {condition2=}")
 
-                print("Updating visualizer for:", self.proteoform_view_select.value)
-                if self.proteoform_view_select.value == 'Sequence Plot':
-                    print("Creating AlphaMapVisualizer with samplemap file:", self.samplemap_file)
-                    self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
-                        condition1=condition1,
-                        condition2=condition2,
-                        results_directory=self.results_dir,
-                        samplemap_file=self.samplemap_file,
-                        protein_identifier=self.protein_id_select.value,
-                        organism=self.organism_select.value
-                    )
-                elif self.proteoform_view_select.value == 'Fold Change Plot':
-                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                        condition1=condition1,
-                        condition2=condition2,
-                        results_directory=self.results_dir,
-                        samplemap_file=self.samplemap_file,
-                        organism=self.organism_select.value,
-                        protein_identifier=self.protein_id_select.value
-                    )
+                print("Updating visualizers")
+                # Initialize both visualizers
+                self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
+                    condition1=condition1,
+                    condition2=condition2,
+                    results_directory=self.results_dir,
+                    samplemap_file=self.samplemap_file,
+                    protein_identifier=self.protein_id_select.value,
+                    organism=self.organism_select.value
+                )
+
+                self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                    condition1=condition1,
+                    condition2=condition2,
+                    results_directory=self.results_dir,
+                    samplemap_file=self.samplemap_file,
+                    organism=self.organism_select.value,
+                    protein_identifier=self.protein_id_select.value,
+                    order_along_protein_sequence=True,
+                    figsize=(6, 4)  # Smaller figure size for fold change plot
+                )
 
             except Exception as e:
                 print("Error occurred:", str(e))
@@ -220,53 +220,17 @@ class ProteoformPlottingTab(param.Parameterized):
             # Clear existing plots
             self.proteoform_plot_pane.clear()
 
-            if self.proteoform_view_select.value == 'Sequence Plot':
-                # Get both figures from the visualizer
-                self.fc_fig, self.alphamap_go_fig = self.amap_visualizer.visualize_protein(event.new)
+            # Get sequence plot from AlphaMapVisualizer
+            _, alphamap_go_fig = self.amap_visualizer.visualize_protein(event.new)
 
-                # Add both plots to the pane
-                if self.fc_fig:
-                    self.proteoform_plot_pane.append(pn.pane.Matplotlib(self.fc_fig, tight=True))
-                if self.alphamap_go_fig:
-                    self.proteoform_plot_pane.append(pn.pane.Plotly(self.alphamap_go_fig))
+            # Get fold change plot from FoldChangeVisualizer
+            fc_fig = self.fc_visualizer.plot_protein(event.new)
 
-            elif self.proteoform_view_select.value == 'Fold Change Plot':
-                # Generate and display fold change plot
-                fc_plot = self.fc_visualizer.visualize_protein(event.new)
-                if fc_plot:
-                    self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_plot, tight=True))
-
-    def _on_view_type_changed(self, event):
-        """Handle view type changes."""
-        if self.protein_input.value:
-            self._update_proteoform_plot(self.protein_input.value)
-
-    def _update_proteoform_plot(self, protein_name):
-        """Update the proteoform visualization."""
-        self.proteoform_plot_pane.clear()
-
-        try:
-            if self.proteoform_view_select.value == 'Sequence Plot':
-                # Get the current condition pair
-                condition1, condition2 = self.condpairname_select.value.split('_VS_')
-
-                # Create visualizer
-                visualizer = aq_plot_proteoform.AlphaMapVisualizer(
-                    condition1=condition1,
-                    condition2=condition2,
-                    results_directory=self.results_dir,
-                    samplemap_file=self.samplemap_file,
-                    protein_identifier='protein',
-                    organism='human'  # Consider making this configurable
-                )
-
-                # Generate the plot
-                fig = visualizer.visualize_protein(protein_name)
-                self.proteoform_plot_pane.append(pn.pane.Matplotlib(fig, tight=True))
-
-        except Exception as e:
-            error_msg = f"Error generating proteoform plot: {str(e)}"
-            self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
+            # Add both plots to the pane
+            if fc_fig:
+                self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_fig, tight=True))
+            if alphamap_go_fig:
+                self.proteoform_plot_pane.append(pn.pane.Plotly(alphamap_go_fig))
 
     def _on_samplemap_changed(self, event):
         """Handle changes to samplemap file path."""
