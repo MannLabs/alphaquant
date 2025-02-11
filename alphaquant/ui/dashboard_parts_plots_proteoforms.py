@@ -58,7 +58,7 @@ class ProteoformPlottingTab(param.Parameterized):
 
         self.protein_input = pn.widgets.AutocompleteInput(
             name='Select Protein',
-            placeholder="Type to search protein...",
+            placeholder="Type protein name or click a row in the table above to visualize peptide fold changes...",
             min_characters=2,
             disabled=True,
             width=400,
@@ -104,11 +104,14 @@ class ProteoformPlottingTab(param.Parameterized):
         self.proteoform_table.on_click(self._on_proteoform_selected)
 
         # Plot panes
-        self.proteoform_plot_pane = pn.Column()
+        self.proteoform_plot_pane = pn.Column(
+            pn.pane.Markdown("### Visualization will appear here when you select a protein"),
+            sizing_mode='stretch_width'
+        )
 
         # Construct layout
         self.main_layout = pn.Column(
-            "## Proteoform Visualization",
+            "## Outlier Peptide Visualization",
             self.results_dir_input,
             self.samplemap_input,
             pn.Row(self.organism_select, self.protein_id_select),  # Add new widgets
