@@ -157,7 +157,7 @@ class ProteoformPlottingTab(param.Parameterized):
                         condition1=condition1,
                         condition2=condition2,
                         results_directory=self.results_dir,
-                        samplemap_file=self.samplemap_file,  # Use the file path
+                        samplemap_file=self.samplemap_file,
                         protein_identifier='gene_symbol',
                         organism='Human'
                     )
@@ -166,7 +166,7 @@ class ProteoformPlottingTab(param.Parameterized):
                         condition1=condition1,
                         condition2=condition2,
                         results_directory=self.results_dir,
-                        samplemap_file=self.samplemap_file,  # Use the file path
+                        samplemap_file=self.samplemap_file,
                         organism='Human',
                         protein_identifier='gene_symbol'
                     )
