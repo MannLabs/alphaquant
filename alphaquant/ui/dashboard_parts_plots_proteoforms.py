@@ -11,6 +11,7 @@ import re
 
 import alphaquant.plotting.fcviz as aq_plot_fcviz
 import alphaquant.plotting.alphamapviz as aq_plot_proteoform
+import alphaquant.utils.proteoform_utils as aq_proteoform_utils
 
 class ProteoformPlottingTab(param.Parameterized):
     """
@@ -24,6 +25,24 @@ class ProteoformPlottingTab(param.Parameterized):
     condpairname_select = param.ClassSelector(class_=pn.widgets.Select)
     protein_input = param.ClassSelector(class_=pn.widgets.AutocompleteInput)
     proteoform_view_select = param.ClassSelector(class_=pn.widgets.Select)
+
+    # Add new parameter for the selected proteoform
+    selected_proteoform = param.String(default='')
+
+    # Add new widgets for organism and protein identifier
+    organism_select = pn.widgets.Select(
+        name="Organism",
+        options=['Human', 'Mouse', 'Yeast'],
+        value='Human',
+        width=200
+    )
+
+    protein_id_select = pn.widgets.Select(
+        name="Protein Identifier",
+        options=['gene_symbol', 'uniprot_id'],
+        value='gene_symbol',
+        width=200
+    )
 
     def __init__(self, state, **params):
         super().__init__(**params)
@@ -73,6 +92,16 @@ class ProteoformPlottingTab(param.Parameterized):
         )
         self.samplemap_input.param.watch(self._on_samplemap_changed, 'value')
 
+        # Add new widget for proteoform table
+        self.proteoform_table = pn.widgets.Tabulator(
+            pagination='remote',
+            page_size=10,
+            sizing_mode='stretch_width',
+            height=300,
+            selectable=1,  # Allow single row selection
+        )
+        self.proteoform_table.on_click(self._on_proteoform_selected)
+
         # Plot panes
         self.proteoform_plot_pane = pn.Column()
 
@@ -81,7 +110,9 @@ class ProteoformPlottingTab(param.Parameterized):
             "## Proteoform Visualization",
             self.results_dir_input,
             self.samplemap_input,
+            pn.Row(self.organism_select, self.protein_id_select),  # Add new widgets
             self.condpairname_select,
+            self.proteoform_table,
             pn.Row(self.proteoform_view_select),
             self.protein_input,
             self.proteoform_plot_pane,
@@ -127,30 +158,30 @@ class ProteoformPlottingTab(param.Parameterized):
     def _on_condpair_selected(self, event):
         """Handle condition pair selection."""
         if event.new and event.new != "No conditions":
-            print("Selected condition pair:", event.new)
-
             condition1, condition2 = event.new.split('_VS_')
-            print(f"Parsed conditions: {condition1=}, {condition2=}")
-
             results_file = os.path.join(
                 self.results_dir,
                 f"{condition1}_VS_{condition2}.proteoforms.tsv"
             )
-            print("Looking for results file:", results_file)
 
             try:
+                # Load and filter proteoforms
                 proteoforms_df = pd.read_csv(results_file, sep='\t')
-                print("Loaded proteoforms DataFrame shape:", proteoforms_df.shape)
-                print("DataFrame columns:", proteoforms_df.columns.tolist())
+                filtered_df = aq_proteoform_utils.filter_proteoform_df(proteoforms_df)
 
-                protein_ids = proteoforms_df['protein'].unique().tolist()
-                print("Found protein IDs:", len(protein_ids))
+                # Update table
+                self.proteoform_table.value = filtered_df
+                self.proteoform_table.visible = True
 
-                print("Updating protein input widget options")
+                # Update protein input options
+                protein_ids = filtered_df['protein'].unique().tolist()
                 self.protein_input.options = protein_ids
                 self.protein_input.disabled = False
 
-                print("Initializing visualizer for:", self.proteoform_view_select.value)
+                print("Selected condition pair:", event.new)
+                print(f"Parsed conditions: {condition1=}, {condition2=}")
+
+                print("Updating visualizer for:", self.proteoform_view_select.value)
                 if self.proteoform_view_select.value == 'Sequence Plot':
                     print("Creating AlphaMapVisualizer with samplemap file:", self.samplemap_file)
                     self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
@@ -158,8 +189,8 @@ class ProteoformPlottingTab(param.Parameterized):
                         condition2=condition2,
                         results_directory=self.results_dir,
                         samplemap_file=self.samplemap_file,
-                        protein_identifier='gene_symbol',
-                        organism='Human'
+                        protein_identifier=self.protein_id_select.value,
+                        organism=self.organism_select.value
                     )
                 elif self.proteoform_view_select.value == 'Fold Change Plot':
                     self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
@@ -167,8 +198,8 @@ class ProteoformPlottingTab(param.Parameterized):
                         condition2=condition2,
                         results_directory=self.results_dir,
                         samplemap_file=self.samplemap_file,
-                        organism='Human',
-                        protein_identifier='gene_symbol'
+                        organism=self.organism_select.value,
+                        protein_identifier=self.protein_id_select.value
                     )
 
             except Exception as e:
@@ -283,3 +314,11 @@ class ProteoformPlottingTab(param.Parameterized):
             self.protein_input.disabled = True
             self.protein_input.options = []
             raise Exception(f"Failed to load protein identifiers: {str(e)}")
+
+    def _on_proteoform_selected(self, event):
+        """Handle proteoform selection from table."""
+        if event.row is not None:
+            selected_protein = event.row.get('protein')
+            if selected_protein:
+                self.protein_input.value = selected_protein
+                # This will trigger _on_protein_selected and update the plots
