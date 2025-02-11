@@ -98,7 +98,8 @@ class ProteoformPlottingTab(param.Parameterized):
             page_size=10,
             sizing_mode='stretch_width',
             height=300,
-            selectable=1,  # Allow single row selection
+            selectable=1,
+            selection=[],
         )
         self.proteoform_table.on_click(self._on_proteoform_selected)
 
@@ -317,8 +318,10 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_proteoform_selected(self, event):
         """Handle proteoform selection from table."""
-        if event.row is not None:
-            selected_protein = event.row.get('protein')
+        if hasattr(event, 'row'):
+            row_data = self.proteoform_table.value.iloc[event.row]
+            selected_protein = row_data.get('protein')
             if selected_protein:
                 self.protein_input.value = selected_protein
-                # This will trigger _on_protein_selected and update the plots
+                # Directly update the plot without requiring click on protein input
+                self._on_protein_selected(param.Event(type='selection', new=selected_protein))
