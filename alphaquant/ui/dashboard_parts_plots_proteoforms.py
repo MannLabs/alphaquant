@@ -99,6 +99,7 @@ class ProteoformPlottingTab(param.Parameterized):
             height=300,
             selectable=1,
             selection=[],
+            show_index=False,
         )
         self.proteoform_table.on_click(self._on_proteoform_selected)
 
@@ -168,6 +169,12 @@ class ProteoformPlottingTab(param.Parameterized):
                 # Load and filter proteoforms
                 proteoforms_df = pd.read_csv(results_file, sep='\t')
                 filtered_df = aq_proteoform_utils.filter_proteoform_df(proteoforms_df)
+
+                # Drop specified columns
+                columns_to_drop = ['is_reference', 'peptides', 'log2fc',
+                                 'proteoform_pval', 'proteoform_fcfc', 'fcdiff',
+                                 'proteoform_fdr']
+                filtered_df = filtered_df.drop(columns=[col for col in columns_to_drop if col in filtered_df.columns])
 
                 # Update table
                 self.proteoform_table.value = filtered_df
