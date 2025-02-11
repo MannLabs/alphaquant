@@ -609,7 +609,9 @@ class RunPipeline(BaseWidget):
 		return self.layout
 
 	def _run_pipeline(self, *events):
-		"""Run the alphaquant pipeline when the button is clicked."""
+		"""
+		Run the alphaquant pipeline when the button is clicked.
+		"""
 		if self.analysis_type.value == 'Select an analysis':
 			self.run_pipeline_error.object = "Please select an analysis type before running the pipeline."
 			self.run_pipeline_error.visible = True
@@ -622,13 +624,21 @@ class RunPipeline(BaseWidget):
 		# Update progress panel with selected condition pairs
 		self._update_progress_panel(self.assign_cond_pairs.value or [])
 
-		# Initial check for existing results and start monitoring
-		self._check_existing_results()
-		if not hasattr(self, 'results_monitor'):
-			self.results_monitor = pn.state.add_periodic_callback(
-				self._check_existing_results,
-				period=1000  # Check every second
-			)
+		# Show overall status
+		self.overall_status.visible = True
+
+		# Set initial status for all pairs to pending
+		for progress in self.condition_progress.values():
+			progress['pending'].visible = True
+			progress['running'].visible = False
+			progress['complete'].visible = False
+			progress['spinner'].visible = False
+
+		# Start progress monitoring
+		self.progress_monitor = pn.state.add_periodic_callback(
+			self._check_condition_progress,
+			period=1000  # Check every second
+		)
 
 		try:
 			# Get condition combinations
@@ -684,13 +694,20 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.object = error_message
 			self.run_pipeline_error.visible = True
 			self.logger.error(error_message)
+			self.overall_status.object = "❌ Analysis Failed"
+			self.overall_status.styles = {'color': 'red', 'font-weight': 'bold'}
 
 		finally:
-			# Stop the monitoring
-			if hasattr(self, 'results_monitor'):
-				self.results_monitor.stop()
-				delattr(self, 'results_monitor')
+			# Update overall status on completion
+			if not self.run_pipeline_error.visible:
+				self.overall_status.object = "✅ Analysis Complete"
+				self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
 
+			# Stop progress monitoring
+			if hasattr(self, 'progress_monitor'):
+				self.progress_monitor.stop()
+
+			self.trigger_dependency()
 			self.run_pipeline_progress.active = False
 
 		# Show/hide components based on selected analysis type
@@ -728,23 +745,15 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_button.disabled = False
 
 	def _set_default_output_folder(self):
-		"""Set default output folder and start monitoring."""
+		"""Set default output folder based on analysis file path."""
 		if self.path_analysis_file.value:
 			base_path = os.path.dirname(self.path_analysis_file.value)
 			output_path = os.path.join(base_path, 'results')
+			# Update local widget
 			self.path_output_folder.value = output_path
+			# Update state directly with string value
 			self.state.results_dir = output_path
-
-			# Make sure we have a progress panel
-			if not hasattr(self, 'condition_progress'):
-				self._update_progress_panel(self.assign_cond_pairs.value or [])
-
-			# Start monitoring if not already running
-			if not hasattr(self, 'results_monitor'):
-				self.results_monitor = pn.state.add_periodic_callback(
-					self._check_existing_results,
-					period=1000
-				)
+			self.state.notify_subscribers('results_dir')
 
 	def _import_sample_names(self):
 		if self.path_analysis_file.value:
@@ -809,7 +818,10 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 
 	def _add_conditions_for_assignment(self, *events):
-		"""Update conditions and immediately check for existing results."""
+		"""
+		Whenever the samplemap table is updated or conditions are selected,
+		update the progress panel.
+		"""
 		if self.samplemap_table.value is None:
 			return
 
@@ -822,125 +834,129 @@ class RunPipeline(BaseWidget):
 			]
 			self.assign_cond_pairs.options = comb_condit
 
-			# Update progress panel and check for existing results
-			self._update_progress_panel(comb_condit)
-			self._check_existing_results()
+			# Only update progress panel if pipeline is running
+			if hasattr(self, 'progress_monitor'):
+				self._update_progress_panel(self.assign_cond_pairs.value or [])
 
 	def _update_progress_panel(self, condition_pairs):
-		"""Simplified progress panel creation."""
+		"""Create or update progress indicators for each condition pair."""
+		# Only show progress for selected condition pairs
 		selected_pairs = self.assign_cond_pairs.value or []
 
 		# Clear existing progress indicators
 		self.condition_progress.clear()
 		progress_items = []
 
-		# Overall status
+		# Add overall progress indicator
 		self.overall_status = pn.pane.Markdown(
-			"### Analysis Progress",
-			margin=(0, 0, 10, 0)
+			"⏳ Analysis Pipeline Running...",
+			styles={
+				'color': '#007bff',  # Bootstrap primary blue
+				'font-weight': 'bold',
+				'margin-bottom': '10px'
+			},
+			visible=False
 		)
 		progress_items.append(self.overall_status)
 
 		for pair in selected_pairs:
-			# Simple status row with all indicators
-			spinner = pn.indicators.LoadingSpinner(value=False, color='primary', width=20, height=20)
-			pending = pn.pane.Markdown('⏳', styles={'font-size': '20px'})
-			running = pn.pane.Markdown('🔄', styles={'font-size': '20px'})
-			complete = pn.pane.Markdown('✅', styles={'color': 'green', 'font-size': '20px'})
-
-			# Set initial visibility
-			spinner.visible = False
-			pending.visible = True
-			running.visible = False
-			complete.visible = False
-
+			# Create status indicator with both spinner and text
 			status_row = pn.Row(
-				spinner,
-				pending,
-				running,
-				complete,
+				pn.indicators.LoadingSpinner(value=False, color='primary', width=20, height=20),
+				pn.pane.Markdown('⏳', styles={'font-size': '20px'}, visible=False),  # Pending
+				pn.pane.Markdown('🔄', styles={'font-size': '20px'}, visible=False),  # Running
+				pn.pane.Markdown('✅', styles={'color': 'green', 'font-size': '20px'}, visible=False),  # Complete
 				pn.pane.Markdown(f"**{pair}**"),
 				margin=(5, 5, 5, 10)
 			)
 
 			self.condition_progress[pair] = {
 				'row': status_row,
-				'spinner': spinner,
-				'pending': pending,
-				'running': running,
-				'complete': complete
+				'spinner': status_row[0],
+				'pending': status_row[1],
+				'running': status_row[2],
+				'complete': status_row[3]
 			}
 			progress_items.append(status_row)
 
-		# Create the card
+		# Create a card with the progress indicators
 		progress_card = pn.Card(
-			pn.Column(*progress_items, margin=10),
-			margin=5
+			pn.Column(
+				pn.pane.Markdown("### Analysis Progress"),
+				pn.pane.Markdown(
+					"As soon as a condition pair is finished, you can inspect the results in the plots tabs.",
+					margin=(0, 0, 10, 0)
+				),
+				*progress_items,
+				margin=(10, 10, 10, 10)
+			),
+			title='Progress',
+			collapsed=False,
+			margin=(5, 5, 5, 5),
+			styles={
+				'background': '#f8f9fa',
+				'border': '1px solid #dee2e6',
+				'border-radius': '5px',
+				'box-shadow': '0 1px 3px rgba(0,0,0,0.12)'
+			}
 		)
 
-		# Update panel
+		# Update the progress panel
 		self.condition_progress_panel.clear()
 		self.condition_progress_panel.append(progress_card)
 
-	def _check_existing_results(self):
-		"""Simple check for existing result files."""
-		output_dir = self.path_output_folder.value
-		if not output_dir or not os.path.exists(output_dir):
+	def _check_condition_progress(self):
+		"""Check progress of condition pairs by looking for result files."""
+		if not self.path_output_folder.value:
 			return
 
-		print(f"\nChecking results in: {output_dir}")
-
+		all_complete = True
 		for pair in self.condition_progress:
 			cond1, cond2 = pair.split('_VS_')
-			result_file = os.path.join(output_dir, f"{cond1}_VS_{cond2}.results.tsv")
+			result_file = os.path.join(
+				self.path_output_folder.value,
+				f"{cond1}_VS_{cond2}.results.tsv"
+			)
 
-			print(f"Checking file: {result_file}")
-			file_exists = os.path.exists(result_file)
-			print(f"File exists: {file_exists}")
-
-			if file_exists:
-				print(f"Setting indicators for {pair}")
-				try:
-					self.condition_progress[pair]['pending'].visible = False
-					self.condition_progress[pair]['running'].visible = False
-					self.condition_progress[pair]['spinner'].visible = False
-					self.condition_progress[pair]['complete'].visible = True
-					print(f"Successfully marked {pair} as complete")
-				except Exception as e:
-					print(f"Error updating indicators for {pair}: {str(e)}")
+			progress = self.condition_progress[pair]
+			if os.path.exists(result_file):
+				# Mark as completed
+				progress['spinner'].visible = False
+				progress['pending'].visible = False
+				progress['running'].visible = False
+				progress['complete'].visible = True
 			else:
-				self.condition_progress[pair]['pending'].visible = True
-				self.condition_progress[pair]['running'].visible = False
-				self.condition_progress[pair]['spinner'].visible = False
-				self.condition_progress[pair]['complete'].visible = False
+				# Show as running (if was pending)
+				if progress['pending'].visible:
+					progress['pending'].visible = False
+					progress['running'].visible = True
+					progress['spinner'].visible = True
+				all_complete = False
+
+		# Update overall status if all pairs are complete
+		if all_complete and self.overall_status.object == "⏳ Analysis Pipeline Running...":
+			self.overall_status.object = "✅ Analysis Complete"
+			self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
 
 	def _update_minrep_both(self, *events):
 		"""Set minrep_both to 0 when minrep_either is changed."""
 		self.minrep_both.value = 0
 
 	def _update_results_dir(self, event):
-		"""Update central state with new results directory and check for existing files."""
-		value = event
+		"""Update central state with new results directory."""
 		if isinstance(event, param.Event):
 			value = event.new
+		elif hasattr(event, 'new'):  # Handle Panel event objects
+			value = event.new
+		else:
+			value = event
 
-		if value:
-			print(f"\nOutput directory changed to: {value}")
-			self.state.results_dir = str(value)
-
-			# Create progress panel if it doesn't exist
-			if not hasattr(self, 'condition_progress'):
-				self._update_progress_panel(self.assign_cond_pairs.value or [])
-
-			# Immediate check for existing files
-			self._check_existing_results()
-
-			# Start monitoring if not already running
-			if not hasattr(self, 'results_monitor'):
-				self.results_monitor = pn.state.add_periodic_callback(
-					self._check_existing_results,
-					period=1000
-				)
+		if value is not None:
+			# Ensure we're working with a string
+			value = str(value)
+			# Update state
+			self.state.results_dir = value
+			self.state.notify_subscribers('results_dir')
 
 	def _update_analysis_file(self, event):
 		"""Update central state with new analysis file."""
