@@ -19,7 +19,7 @@ jobs:
     uses: MannLabs/alphashared/.github/workflows/publish_on_pypi.yml@v1
     with:
       # see the documentation of the workflow for more information on the parameters
-      package_name: directlfq
+      package_name: alphaquant
       tag_to_release: ${{ inputs.tag_to_release }}
       python_version: 3.11
       only_testpypi_release: ${{ inputs.only_testpypi_release }}

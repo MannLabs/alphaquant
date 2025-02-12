@@ -37,7 +37,7 @@ values = ["dev", "final"]
 optional_value = "final"
 
 [[tool.bumpversion.files]]
-filename = "./directlfq/__init__.py"
+filename = "./alphaquant/__init__.py"
 
 [[tool.bumpversion.files]]
 filename = "./release/linux/control"
@@ -61,7 +61,7 @@ filename = "./release/macos/build_package_macos.sh"
 filename = "./release/windows/build_installer_windows.ps1"
 
 [[tool.bumpversion.files]]
-filename = "./release/windows/directlfq_innoinstaller.iss"
+filename = "./release/windows/alphaquant_innoinstaller.iss"
 
 [[tool.bumpversion.files]]
 filename = "./settings.ini"
