@@ -16,5 +16,4 @@ openpyxl
 scikit-learn
 alphabase
 matplotlib-venn
-dash
 alphamap
