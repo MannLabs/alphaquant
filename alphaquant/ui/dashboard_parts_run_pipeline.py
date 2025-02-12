@@ -3,6 +3,7 @@ import re
 from io import StringIO
 import itertools
 import pathlib
+import time
 
 import param
 import panel as pn
@@ -16,7 +17,6 @@ import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
-
 # If using Plotly in Panel
 pn.extension('plotly')
 
@@ -617,6 +617,7 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 			return
 
+		print("\n=== Starting Pipeline Run ===")
 		self.run_pipeline_progress.active = True
 		self.run_pipeline_error.visible = False
 		self.console_output.value = "Starting pipeline...\n"
@@ -628,17 +629,36 @@ class RunPipeline(BaseWidget):
 		self.overall_status.visible = True
 
 		# Set initial status for all pairs to pending
-		for progress in self.condition_progress.values():
-			progress['pending'].visible = True
-			progress['running'].visible = False
-			progress['complete'].visible = False
-			progress['spinner'].visible = False
+		for pair, progress_dict in self.condition_progress.items():
+			print(f"Setting initial status for {pair}")
+			progress_dict['pending'].visible = True
+			progress_dict['running'].visible = False
+			progress_dict['complete'].visible = False
+			progress_dict['spinner'].visible = False
 
-		# Start progress monitoring
-		self.progress_monitor = pn.state.add_periodic_callback(
-			self._check_condition_progress,
-			period=1000  # Check every second
-		)
+		print("Starting progress monitor...")
+		# Start progress monitoring with debug info
+		try:
+			# Stop any existing monitor
+			if hasattr(self, 'progress_monitor'):
+				print("Stopping existing progress monitor...")
+				self.progress_monitor.stop()
+
+			# Create new monitor with explicit start
+			self.progress_monitor = pn.state.add_periodic_callback(
+				callback=self._check_condition_progress,
+				period=1000,  # Check every second
+				start=True
+			)
+			print(f"Progress monitor started successfully: {self.progress_monitor}")
+
+			# Force an immediate check
+			self._check_condition_progress()
+
+		except Exception as e:
+			print(f"Error setting up progress monitor: {str(e)}")
+			import traceback
+			traceback.print_exc()
 
 		try:
 			# Get condition combinations
@@ -698,14 +718,28 @@ class RunPipeline(BaseWidget):
 			self.overall_status.styles = {'color': 'red', 'font-weight': 'bold'}
 
 		finally:
+			print("\n=== Pipeline Run Complete ===")
 			# Update overall status on completion
 			if not self.run_pipeline_error.visible:
 				self.overall_status.object = "✅ Analysis Complete"
 				self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+				self.overall_status.param.trigger('object')
 
-			# Stop progress monitoring
+			# Let the progress monitor run for a bit longer to catch the final status
+			print("Waiting for final progress checks...")
+			#time.sleep(2)  # Give time for final file checks
+
+			# Stop progress monitoring with debug info
 			if hasattr(self, 'progress_monitor'):
-				self.progress_monitor.stop()
+				print("Stopping progress monitor...")
+				try:
+					# Force one final check before stopping
+					self._check_condition_progress()
+					time.sleep(1)  # Give UI time to update
+					self.progress_monitor.stop()
+					print("Progress monitor stopped successfully")
+				except Exception as e:
+					print(f"Error stopping progress monitor: {str(e)}")
 
 			self.trigger_dependency()
 			self.run_pipeline_progress.active = False
@@ -907,36 +941,67 @@ class RunPipeline(BaseWidget):
 
 	def _check_condition_progress(self):
 		"""Check progress of condition pairs by looking for result files."""
-		if not self.path_output_folder.value:
-			return
+		try:
+			print("\n=== Checking Condition Progress ===")
 
-		all_complete = True
-		for pair in self.condition_progress:
-			cond1, cond2 = pair.split('_VS_')
-			result_file = os.path.join(
-				self.path_output_folder.value,
-				f"{cond1}_VS_{cond2}.results.tsv"
-			)
+			if not hasattr(self, 'path_output_folder'):
+				print("No output folder attribute, returning early")
+				return
 
-			progress = self.condition_progress[pair]
-			if os.path.exists(result_file):
-				# Mark as completed
-				progress['spinner'].visible = False
-				progress['pending'].visible = False
-				progress['running'].visible = False
-				progress['complete'].visible = True
-			else:
-				# Show as running (if was pending)
-				if progress['pending'].visible:
-					progress['pending'].visible = False
-					progress['running'].visible = True
-					progress['spinner'].visible = True
-				all_complete = False
+			if not self.path_output_folder.value:
+				print("No output folder value, returning early")
+				return
 
-		# Update overall status if all pairs are complete
-		if all_complete and self.overall_status.object == "⏳ Analysis Pipeline Running...":
-			self.overall_status.object = "✅ Analysis Complete"
-			self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+			if not hasattr(self, 'condition_progress'):
+				print("No condition_progress attribute, returning early")
+				return
+
+			print(f"Checking output folder: {self.path_output_folder.value}")
+			print(f"Number of condition pairs to check: {len(self.condition_progress)}")
+
+			all_complete = True
+
+			for pair, progress_dict in self.condition_progress.items():
+				print(f"\nChecking pair: {pair}")
+				cond1, cond2 = pair.split('_VS_')
+				result_file = os.path.join(
+					self.path_output_folder.value,
+					f"{cond1}_VS_{cond2}.results.tsv"
+				)
+				print(f"Looking for file: {result_file}")
+
+				file_exists = os.path.exists(result_file)
+				print(f"File exists: {file_exists}")
+
+				if file_exists:
+					print(f"Found result file for {pair}")
+					progress_dict['pending'].visible = False
+					progress_dict['running'].visible = False
+					progress_dict['complete'].visible = True
+					progress_dict['spinner'].visible = False
+				else:
+					print(f"Result file not found for {pair}")
+					progress_dict['pending'].visible = False
+					progress_dict['running'].visible = True
+					progress_dict['complete'].visible = False
+					progress_dict['spinner'].visible = True
+					all_complete = False
+
+			print(f"\nAll conditions complete? {all_complete}")
+			print(f"Current overall status: {self.overall_status.object}")
+
+			if all_complete and self.overall_status.object == "⏳ Analysis Pipeline Running...":
+				print("Updating overall status to complete")
+				self.overall_status.object = "✅ Analysis Complete"
+				self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+				self.overall_status.param.trigger('object')
+
+			print("=== Progress Check Complete ===\n")
+
+		except Exception as e:
+			print(f"Error in progress check: {str(e)}")
+			import traceback
+			traceback.print_exc()
 
 	def _update_minrep_both(self, *events):
 		"""Set minrep_both to 0 when minrep_either is changed."""
