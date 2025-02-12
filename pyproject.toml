@@ -58,4 +58,4 @@ optional-dependencies = { stable = { file = ["requirements/requirements.txt",
 version = {attr = "alphaquant.__version__"}
 
 [project.scripts]
-alphaquant = "alphaquant.cli:run"
+alphaquant = "alphaquant.ui.cli:run"
