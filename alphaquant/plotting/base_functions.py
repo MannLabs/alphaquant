@@ -39,7 +39,7 @@ class AlphaPeptColorMap():
     def __init__(self):
         self.colorlist_hex  = ["#3FC5F0", "#42DEE1", "#7BEDC5", "#FFD479", "#16212B"]
         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
-        
+
         self.colormap_linear = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist)
         self.colormap_discrete = matplotlib.colors.LinearSegmentedColormap.from_list("alphapept",self.colorlist, N=5)
 
@@ -54,7 +54,7 @@ class ClusterColorMap():
                     "#7B1FA2",  # Deep Purple
                     "#E91E63",  # Rose Pink
                     "#795548",  # Mocha Brown
-                    "#607D8B"   # Slate Grey 
+                    "#607D8B"   # Slate Grey
                     ]
         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
 
@@ -73,7 +73,7 @@ class AlphaPeptColorMapAdapted():
     "#E77D7D"   # Light Coral (Slightly desaturated)
 ]
         self.colorlist = [matplotlib.colors.to_rgba(x) for x in self.colorlist_hex]
-        
+
 class AlphaQuantColorMap():
     def __init__(self):
         self.colorlist_hex  = ["#d8674e",  # Cadmium Red
@@ -249,109 +249,6 @@ def plot_fold_change(df, key1, key2):
     #plt.ylim([6,11.5])
     plt.show()
 
-# Cell
-
-from dash import dcc
-import plotly.graph_objs as go
-
-#ckg_copypaste, defaults added for args argument
-def get_volcanoplot_ckg(results, args = {'x_title':'log2FC', 'y_title':'-log10FDR','colorscale':'Blues', 'showscale':True, 'marker_size':7, 'fc' :0.5}):
-    """
-    This function plots volcano plots for each internal dictionary in a nested dictionary.
-    :param dict[dict] results: nested dictionary with pairwise group comparisons as keys and internal dictionaries containing 'x' (log2FC values), \
-                                'y' (-log10 p-values), 'text', 'color', 'pvalue' and 'annotations' (number of hits to be highlighted).
-    :param dict args: see below.
-    :Arguments:
-        * **fc** (float) -- fold change threshold.
-        * **range_x** (list) -- list with minimum and maximum values for x axis.
-        * **range_y** (list) -- list with minimum and maximum values for y axis.
-        * **x_title** (str) -- plot x axis title.
-        * **y_title** (str) -- plot y axis title.
-        * **colorscale** (str) -- string for predefined plotly colorscales or dict containing one or more of the keys listed in \
-                                    https://plot.ly/python/reference/#layout-colorscale.
-        * **showscale** (bool) -- determines whether or not a colorbar is displayed for a trace.
-        * **marker_size** (int) -- sets the marker size (in px).
-    :return: list of volcano plot figures within the <div id="_dash-app-content">.
-    Example::
-        result = get_volcanoplot(results, args={'fc':2.0, 'range_x':[0, 1], 'range_y':[-1, 1], 'x_title':'x_axis', 'y_title':'y_title', 'colorscale':'Blues', \
-                                'showscale':True, 'marker_size':7})
-    """
-    figures = []
-    for identifier,title in results:
-        result = results[(identifier,title)]
-        figure = {"data":[],"layout":None}
-        if "range_x" not in args:
-            range_x = [-max(abs(result['x']))-0.1, max(abs(result['x']))+0.1]#if symmetric_x else []
-        else:
-            range_x = args["range_x"]
-        if "range_y" not in args:
-            range_y = [0,max(abs(result['y']))+1.]
-        else:
-            range_y = args["range_y"]
-        traces = [go.Scatter(x=result['x'],
-                        y=result['y'],
-                        mode='markers',
-                        text=result['text'],
-                        hoverinfo='text',
-                        marker={'color':result['color'],
-                                'colorscale': args["colorscale"],
-                                'showscale': args['showscale'],
-                                'size': args['marker_size'],
-                                'line': {'color':result['color'], 'width':2}
-                                }
-                        )]
-        shapes = []
-        if ('is_samr' in result and not result['is_samr']) or 'is_samr' not in result:
-            shapes = [{'type': 'line',
-                      'x0': np.log2(args['fc']),
-                      'y0': 0,
-                      'x1': np.log2(args['fc']),
-                      'y1': range_y[1],
-                      'line': {
-                          'color': 'grey',
-                          'width': 2,
-                          'dash':'dashdot'
-                          },
-                      },
-                    {'type': 'line',
-                     'x0': -np.log2(args['fc']),
-                     'y0': 0,
-                     'x1': -np.log2(args['fc']),
-                     'y1': range_y[1],
-                     'line': {
-                         'color': 'grey',
-                         'width': 2,
-                         'dash': 'dashdot'
-                         },
-                     },
-                    {'type': 'line',
-                     'x0': -max(abs(result['x']))-0.1,
-                     'y0': result['pvalue'],
-                     'x1': max(abs(result['x']))+0.1,
-                     'y1': result['pvalue'],
-                     'line': {
-                         'color': 'grey',
-                         'width': 1,
-                         'dash': 'dashdot'
-                         },
-                     }]
-            #traces.append(go.Scattergl(x=result['upfc'][0], y=result['upfc'][1]))
-            #traces.append(go.Scattergl(x=result['downfc'][0], y=result['downfc'][1]))
-
-        figure["data"] = traces
-        figure["layout"] = go.Layout(title=title,
-                                        xaxis={'title': args['x_title'], 'range': range_x},
-                                        yaxis={'title': args['y_title'], 'range': range_y},
-                                        hovermode='closest',
-                                        shapes=shapes,
-                                        width=950,
-                                        height=1050,
-                                        annotations = result['annotations']+[dict(xref='paper', yref='paper', showarrow=False, text='')],
-                                        template='plotly_white',
-                                        showlegend=False)
-
-        figures.append(dcc.Graph(id= identifier, figure = figure))
-    return figures
 
 # Cell
 
@@ -501,45 +398,6 @@ def foldchange_ion_plot(df_melted, diffresults_protein, saveloc = None):
     plt.show()
 
 
-# Cell
-from dash import dcc
-import plotly.graph_objs as go
-
-#ckg_copypaste
-def get_heatmapplot_ckg(data, identifier= "Heatmap", args = {'format' :'default', 'title' : 'heatmap'}):
-    """
-    This function plots a simple Heatmap.
-    :param data: is a Pandas DataFrame with the shape of the heatmap where index corresponds to rows \
-                and column names corresponds to columns, values in the heatmap corresponds to the row values.
-    :param str identifier: is the id used to identify the div where the figure will be generated.
-    :param dict args: see below.
-    :Arguments:
-        * **format** (str) -- defines the format of the input dataframe.
-        * **source** (str) -- name of the column containing the source.
-        * **target** (str) -- name of the column containing the target.
-        * **values** (str) -- name of the column containing the values to be plotted.
-        * **title** (str) -- title of the figure.
-    :return: heatmap figure within the <div id="_dash-app-content">.
-    Example::
-        result = get_heatmapplot(data, identifier='heatmap', args={'format':'edgelist', 'source':'node1', 'target':'node2', 'values':'score', 'title':'Heatmap Plot'})
-    """
-    df = data.copy()
-    if args['format'] == "edgelist":
-        df = df.set_index(args['source'])
-        df = df.pivot_table(values=args['values'], index=df.index, columns=args['target'], aggfunc='first')
-        df = df.fillna(0)
-    figure = {}
-    figure["data"] = []
-    figure["layout"] = {"title":args['title'],
-                        "height": 500,
-                        "width": 700,
-                        "annotations" : [dict(xref='paper', yref='paper', showarrow=False, text='')],
-                        "template":'plotly_white'}
-    figure['data'].append(go.Heatmap(z=df.values.tolist(),
-                                    x = list(df.columns),
-                                    y = list(df.index)))
-
-    return dcc.Graph(id = identifier, figure = figure)
 
 # Cell
 import numpy.ma as ma
