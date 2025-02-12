@@ -7,13 +7,15 @@ import pandas as pd
 # visualization
 import panel as pn
 import bokeh.server.views.ws
-import alphaquant.dashboard_parts as dashboard_parts
+import alphaquant.ui.dashboard_parts_run_pipeline as dashboard_parts
 
 
 def get_css_style(
     file_name="dashboard_style.css",
     directory=os.path.join(
         os.path.dirname(__file__),
+        "..",
+        "resources",
         "style"
     )
 ):
@@ -50,6 +52,7 @@ class GUI(object):
             name,
             os.path.join(
                 os.path.dirname(__file__),
+                "..","resources",
                 "img",
             ),
             github_url
