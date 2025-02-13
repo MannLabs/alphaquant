@@ -14,6 +14,9 @@ matplotlib.use('agg')
 import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.ui.gui_textfields as gui_textfields
+import alphaquant.ui.dashboad_parts_visualize_static as dashboad_parts_visualize_static
+import alphaquant.ui.dashboard_parts_visualize_interactive as dashboard_parts_single_comparison
+import alphaquant.config.variables as aq_variables
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
@@ -479,29 +482,14 @@ class RunPipeline(BaseWidget):
 		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
 		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
 		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
+		self.path_output_folder.param.watch(self._update_visualization_tab, 'value')
 
 
 	def create(self):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
-		# 1) Instructions Card
-		instructions_card = pn.Card(
-			"### Instructions",
-			gui_textfields.Descriptions.project_instruction,
-			gui_textfields.Cards.spectronaut,
-			gui_textfields.Cards.diann,
-			gui_textfields.Cards.alphapept,
-			gui_textfields.Cards.maxquant,
-			title='Instructions',
-			collapsed=True,
-			margin=(5, 5, 5, 5),
-			sizing_mode='fixed',
-			width=400
-		)
-
-
-		# 2) Advanced Configuration Card
+		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
 				"### Threshold Settings",
@@ -539,7 +527,7 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table
 		)
 
-		# Create condition comparison layout (without the header)
+		# Create condition comparison layout
 		condition_comparison_layout = pn.Column(
 			self.condition_comparison_instructions,
 			self.assign_cond_pairs,
@@ -584,7 +572,7 @@ class RunPipeline(BaseWidget):
 				sizing_mode='stretch_width'
 			),
 			self.run_pipeline_error,
-			sizing_mode='stretch_width'  # Removed scroll and height
+			sizing_mode='stretch_width'
 		)
 
 		# Console output column wrapped in a Row for padding
@@ -597,29 +585,24 @@ class RunPipeline(BaseWidget):
 			align='start'
 		)
 
-		# Main layout
-		main_layout = pn.Row(
-			main_col,
-			console_col,
-			sizing_mode='stretch_width'
-		)
-
-		# Main pipeline card
-		main_pipeline_card = pn.Card(
-			main_layout,
-			title='Run Pipeline',
-			header_color='#333',
-			header_background='#eaeaea',
-			sizing_mode='stretch_width',
-			margin=(10, 10, 10, 10)
-		)
-
-		# Final layout
+		# Main layout with frame
 		self.layout = pn.Column(
-			instructions_card,
-			main_pipeline_card,
-			sizing_mode='stretch_width'
+			pn.Row(
+				main_col,
+				console_col,
+				sizing_mode='stretch_width'
+			),
+			css_classes=['custom-frame'],  # For custom styling if needed
+			margin=(20, 20, 20, 20),  # This handles both outer and inner spacing
+			sizing_mode='stretch_width',
+			styles={
+				'background': '#f8f9fa',    # Light gray background
+				'border': '1px solid #dee2e6',  # Light gray border
+				'border-radius': '5px',         # Rounded corners
+				'box-shadow': '0 1px 3px rgba(0,0,0,0.12)'  # Subtle shadow
+			}
 		)
+
 		return self.layout
 
 	def _run_pipeline(self, *events):
@@ -644,12 +627,12 @@ class RunPipeline(BaseWidget):
 			# Get condition combinations from the CrossSelector
 			if self.assign_cond_pairs.value:
 				cond_combinations = [
-					tuple(pair.split('_vs_'))
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
 					for pair in self.assign_cond_pairs.value
 				]
 			else:
 				cond_combinations = [
-					tuple(pair.split('_vs_'))
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
 					for pair in self.assign_cond_pairs.options
 				]
 
@@ -810,7 +793,7 @@ class RunPipeline(BaseWidget):
 		if 'condition' in df.columns:
 			unique_condit = df['condition'].dropna().unique()
 			comb_condit = [
-				'_vs_'.join(comb)
+				aq_variables.CONDITION_PAIR_SEPARATOR.join(comb)
 				for comb in itertools.permutations(unique_condit, 2)
 			]
 			self.assign_cond_pairs.options = comb_condit
@@ -819,12 +802,53 @@ class RunPipeline(BaseWidget):
 		"""Set minrep_both to 0 when minrep_either is changed."""
 		self.minrep_both.value = 0
 
+	def _update_visualization_tab(self, event):
+		"""Update the Visualize tab whenever the output folder changes."""
+		if event.new:  # Only update if there's a value
+			try:
+				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+					results_dir=event.new
+				)
+
+				# Find and update the Plotting tab
+				for p in self.layout.select(pn.Tabs):
+					if 'Plotting' in [t[0] for t in p]:
+						p[1] = ('Plotting', plotting_tab.panel())
+						break
+
+			except Exception as e:
+				error_msg = f"Error updating visualization tab: {str(e)}"
+				for p in self.layout.select(pn.Tabs):
+					if 'Plotting' in [t[0] for t in p]:
+						p[1] = ('Plotting', pn.pane.Markdown(
+							f"### Visualization Error\n\n{error_msg}"
+						))
+						break
+
 	def _visualize_data(self, *events):
 		"""
-		Trigger an update event for any dependent tabs/components to load results.
+		Update the Visualize tab with the results.
 		"""
-		self.run_pipeline_error.visible = False
-		self.trigger_dependency()
+		try:
+			if self.path_output_folder.value:
+				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+					results_dir=self.path_output_folder.value
+				)
+
+				# Find and update the Plotting tab
+				for p in self.layout.select(pn.Tabs):
+					if 'Plotting' in [t[0] for t in p]:
+						p[1] = ('Plotting', plotting_tab.panel())
+						break
+
+		except Exception as e:
+			error_msg = f"Error updating visualization tab: {str(e)}"
+			for p in self.layout.select(pn.Tabs):
+				if 'Plotting' in [t[0] for t in p]:
+					p[1] = ('Plotting', pn.pane.Markdown(
+						f"### Visualization Error\n\n{error_msg}"
+					))
+					break
 
 	def natural_sort(self, l):
 		"""
@@ -889,82 +913,75 @@ class RunPipeline(BaseWidget):
 
 class Tabs(param.Parameterized):
 	"""
-	Manages switching from the pipeline stage to one or more analysis tabs.
+	This class creates a single pn.Tabs layout containing:
+	  1. Pipeline
+	  2. Single Comparison
+	  3. Plotting
 	"""
 	pipeline = param.ClassSelector(class_=RunPipeline)
 	main_tabs = param.ClassSelector(class_=pn.Tabs, allow_None=True)
-	current_layout = param.Parameter()
 
 	def __init__(self, pipeline, **params):
 		super().__init__(pipeline=pipeline, **params)
-		self.main_tabs = None
-		self.current_layout = None
-		# Watch pipeline.update_event to create the tabs after pipeline has run
-		self.pipeline.param.watch(self._create_tabs_if_possible, 'update_event')
-
-	def _create_tabs_if_possible(self, *events):
-		"""
-		If the user has clicked 'visualize data', show the analysis tabs.
-		"""
-		if (self.pipeline.path_output_folder.value
-				and self.pipeline.visualize_data_button.clicks > 0):
-			try:
-				self._build_tabs()
-				# Update the current layout
-				self.current_layout = self.main_tabs
-			except Exception as e:
-				print(f"Error creating visualization tabs: {str(e)}")
-				self.current_layout = pn.pane.Markdown(
-					f"Error creating visualization: {str(e)}"
-				)
-
-	def _build_tabs(self):
-		"""
-		Build a Panel Tabs layout with visualization components.
-		"""
-		if self.main_tabs is None:
-			self.main_tabs = pn.Tabs(
-				tabs_location='above',
-				sizing_mode='stretch_width',
-				margin=(10, 10, 10, 10)
-			)
-
-			# Initialize visualization components
-			try:
-				# Single Comparison tab
-				single_comp = SingleComparison(
-					self.pipeline.path_output_folder.value,
-					self.pipeline.samplemap_table.value
-				)
-				self.main_tabs.append(
-					('Single Comparison', single_comp.layout)
-				)
-				# Could add more tabs here for multiple comparisons, etc.
-			except Exception as e:
-				print(f"Error initializing comparison tab: {str(e)}")
-				self.main_tabs.append(
-					('Error', pn.pane.Markdown(f"Error creating visualization: {str(e)}"))
-				)
+		self._build_initial_tabs()
+		self.pipeline.param.watch(
+			self._update_tabs,
+			'update_event',
+			onlychanged=True
+		)
 
 	def create(self):
-		"""
-		Return the current view - either tabs or a message.
-		"""
-		if self.current_layout is not None:
-			return self.current_layout
-		else:
-			return pn.pane.Markdown(
-				"## No results yet.\nPlease run the pipeline and click **Visualize data**.",
-				sizing_mode='stretch_width'
-			)
+		"""Return the tabs layout."""
+		return self.main_tabs
 
-# ----------------
-# BUILD DASHBOARD
-# ----------------
+	def _build_initial_tabs(self):
+		"""Create initial empty tabs."""
+		self.main_tabs = pn.Tabs(
+			('Single Comparison', pn.pane.Markdown(
+				"## No data loaded\nPlease load data in the Pipeline tab first."
+			)),
+			('Plotting', dashboad_parts_visualize_static.PlottingTab().panel()),
+			tabs_location='above',
+			sizing_mode='stretch_width',
+			margin=(10, 10, 10, 10)
+		)
+
+	def _update_tabs(self, event=None):
+		"""Update tabs with visualization when data is available."""
+		try:
+			if (self.pipeline.path_output_folder.value and
+				self.pipeline.samplemap_table.value is not None):
+
+				# Update Single Comparison tab
+				sample_mapping_df = self.pipeline.samplemap_table.value.copy()
+				if not isinstance(sample_mapping_df, pd.DataFrame):
+					sample_mapping_df = pd.DataFrame(sample_mapping_df)
+
+				single_comp = dashboard_parts_single_comparison.SingleComparison(
+					self.pipeline.path_output_folder.value,
+					sample_mapping_df
+				)
+				self.main_tabs[0] = ('Single Comparison', single_comp.layout)
+
+				# Update Plotting tab
+				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+					results_dir=self.pipeline.path_output_folder.value
+				)
+				self.main_tabs[1] = ('Plotting', plotting_tab.panel())
+
+		except Exception as e:
+			error_msg = f"Error updating visualization tabs: {str(e)}"
+			print(error_msg)
+			self.main_tabs[0] = ('Single Comparison', pn.pane.Markdown(
+				f"### Visualization Error\n\n{error_msg}"
+			))
+			self.main_tabs[1] = ('Plotting', pn.pane.Markdown(
+				f"### Visualization Error\n\n{error_msg}"
+			))
+
+
 def build_dashboard():
-	"""
-	Example function to build the overall dashboard layout in a FastListTemplate.
-	"""
+	"""Build the overall dashboard layout."""
 	header = HeaderWidget(
 		title="AlphaQuant Dashboard",
 		img_folder_path="./assets",
@@ -977,24 +994,41 @@ def build_dashboard():
 		),
 		manual_path="path/to/manual.pdf"
 	)
+
+	# Create pipeline instance
 	pipeline = RunPipeline()
+	pipeline_layout = pipeline.create()
+
+	# Create tab manager with pipeline tab
 	tab_manager = Tabs(pipeline)
+	tabs = tab_manager.create()
+
+	# Create tabs with Pipeline as the first tab
+	all_tabs = pn.Tabs(
+		('Pipeline', pipeline_layout),
+		('Single Comparison', tabs[0][1]),
+		('Plotting', tabs[1][1]),
+		dynamic=True,
+		tabs_location='above',
+		sizing_mode='stretch_width'
+	)
+
+	# Main layout
+	main_layout = pn.Column(
+		header.create(),
+		pn.layout.Divider(),
+		main_text.create(),
+		all_tabs,
+		sizing_mode='stretch_width'
+	)
 
 	template = pn.template.FastListTemplate(
 		title="AlphaQuant Analysis",
-		sidebar=[   # If you want a sidebar, you can put items here
-			# "## Sidebar Title",
-			# pn.widgets.Select(options=['Item1','Item2']),
-		],
-		main=[
-			header.create(),
-			pn.layout.Divider(),
-			main_text.create(),
-			pipeline.create(),
-			tab_manager.create()
-		],
-		theme='dark',          # or 'default'
-		main_max_width="1200px"
+		sidebar=[],
+		main=[main_layout],
+		theme='dark',
+		main_max_width="1200px",
+		main_layout="width"
 	)
 	return template
 

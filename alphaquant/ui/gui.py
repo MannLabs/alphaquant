@@ -8,6 +8,8 @@ import pandas as pd
 import panel as pn
 import bokeh.server.views.ws
 import alphaquant.ui.dashboard_parts_run_pipeline as dashboard_parts
+import alphaquant.ui.gui_textfields as gui_textfields
+import alphaquant.ui.dashboad_parts_visualize_static as dashboad_parts_visualize_static
 
 
 def get_css_style(
@@ -107,34 +109,65 @@ class GUI(object):
 
 
 class AlphaQuantGUI(GUI):
-    # TODO: docstring
     def __init__(self, start_server=False):
         super().__init__(
             name="AlphaQuant",
             github_url='https://github.com/MannLabs/alphaquant',
         )
-        self.project_description = """### AlphaQuant is an open-source package for sensitive detection of protein abundance changes."""
-        self.manual_path = os.path.join(
-            os.path.dirname(__file__),
-            "docs",
-            'Empty_manual.pdf'
+        self.project_description = """<div style="color: #2F4F4F; font-size: 1.3em; margin-top: -10px; margin-bottom: 20px;">AlphaQuant is an open-source package for sensitive detection of protein abundance changes.</div>"""
+
+        # Create a centered row for the project description
+        self.description_row = pn.Row(
+            pn.Spacer(sizing_mode='stretch_width'),
+            pn.pane.HTML(self.project_description, align='center'),
+            pn.Spacer(sizing_mode='stretch_width'),
+            sizing_mode='stretch_width',
+            margin=(0, 0, 20, 0)  # top, right, bottom, left
         )
-        self.main_widget = dashboard_parts.MainWidget(
-            self.project_description,
-            self.manual_path
+
+        # Create instructions card
+        self.instructions_card = pn.Card(
+            "### Instructions",
+            gui_textfields.Descriptions.project_instruction,
+            gui_textfields.Cards.spectronaut,
+            gui_textfields.Cards.diann,
+            gui_textfields.Cards.alphapept,
+            gui_textfields.Cards.maxquant,
+            title='Instructions',
+            collapsed=True,
+            margin=(5, 5, 5, 5),
+            sizing_mode='fixed',
+        )
+
+        # Wrap instructions card in a Row for horizontal centering
+        self.instructions_row = pn.Row(
+            pn.Spacer(sizing_mode='stretch_width'),
+            self.instructions_card,
+            pn.Spacer(sizing_mode='stretch_width'),
+            sizing_mode='stretch_width'
         )
 
         # ERROR/WARNING MESSAGES
         self.error_message_upload = "The selected file can't be uploaded. Please check the instructions for data uploading."
 
+        # Create pipeline instance
         self.run_pipeline = dashboard_parts.RunPipeline()
-        self.tabs = dashboard_parts.Tabs(self.run_pipeline)
+
+        # Create initial empty tabs with pipeline and plotting tab
+        self.tab_layout = pn.Tabs(
+            ('Run Pipeline', self.run_pipeline.create()),
+            ('Visualize Results', dashboad_parts_visualize_static.PlottingTab().panel()),
+            dynamic=True,
+            tabs_location='above',
+            sizing_mode='stretch_width'
+        )
 
         self.layout += [
-            self.main_widget.create(),
-            self.run_pipeline.create(),
-            self.tabs.create(),
+            self.description_row,
+            self.instructions_row,
+            self.tab_layout
         ]
+
         if start_server:
             self.start_server()
 

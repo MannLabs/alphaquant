@@ -14,10 +14,8 @@ matplotlib.use('agg')
 
 # alphaquant imports
 import alphaquant.utils.utils as aqutils
-import alphaquant.diffquant.diffutils as aqdiffutils
-import alphaquant.run_pipeline as diffmgr
 import alphaquant.plotting.base_functions as aqplot
-import alphaquant.ui.gui_textfields as gui_textfields
+import alphaquant.config.variables as aq_variables
 
 # If using Plotly in Panel
 pn.extension('plotly')
@@ -107,7 +105,7 @@ class SingleComparison(param.Parameterized):
             return
 
         # Parse the condition pair
-        self.cond1, self.cond2 = self.condpairs_selector.value.split('_vs_')
+        self.cond1, self.cond2 = self.condpairs_selector.value.split(aq_variables.CONDITION_PAIR_SEPARATOR)
         self.iontree_condpair = aqutils.read_condpair_tree(self.cond1, self.cond2, self.output_folder)
 
         # Read result & normalized data
