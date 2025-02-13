@@ -3,6 +3,7 @@ import os
 import time
 import logging
 import pandas as pd
+import param
 
 # visualization
 import panel as pn
@@ -36,6 +37,30 @@ def init_panel():
 
 # style
 init_panel()
+
+
+class DashboardState(param.Parameterized):
+    """Central state manager for the dashboard."""
+    results_dir = param.String(default="")
+    samplemap_df = param.DataFrame(default=pd.DataFrame())
+    analysis_file = param.String(default="")
+    condition_pairs = param.List(default=[])
+    selected_condition_pair = param.String(default="")
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.subscribers = []
+
+    def add_subscriber(self, subscriber):
+        """Add a tab/component that should be notified of state changes."""
+        self.subscribers.append(subscriber)
+
+    def notify_subscribers(self, changed_param):
+        """Notify all subscribers of a state change."""
+        for subscriber in self.subscribers:
+            if hasattr(subscriber, f'on_{changed_param}_changed'):
+                value = getattr(self, changed_param)
+                getattr(subscriber, f'on_{changed_param}_changed')(value)
 
 
 class GUI(object):
@@ -114,6 +139,18 @@ class AlphaQuantGUI(GUI):
             name="AlphaQuant",
             github_url='https://github.com/MannLabs/alphaquant',
         )
+
+        # Create central state manager
+        self.state = DashboardState()
+
+        # Create components/tabs
+        self.run_pipeline = dashboard_parts.RunPipeline(state=self.state)
+        self.plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=self.state)
+
+        # Register components as subscribers
+        self.state.add_subscriber(self.run_pipeline)
+        self.state.add_subscriber(self.plotting_tab)
+
         self.project_description = """<div style="color: #2F4F4F; font-size: 1.3em; margin-top: -10px; margin-bottom: 20px;">AlphaQuant is an open-source package for sensitive detection of protein abundance changes.</div>"""
 
         # Create a centered row for the project description
@@ -150,13 +187,10 @@ class AlphaQuantGUI(GUI):
         # ERROR/WARNING MESSAGES
         self.error_message_upload = "The selected file can't be uploaded. Please check the instructions for data uploading."
 
-        # Create pipeline instance
-        self.run_pipeline = dashboard_parts.RunPipeline()
-
-        # Create initial empty tabs with pipeline and plotting tab
+        # Create initial tabs
         self.tab_layout = pn.Tabs(
             ('Run Pipeline', self.run_pipeline.create()),
-            ('Basic Plots', dashboad_parts_plots_basic.PlottingTab().panel()),
+            ('Basic Plots', self.plotting_tab.panel()),
             dynamic=True,
             tabs_location='above',
             sizing_mode='stretch_width'
