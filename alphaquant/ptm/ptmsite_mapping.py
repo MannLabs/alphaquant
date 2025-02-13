@@ -22,7 +22,7 @@ import alphaquant.config.config as aqconfig
 import logging
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
-
+import alphaquant.config.variables as aq_variables
 #helper classes
 
 
@@ -73,7 +73,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
         organism = organism)
 
 # Cell
-    
+
 
 import os
 def assign_dataset(input_df, samplemap_df, id_thresh = 0.6, excl_thresh =0.2, results_folder = None, swissprot_file = None,
@@ -237,7 +237,7 @@ def add_AA_ids_to_positions(position_ids, iongroup):
     pepseq = iongroup[0].seq
     start_idx = iongroup[0].start_idx
     position_ids_normed = [x-start_idx-1 for x in position_ids]
-    
+
     for idx in range(len(position_ids_normed)):
         position_id = position_ids[idx]
         position_id_normed = position_ids_normed[idx]
@@ -657,7 +657,7 @@ def get_ptmmapped_filename(spectronaut_file):
     filename = os.path.basename(spectronaut_file_abspath)
     filename_reduced = filename.replace(".tsv", "")
     return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv" #this file is not written to the progress folder
-    
+
 
 
 def add_ptmsite_info_to_subtable(spectronaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns):
@@ -774,7 +774,7 @@ def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join("
 
 
     if len(condpairs_to_compare) == 0:
-        condpairs_to_compare = [f.replace(".results.tsv", "").split("_VS_") for f in os.listdir(results_folder) if re.match(r'.*results.tsv', f)]
+        condpairs_to_compare = [f.replace(".results.tsv", "").split(aq_variables.CONDITION_PAIR_SEPARATOR) for f in os.listdir(results_folder) if re.match(r'.*results.tsv', f)]
     for condpair in condpairs_to_compare:
         LOGGER.info(f"check condpair {condpair}")
         cond1 = condpair[0]
