@@ -114,7 +114,6 @@ def compare_to_reference(peptide_detail_file, result_df, peptide_df, protref_fil
     display(prots_merged.head(10))
 
 # Cell
-from matplotlib_venn import venn2
 from matplotlib import pyplot as plt
 
 def compare_significant_proteins(result_df, protref_file):
@@ -125,7 +124,6 @@ def compare_significant_proteins(result_df, protref_file):
     prots = set(sigprots["protein"].to_list())
     LOGGER.info(f"in ref only {prots_ref - prots}")
     LOGGER.info(f"in AP only {prots-prots_ref}")
-    venn2([prots_ref, prots], ('sigprots_ref', 'sigprots'))
     plt.show()
 
 # Cell

@@ -16,3 +16,4 @@ openpyxl
 scikit-learn
 alphabase
 alphamap
+pyarrow
