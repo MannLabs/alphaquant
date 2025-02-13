@@ -11,6 +11,7 @@ import bokeh.server.views.ws
 import alphaquant.ui.dashboard_parts_run_pipeline as dashboard_parts
 import alphaquant.ui.gui_textfields as gui_textfields
 import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
+import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboard_parts_plots_proteoforms
 
 
 def get_css_style(
@@ -146,10 +147,12 @@ class AlphaQuantGUI(GUI):
         # Create components/tabs
         self.run_pipeline = dashboard_parts.RunPipeline(state=self.state)
         self.plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=self.state)
+        self.proteoform_tab = dashboard_parts_plots_proteoforms.ProteoformPlottingTab(state=self.state)
 
         # Register components as subscribers
         self.state.add_subscriber(self.run_pipeline)
         self.state.add_subscriber(self.plotting_tab)
+        self.state.add_subscriber(self.proteoform_tab)
 
         self.project_description = """<div style="color: #2F4F4F; font-size: 1.3em; margin-top: -10px; margin-bottom: 20px;">AlphaQuant is an open-source package for sensitive detection of protein abundance changes.</div>"""
 
@@ -191,6 +194,7 @@ class AlphaQuantGUI(GUI):
         self.tab_layout = pn.Tabs(
             ('Run Pipeline', self.run_pipeline.create()),
             ('Basic Plots', self.plotting_tab.panel()),
+            ('Proteoform Plots', self.proteoform_tab.panel()),
             dynamic=True,
             tabs_location='above',
             sizing_mode='stretch_width'
