@@ -226,6 +226,7 @@ class ProteoformPlottingTab(param.Parameterized):
             error_msg = f"Error loading proteoforms file: {str(e)}"
             self.proteoform_plot_pane.clear()
             self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
+            raise
 
     def _on_protein_selected(self, event):
         """Handle protein selection."""
@@ -259,6 +260,7 @@ class ProteoformPlottingTab(param.Parameterized):
             print(f"Loaded sample map with {num_samples} samples and {num_conditions} conditions")
         except Exception as e:
             print(f"Error loading sample map: {str(e)}")
+            raise
 
     def on_samplemap_df_changed(self, new_df):
         """Handle changes to samplemap DataFrame from other components."""
