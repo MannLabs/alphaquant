@@ -12,6 +12,7 @@ import re
 import alphaquant.plotting.fcviz as aq_plot_fcviz
 import alphaquant.plotting.alphamapviz as aq_plot_proteoform
 import alphaquant.utils.proteoform_utils as aq_proteoform_utils
+import alphaquant.config.variables as aq_variables
 
 class ProteoformPlottingTab(param.Parameterized):
     """
@@ -142,19 +143,19 @@ class ProteoformPlottingTab(param.Parameterized):
             self.condpairname_select.options = ["No conditions"]
             return
 
-        pattern = os.path.join(self.results_dir, "*_VS_*.proteoforms.tsv")
+        pattern = os.path.join(self.results_dir, f"*{aq_variables.CONDITION_PAIR_SEPARATOR}*.proteoforms.tsv")
         files = glob.glob(pattern)
 
         cond_pairs = []
         for f in files:
             basename = os.path.basename(f)
-            match = re.match(r'(.*?)_VS_(.*?)\.proteoforms\.tsv$', basename)
+            match = re.match(f'(.*?){aq_variables.CONDITION_PAIR_SEPARATOR}(.*?)\.proteoforms\.tsv$', basename)
             if match:
                 cond1, cond2 = match.group(1), match.group(2)
                 cond_pairs.append((cond1, cond2))
 
         if cond_pairs:
-            pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in cond_pairs]
+            pairs_str = [f"{c1}{aq_variables.CONDITION_PAIR_SEPARATOR}{c2}" for c1, c2 in cond_pairs]
             self.condpairname_select.options = ["No conditions"] + pairs_str
         else:
             self.condpairname_select.options = ["No conditions"]
@@ -162,10 +163,10 @@ class ProteoformPlottingTab(param.Parameterized):
     def _on_condpair_selected(self, event):
         """Handle condition pair selection."""
         if event.new and event.new != "No conditions":
-            condition1, condition2 = event.new.split('_VS_')
+            condition1, condition2 = event.new.split(aq_variables.CONDITION_PAIR_SEPARATOR)
             results_file = os.path.join(
                 self.results_dir,
-                f"{condition1}_VS_{condition2}.proteoforms.tsv"
+                f"{condition1}{aq_variables.CONDITION_PAIR_SEPARATOR}{condition2}.proteoforms.tsv"
             )
 
             try:
@@ -274,7 +275,7 @@ class ProteoformPlottingTab(param.Parameterized):
         if 'condition' in df.columns:
             unique_conditions = df['condition'].dropna().unique()
             pairs = [(c1, c2) for c1, c2 in itertools.permutations(unique_conditions, 2)]
-            pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in pairs]
+            pairs_str = [f"{c1}{aq_variables.CONDITION_PAIR_SEPARATOR}{c2}" for c1, c2 in pairs]
             self.condpairname_select.options = ["No conditions"] + pairs_str
 
     def _load_protein_identifiers(self, results_file):
