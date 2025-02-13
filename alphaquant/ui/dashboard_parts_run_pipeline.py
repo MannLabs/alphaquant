@@ -11,7 +11,6 @@ import matplotlib
 matplotlib.use('agg')
 
 # alphaquant imports
-import alphaquant.diffquant.diffutils as aqdiffutils
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.ui.gui_textfields as gui_textfields
 import alphaquant.ui.dashboad_parts_visualize_static as dashboad_parts_visualize_static
@@ -19,7 +18,7 @@ import alphaquant.ui.dashboard_parts_visualize_interactive as dashboard_parts_si
 import alphaquant.config.variables as aq_variables
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
-config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
+config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
 
 # If using Plotly in Panel
 pn.extension('plotly')
@@ -637,7 +636,6 @@ class RunPipeline(BaseWidget):
 				]
 
 			# Collect all configuration parameters
-			print(self.samplemap_table.value)
 			pipeline_params = {
 				'input_file': self.path_analysis_file.value,
 				'samplemap_df': self.samplemap_table.value,
@@ -806,7 +804,7 @@ class RunPipeline(BaseWidget):
 		"""Update the Visualize tab whenever the output folder changes."""
 		if event.new:  # Only update if there's a value
 			try:
-				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+				plotting_tab = dashboad_parts_plots_basic.PlottingTab(
 					results_dir=event.new
 				)
 
@@ -831,7 +829,7 @@ class RunPipeline(BaseWidget):
 		"""
 		try:
 			if self.path_output_folder.value:
-				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+				plotting_tab = dashboad_parts_plots_basic.PlottingTab(
 					results_dir=self.path_output_folder.value
 				)
 
@@ -940,7 +938,7 @@ class Tabs(param.Parameterized):
 			('Single Comparison', pn.pane.Markdown(
 				"## No data loaded\nPlease load data in the Pipeline tab first."
 			)),
-			('Plotting', dashboad_parts_visualize_static.PlottingTab().panel()),
+			('Plotting', dashboad_parts_plots_basic.PlottingTab().panel()),
 			tabs_location='above',
 			sizing_mode='stretch_width',
 			margin=(10, 10, 10, 10)
@@ -952,26 +950,14 @@ class Tabs(param.Parameterized):
 			if (self.pipeline.path_output_folder.value and
 				self.pipeline.samplemap_table.value is not None):
 
-				# Update Single Comparison tab
-				sample_mapping_df = self.pipeline.samplemap_table.value.copy()
-				if not isinstance(sample_mapping_df, pd.DataFrame):
-					sample_mapping_df = pd.DataFrame(sample_mapping_df)
-
-				single_comp = dashboard_parts_single_comparison.SingleComparison(
-					self.pipeline.path_output_folder.value,
-					sample_mapping_df
-				)
-				self.main_tabs[0] = ('Single Comparison', single_comp.layout)
-
 				# Update Plotting tab
-				plotting_tab = dashboad_parts_visualize_static.PlottingTab(
+				plotting_tab = dashboad_parts_plots_basic.PlottingTab(
 					results_dir=self.pipeline.path_output_folder.value
 				)
 				self.main_tabs[1] = ('Plotting', plotting_tab.panel())
 
 		except Exception as e:
 			error_msg = f"Error updating visualization tabs: {str(e)}"
-			print(error_msg)
 			self.main_tabs[0] = ('Single Comparison', pn.pane.Markdown(
 				f"### Visualization Error\n\n{error_msg}"
 			))
