@@ -35,11 +35,6 @@ jobs:
     - name: Conda info
       shell: bash -l {0}
       run: conda info
-    - name: Install mono
-      if: ${{ !contains(inputs.os, 'windows') }}
-      shell: bash -l {0}
-      run: |
-        conda install mono
     - name: Perform pip installation with stable dependencies
       shell: bash -l {0}
       run: |
