@@ -3,12 +3,8 @@
 
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./build
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist
-Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./*.egg-info
-Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./build_pyinstaller
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist_pyinstaller
 
-# Creating the wheel
-python -m build
 
 # substitute X.Y.Z-devN with X.Y.Z.devN
 $WHL_NAME = (Get-ChildItem -Path "dist" -Filter "*.whl").Name

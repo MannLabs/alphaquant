@@ -4,11 +4,6 @@ set -e -u
 # Build the installer for Linux.
 # This script must be run from the root of the repository.
 
-rm -rf dist build *.egg-info
-rm -rf dist_pyinstaller build_pyinstaller
-
-# Creating the wheel
-python -m build
 
 # Find the wheel file in dist directory
 WHL_NAME=$(cd dist && ls ./*.whl && cd ..)
