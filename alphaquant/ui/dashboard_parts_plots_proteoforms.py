@@ -125,7 +125,7 @@ class ProteoformPlottingTab(param.Parameterized):
         )
 
         # Initialize if directory provided
-        self._extract_condpairs()
+        self._extract_cond_pairs()
 
     def panel(self):
         """Return the main panel layout."""
@@ -135,9 +135,9 @@ class ProteoformPlottingTab(param.Parameterized):
         """Handle changes to results directory."""
         if event.new:
             self.results_dir = event.new
-            self._extract_condpairs()
+            self._extract_cond_pairs()
 
-    def _extract_condpairs(self):
+    def _extract_cond_pairs(self):
         """Look for '*_VS_*.proteoforms.tsv' in the results_dir and update the condition pairs."""
         if not self.results_dir or not os.path.isdir(self.results_dir):
             self.condpairname_select.options = ["No conditions"]
