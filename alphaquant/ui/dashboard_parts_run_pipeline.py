@@ -574,7 +574,7 @@ class RunPipeline(BaseWidget):
 				sizing_mode='stretch_width'
 			),
 			self.run_pipeline_error,
-			self.condition_progress_panel,  # Add progress panel here
+			self.condition_progress_panel,
 			sizing_mode='stretch_width'
 		)
 
