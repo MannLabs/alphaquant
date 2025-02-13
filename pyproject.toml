@@ -35,7 +35,7 @@ classifiers = [
 
 [project.urls]
 
-"Paper" = "https://doi.org/10.1016/j.mcpro.2023.100581"
+#"Paper" = ""
 Repository = "https://github.com/MannLabs/alphaquant"
 #Documentation = "https://readthedocs.org"
 #Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
