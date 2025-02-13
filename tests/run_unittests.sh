@@ -1,6 +1,4 @@
-#!/bin/bash
 conda activate alphaquant
-cd unit_tests
-python -m pytest -v
-cd ..
+
+coverage run --source=../alphaquant -m pytest -k 'not slow'
 conda deactivate
