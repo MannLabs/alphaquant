@@ -16,6 +16,7 @@ import alphaquant.run_pipeline as diffmgr
 import alphaquant.ui.gui_textfields as gui_textfields
 import alphaquant.ui.dashboad_parts_visualize_static as dashboad_parts_visualize_static
 import alphaquant.ui.dashboard_parts_visualize_interactive as dashboard_parts_single_comparison
+import alphaquant.config.variables as aq_variables
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
@@ -626,12 +627,12 @@ class RunPipeline(BaseWidget):
 			# Get condition combinations from the CrossSelector
 			if self.assign_cond_pairs.value:
 				cond_combinations = [
-					tuple(pair.split('_VS_'))
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
 					for pair in self.assign_cond_pairs.value
 				]
 			else:
 				cond_combinations = [
-					tuple(pair.split('_VS_'))
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
 					for pair in self.assign_cond_pairs.options
 				]
 
@@ -792,7 +793,7 @@ class RunPipeline(BaseWidget):
 		if 'condition' in df.columns:
 			unique_condit = df['condition'].dropna().unique()
 			comb_condit = [
-				'_VS_'.join(comb)
+				aq_variables.CONDITION_PAIR_SEPARATOR.join(comb)
 				for comb in itertools.permutations(unique_condit, 2)
 			]
 			self.assign_cond_pairs.options = comb_condit
