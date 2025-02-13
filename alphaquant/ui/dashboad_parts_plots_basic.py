@@ -76,7 +76,7 @@ class PlottingTab(param.Parameterized):
         # Add file upload widget
         self.samplemap_fileupload = pn.widgets.FileInput(
             name='Upload Sample Map',
-            accept='.tsv,.csv,.txt',
+            accept=",".join(".tsv", ".csv", ".txt")
             margin=(5, 5, 10, 20)
         )
         self.samplemap_fileupload.param.watch(self._handle_samplemap_upload, 'value')
@@ -119,7 +119,9 @@ class PlottingTab(param.Parameterized):
         return self.main_layout
 
     def on_results_dir_changed(self, new_value):
-        """Handle changes to results directory from other components."""
+        """Handle changes to results directory from other components.
+        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager
+        """
         if isinstance(new_value, param.Event):
             value = new_value.new
         elif hasattr(new_value, 'new'):  # Handle Panel event objects
@@ -158,7 +160,9 @@ class PlottingTab(param.Parameterized):
             self.samplemap_controls[0][0].value = f"Error loading sample map: {str(e)}"
 
     def on_samplemap_df_changed(self, new_df):
-        """Handle changes to samplemap DataFrame from other components."""
+        """Handle changes to samplemap DataFrame from other components.
+        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager
+        """
         if not new_df.empty:
             # Update status
             num_samples = len(new_df)
@@ -211,7 +215,8 @@ class PlottingTab(param.Parameterized):
                 self.fc_visualizer = None
 
     def _on_tree_level_changed(self, event):
-        """Handle tree level changes."""
+        """Handle tree level changes.
+        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager"""
         self._update_fc_visualizer()
         if self.protein_input.value:
             # Update the plot
