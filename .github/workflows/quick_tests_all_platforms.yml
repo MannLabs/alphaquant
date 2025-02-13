@@ -40,5 +40,5 @@ jobs:
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
-      install-script: ./pip_install.sh test
+      install-script: ./pip_install.sh test,gui
       test-script: ./run_unit_tests.sh
