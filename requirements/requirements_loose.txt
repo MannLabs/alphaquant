@@ -15,5 +15,4 @@ pyfasta
 openpyxl
 scikit-learn
 alphabase
-matplotlib-venn
 alphamap
