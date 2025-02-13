@@ -3,6 +3,7 @@ import re
 from io import StringIO
 import itertools
 import pathlib
+import time
 
 import param
 import panel as pn
@@ -19,7 +20,6 @@ import alphaquant.config.variables as aq_variables
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
-
 # If using Plotly in Panel
 pn.extension('plotly')
 
@@ -141,6 +141,15 @@ class RunPipeline(BaseWidget):
 	def __init__(self, state, **params):
 		super().__init__(**params)
 		self.state = state
+		# Initialize attributes that would be checked with hasattr
+		self._progress_monitor = None
+		self._path_output_folder = None
+		self._condition_progress = {}
+		self._overall_status = None
+		self._log_stream = None
+		self._stream_handler = None
+		self._logger = None
+
 		self._setup_matplotlib()
 		self._setup_logger()
 		self._make_widgets()
@@ -159,20 +168,20 @@ class RunPipeline(BaseWidget):
 		import io
 
 		# Create a StringIO object to capture log output
-		self.log_stream = io.StringIO()
+		self._log_stream = io.StringIO()
 
 		# Create a handler that writes to our StringIO object
-		self.stream_handler = logging.StreamHandler(self.log_stream)
-		self.stream_handler.setLevel(logging.INFO)
+		self._stream_handler = logging.StreamHandler(self._log_stream)
+		self._stream_handler.setLevel(logging.INFO)
 
 		# Create a formatter and set it for the handler
 		formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-		self.stream_handler.setFormatter(formatter)
+		self._stream_handler.setFormatter(formatter)
 
 		# Get the root logger and add our handler
-		self.logger = logging.getLogger()
-		self.logger.addHandler(self.stream_handler)
-		self.logger.setLevel(logging.INFO)
+		self._logger = logging.getLogger()
+		self._logger.addHandler(self._stream_handler)
+		self._logger.setLevel(logging.INFO)
 
 	def _make_widgets(self):
 		"""
@@ -448,14 +457,6 @@ class RunPipeline(BaseWidget):
 			width=170,
 			margin=(5, 0, 5, 5)
 		)
-		self.visualize_data_button = pn.widgets.Button(
-			name='Visualize data',
-			button_type='success',
-			height=35,
-			width=170,
-			margin=(10, 0, 0, 5),
-			description='View analysis results and generate visualizations'
-		)
 		self.run_pipeline_error = pn.pane.Alert(
 			alert_type="danger",
 			visible=False,
@@ -470,6 +471,16 @@ class RunPipeline(BaseWidget):
 			disabled=True
 		)
 
+		# Replace the visualize_data_button with a progress panel
+		self.condition_progress_panel = pn.Column(
+			pn.pane.Markdown("### Analysis Progress", margin=(0,0,10,0)),
+			pn.pane.Markdown(
+				"As soon as a condition pair is finished, you can inspect the results in the plots tabs.",
+				margin=(0,0,10,0)
+			),
+			sizing_mode='stretch_width'
+		)
+
 		# Watchers
 		self.sample_mapping_select.param.watch(self._toggle_sample_mapping_mode, 'value')
 		self.path_analysis_file.param.watch(
@@ -479,7 +490,6 @@ class RunPipeline(BaseWidget):
 		self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
 		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
-		self.visualize_data_button.param.watch(self._visualize_data, 'clicks')
 		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
 		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
@@ -569,11 +579,11 @@ class RunPipeline(BaseWidget):
 			"### Pipeline Controls",
 			pn.Row(
 				self.run_pipeline_button,
-				self.visualize_data_button,
 				self.run_pipeline_progress,
 				sizing_mode='stretch_width'
 			),
 			self.run_pipeline_error,
+			self.condition_progress_panel,
 			sizing_mode='stretch_width'
 		)
 
@@ -616,17 +626,50 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 			return
 
+		print("\n=== Starting Pipeline Run ===")
 		self.run_pipeline_progress.active = True
 		self.run_pipeline_error.visible = False
 		self.console_output.value = "Starting pipeline...\n"
 
-		# Create a periodic callback to update the console
-		self.console_update_cb = pn.state.add_periodic_callback(
-			self._update_console, period=100  # Update every 100ms
-		)
+		# Update progress panel with selected condition pairs
+		self._update_progress_panel(self.assign_cond_pairs.value or [])
+
+		# Show overall status
+		self._overall_status.visible = True
+
+		# Set initial status for all pairs to pending
+		for pair, progress_dict in self._condition_progress.items():
+			print(f"Setting initial status for {pair}")
+			progress_dict['pending'].visible = True
+			progress_dict['running'].visible = False
+			progress_dict['complete'].visible = False
+			progress_dict['spinner'].visible = False
+
+		print("Starting progress monitor...")
+		try:
+			# Stop any existing monitor
+			if self._progress_monitor is not None:
+				print("Stopping existing progress monitor...")
+				self._progress_monitor.stop()
+
+			# Create new monitor with explicit start
+			self._progress_monitor = pn.state.add_periodic_callback(
+				callback=self._check_condition_progress,
+				period=1000,  # Check every second
+				start=True
+			)
+			print(f"Progress monitor started successfully: {self._progress_monitor}")
+
+			# Force an immediate check
+			self._check_condition_progress()
+
+		except Exception as e:
+			print(f"Error setting up progress monitor: {str(e)}")
+			import traceback
+			traceback.print_exc()
 
 		try:
-			# Get condition combinations from the CrossSelector
+			# Get condition combinations
 			if self.assign_cond_pairs.value:
 				cond_combinations = [
 					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
@@ -672,21 +715,39 @@ class RunPipeline(BaseWidget):
 			# Run the pipeline
 			diffmgr.run_pipeline(**pipeline_params)
 
-			self.logger.info("Pipeline completed successfully!")
+			self._logger.info("Pipeline completed successfully!")
 
 		except Exception as e:
 			error_message = f"Error running pipeline: {e}"
 			self.run_pipeline_error.object = error_message
 			self.run_pipeline_error.visible = True
-			self.logger.error(error_message)
+			self._logger.error(error_message)
+			self._overall_status.object = "❌ Analysis Failed"
+			self._overall_status.styles = {'color': 'red', 'font-weight': 'bold'}
 
 		finally:
-			# Do one final update of the console
-			self._update_console()
+			print("\n=== Pipeline Run Complete ===")
+			# Update overall status on completion
+			if not self.run_pipeline_error.visible:
+				self._overall_status.object = "✅ Analysis Complete"
+				self._overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+				self._overall_status.param.trigger('object')
 
-			# Remove the periodic callback
-			if hasattr(self, 'console_update_cb'):
-				self.console_update_cb.stop()
+			# Let the progress monitor run for a bit longer to catch the final status
+			print("Waiting for final progress checks...")
+			#time.sleep(2)  # Give time for final file checks
+
+			# Stop progress monitoring with debug info
+			if self._progress_monitor is not None:
+				print("Stopping progress monitor...")
+				try:
+					# Force one final check before stopping
+					self._check_condition_progress()
+					time.sleep(1)  # Give UI time to update
+					self._progress_monitor.stop()
+					print("Progress monitor stopped successfully")
+				except Exception as e:
+					print(f"Error stopping progress monitor: {str(e)}")
 
 			self.trigger_dependency()
 			self.run_pipeline_progress.active = False
@@ -800,10 +861,12 @@ class RunPipeline(BaseWidget):
 
 	def _add_conditions_for_assignment(self, *events):
 		"""
-		Whenever the samplemap table is updated, auto-generate condition pairs.
+		Whenever the samplemap table is updated or conditions are selected,
+		update the progress panel.
 		"""
 		if self.samplemap_table.value is None:
 			return
+
 		df = self.samplemap_table.value
 		if 'condition' in df.columns:
 			unique_condit = df['condition'].dropna().unique()
@@ -812,6 +875,137 @@ class RunPipeline(BaseWidget):
 				for comb in itertools.permutations(unique_condit, 2)
 			]
 			self.assign_cond_pairs.options = comb_condit
+
+			# Only update progress panel if pipeline is running
+			if self._progress_monitor is not None:
+				self._update_progress_panel(self.assign_cond_pairs.value or [])
+
+	def _update_progress_panel(self, condition_pairs):
+		"""Create or update progress indicators for each condition pair."""
+		# Only show progress for selected condition pairs
+		selected_pairs = self.assign_cond_pairs.value or []
+
+		# Clear existing progress indicators
+		self._condition_progress.clear()
+		progress_items = []
+
+		# Add overall progress indicator
+		self._overall_status = pn.pane.Markdown(
+			"⏳ Analysis Pipeline Running...",
+			styles={
+				'color': '#007bff',  # Bootstrap primary blue
+				'font-weight': 'bold',
+				'margin-bottom': '10px'
+			},
+			visible=False
+		)
+		progress_items.append(self._overall_status)
+
+		for pair in selected_pairs:
+			# Create status indicator with both spinner and text
+			status_row = pn.Row(
+				pn.indicators.LoadingSpinner(value=False, color='primary', width=20, height=20),
+				pn.pane.Markdown('⏳', styles={'font-size': '20px'}, visible=False),  # Pending
+				pn.pane.Markdown('🔄', styles={'font-size': '20px'}, visible=False),  # Running
+				pn.pane.Markdown('✅', styles={'color': 'green', 'font-size': '20px'}, visible=False),  # Complete
+				pn.pane.Markdown(f"**{pair}**"),
+				margin=(5, 5, 5, 10)
+			)
+
+			self._condition_progress[pair] = {
+				'row': status_row,
+				'spinner': status_row[0],
+				'pending': status_row[1],
+				'running': status_row[2],
+				'complete': status_row[3]
+			}
+			progress_items.append(status_row)
+
+		# Create a card with the progress indicators
+		progress_card = pn.Card(
+			pn.Column(
+				pn.pane.Markdown("### Analysis Progress"),
+				pn.pane.Markdown(
+					"As soon as a condition pair is finished, you can inspect the results in the plots tabs.",
+					margin=(0, 0, 10, 0)
+				),
+				*progress_items,
+				margin=(10, 10, 10, 10)
+			),
+			title='Progress',
+			collapsed=False,
+			margin=(5, 5, 5, 5),
+			styles={
+				'background': '#f8f9fa',
+				'border': '1px solid #dee2e6',
+				'border-radius': '5px',
+				'box-shadow': '0 1px 3px rgba(0,0,0,0.12)'
+			}
+		)
+
+		# Update the progress panel
+		self.condition_progress_panel.clear()
+		self.condition_progress_panel.append(progress_card)
+
+	def _check_condition_progress(self):
+		"""Check progress of condition pairs by looking for result files."""
+		try:
+			print("\n=== Checking Condition Progress ===")
+
+			if self.path_output_folder.value is None:
+				print("No output folder value, returning early")
+				return
+
+			if not self._condition_progress:
+				print("No condition progress dictionary, returning early")
+				return
+
+			print(f"Checking output folder: {self.path_output_folder.value}")
+			print(f"Number of condition pairs to check: {len(self._condition_progress)}")
+
+			all_complete = True
+
+			for pair, progress_dict in self._condition_progress.items():
+				print(f"\nChecking pair: {pair}")
+				cond1, cond2 = pair.split('_VS_')
+				result_file = os.path.join(
+					self.path_output_folder.value,
+					f"{cond1}_VS_{cond2}.results.tsv"
+				)
+				print(f"Looking for file: {result_file}")
+
+				file_exists = os.path.exists(result_file)
+				print(f"File exists: {file_exists}")
+
+				if file_exists:
+					print(f"Found result file for {pair}")
+					progress_dict['pending'].visible = False
+					progress_dict['running'].visible = False
+					progress_dict['complete'].visible = True
+					progress_dict['spinner'].visible = False
+				else:
+					print(f"Result file not found for {pair}")
+					progress_dict['pending'].visible = False
+					progress_dict['running'].visible = True
+					progress_dict['complete'].visible = False
+					progress_dict['spinner'].visible = True
+					all_complete = False
+
+			print(f"\nAll conditions complete? {all_complete}")
+			print(f"Current overall status: {self._overall_status.object}")
+
+			if all_complete and self._overall_status.object == "⏳ Analysis Pipeline Running...":
+				print("Updating overall status to complete")
+				self._overall_status.object = "✅ Analysis Complete"
+				self._overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+				self._overall_status.param.trigger('object')
+
+			print("=== Progress Check Complete ===\n")
+
+		except Exception as e:
+			print(f"Error in progress check: {str(e)}")
+			import traceback
+			traceback.print_exc()
 
 	def _update_minrep_both(self, *events):
 		"""Set minrep_both to 0 when minrep_either is changed."""
@@ -903,8 +1097,8 @@ class RunPipeline(BaseWidget):
 	def _update_console(self):
 		"""Update the console output widget with new log messages."""
 		# Get any new log messages
-		self.log_stream.seek(0)
-		new_logs = self.log_stream.read()
+		self._log_stream.seek(0)
+		new_logs = self._log_stream.read()
 
 		# Update the console widget
 		if new_logs:
@@ -912,33 +1106,14 @@ class RunPipeline(BaseWidget):
 			self.console_output.value = current_text + new_logs
 
 			# Clear the StringIO buffer
-			self.log_stream.truncate(0)
-			self.log_stream.seek(0)
+			self._log_stream.truncate(0)
+			self._log_stream.seek(0)
 
 	def __del__(self):
 		"""Clean up logging handler when the widget is destroyed."""
-		if hasattr(self, 'stream_handler'):
-			self.logger.removeHandler(self.stream_handler)
-			self.stream_handler.close()
-
-	def _visualize_data(self, event):
-		"""Handle visualization button clicks."""
-		try:
-			# Update state with current values
-			self.state.results_dir = self.path_output_folder.value
-			self.state.samplemap_file = self.samplemap_fileupload.value
-
-			# Notify all subscribers of the updates
-			self.state.notify_subscribers('results_dir')
-			self.state.notify_subscribers('samplemap_file')
-
-			# Switch to the visualization tab
-			if hasattr(self, 'main_tabs'):
-				self.main_tabs.active = 1  # Switch to the second tab (0-based index)
-
-		except Exception as e:
-			self.run_pipeline_error.object = f"Error preparing visualization: {str(e)}"
-			self.run_pipeline_error.visible = True
+		if self._stream_handler is not None:
+			self._logger.removeHandler(self._stream_handler)
+			self._stream_handler.close()
 
 class Tabs(param.Parameterized):
 	"""
