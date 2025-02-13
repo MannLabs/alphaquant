@@ -3,15 +3,12 @@
 
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./build
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist
-Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./*.egg-info
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./build_pyinstaller
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist_pyinstaller
 
-# Creating the wheel
-python -m build
 
 # substitute X.Y.Z-devN with X.Y.Z.devN
-$WHL_NAME = "alphaquant-0.1.2-dev0-py3-none-any.whl" -replace '(\d+\.\d+\.\d+)-dev(\d+)', '$1.dev$2'
+$WHL_NAME = (Get-ChildItem -Path "dist" -Filter "*.whl").Name
 pip install "dist/$WHL_NAME[stable,gui-stable]"
 
 # Creating the stand-alone pyinstaller folder
