@@ -162,68 +162,70 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_condpair_selected(self, event):
         """Handle condition pair selection."""
-        if event.new and event.new != "No conditions":
-            condition1, condition2 = event.new.split(aq_variables.CONDITION_PAIR_SEPARATOR)
-            results_file = os.path.join(
-                self.results_dir,
-                f"{condition1}{aq_variables.CONDITION_PAIR_SEPARATOR}{condition2}.proteoforms.tsv"
+        if not event.new or event.new == "No conditions":
+            return
+
+        condition1, condition2 = event.new.split(aq_variables.CONDITION_PAIR_SEPARATOR)
+        results_file = os.path.join(
+            self.results_dir,
+            f"{condition1}{aq_variables.CONDITION_PAIR_SEPARATOR}{condition2}.proteoforms.tsv"
+        )
+
+        try:
+            # Load and filter proteoforms
+            proteoforms_df = pd.read_csv(results_file, sep='\t')
+            filtered_df = aq_proteoform_utils.filter_proteoform_df(proteoforms_df)
+
+            # Drop specified columns
+            columns_to_drop = ['is_reference', 'peptides', 'log2fc',
+                             'proteoform_pval', 'proteoform_fcfc', 'fcdiff',
+                             'proteoform_fdr']
+            filtered_df = filtered_df.drop(columns=[col for col in columns_to_drop if col in filtered_df.columns])
+
+            # Update table
+            self.proteoform_table.value = filtered_df
+            self.proteoform_table.visible = True
+
+            # Update protein input options
+            protein_ids = filtered_df['protein'].unique().tolist()
+            self.protein_input.options = protein_ids
+            self.protein_input.disabled = False
+
+            print("Selected condition pair:", event.new)
+            print(f"Parsed conditions: {condition1=}, {condition2=}")
+
+            print("Updating visualizers")
+            # Initialize both visualizers
+            self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
+                condition1=condition1,
+                condition2=condition2,
+                results_directory=self.results_dir,
+                samplemap_file=self.samplemap_file,
+                protein_identifier=self.protein_id_select.value,
+                organism=self.organism_select.value
             )
 
-            try:
-                # Load and filter proteoforms
-                proteoforms_df = pd.read_csv(results_file, sep='\t')
-                filtered_df = aq_proteoform_utils.filter_proteoform_df(proteoforms_df)
+            self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                condition1=condition1,
+                condition2=condition2,
+                results_directory=self.results_dir,
+                samplemap_file=self.samplemap_file,
+                organism=self.organism_select.value,
+                protein_identifier=self.protein_id_select.value,
+                order_along_protein_sequence=True,
+                figsize=(6, 4)  # Smaller figure size for fold change plot
+            )
 
-                # Drop specified columns
-                columns_to_drop = ['is_reference', 'peptides', 'log2fc',
-                                 'proteoform_pval', 'proteoform_fcfc', 'fcdiff',
-                                 'proteoform_fdr']
-                filtered_df = filtered_df.drop(columns=[col for col in columns_to_drop if col in filtered_df.columns])
-
-                # Update table
-                self.proteoform_table.value = filtered_df
-                self.proteoform_table.visible = True
-
-                # Update protein input options
-                protein_ids = filtered_df['protein'].unique().tolist()
-                self.protein_input.options = protein_ids
-                self.protein_input.disabled = False
-
-                print("Selected condition pair:", event.new)
-                print(f"Parsed conditions: {condition1=}, {condition2=}")
-
-                print("Updating visualizers")
-                # Initialize both visualizers
-                self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
-                    condition1=condition1,
-                    condition2=condition2,
-                    results_directory=self.results_dir,
-                    samplemap_file=self.samplemap_file,
-                    protein_identifier=self.protein_id_select.value,
-                    organism=self.organism_select.value
-                )
-
-                self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                    condition1=condition1,
-                    condition2=condition2,
-                    results_directory=self.results_dir,
-                    samplemap_file=self.samplemap_file,
-                    organism=self.organism_select.value,
-                    protein_identifier=self.protein_id_select.value,
-                    order_along_protein_sequence=True,
-                    figsize=(6, 4)  # Smaller figure size for fold change plot
-                )
-
-            except Exception as e:
-                print("Error occurred:", str(e))
-                print("Exception type:", type(e))
-                import traceback
-                print("Traceback:", traceback.format_exc())
-                self.protein_input.disabled = True
-                self.protein_input.options = []
-                error_msg = f"Error loading proteoforms file: {str(e)}"
-                self.proteoform_plot_pane.clear()
-                self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
+        except Exception as e:
+            print("Error occurred:", str(e))
+            print("Exception type:", type(e))
+            import traceback
+            print("Traceback:", traceback.format_exc())
+            self.protein_input.disabled = True
+            self.protein_input.options = []
+            error_msg = f"Error loading proteoforms file: {str(e)}"
+            self.proteoform_plot_pane.clear()
+            self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
 
     def _on_protein_selected(self, event):
         """Handle protein selection."""
@@ -245,30 +247,33 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_samplemap_changed(self, event):
         """Handle changes to samplemap file path."""
-        if event.new:
-            self.samplemap_file = event.new
-            try:
-                # Verify the file exists and can be read
-                df = pd.read_csv(self.samplemap_file, sep='\t', dtype=str)
-                num_samples = len(df)
-                num_conditions = len(df['condition'].unique()) if 'condition' in df.columns else 0
-                print(f"Loaded sample map with {num_samples} samples and {num_conditions} conditions")
-            except Exception as e:
-                print(f"Error loading sample map: {str(e)}")
+        if not event.new:
+            return
+
+        self.samplemap_file = event.new
+        try:
+            # Verify the file exists and can be read
+            df = pd.read_csv(self.samplemap_file, sep='\t', dtype=str)
+            num_samples = len(df)
+            num_conditions = len(df['condition'].unique()) if 'condition' in df.columns else 0
+            print(f"Loaded sample map with {num_samples} samples and {num_conditions} conditions")
+        except Exception as e:
+            print(f"Error loading sample map: {str(e)}")
 
     def on_samplemap_df_changed(self, new_df):
         """Handle changes to samplemap DataFrame from other components."""
-        if not new_df.empty:
-            # Update status
-            num_samples = len(new_df)
-            num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
-            status_text = f"Sample Map: Loaded {num_samples} samples, {num_conditions} conditions"
-            self.samplemap_input.value = status_text
-
-            # Update condition pairs and other visualizations
-            self._update_condition_pairs_from_df(new_df)
-        else:
+        if new_df.empty:
             self.samplemap_input.value = "Sample Map: No sample map loaded"
+            return
+
+        # Update status
+        num_samples = len(new_df)
+        num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
+        status_text = f"Sample Map: Loaded {num_samples} samples, {num_conditions} conditions"
+        self.samplemap_input.value = status_text
+
+        # Update condition pairs and other visualizations
+        self._update_condition_pairs_from_df(new_df)
 
     def _update_condition_pairs_from_df(self, df):
         """Update condition pairs based on the samplemap DataFrame."""
@@ -293,10 +298,14 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_proteoform_selected(self, event):
         """Handle proteoform selection from table."""
-        if hasattr(event, 'row'):
-            row_data = self.proteoform_table.value.iloc[event.row]
-            selected_protein = row_data.get('protein')
-            if selected_protein:
-                self.protein_input.value = selected_protein
-                # Directly update the plot without requiring click on protein input
-                self._on_protein_selected(param.Event(type='selection', new=selected_protein))
+        if not hasattr(event, 'row'):
+            return
+
+        row_data = self.proteoform_table.value.iloc[event.row]
+        selected_protein = row_data.get('protein')
+        if not selected_protein:
+            return
+
+        self.protein_input.value = selected_protein
+        # Directly update the plot without requiring click on protein input
+        self._on_protein_selected(param.Event(type='selection', new=selected_protein))
