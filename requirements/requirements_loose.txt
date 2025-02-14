@@ -15,5 +15,5 @@ pyfasta
 openpyxl
 scikit-learn
 alphabase
-alphamap
+alphamap @ git+https://github.com/MannLabs/alphamap@a0d6370edc965c57ea4b400a9f674af8e290b716
 pyarrow
