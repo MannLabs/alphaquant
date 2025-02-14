@@ -273,17 +273,18 @@ def save_dict_as_yaml(dict, file):
 
 def get_methods_dict_from_local_vars(local_vars):
     method_params = {}
-    for x in local_vars.keys():
-        if local_vars[x] is None:
+    allowed_types = (bool, int, float, str, type(None))
+    
+    for x, value in local_vars.items():
+        if not isinstance(value, allowed_types):
             continue
-        if isinstance(local_vars[x], pd.DataFrame):
-            continue
-
+            
         if (("_df" not in x) and ('condpair' not in x) and ('sys'!=x) and ('runconfig' != x)):
             if ("input_file" in x) or ("results_dir" in x):
-                method_params[x] = os.path.abspath(local_vars[x])
+                method_params[x] = os.path.abspath(value)
             else:
-                method_params[x] = local_vars[x]
+                method_params[x] = value
+                
     return method_params
 
 def add_ml_input_file_location(method_params):

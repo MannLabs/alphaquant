@@ -1,12 +1,38 @@
 ---
 #this file determines the parameters used to convert long format tables as e.g. produced by Spectronaut or DIA-NN into a wide table format
+alphadia_precursor:
+  format: longtable
+  sample_ID: run
+  quant_ID:
+    precursor: mean_overlapping_intensity
+  protein_cols:
+   - genes
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE]
+      mapping:
+        SEQ: 
+         - sequence
+        MOD: 
+         - mods
+         - modsite
+        CHARGE: 
+         - charge
+  use_iontree: True
+  ml_level: CHARGE
+  filters:
+    protein_qval:
+      param: pg_qval
+      comparator: "<="
+      value: 0.01
+
 alphadia_precursor_protein:
   format: longtable
   sample_ID: run
   quant_ID:
     precursor: mean_overlapping_intensity
   protein_cols:
-   - pg_master
+   - pg
   ion_hierarchy:
     precursor:
       order: [SEQ, MOD, CHARGE]
@@ -25,6 +51,15 @@ alphadia_precursor_protein:
       comparator: "<="
       value: 0.01
 
+alphadia_fragion: #this is only for recognizing the alphadia fragion matrix
+  format: widetable
+  quant_pre_or_suffix: ""
+  protein_cols:
+   - pg
+  ion_cols:
+   - ion
+  ml_level: SEQ
+  use_iontree: False
 
 alphapept_peptides:
   format: longtable
