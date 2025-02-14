@@ -13,7 +13,7 @@ matplotlib.use('agg')
 
 # alphaquant imports
 import alphaquant.run_pipeline as diffmgr
-import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
+import alphaquant.config.variables as aq_variables
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
@@ -138,6 +138,15 @@ class RunPipeline(BaseWidget):
 	def __init__(self, state, **params):
 		super().__init__(**params)
 		self.state = state
+		# Initialize attributes that would be checked with hasattr
+		self._progress_monitor = None
+		self._path_output_folder = None
+		self._condition_progress = {}
+		self._overall_status = None
+		self._log_stream = None
+		self._stream_handler = None
+		self._logger = None
+
 		self._setup_matplotlib()
 		self._setup_logger()
 		self._make_widgets()
@@ -156,20 +165,20 @@ class RunPipeline(BaseWidget):
 		import io
 
 		# Create a StringIO object to capture log output
-		self.log_stream = io.StringIO()
+		self._log_stream = io.StringIO()
 
 		# Create a handler that writes to our StringIO object
-		self.stream_handler = logging.StreamHandler(self.log_stream)
-		self.stream_handler.setLevel(logging.INFO)
+		self._stream_handler = logging.StreamHandler(self._log_stream)
+		self._stream_handler.setLevel(logging.INFO)
 
 		# Create a formatter and set it for the handler
 		formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-		self.stream_handler.setFormatter(formatter)
+		self._stream_handler.setFormatter(formatter)
 
 		# Get the root logger and add our handler
-		self.logger = logging.getLogger()
-		self.logger.addHandler(self.stream_handler)
-		self.logger.setLevel(logging.INFO)
+		self._logger = logging.getLogger()
+		self._logger.addHandler(self._stream_handler)
+		self._logger.setLevel(logging.INFO)
 
 	def _make_widgets(self):
 		"""
@@ -469,9 +478,6 @@ class RunPipeline(BaseWidget):
 			sizing_mode='stretch_width'
 		)
 
-		# Dictionary to store progress indicators for each condition pair
-		self.condition_progress = {}
-
 		# Watchers
 		self.sample_mapping_select.param.watch(self._toggle_sample_mapping_mode, 'value')
 		self.path_analysis_file.param.watch(
@@ -574,7 +580,7 @@ class RunPipeline(BaseWidget):
 				sizing_mode='stretch_width'
 			),
 			self.run_pipeline_error,
-			self.condition_progress_panel,  # Add progress panel here
+			self.condition_progress_panel,
 			sizing_mode='stretch_width'
 		)
 
@@ -626,10 +632,10 @@ class RunPipeline(BaseWidget):
 		self._update_progress_panel(self.assign_cond_pairs.value or [])
 
 		# Show overall status
-		self.overall_status.visible = True
+		self._overall_status.visible = True
 
 		# Set initial status for all pairs to pending
-		for pair, progress_dict in self.condition_progress.items():
+		for pair, progress_dict in self._condition_progress.items():
 			print(f"Setting initial status for {pair}")
 			progress_dict['pending'].visible = True
 			progress_dict['running'].visible = False
@@ -637,20 +643,19 @@ class RunPipeline(BaseWidget):
 			progress_dict['spinner'].visible = False
 
 		print("Starting progress monitor...")
-		# Start progress monitoring with debug info
 		try:
 			# Stop any existing monitor
-			if hasattr(self, 'progress_monitor'):
+			if self._progress_monitor is not None:
 				print("Stopping existing progress monitor...")
-				self.progress_monitor.stop()
+				self._progress_monitor.stop()
 
 			# Create new monitor with explicit start
-			self.progress_monitor = pn.state.add_periodic_callback(
+			self._progress_monitor = pn.state.add_periodic_callback(
 				callback=self._check_condition_progress,
 				period=1000,  # Check every second
 				start=True
 			)
-			print(f"Progress monitor started successfully: {self.progress_monitor}")
+			print(f"Progress monitor started successfully: {self._progress_monitor}")
 
 			# Force an immediate check
 			self._check_condition_progress()
@@ -664,12 +669,12 @@ class RunPipeline(BaseWidget):
 			# Get condition combinations
 			if self.assign_cond_pairs.value:
 				cond_combinations = [
-					tuple(pair.split('_VS_'))
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
 					for pair in self.assign_cond_pairs.value
 				]
 			else:
 				cond_combinations = [
-					tuple(pair.split('_VS_'))
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
 					for pair in self.assign_cond_pairs.options
 				]
 
@@ -707,36 +712,36 @@ class RunPipeline(BaseWidget):
 			# Run the pipeline
 			diffmgr.run_pipeline(**pipeline_params)
 
-			self.logger.info("Pipeline completed successfully!")
+			self._logger.info("Pipeline completed successfully!")
 
 		except Exception as e:
 			error_message = f"Error running pipeline: {e}"
 			self.run_pipeline_error.object = error_message
 			self.run_pipeline_error.visible = True
-			self.logger.error(error_message)
-			self.overall_status.object = "❌ Analysis Failed"
-			self.overall_status.styles = {'color': 'red', 'font-weight': 'bold'}
+			self._logger.error(error_message)
+			self._overall_status.object = "❌ Analysis Failed"
+			self._overall_status.styles = {'color': 'red', 'font-weight': 'bold'}
 
 		finally:
 			print("\n=== Pipeline Run Complete ===")
 			# Update overall status on completion
 			if not self.run_pipeline_error.visible:
-				self.overall_status.object = "✅ Analysis Complete"
-				self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
-				self.overall_status.param.trigger('object')
+				self._overall_status.object = "✅ Analysis Complete"
+				self._overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+				self._overall_status.param.trigger('object')
 
 			# Let the progress monitor run for a bit longer to catch the final status
 			print("Waiting for final progress checks...")
 			#time.sleep(2)  # Give time for final file checks
 
 			# Stop progress monitoring with debug info
-			if hasattr(self, 'progress_monitor'):
+			if self._progress_monitor is not None:
 				print("Stopping progress monitor...")
 				try:
 					# Force one final check before stopping
 					self._check_condition_progress()
 					time.sleep(1)  # Give UI time to update
-					self.progress_monitor.stop()
+					self._progress_monitor.stop()
 					print("Progress monitor stopped successfully")
 				except Exception as e:
 					print(f"Error stopping progress monitor: {str(e)}")
@@ -863,13 +868,13 @@ class RunPipeline(BaseWidget):
 		if 'condition' in df.columns:
 			unique_condit = df['condition'].dropna().unique()
 			comb_condit = [
-				'_VS_'.join(comb)
+				aq_variables.CONDITION_PAIR_SEPARATOR.join(comb)
 				for comb in itertools.permutations(unique_condit, 2)
 			]
 			self.assign_cond_pairs.options = comb_condit
 
 			# Only update progress panel if pipeline is running
-			if hasattr(self, 'progress_monitor'):
+			if self._progress_monitor is not None:
 				self._update_progress_panel(self.assign_cond_pairs.value or [])
 
 	def _update_progress_panel(self, condition_pairs):
@@ -878,11 +883,11 @@ class RunPipeline(BaseWidget):
 		selected_pairs = self.assign_cond_pairs.value or []
 
 		# Clear existing progress indicators
-		self.condition_progress.clear()
+		self._condition_progress.clear()
 		progress_items = []
 
 		# Add overall progress indicator
-		self.overall_status = pn.pane.Markdown(
+		self._overall_status = pn.pane.Markdown(
 			"⏳ Analysis Pipeline Running...",
 			styles={
 				'color': '#007bff',  # Bootstrap primary blue
@@ -891,7 +896,7 @@ class RunPipeline(BaseWidget):
 			},
 			visible=False
 		)
-		progress_items.append(self.overall_status)
+		progress_items.append(self._overall_status)
 
 		for pair in selected_pairs:
 			# Create status indicator with both spinner and text
@@ -904,7 +909,7 @@ class RunPipeline(BaseWidget):
 				margin=(5, 5, 5, 10)
 			)
 
-			self.condition_progress[pair] = {
+			self._condition_progress[pair] = {
 				'row': status_row,
 				'spinner': status_row[0],
 				'pending': status_row[1],
@@ -944,24 +949,20 @@ class RunPipeline(BaseWidget):
 		try:
 			print("\n=== Checking Condition Progress ===")
 
-			if not hasattr(self, 'path_output_folder'):
-				print("No output folder attribute, returning early")
-				return
-
-			if not self.path_output_folder.value:
+			if self.path_output_folder.value is None:
 				print("No output folder value, returning early")
 				return
 
-			if not hasattr(self, 'condition_progress'):
-				print("No condition_progress attribute, returning early")
+			if not self._condition_progress:
+				print("No condition progress dictionary, returning early")
 				return
 
 			print(f"Checking output folder: {self.path_output_folder.value}")
-			print(f"Number of condition pairs to check: {len(self.condition_progress)}")
+			print(f"Number of condition pairs to check: {len(self._condition_progress)}")
 
 			all_complete = True
 
-			for pair, progress_dict in self.condition_progress.items():
+			for pair, progress_dict in self._condition_progress.items():
 				print(f"\nChecking pair: {pair}")
 				cond1, cond2 = pair.split('_VS_')
 				result_file = os.path.join(
@@ -988,13 +989,13 @@ class RunPipeline(BaseWidget):
 					all_complete = False
 
 			print(f"\nAll conditions complete? {all_complete}")
-			print(f"Current overall status: {self.overall_status.object}")
+			print(f"Current overall status: {self._overall_status.object}")
 
-			if all_complete and self.overall_status.object == "⏳ Analysis Pipeline Running...":
+			if all_complete and self._overall_status.object == "⏳ Analysis Pipeline Running...":
 				print("Updating overall status to complete")
-				self.overall_status.object = "✅ Analysis Complete"
-				self.overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
-				self.overall_status.param.trigger('object')
+				self._overall_status.object = "✅ Analysis Complete"
+				self._overall_status.styles = {'color': 'green', 'font-weight': 'bold'}
+				self._overall_status.param.trigger('object')
 
 			print("=== Progress Check Complete ===\n")
 
@@ -1093,8 +1094,8 @@ class RunPipeline(BaseWidget):
 	def _update_console(self):
 		"""Update the console output widget with new log messages."""
 		# Get any new log messages
-		self.log_stream.seek(0)
-		new_logs = self.log_stream.read()
+		self._log_stream.seek(0)
+		new_logs = self._log_stream.read()
 
 		# Update the console widget
 		if new_logs:
@@ -1102,14 +1103,14 @@ class RunPipeline(BaseWidget):
 			self.console_output.value = current_text + new_logs
 
 			# Clear the StringIO buffer
-			self.log_stream.truncate(0)
-			self.log_stream.seek(0)
+			self._log_stream.truncate(0)
+			self._log_stream.seek(0)
 
 	def __del__(self):
 		"""Clean up logging handler when the widget is destroyed."""
-		if hasattr(self, 'stream_handler'):
-			self.logger.removeHandler(self.stream_handler)
-			self.stream_handler.close()
+		if self._stream_handler is not None:
+			self._logger.removeHandler(self._stream_handler)
+			self._stream_handler.close()
 
 class Tabs(param.Parameterized):
 	"""
