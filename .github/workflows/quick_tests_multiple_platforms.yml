@@ -6,6 +6,7 @@
 # we will learn about it latest after pushing to main.
 
 on:
+  pull_request:
   push:
     branches: [ main ]
   workflow_dispatch:
