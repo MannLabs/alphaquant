@@ -10,7 +10,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-name: Pip install + unit tests
+name: Pip install + unit tests, multiple platforms
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
