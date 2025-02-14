@@ -8,12 +8,23 @@
 
 
 # AlphaQuant
-AlphaQuant is an open-source Python package for sensitive proteomics quantification. You can process MS data analyzed by Spectronaut, DIANN, [AlphaPept](https://github.com/MannLabs/alphapept) or MaxQuant using a Graphical User Interface (GUI) or the python package. The current focus is on the comparison of two biological conditions (i.e. "making volcano plots"), with multi-condition functionality to be added soon.
+AlphaQuant is an innovative open-source Python package that introduces tree-based quantification for proteomics data analysis. It implements a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
 
-It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/). To enable all hyperlinks in this document, please view it at [GitHub](https://github.com/MannLabs/alphaquant).
+It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
 
-* [**About**](#about)
-* [**License**](#license)
+## Key Features
+
+- **Tree-based Quantification**: Novel hierarchical framework that organizes and analyzes quantitative data across all levels (fragments, MS1 isotopes, charge states, modifications, peptides, and genes)
+- **Enhanced Differential Analysis**: Fragment and MS1-level analysis enabling up to 50-fold more regulated protein detections compared to state-of-the-art methods
+- **Machine Learning-based Accuracy Scoring**: Gradient boosting on tree features to evaluate quantification accuracy
+- **Advanced Statistical Analysis**: Sophisticated handling of missing values and measurement consistency validation
+- **Proteoform Detection**: Automatic clustering of peptides with similar quantitative behavior to identify regulated proteoforms
+- **Phosphopeptide Inference**: Deep learning-based classification to detect phosphopeptides from standard proteome data
+- **Flexible Integration**: Compatible with major search engines in both DDA and DIA workflows (Spectronaut, DIA-NN, AlphaPept, MaxQuant)
+
+## Table of Contents
+
+
 * [**Installation**](#installation)
   * [**One-click GUI**](#one-click-gui)
   * [**Developer installer**](#developer)
@@ -23,17 +34,9 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 * [**Troubleshooting**](#troubleshooting)
 * [**Citations**](#citations)
 * [**How to contribute**](#how-to-contribute)
+* [**License**](#license)
 * [**Changelog**](#changelog)
 
----
-## About
-The standard approach for proteomics quantification is the calculation of point estimates that reflect the abundance of a particular protein. This approach usually neglects a large part of the quantitative information that is available, including the type, quality and reliability of the underlying, quantified peptides. AlphaQuant introduces a collection of novel Bioinformatics algorithms for increased accuracy and sensitivity of proteomics quantification. It is built on the foundation of the [MS-EmpiRe](https://doi.org/10.1074/mcp.RA119.001509) algorithm. 
-Alphaquant is an open-source Python package of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
-
----
-## License
-
-AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/) and is freely available with an [Apache License](LICENSE.txt). External Python packages (available in the [requirements](requirements) folder) have their own licenses, which can be consulted on their respective websites.
 
 ---
 ## Installation
@@ -109,7 +112,7 @@ Finally, install AlphaQuant:
 ```bash
 pip install -e .
 ```
-By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant. We currently recommend the stable 
+By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant. We currently recommend the stable
 
 Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
@@ -183,16 +186,16 @@ The **samplemap.tsv** file must map to the **R.Label** column.
 
 
 ### DIA-NN
-Provide the path to the DIANN "report.tsv" output table.  
+Provide the path to the DIANN "report.tsv" output table.
 The **samplemap.tsv** file must map the the **File.Name** column.
 
 ### MaxQuant
-Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table.  
-For "peptides.txt", the **samplemap.tsv** file must map the names of the columns starting with "Intensity ", but **without** the "Intensity ". For example "Intensity sample1.raw" "Intensity sample2.raw"-> "sample1.raw" "sample2.raw".  
+Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table.
+For "peptides.txt", the **samplemap.tsv** file must map the names of the columns starting with "Intensity ", but **without** the "Intensity ". For example "Intensity sample1.raw" "Intensity sample2.raw"-> "sample1.raw" "sample2.raw".
 For "evidence.txt, the **samplemap.tsv** file must map the **Experiment** column.
 
 ### FragPipe
-Provide the path to the "combined_ion.tsv" output table.  
+Provide the path to the "combined_ion.tsv" output table.
 For "peptides.txt", the **samplemap.tsv** file must map the names of the columns ending with " Intensity", but **without** the " Intensity". For example "sample1 Intensity" "sample2 Intensity"-> "sample1" "sample2".
 
 
@@ -239,6 +242,12 @@ Manuscript in preparation.
 ## How to contribute
 
 If you like this software, you can give us a [star](https://github.com/MannLabs/alphaquant/stargazers) to boost our visibility! All direct contributions are also welcome. Feel free to post a new [issue](https://github.com/MannLabs/alphaquant/issues) or clone the repository and create a [pull request](https://github.com/MannLabs/alphaquant/pulls) with a new branch. For an even more interactive participation, check out the [discussions](https://github.com/MannLabs/alphaquant/discussions) and the [the Contributors License Agreement](misc/CLA.md).
+
+---
+
+## License
+
+AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/) and is freely available with an [Apache License](LICENSE.txt). External Python packages (available in the [requirements](requirements) folder) have their own licenses, which can be consulted on their respective websites.
 
 ---
 ## Changelog
