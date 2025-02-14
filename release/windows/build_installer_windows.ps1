@@ -1,8 +1,6 @@
 # Build the installer for Windows.
 # This script must be run from the root of the repository.
 
-Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./build
-Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./build_pyinstaller
 Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist_pyinstaller
 
