@@ -334,7 +334,7 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None, res
     the function identifies the type of input used (e.g. Spectronaut, MaxQuant, DIA-NN), reformats if necessary
     and returns a generic wide-format dataframe
     :param file input_file: quantified peptide/ion -level data
-    :param file results_folder: the folder where the directlfq outputs are stored
+    :param file results_folder: the folder where the alphaquant outputs are stored
     """
 
     samples_subset = add_ion_protein_headers_if_applicable(samples_subset)
@@ -342,7 +342,7 @@ def import_data(input_file, input_type_to_use = None, samples_subset = None, res
         file_to_read = input_file
     else:
         file_to_read = reformat_and_save_input_file(input_file=input_file, input_type_to_use=input_type_to_use, use_alphaquant_format = True)
-    
+
     input_reshaped = pd.read_csv(file_to_read, sep = "\t", encoding = 'latin1', usecols=samples_subset)
     input_reshaped = input_reshaped.drop_duplicates(subset='quant_id')
     input_reshaped = input_reshaped.astype({'protein': 'str', QUANT_ID: 'str'})
@@ -356,7 +356,7 @@ def add_ion_protein_headers_if_applicable(samples_subset):
         return None
 
 def reformat_and_save_input_file(input_file, input_type_to_use = None, use_alphaquant_format = False):
-    
+
     input_type, config_dict_for_type, sep = abconfigdictloader.get_input_type_and_config_dict(input_file, input_type_to_use)
     LOGGER.info(f"using input type {input_type}")
     format = config_dict_for_type.get('format')
