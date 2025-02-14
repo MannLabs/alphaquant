@@ -76,7 +76,7 @@ class PlottingTab(param.Parameterized):
         # Add file upload widget
         self.samplemap_fileupload = pn.widgets.FileInput(
             name='Upload Sample Map',
-            accept=",".join(".tsv", ".csv", ".txt"),
+            accept=",".join([".tsv", ".csv", ".txt"]),
             margin=(5, 5, 10, 20)
         )
         self.samplemap_fileupload.param.watch(self._handle_samplemap_upload, 'value')
