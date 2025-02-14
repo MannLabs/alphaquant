@@ -9,22 +9,22 @@ Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist_pyinstaller
 $WHL_NAME = (Get-ChildItem -Path "dist" -Filter "*.whl").Name
 
 ## install alphamap
-git clone alphamap@c65381a11a0f25fe04822846863520afc966b967
+git clone https://github.com/MannLabs/alphamap.git@c65381a11a0f25fe04822846863520afc966b967
 cd alphamap
 pip install .
-cd ..
-# Remove alphamap from requirements files
-(Get-Content "requirements/requirements.txt") | Where-Object { $_ -notmatch "^alphamap==" } | Set-Content "requirements/requirements.txt"
-(Get-Content "requirements/requirements_loose.txt") | Where-Object { $_ -notmatch "^alphamap$" } | Set-Content "requirements/requirements_loose.txt"
+# cd ..
+# # Remove alphamap from requirements files
+# (Get-Content "requirements/requirements.txt") | Where-Object { $_ -notmatch "^alphamap==" } | Set-Content "requirements/requirements.txt"
+# (Get-Content "requirements/requirements_loose.txt") | Where-Object { $_ -notmatch "^alphamap$" } | Set-Content "requirements/requirements_loose.txt"
 
-# re-build wheel
+# # re-build wheel
 
-rm -rf dist ./*.egg-info
-python -m build
+# rm -rf dist ./*.egg-info
+# python -m build
 
 
-pip install "dist/$WHL_NAME[stable,gui-stable]"
+# pip install "dist/$WHL_NAME[stable,gui-stable]"
 
-# Creating the stand-alone pyinstaller folder
-pip install pyinstaller
-pyinstaller release/pyinstaller/alphaquant.spec --distpath dist_pyinstaller --workpath build_pyinstaller -y
+# # Creating the stand-alone pyinstaller folder
+# pip install pyinstaller
+# pyinstaller release/pyinstaller/alphaquant.spec --distpath dist_pyinstaller --workpath build_pyinstaller -y
