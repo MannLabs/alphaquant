@@ -16,11 +16,9 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 
 - **Tree-based Quantification**: Novel hierarchical framework that organizes and analyzes quantitative data across all levels (fragments, MS1 isotopes, charge states, modifications, peptides, and genes)
 - **Enhanced Differential Analysis**: Fragment and MS1-level analysis enabling up to 50-fold more regulated protein detections compared to state-of-the-art methods
-- **Machine Learning-based Accuracy Scoring**: Gradient boosting on tree features to evaluate quantification accuracy
-- **Advanced Statistical Analysis**: Sophisticated handling of missing values and measurement consistency validation
-- **Proteoform Detection**: Automatic clustering of peptides with similar quantitative behavior to identify regulated proteoforms
-- **Phosphopeptide Inference**: Deep learning-based classification to detect phosphopeptides from standard proteome data
-- **Flexible Integration**: Compatible with major search engines in both DDA and DIA workflows (Spectronaut, DIA-NN, AlphaPept, MaxQuant)
+- **Advanced Missing Value Analysis**: Sophisticated handling of missing values using tree-based and intensity dependent counting statistics
+- **Proteoform Inference**: Automatic clustering of peptides with similar quantitative behavior to infer regulated proteoforms
+- **Flexible Integration**: Direct support for all major search engines in DDA and DIA workflows (Spectronaut, DIA-NN, AlphaDIA, MaxQuant, FragPipe, AlphaPept) - just use their standard output files
 
 ## Table of Contents
 
