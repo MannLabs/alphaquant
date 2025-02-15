@@ -14,6 +14,7 @@ matplotlib.use('agg')
 # alphaquant imports
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.config.variables as aq_variables
+import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
@@ -785,14 +786,20 @@ class RunPipeline(BaseWidget):
 
 	def _set_default_output_folder(self):
 		"""Set default output folder based on analysis file path."""
+		print("\n=== Setting Default Output Folder ===")
 		if self.path_analysis_file.value:
 			base_path = os.path.dirname(self.path_analysis_file.value)
 			output_path = os.path.join(base_path, 'results')
+			print(f"Setting output path to: {output_path}")
 			# Update local widget
+			print("Updating path_output_folder widget...")
 			self.path_output_folder.value = output_path
-			# Update state directly with string value
+			# Update state
+			print("Updating state...")
 			self.state.results_dir = output_path
+			print("Notifying subscribers...")
 			self.state.notify_subscribers('results_dir')
+			print("=== Finished Setting Default Output Folder ===\n")
 
 	def _import_sample_names(self):
 		if self.path_analysis_file.value:
@@ -1010,19 +1017,15 @@ class RunPipeline(BaseWidget):
 
 	def _update_results_dir(self, event):
 		"""Update central state with new results directory."""
-		if isinstance(event, param.Event):
-			value = event.new
-		elif hasattr(event, 'new'):  # Handle Panel event objects
-			value = event.new
-		else:
-			value = event
-
-		if value is not None:
-			# Ensure we're working with a string
-			value = str(value)
-			# Update state
-			self.state.results_dir = value
-			self.state.notify_subscribers('results_dir')
+		print("\n=== Updating Results Directory ===")
+		print(f"Event type: {type(event)}")
+		print(f"Event value: {event}")
+		if hasattr(event, 'new'):
+			print(f"Event.new value: {event.new}")
+		self.state.results_dir = event.new
+		print("Notifying subscribers...")
+		self.state.notify_subscribers('results_dir')
+		print("=== Finished Updating Results Directory ===\n")
 
 	def _update_analysis_file(self, event):
 		"""Update central state with new analysis file."""
@@ -1180,6 +1183,9 @@ class Tabs(param.Parameterized):
 
 def build_dashboard():
 	"""Build the overall dashboard layout."""
+	# Create state manager first
+	state_manager = StateManager()  # Make sure this is imported from gui.py
+
 	header = HeaderWidget(
 		title="AlphaQuant Dashboard",
 		img_folder_path="./assets",
@@ -1193,19 +1199,23 @@ def build_dashboard():
 		manual_path="path/to/manual.pdf"
 	)
 
-	# Create pipeline instance
-	pipeline = RunPipeline(state=None)
+	# Create pipeline instance with state manager
+	pipeline = RunPipeline(state=state_manager)
 	pipeline_layout = pipeline.create()
 
-	# Create tab manager with pipeline tab
-	tab_manager = Tabs(pipeline)
-	tabs = tab_manager.create()
+	# Create plotting tabs with state manager and register as subscribers
+	plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=state_manager)
+	proteoform_tab = dashboard_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
+
+	# Register subscribers
+	state_manager.register_subscriber(plotting_tab)
+	state_manager.register_subscriber(proteoform_tab)
 
 	# Create tabs with Pipeline as the first tab
 	all_tabs = pn.Tabs(
 		('Pipeline', pipeline_layout),
-		('Single Comparison', tabs[0][1]),
-		('Plotting', tabs[1][1]),
+		('Single Comparison', plotting_tab.panel()),
+		('Plotting', proteoform_tab.panel()),
 		dynamic=True,
 		tabs_location='above',
 		sizing_mode='stretch_width'

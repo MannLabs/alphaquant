@@ -133,9 +133,15 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def on_results_dir_changed(self, event):
         """Handle changes to results directory."""
+        print("\n=== Proteoform Plot: Results Dir Changed ===")
+        print(f"Received event type: {type(event)}")
+        print(f"Received event value: {event}")
+        if hasattr(event, 'new'):
+            print(f"Event has 'new' attribute: {event.new}")
         if event.new:
             self.results_dir = event.new
             self._extract_cond_pairs()
+        print("=== Finished Handling Results Dir Change ===\n")
 
     def _extract_cond_pairs(self):
         """Look for '*_VS_*.proteoforms.tsv' in the results_dir and update the condition pairs."""

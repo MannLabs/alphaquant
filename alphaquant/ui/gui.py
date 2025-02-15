@@ -56,12 +56,25 @@ class DashboardState(param.Parameterized):
         """Add a tab/component that should be notified of state changes."""
         self.subscribers.append(subscriber)
 
-    def notify_subscribers(self, changed_param):
+    def notify_subscribers(self, changed_param, value=None):
         """Notify all subscribers of a state change."""
-        for subscriber in self.subscribers:
-            if hasattr(subscriber, f'on_{changed_param}_changed'):
-                value = getattr(self, changed_param)
+        print(f"\n=== State Manager: Notifying Subscribers ===")
+        print(f"Changed parameter: {changed_param}")
+        print(f"Value type: {type(value)}")
+        print(f"Value: {value}")
+        if not hasattr(self, '_subscribers'):
+            print("No subscribers registered")
+            return
+
+        print(f"Number of subscribers: {len(self._subscribers)}")
+        for subscriber in self._subscribers:
+            print(f"Notifying subscriber: {type(subscriber).__name__}")
+            try:
                 getattr(subscriber, f'on_{changed_param}_changed')(value)
+                print(f"Successfully notified {type(subscriber).__name__}")
+            except Exception as e:
+                print(f"Error notifying {type(subscriber).__name__}: {str(e)}")
+        print("=== Finished Notifying Subscribers ===\n")
 
 
 class GUI(object):
