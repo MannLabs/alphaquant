@@ -183,6 +183,11 @@ class PlottingTab(param.Parameterized):
             self.condpairname_select.options = ["No conditions"]
             return
 
+        # Don't populate condition pairs until samplemap is loaded
+        if not hasattr(self.state, 'samplemap_df') or self.state.samplemap_df.empty:
+            self.condpairname_select.options = ["No conditions"]
+            return
+
         pattern = os.path.join(self.results_dir, "*_VS_*.results.tsv")
         files = glob.glob(pattern)
 
