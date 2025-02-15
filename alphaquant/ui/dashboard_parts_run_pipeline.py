@@ -15,6 +15,8 @@ matplotlib.use('agg')
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.config.variables as aq_variables
 import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
+import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_proteoforms
+import alphaquant.ui.gui as gui
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
@@ -1184,7 +1186,7 @@ class Tabs(param.Parameterized):
 def build_dashboard():
 	"""Build the overall dashboard layout."""
 	# Create state manager first
-	state_manager = StateManager()  # Make sure this is imported from gui.py
+	state_manager = gui.DashboardState()  # Changed from StateManager to DashboardState
 
 	header = HeaderWidget(
 		title="AlphaQuant Dashboard",
@@ -1205,7 +1207,7 @@ def build_dashboard():
 
 	# Create plotting tabs with state manager and register as subscribers
 	plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=state_manager)
-	proteoform_tab = dashboard_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
+	proteoform_tab = dashboad_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
 
 	# Register subscribers
 	state_manager.register_subscriber(plotting_tab)
