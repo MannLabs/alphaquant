@@ -112,7 +112,12 @@ class PlottingTab(param.Parameterized):
         )
 
         # Initialize if directory provided
-        self._extract_condpairs()
+        if self.results_dir:
+            self._extract_condpairs()
+
+        # Watch for state changes
+        self.state.param.watch(self._on_state_results_dir_changed, 'results_dir')
+        self.state.param.watch(self._on_state_samplemap_changed, 'samplemap_df')
 
     def panel(self):
         """Return the main panel layout."""
@@ -159,68 +164,17 @@ class PlottingTab(param.Parameterized):
         except Exception as e:
             self.samplemap_controls[0][0].value = f"Error loading sample map: {str(e)}"
 
-    def on_samplemap_df_changed(self, new_df):
-        """Handle changes to samplemap DataFrame from other components.
-        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager
-        """
-        if not new_df.empty:
-            # Update status
-            num_samples = len(new_df)
-            num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
-            status_text = f"Sample Map: Already loaded {num_samples} samples, {num_conditions} conditions"
-            self.samplemap_controls[0][0].value = status_text
+    def _on_state_results_dir_changed(self, event):
+        """Handle changes to results directory from state."""
+        if event.new and event.new != self.results_dir:
+            self.results_dir = event.new
+            self.results_dir_input.value = event.new
+            self._extract_condpairs()
 
-            # Update condition pairs and other visualizations
-            self._update_condition_pairs_from_df(new_df)
-        else:
-            self.samplemap_controls[0][0].value = "Sample Map: No sample map loaded"
-
-    def _update_condition_pairs_from_df(self, df):
-        """Update condition pairs based on the samplemap DataFrame."""
-        if 'condition' in df.columns:
-            unique_conditions = df['condition'].dropna().unique()
-            pairs = [(c1, c2) for c1, c2 in itertools.permutations(unique_conditions, 2)]
-            self.cond_pairs = pairs
-            pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in pairs]
-            self.condpairname_select.options = ["No conditions"] + pairs_str
-
-    def _update_fc_visualizer(self):
-        """Update FoldChangeVisualizer with current settings."""
-        if hasattr(self, 'fc_visualizer') and self.cond1 and self.cond2:
-            try:
-                # Save DataFrame temporarily if needed
-                if self.state.samplemap_df is not None and not self.state.samplemap_df.empty:
-                    temp_dir = os.path.join(self.results_dir_input.value, 'temp')
-                    os.makedirs(temp_dir, exist_ok=True)
-                    temp_path = os.path.join(temp_dir, 'current_samplemap.tsv')
-                    self.state.samplemap_df.to_csv(temp_path, sep='\t', index=False)
-
-                    # Initialize visualizer with file path
-                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                        condition1=self.cond1,
-                        condition2=self.cond2,
-                        results_directory=self.results_dir_input.value,
-                        samplemap_file=temp_path,  # Use file path instead of DataFrame
-                        tree_level=self.tree_level_select.value
-                    )
-                else:
-                    # Initialize without samplemap if none available
-                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                        condition1=self.cond1,
-                        condition2=self.cond2,
-                        results_directory=self.results_dir_input.value,
-                        tree_level=self.tree_level_select.value
-                    )
-            except Exception as e:
-                self.fc_visualizer = None
-
-    def _on_tree_level_changed(self, event):
-        """Handle tree level changes.
-        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager"""
-        self._update_fc_visualizer()
-        if self.protein_input.value:
-            # Update the plot
-            self._update_protein_plot(self.protein_input.value)
+    def _on_state_samplemap_changed(self, event):
+        """Handle changes to samplemap from state."""
+        if event.new is not None and not event.new.empty:
+            self._update_condition_pairs_from_df(event.new)
 
     def _extract_condpairs(self):
         """Look for '*_VS_*.results.tsv' in the results_dir and update the condition pairs."""
@@ -242,6 +196,9 @@ class PlottingTab(param.Parameterized):
         if self.cond_pairs:
             pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in self.cond_pairs]
             self.condpairname_select.options = ["No conditions"] + pairs_str
+            # Select first pair by default if available
+            if len(pairs_str) > 0:
+                self.condpairname_select.value = pairs_str[0]
         else:
             self.condpairname_select.options = ["No conditions"]
 
@@ -343,3 +300,61 @@ class PlottingTab(param.Parameterized):
         """Clear all plots."""
         self.volcano_pane.clear()
         self.protein_plot_pane.clear()
+
+    def _update_fc_visualizer(self):
+        """Update FoldChangeVisualizer with current settings."""
+        if hasattr(self, 'fc_visualizer') and self.cond1 and self.cond2:
+            try:
+                # Save DataFrame temporarily if needed
+                if self.state.samplemap_df is not None and not self.state.samplemap_df.empty:
+                    temp_dir = os.path.join(self.results_dir_input.value, 'temp')
+                    os.makedirs(temp_dir, exist_ok=True)
+                    temp_path = os.path.join(temp_dir, 'current_samplemap.tsv')
+                    self.state.samplemap_df.to_csv(temp_path, sep='\t', index=False)
+
+                    # Initialize visualizer with file path
+                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                        condition1=self.cond1,
+                        condition2=self.cond2,
+                        results_directory=self.results_dir_input.value,
+                        samplemap_file=temp_path,  # Use file path instead of DataFrame
+                        tree_level=self.tree_level_select.value
+                    )
+                else:
+                    # Initialize without samplemap if none available
+                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                        condition1=self.cond1,
+                        condition2=self.cond2,
+                        results_directory=self.results_dir_input.value,
+                        tree_level=self.tree_level_select.value
+                    )
+            except Exception as e:
+                self.fc_visualizer = None
+
+    def _on_tree_level_changed(self, event):
+        """Handle tree level changes.
+        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager"""
+        self._update_fc_visualizer()
+        if self.protein_input.value:
+            # Update the plot
+            self._update_protein_plot(self.protein_input.value)
+
+    def _update_condition_pairs_from_df(self, df):
+        """Update condition pairs based on the samplemap DataFrame."""
+        if 'condition' in df.columns:
+            unique_conditions = df['condition'].dropna().unique()
+            pairs = [(c1, c2) for c1, c2 in itertools.permutations(unique_conditions, 2)]
+            self.cond_pairs = pairs
+            pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in pairs]
+
+            # Combine existing pairs from results directory with pairs from samplemap
+            existing_pairs = [opt for opt in self.condpairname_select.options if opt != "No conditions"]
+            all_pairs = list(set(existing_pairs + pairs_str))
+
+            if all_pairs:
+                self.condpairname_select.options = ["No conditions"] + all_pairs
+                # Select first pair by default if none selected
+                if self.condpairname_select.value == "No conditions" and len(all_pairs) > 0:
+                    self.condpairname_select.value = all_pairs[0]
+            else:
+                self.condpairname_select.options = ["No conditions"]
