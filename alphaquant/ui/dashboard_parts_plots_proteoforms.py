@@ -254,34 +254,30 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_samplemap_changed(self, event):
         """Handle changes to samplemap file path."""
-        if not event.new:
-            return
-
-        self.samplemap_file = event.new
-        try:
-            # Verify the file exists and can be read
-            df = pd.read_csv(self.samplemap_file, sep='\t', dtype=str)
-            num_samples = len(df)
-            num_conditions = len(df['condition'].unique()) if 'condition' in df.columns else 0
-            print(f"Loaded sample map with {num_samples} samples and {num_conditions} conditions")
-        except Exception as e:
-            print(f"Error loading sample map: {str(e)}")
-            raise
+        if event.new:
+            self.samplemap_file = event.new
+            try:
+                # Verify the file exists and can be read
+                df = pd.read_csv(self.samplemap_file, sep='\t', dtype=str)
+                num_samples = len(df)
+                num_conditions = len(df['condition'].unique()) if 'condition' in df.columns else 0
+                print(f"Loaded sample map with {num_samples} samples and {num_conditions} conditions")
+            except Exception as e:
+                print(f"Error loading sample map: {str(e)}")
 
     def on_samplemap_df_changed(self, new_df):
         """Handle changes to samplemap DataFrame from other components."""
-        if new_df.empty:
+        if not new_df.empty:
+            # Update status
+            num_samples = len(new_df)
+            num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
+            status_text = f"Sample Map: Loaded {num_samples} samples, {num_conditions} conditions"
+            self.samplemap_input.value = status_text
+
+            # Update condition pairs and other visualizations
+            self._update_condition_pairs_from_df(new_df)
+        else:
             self.samplemap_input.value = "Sample Map: No sample map loaded"
-            return
-
-        # Update status
-        num_samples = len(new_df)
-        num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
-        status_text = f"Sample Map: Loaded {num_samples} samples, {num_conditions} conditions"
-        self.samplemap_input.value = status_text
-
-        # Update condition pairs and other visualizations
-        self._update_condition_pairs_from_df(new_df)
 
     def _update_condition_pairs_from_df(self, df):
         """Update condition pairs based on the samplemap DataFrame."""
@@ -306,14 +302,19 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_proteoform_selected(self, event):
         """Handle proteoform selection from table."""
-        if not hasattr(event, 'row'):
-            return
+        print(f"_on_proteoform_selected called with event: {event}")
+        print(f"Event type: {type(event)}")
+        print(f"Event attributes: {dir(event)}")
 
-        row_data = self.proteoform_table.value.iloc[event.row]
-        selected_protein = row_data.get('protein')
-        if not selected_protein:
-            return
+        if hasattr(event, 'row'):
+            print(f"Row index: {event.row}")
+            row_data = self.proteoform_table.value.iloc[event.row]
+            print(f"Row data: {row_data}")
+            selected_protein = row_data.get('protein')
+            print(f"Selected protein: {selected_protein}")
 
-        self.protein_input.value = selected_protein
-        # Directly update the plot without requiring click on protein input
-        self._on_protein_selected(param.Event(type='selection', new=selected_protein))
+            if selected_protein:
+                print("Setting protein_input.value...")
+                # Just update the value and let the existing watcher handle it
+                self.protein_input.value = selected_protein
+
