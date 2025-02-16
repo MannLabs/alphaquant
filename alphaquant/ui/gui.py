@@ -219,12 +219,60 @@ class AlphaQuantGUI(GUI):
             self.tab_layout
         ]
 
+        # Add process management and cleanup
+        self._server = None
+        self._workers = []
+
         if start_server:
             self.start_server()
 
+    def start_server(self):
+        try:
+            # Configure process pool with explicit resource limits
+            import multiprocessing as mp
+            self._workers = mp.Pool(
+                processes=min(mp.cpu_count(), 4),  # Limit max processes
+                maxtasksperchild=100  # Restart workers periodically
+            )
+
+            # Start server with proper cleanup handling
+            self._server = pn.serve(
+                self.layout,
+                port=0,  # Dynamic port allocation
+                show=True,
+                websocket_origin="*",
+                threaded=True
+            )
+
+            # Register cleanup handlers
+            import atexit
+            atexit.register(self.cleanup)
+
+        except Exception as e:
+            self.cleanup()
+            logging.error(f"Server startup failed: {str(e)}")
+            raise
+
+    def cleanup(self):
+        # Graceful cleanup of resources
+        if self._workers:
+            self._workers.terminate()
+            self._workers.join()
+            self._workers = None
+
+        if self._server:
+            self._server.stop()
+            self._server = None
+
 
 def run():
-    AlphaQuantGUI(start_server=True)
+    try:
+        # Add error handling wrapper
+        gui = AlphaQuantGUI(start_server=True)
+        return gui
+    except Exception as e:
+        logging.error(f"Failed to start GUI: {str(e)}")
+        raise
 
 
 if __name__ == '__main__':
