@@ -224,3 +224,4 @@ tests/ratio_tests/compare_multiple_configs_spectronaut_largefc.ipynb
 sandbox
 alphaquant-1.2.3-macos-darwin-arm64.pkg
 alphaquant.pkg
+build_mac_release.sh
