@@ -22,11 +22,16 @@ cp release/macos/alphaquant_terminal ${CONTENTS_FOLDER}/MacOS
 cp ./LICENSE ${CONTENTS_FOLDER}/Resources/LICENSE
 cp release/logos/alpha_logo.png ${CONTENTS_FOLDER}/Resources
 
+
+
 # link _internal folder containing the python libraries to the Frameworks folder where they are expected
 # to avoid e.g. "Failed to load Python shared library '/Applications/AlphaMap.app/Contents/Frameworks/libpython3.8.dylib'"
 cd ${CONTENTS_FOLDER}
 ln -s ./MacOS/_internal ./Frameworks
 cd -
+
+#make directory for AlphaMap. This is where AlphaMap expects its fasta file
+mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 
 chmod 777 release/macos/scripts/*
 
