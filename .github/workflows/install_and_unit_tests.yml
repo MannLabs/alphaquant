@@ -7,7 +7,6 @@
 # from the tests that ran on develop.
 
 on:
-  pull_request:
   workflow_dispatch:
 
 name: Pip install + unit tests
