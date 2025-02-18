@@ -234,6 +234,7 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
 
 
 def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
+    LOGGER.info("Starting train_fast_gradient_boosting, no parallel processing")
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)
 
