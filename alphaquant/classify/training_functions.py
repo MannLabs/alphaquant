@@ -274,7 +274,7 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         return_train_score=True,
         error_score='raise'  # Raise an error if a fit fails
     )
-
+    LOGGER.info("Starting RandomizedSearchCV")
     # Fit RandomizedSearchCV on the entire dataset
     from joblib import parallel_backend
     with parallel_backend('loky', n_jobs=-1):
@@ -287,13 +287,14 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
     test_set_predictions = []
     y_pred_cv = np.zeros_like(y)
     kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
-
+    LOGGER.info("Starting cross-validation")
     for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
         model = HistGradientBoostingRegressor(**best_params, random_state=42 + fold_num)
-        model.fit(X_train, y_train)
+        with parallel_backend('loky', n_jobs=-1):
+            model.fit(X_train, y_train)
 
         # Compute permutation feature importances
         perm_importance = permutation_importance(
