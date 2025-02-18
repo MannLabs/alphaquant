@@ -13,7 +13,7 @@
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{alphaquant_Mann_Labs_MPI_CPR}
+AppId={alphaquant_Mann_Labs_MPI_CPR}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -41,6 +41,10 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[Dirs]
+; Create the alphamap data directory and ensure users can modify it
+Name: "{app}\_internal\alphamap\data"; Permissions: users-modify
 
 [Files]
 Source: "..\..\dist_pyinstaller\alphaquant_gui\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
