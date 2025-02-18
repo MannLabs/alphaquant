@@ -42,13 +42,13 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
 There are currently two different types of installation possible:
 
-* [**One-click GUI installer:--under construction--**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible. Note that this version is quite outdated and does not contain many of the features. Update is in the making.
-<!---
+* [**One-click GUI installer**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible.
+
 * [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing python 3.11 environment (e.g. a Jupyter notebook). If needed, the GUI can be installed with pip as well.
--->
+
 * [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
-### One-click GUI --under construction--
+### One-click GUI
 
 The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. **Note that this version is quite outdated and does not contain many of the features. Update is in the making.** Click on one of the links below to download the latest release for:
 
@@ -120,13 +120,13 @@ Some details: By default this installs loose dependancies (no explicit versionin
 
 There are two ways to use AlphaQuant:
 
-* [**GUI** --under construction--](#gui)
+* [**GUI**](#gui)
 <!---* [**CLI**](#cli)-->
 * [**Python and Jupyter Notebooks**](#python-and-jupyter-notebooks)
 
 NOTE: The first time you use a fresh installation of AlphaQuant, it is often quite slow because some functions might still need compilation on your local operating system and architecture. Subsequent use should be a lot faster.
 
-### GUI --under construction--
+### GUI
 
 The GUI is currently accessible through the one-click GUI installer. Currently it only does the pairwise analysis. Further functionalities can be accessed through python and jupyter notebooks.
 <!-- If the GUI was not installed through a one-click GUI installer, it can be activate with the following `bash` command:
