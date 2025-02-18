@@ -1,20 +1,10 @@
--
-![Unit tests](https://github.com/MannLabs/alphaquant/workflows/Default%20installation%20and%20tests/badge.svg)
-![GUI and PyPi releases](https://github.com/MannLabs/alphaquant/workflows/Publish%20on%20PyPi%20and%20release%20on%20GitHub/badge.svg)
-[![Downloads](https://pepy.tech/badge/alphaquant)](https://pepy.tech/project/alphaquant)
-[![Downloads](https://pepy.tech/badge/alphaquant/month)](https://pepy.tech/project/alphaquant)
-[![Downloads](https://pepy.tech/badge/alphaquant/week)](https://pepy.tech/project/alphaquant)
-
 
 ![GitHub Release](https://img.shields.io/github/v/release/mannlabs/alphaquant?logoColor=green&color=brightgreen)
 ![Versions](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12-brightgreen)
 ![License](https://img.shields.io/badge/License-Apache-brightgreen)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick.yml?branch=main&label=E2E%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/install_and_unit_tests.yml?branch=main&label=Unit%20Tests)
-![Docs](https://readthedocs.org/projects/alphaquant/badge/?version=latest)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_docker_image.yml?branch=main&label=Deploy%20Docker)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
-![Coverage](https://github.com/MannLabs/alphaquant/blob/main/coverage.svg)
 
 
 # AlphaQuant
