@@ -44,6 +44,12 @@ hidden_imports = [h for h in hidden_imports if "__pycache__" not in h]
 datas = [d for d in datas if ("__pycache__" not in d[0]) and (d[1] not in [".", "Resources", "scripts"])]
 datas.extend(PyInstaller.utils.hooks.collect_data_files('certifi'))
 
+# add matplotlib backends to hidden imports
+hidden_imports.extend([
+	'matplotlib.backends.backend_pdf',
+	'matplotlib.backends.backend_agg'
+])
+
 a = Analysis(
 	[script_name],
 	pathex=[location],
