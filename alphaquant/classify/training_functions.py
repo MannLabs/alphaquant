@@ -234,7 +234,7 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
 
 
 def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
-    LOGGER.info("Starting train_fast_gradient_boosting, no parallel processing")
+    LOGGER.info("Starting train_fast_gradient_boosting, no parallel processing, n=1")
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)
 
@@ -268,7 +268,7 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         n_iter=n_iter,
         cv=3,
         scoring='neg_mean_squared_error',
-        n_jobs=-1,
+        n_jobs=1,
         verbose=0,
         random_state=42,
         return_train_score=True,
@@ -276,9 +276,8 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
     )
     LOGGER.info("Starting RandomizedSearchCV")
     # Fit RandomizedSearchCV on the entire dataset
-    from joblib import parallel_backend
-    with parallel_backend('loky', n_jobs=-1):
-        random_search.fit(X, y)
+
+    random_search.fit(X, y)
     best_params = random_search.best_params_
     LOGGER.info(f"Best parameters found: {best_params}")
 
@@ -293,8 +292,8 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         y_train, y_test = y[train_index], y[test_index]
 
         model = HistGradientBoostingRegressor(**best_params, random_state=42 + fold_num)
-        with parallel_backend('loky', n_jobs=-1):
-            model.fit(X_train, y_train)
+
+        model.fit(X_train, y_train)
 
         # Compute permutation feature importances
         perm_importance = permutation_importance(
