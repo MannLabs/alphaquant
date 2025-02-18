@@ -18,7 +18,7 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 - **Enhanced Differential Analysis**: Fragment and MS1-level analysis enabling up to 50-fold more regulated protein detections compared to state-of-the-art methods
 - **Advanced Missing Value Analysis**: Sophisticated handling of missing values using tree-based and intensity dependent counting statistics
 - **Proteoform Inference**: Automatic clustering of peptides with similar quantitative behavior to infer regulated proteoforms
-- **Flexible Integration**: Direct support for all major search engines in DDA and DIA workflows (Spectronaut, DIA-NN, AlphaDIA, MaxQuant, FragPipe, AlphaPept) - just use their standard output files
+- **Flexible Integration**: Direct support for all major search engines in DDA and DIA workflows (DIA-NN, Spectronaut, AlphaDIA, MaxQuant, FragPipe, AlphaPept) - just use their standard output files
 
 ## Table of Contents
 
