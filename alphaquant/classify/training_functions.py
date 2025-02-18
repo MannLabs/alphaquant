@@ -268,7 +268,7 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         n_iter=n_iter,
         cv=3,
         scoring='neg_mean_squared_error',
-        n_jobs=1,
+        n_jobs=-1,
         verbose=0,
         random_state=42,
         return_train_score=True,
@@ -276,7 +276,9 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
     )
 
     # Fit RandomizedSearchCV on the entire dataset
-    random_search.fit(X, y)
+    from joblib import parallel_backend
+    with parallel_backend('loky', n_jobs=-1):
+        random_search.fit(X, y)
     best_params = random_search.best_params_
     LOGGER.info(f"Best parameters found: {best_params}")
 
