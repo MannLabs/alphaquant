@@ -1,4 +1,3 @@
-
 ![GitHub Release](https://img.shields.io/github/v/release/mannlabs/alphaquant?logoColor=green&color=brightgreen)
 ![Versions](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12-brightgreen)
 ![License](https://img.shields.io/badge/License-Apache-brightgreen)
@@ -6,8 +5,12 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/install_and_unit_tests.yml?branch=main&label=Unit%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
 
+<div align="center">
+  <h3 align="center">AlphaQuant</h3>
+</div>
 
-# AlphaQuant
+<img src="release/images/alphaquant_gui.png" alt="preview" width="800"/>
+
 AlphaQuant is an innovative open-source Python package that introduces tree-based quantification for proteomics data analysis. It implements a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
 
 It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
