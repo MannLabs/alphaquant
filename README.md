@@ -8,32 +8,33 @@
 
 
 # AlphaQuant
-AlphaQuant is an open-source Python package for sensitive proteomics quantification. You can process MS data analyzed by Spectronaut, DIANN, [AlphaPept](https://github.com/MannLabs/alphapept) or MaxQuant using a Graphical User Interface (GUI) or the python package. The current focus is on the comparison of two biological conditions (i.e. "making volcano plots"), with multi-condition functionality to be added soon.
+AlphaQuant is an innovative open-source Python package that introduces tree-based quantification for proteomics data analysis. It implements a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
 
-It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/). To enable all hyperlinks in this document, please view it at [GitHub](https://github.com/MannLabs/alphaquant).
+It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
 
-* [**About**](#about)
-* [**License**](#license)
+## Key Features
+
+- **Tree-based Quantification**: Novel hierarchical framework that organizes and analyzes quantitative data across all levels (fragments, MS1 isotopes, charge states, modifications, peptides, and genes)
+- **Enhanced Differential Analysis**: Fragment and MS1-level analysis enabling up to 50-fold more regulated protein detections compared to state-of-the-art methods
+- **Advanced Missing Value Analysis**: Sophisticated handling of missing values using tree-based and intensity dependent counting statistics
+- **Proteoform Inference**: Automatic clustering of peptides with similar quantitative behavior to infer regulated proteoforms
+- **Flexible Integration**: Direct support for all major search engines in DDA and DIA workflows (DIA-NN, Spectronaut, AlphaDIA, MaxQuant, FragPipe, AlphaPept) - just use their standard output files
+
+## Table of Contents
+
+
 * [**Installation**](#installation)
   * [**One-click GUI**](#one-click-gui)
-  * [**Developer installer**](#developer)
+  * [**Developer installer**](#developer-installation)
 * [**Usage**](#usage)
   * [**GUI**](#gui)
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
 * [**Troubleshooting**](#troubleshooting)
 * [**Citations**](#citations)
 * [**How to contribute**](#how-to-contribute)
+* [**License**](#license)
 * [**Changelog**](#changelog)
 
----
-## About
-The standard approach for proteomics quantification is the calculation of point estimates that reflect the abundance of a particular protein. This approach usually neglects a large part of the quantitative information that is available, including the type, quality and reliability of the underlying, quantified peptides. AlphaQuant introduces a collection of novel Bioinformatics algorithms for increased accuracy and sensitivity of proteomics quantification. It is built on the foundation of the [MS-EmpiRe](https://doi.org/10.1074/mcp.RA119.001509) algorithm. 
-Alphaquant is an open-source Python package of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
-
----
-## License
-
-AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/) and is freely available with an [Apache License](LICENSE.txt). External Python packages (available in the [requirements](requirements) folder) have their own licenses, which can be consulted on their respective websites.
 
 ---
 ## Installation
@@ -41,26 +42,29 @@ AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Bioche
 AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
 There are currently two different types of installation possible:
 
-* [**One-click GUI installer:--under construction--**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible. Note that this version is quite outdated and does not contain many of the features. Update is in the making.
-<!---
-* [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing python 3.9 environment (e.g. a Jupyter notebook). If needed, the GUI and CLI can be installed with pip as well.
--->
-* [**Developer installer:**](#developer) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
+* [**One-click GUI installer**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible.
 
-### One-click GUI --under construction--
+* [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing python 3.11 environment (e.g. a Jupyter notebook). If needed, the GUI can be installed with pip as well.
 
-The GUI of AlphaQuant is a completely stand-alone tool that requires no knowledge of Python or CLI tools. **Note that this version is quite outdated and does not contain many of the features. Update is in the making.** Click on one of the links below to download the latest release for:
+* [**Developer installer:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
-* [**Windows**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_windows.exe)
-* [**macOS**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_macos.pkg)
-* [**Linux**](https://github.com/MannLabs/alphaquant/releases/latest/download/alphaquant_gui_installer_linux.deb)
+### One-click GUI installation
+Currently available for **MacOS**, **Windows**. **Linux** i.
+You can download the latest release of alphaquant [here](https://github.com/Mannlabs/alphaquant/releases/latest).
 
-Older releases remain available on the [release page](https://github.com/MannLabs/alphaquant/releases), but no backwards compatibility is guaranteed.
+* **Windows:** Download the latest `alphaquant-X.Y.Z-windows-amd64.exe` build and double click it to install. If you receive a warning during installation click *Run anyway*.
+* **MacOS:** Download the latest build suitable for your chip architecture
+(can be looked up by clicking on the Apple Symbol > *About this Mac* > *Chip* ("M1", "M2", "M3" -> `arm64`, "Intel" -> `x64`),
+`alphaquant-X.Y.Z-macos-darwin-arm64.pkg` or `alphaquant-X.Y.Z-macos-darwin-x64.pkg`. Open the parent folder of the downloaded file in Finder,
+right-click and select *open*. If you receive a warning during installation click *Open*. If you want to use `.raw` files on Thermo instruments alphaRaw is required, which depends on Mono. A detailed guide to installing alphaRaw with mono can be found [here](https://github.com/MannLabs/alpharaw#installation).
+* **Linux:** Installers are provided, but undergo only limited testing: `alphaquant-X.Y.Z-linux-x64.deb` build and install it via `dpkg -i alphaquant-X.Y.Z-linux-x64.deb`. In case of issues, follow the steps for the
+[developer installation](docs/installation.md#developer-installation) in order to use the GUI.
 
-<!---
+
+
 ### Pip
 
-AlphaQuant can be installed in an existing python 3.9 environment with a single `bash` command. *This `bash` command can also be run directly from within a Jupyter notebook by prepending it with a `!`*:
+AlphaQuant can be installed in an existing python 3.11 environment with
 
 ```bash
 pip install alphaquant
@@ -72,14 +76,18 @@ Installing AlphaQuant like this avoids conflicts when integrating it in other to
 pip install "alphaquant[stable]"
 ```
 
-NOTE: You might need to run `pip install pip==21.0` before installing AlphaQuant like this. Also note the double quotes `"`.
+if you want to add the GUI to your environment, you can install it with the following command:
+
+```bash
+pip install "alphaquant[stable,gui-stable]"
+```
 
 For those who are really adventurous, it is also possible to directly install any branch (e.g. `@development`) with any extras (e.g. `#egg=alphaquant[stable,development-stable]`) from GitHub with e.g.
 
 ```bash
 pip install "git+https://github.com/MannLabs/alphaquant.git@development#egg=alphaquant[stable,development-stable]"
 ```
--->
+
 ### Developer
 
 AlphaQuant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:
@@ -100,7 +108,7 @@ git clone https://github.com/MannLabs/alphaquant.git
 For any Python package, it is highly recommended to use a separate [conda virtual environment](https://docs.conda.io/en/latest/), as otherwise *dependancy conflicts can occur with already existing packages*.
 
 ```bash
-conda create --name alphaquant python=3.9 -y
+conda create --name alphaquant python=3.11 -y
 conda activate alphaquant
 ```
 
@@ -109,7 +117,7 @@ Finally, install AlphaQuant:
 ```bash
 pip install -e .
 ```
-By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant. We currently recommend the stable 
+By using the editable flag `-e`, you can make modifications to the [alphaquant source code](alphaquant) and these modifications will be directly reflected when running AlphaQuant. We currently recommend the stable
 
 Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
@@ -119,50 +127,62 @@ Some details: By default this installs loose dependancies (no explicit versionin
 
 There are two ways to use AlphaQuant:
 
-* [**GUI** --under construction--](#gui)
+* [**GUI**](#gui)
 <!---* [**CLI**](#cli)-->
 * [**Python and Jupyter Notebooks**](#python-and-jupyter-notebooks)
 
 NOTE: The first time you use a fresh installation of AlphaQuant, it is often quite slow because some functions might still need compilation on your local operating system and architecture. Subsequent use should be a lot faster.
 
-### GUI --under construction--
+### GUI usage
 
-The GUI is currently accessible through the one-click GUI installer. Currently it only does the pairwise analysis. Further functionalities can be accessed through python and jupyter notebooks.
-<!-- If the GUI was not installed through a one-click GUI installer, it can be activate with the following `bash` command:
+If the GUI was not installed through a one-click GUI installer, it can be activate with the following `bash` command:
 
 ```bash
 alphaquant gui
 ```
 
-Note that this needs to be prepended with a `!` when you want to run this from within a Jupyter notebook. When the command is run directly from the command-line, make sure you use the right environment (activate it with e.g. `conda activate alphaquant` or set an alias to the binary executable (can be obtained with `where alphaquant` or `which alphaquant`)).     - [ ] Fix GUI-->
-
-<!---
-### CLI
-
-The CLI can be run with the following command (after activating the `conda` environment with `conda activate alphaquant` or if an alias was set to the AlphaQuant executable):
-
-```bash
-alphaquant -h
-```
-
-It is possible to get help about each function and their (required) parameters by using the `-h` flag.
--->
 
 ### Python and Jupyter notebooks
 
-We have compiled a set of Jupyter notebooks together with some example data in the [example_nbs folder](example_nbs). There, you can use very simple calls in order to:
+Quickstart:
+
+```python
+import alphaquant.run_pipeline as aq_pipeline
+
+aq_pipeline.run_pipeline(input_file=INPUT_FILE, samplemap_file=SAMPLEMAP_FILE, results_dir=RESULTS_DIRECTORY)
+```
+
+For more detailed examples and advanced use cases, we provide several Jupyter notebooks with example data in the [example_nbs folder](example_nbs): There, you can use very simple calls in order to:
  * perform very sensitive differential expression analysis on a single condition, analyze and visualize proteoforms [here](example_nbs/differential_expression.ipynb)
  * analyze multiple condition together and inspect proteoform profiles [here](example_nbs/multi_condition_analysis.ipynb)
  * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_PTM.ipynb)
- * combine the AlphaQuant proteoform analysis with deep learning on sequences in order to infer regulated phospho peptides from un-enriched standard proteome data [here](example_nbs/phospho_inference_analysis.ipynb)
- * visualize the tree structure of differential expression analysis [here](example_nbs/visualizing_tree_structure.ipynb)
+
 
 
 ## Preparing input files
 
-**note: AlphaQuant is currently under development, mostly using DIA-NN and Spectronaut outputs. Other search engines and the generic format might cause problems.**
-### Spectronaut
+### The samplemap.tsv file
+The samplemap.tsv is a **tab-separated** file that is always required. In the GUI, you can create it during the setup process. The samplemap.tsv maps the experiment names (i.e. the individual runs) to the condition names (e.g. "control" and "treatment"). The column names are **sample** and **condition**. A typical example of a samplemap.tsv file is:
 
+```
+sample	condition
+run1	control
+run2	control
+run3	control
+run4	treatment
+run5	treatment
+run6	treatment
+```
+
+### DIA-NN
+Provide the path to the DIANN "report.tsv" output table.
+The **samplemap.tsv** file must map the the **Run** column.
+
+### AlphaDIA
+Provide the path to "precursors.tsv", or "fragment_precursorfiltered.matrix.parquet"
+The **samplemap.tsv** file must map to the **run** column.
+
+### Spectronaut
 AlphaQuant takes a Spectronaut .tsv table as input. When exporting from Spectronaut, the correct columns need to be selected. These can be obtained by downloading one of the export schemes available below. We provide one export scheme for sprecursor quantification and one export scheme for fragment ion quantification. Fragment ion quantification shows slightly more accuracy, but the files are around 10 times larger.
 
 An export scheme can then simply be loaded into Spectronaut as follows:
@@ -181,20 +201,14 @@ The data needs to be exported in the normal long format as .tsv file. Please dou
 
 The **samplemap.tsv** file must map to the **R.Label** column.
 
-
-### DIA-NN
-Provide the path to the DIANN "report.tsv" output table.  
-The **samplemap.tsv** file must map the the **File.Name** column.
-
 ### MaxQuant
-Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table.  
-For "peptides.txt", the **samplemap.tsv** file must map the names of the columns starting with "Intensity ", but **without** the "Intensity ". For example "Intensity sample1.raw" "Intensity sample2.raw"-> "sample1.raw" "sample2.raw".  
+Provide the path to the MaxQuant "peptides.txt" output table or the MaxQuant evidence.txt output table.
+For "peptides.txt", the **samplemap.tsv** file must map the names of the columns starting with "Intensity ", but **without** the "Intensity ". For example "Intensity sample1.raw" "Intensity sample2.raw"-> "sample1.raw" "sample2.raw".
 For "evidence.txt, the **samplemap.tsv** file must map the **Experiment** column.
 
 ### FragPipe
-Provide the path to the "combined_ion.tsv" output table.  
+Provide the path to the "combined_ion.tsv" output table.
 For "peptides.txt", the **samplemap.tsv** file must map the names of the columns ending with " Intensity", but **without** the " Intensity". For example "sample1 Intensity" "sample2 Intensity"-> "sample1" "sample2".
-
 
 
 ## Output tables
@@ -239,6 +253,12 @@ Manuscript in preparation.
 ## How to contribute
 
 If you like this software, you can give us a [star](https://github.com/MannLabs/alphaquant/stargazers) to boost our visibility! All direct contributions are also welcome. Feel free to post a new [issue](https://github.com/MannLabs/alphaquant/issues) or clone the repository and create a [pull request](https://github.com/MannLabs/alphaquant/pulls) with a new branch. For an even more interactive participation, check out the [discussions](https://github.com/MannLabs/alphaquant/discussions) and the [the Contributors License Agreement](misc/CLA.md).
+
+---
+
+## License
+
+AlphaQuant was developed by the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/) and is freely available with an [Apache License](LICENSE.txt). External Python packages (available in the [requirements](requirements) folder) have their own licenses, which can be consulted on their respective websites.
 
 ---
 ## Changelog
