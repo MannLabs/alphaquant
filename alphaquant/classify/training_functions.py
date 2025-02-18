@@ -17,8 +17,6 @@ LOGGER = logging.getLogger(__name__)
 
 import numpy as np
 
-from sklearn.utils import parallel_backend
-
 def train_random_forest_with_grid_search(X, y, shorten_features_for_speed, num_splits=5):
     y = np.abs(y)
     models = []
@@ -241,9 +239,12 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
 
     # Apply feature selection if needed
     if shorten_features_for_speed:
+        # For example, select top 50% features
         from sklearn.feature_selection import SelectKBest, f_regression
         selector = SelectKBest(score_func=f_regression, k=int(X.shape[1] * 0.5))
         X = selector.fit_transform(X, y)
+    else:
+        selector = None
 
     # Define the parameter distributions for RandomizedSearchCV
     param_distributions = {
@@ -255,73 +256,69 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         'max_leaf_nodes': [31],
         'l2_regularization': [0, 0.1],
         'early_stopping': [True],
+        # Removed 'max_features' since it's not supported in older versions
     }
 
-    # Initialize base model
     hgb = HistGradientBoostingRegressor(random_state=42)
 
-    # Use a context manager for parallel processing
-    with parallel_backend('threading', n_jobs=-1):
-        # Initialize and fit RandomizedSearchCV
-        random_search = RandomizedSearchCV(
-            estimator=hgb,
-            param_distributions=param_distributions,
-            n_iter=n_iter,
-            cv=3,
-            scoring='neg_mean_squared_error',
-            n_jobs=1,  # Use 1 here since we're handling parallelism at a higher level
-            verbose=0,
-            random_state=42,
-            return_train_score=True,
-            error_score='raise'
+    random_search = RandomizedSearchCV(
+        estimator=hgb,
+        param_distributions=param_distributions,
+        n_iter=n_iter,
+        cv=3,
+        scoring='neg_mean_squared_error',
+        n_jobs=-1,
+        verbose=0,
+        random_state=42,
+        return_train_score=True,
+        error_score='raise'  # Raise an error if a fit fails
+    )
+
+    # Fit RandomizedSearchCV on the entire dataset
+    random_search.fit(X, y)
+    best_params = random_search.best_params_
+    LOGGER.info(f"Best parameters found: {best_params}")
+
+    # Now do cross-validation using best_params
+    models = []
+    test_set_predictions = []
+    y_pred_cv = np.zeros_like(y)
+    kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
+
+    for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        model = HistGradientBoostingRegressor(**best_params, random_state=42 + fold_num)
+        model.fit(X_train, y_train)
+
+        # Compute permutation feature importances
+        perm_importance = permutation_importance(
+            model, X_test, y_test, n_repeats=5, random_state=42, scoring='neg_mean_squared_error'
         )
+        feature_importances = perm_importance.importances_mean
 
-        random_search.fit(X, y)
-        best_params = random_search.best_params_
-        LOGGER.info(f"Best parameters found: {best_params}")
+        # Handle negative importances
+        feature_importances = np.maximum(feature_importances, 0)
 
-        # Now do cross-validation using best_params
-        models = []
-        test_set_predictions = []
-        y_pred_cv = np.zeros_like(y)
-        kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
+        # Normalize importances
+        if np.sum(feature_importances) > 0:
+            feature_importances = feature_importances / np.sum(feature_importances)
+        else:
+            feature_importances = np.zeros_like(feature_importances)
+        model.feature_importances_ = feature_importances
 
-        for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
-            X_train, X_test = X[train_index], X[test_index]
-            y_train, y_test = y[train_index], y[test_index]
+        y_pred_test = model.predict(X_test)
+        y_pred_cv[test_index] = y_pred_test
 
-            model = HistGradientBoostingRegressor(**best_params, random_state=42 + fold_num)
-            model.fit(X_train, y_train)
+        models.append(model)
+        test_set_predictions.append((y_test, y_pred_test))
 
-            # Compute permutation feature importances
-            perm_importance = permutation_importance(
-                model, X_test, y_test, n_repeats=5, random_state=42,
-                scoring='neg_mean_squared_error',
-                n_jobs=1  # Use 1 here since we're handling parallelism at a higher level
-            )
-            feature_importances = perm_importance.importances_mean
-
-            # Handle negative importances
-            feature_importances = np.maximum(feature_importances, 0)
-
-            # Normalize importances
-            if np.sum(feature_importances) > 0:
-                feature_importances = feature_importances / np.sum(feature_importances)
-            else:
-                feature_importances = np.zeros_like(feature_importances)
-            model.feature_importances_ = feature_importances
-
-            y_pred_test = model.predict(X_test)
-            y_pred_cv[test_index] = y_pred_test
-
-            models.append(model)
-            test_set_predictions.append((y_test, y_pred_test))
-
-            # Evaluate performance
-            fold_mse = np.mean((y_test - y_pred_test) ** 2)
-            LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
-            correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
-            LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
+        # Evaluate performance
+        fold_mse = np.mean((y_test - y_pred_test) ** 2)
+        LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
+        correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
+        LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
 
     return models, test_set_predictions, y_pred_cv
 
