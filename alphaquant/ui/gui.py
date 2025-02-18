@@ -167,7 +167,7 @@ class AlphaQuantGUI(GUI):
         self.state.add_subscriber(self.plotting_tab)
         self.state.add_subscriber(self.proteoform_tab)
 
-        self.project_description = """<div style="color: #2F4F4F; font-size: 1.3em; margin-top: -10px; margin-bottom: 20px;">AlphaQuant is an open-source package for sensitive detection of protein abundance changes.</div>"""
+        self.project_description = """<div style="color: #2F4F4F; font-size: 1.3em; margin-top: -10px; margin-bottom: 20px;">AlphaQuant is an open-source package for peptide-resolved detection of protein abundance changes.</div>"""
 
         # Create a centered row for the project description
         self.description_row = pn.Row(
