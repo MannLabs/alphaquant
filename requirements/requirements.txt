@@ -14,6 +14,6 @@ multiprocess==0.70.17
 pyfasta==0.5.2
 openpyxl==3.1.5
 scikit-learn==1.6.1
-alphamap @ git+https://github.com/MannLabs/alphamap@a0d6370edc965c57ea4b400a9f674af8e290b716
+alphamap @ git+https://github.com/MannLabs/alphamap@92806a68a67f2f3dab5fec8e98fd038f3439eb3a
 alphabase==1.5.0
 pyarrow==19.0.0

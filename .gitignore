@@ -42,6 +42,8 @@ wheels/
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 #*.spec
+build_pyinstaller
+dist_pyinstaller
 
 # Installer logs
 pip-log.txt
@@ -220,3 +222,6 @@ tests/ratio_tests/compare_multiple_configs_spectronaut_largefc.ipynb
 
 #sandbox
 sandbox
+alphaquant-1.2.3-macos-darwin-arm64.pkg
+alphaquant.pkg
+build_mac_release.sh

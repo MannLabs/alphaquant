@@ -1,13 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-import pkgutil
 import os
 import sys
 from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE, TOC
 import PyInstaller.utils.hooks
-import pkg_resources
-import importlib.metadata
-import alphaquant
 
 
 ##################### User definitions
@@ -20,73 +16,32 @@ else:
 block_cipher = None
 location = os.getcwd()
 project = "alphaquant"
-remove_tests = True
 bundle_name = "alphaquant"
 #####################
 
 
-requirements = {
-	req.split()[0] for req in importlib.metadata.requires(project)
-}
-requirements.add(project)
-requirements.add("distributed")
-hidden_imports = set()
-datas = []
-binaries = []
-checked = set()
-while requirements:
-	requirement = requirements.pop()
-	checked.add(requirement)
-	if requirement in ["pywin32"]:
-		continue
-	try:
-		module_version = importlib.metadata.version(requirement)
-	except (
-		importlib.metadata.PackageNotFoundError,
-		ModuleNotFoundError,
-		ImportError
-	):
-		continue
-	try:
-		datas_, binaries_, hidden_imports_ = PyInstaller.utils.hooks.collect_all(
-			requirement,
-			include_py_files=True
-		)
-	except ImportError:
-		continue
-	datas += datas_
-	# binaries += binaries_
-	hidden_imports_ = set(hidden_imports_)
-	if "" in hidden_imports_:
-		hidden_imports_.remove("")
-	if None in hidden_imports_:
-		hidden_imports_.remove(None)
-	requirements |= hidden_imports_ - checked
-	hidden_imports |= hidden_imports_
+datas, binaries, hidden_imports = PyInstaller.utils.hooks.collect_all(
+	project,
+	include_py_files=True
+)
 
-if remove_tests:
-	hidden_imports = sorted(
-		[h for h in hidden_imports if "tests" not in h.split(".")]
-	)
-else:
-	hidden_imports = sorted(hidden_imports)
+# add extra packages that don't have pyinstaller hooks
+# extra_pkgs = ["alphabase", ] # other alphaX packages would be added here
+# for pkg in extra_pkgs:
+# 	_datas, _binaries, _hidden_imports = PyInstaller.utils.hooks.collect_all(
+# 		pkg,
+# 		include_py_files=True
+# 	)
+# 	datas+=_datas
+# 	binaries+=_binaries
+# 	hidden_imports+=_hidden_imports
 
-
+# prepare hidden imports and datas
 hidden_imports = [h for h in hidden_imports if "__pycache__" not in h]
+# hidden_imports = sorted(
+# 		[h for h in hidden_imports if "tests" not in h.split(".")]
+# 	)
 datas = [d for d in datas if ("__pycache__" not in d[0]) and (d[1] not in [".", "Resources", "scripts"])]
-
-if sys.platform[:5] == "win32":
-	base_path = os.path.dirname(sys.executable)
-	library_path = os.path.join(base_path, "Library", "bin")
-	dll_path = os.path.join(base_path, "DLLs")
-	libcrypto_dll_path = os.path.join(dll_path, "libcrypto-1_1-x64.dll")
-	libssl_dll_path = os.path.join(dll_path, "libssl-1_1-x64.dll")
-	libcrypto_lib_path = os.path.join(library_path, "libcrypto-1_1-x64.dll")
-	libssl_lib_path = os.path.join(library_path, "libssl-1_1-x64.dll")
-	if not os.path.exists(libcrypto_dll_path):
-		datas.append((libcrypto_lib_path, "."))
-	if not os.path.exists(libssl_dll_path):
-		datas.append((libssl_lib_path, "."))
 
 a = Analysis(
 	[script_name],
@@ -124,7 +79,7 @@ if sys.platform[:5] == "linux":
 		upx_exclude=[],
 		icon=icon
 	)
-else:
+else: # non-linux
 	exe = EXE(
 		pyz,
 		a.scripts,
