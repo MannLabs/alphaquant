@@ -16,7 +16,7 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 ## Key Features
 
 - **Tree-based Quantification**: Novel hierarchical framework that organizes and analyzes quantitative data across all levels (fragments, MS1 isotopes, charge states, modifications, peptides, and genes)
-- **Enhanced Differential Analysis**: Fragment and MS1-level analysis enabling up to 50-fold more regulated protein detections compared to state-of-the-art methods
+- **Enhanced Differential Analysis**: Fragment and MS1-level analysis uncovering order-of-magnitude more regulated proteins in challenging setups compared to state-of-the-art methods
 - **Advanced Missing Value Analysis**: Sophisticated handling of missing values using tree-based and intensity dependent counting statistics
 - **Proteoform Inference**: Automatic clustering of peptides with similar quantitative behavior to infer regulated proteoforms
 - **Flexible Integration**: Direct support for all major search engines in DDA and DIA workflows (DIA-NN, Spectronaut, AlphaDIA, MaxQuant, FragPipe, AlphaPept) - just use their standard output files
@@ -25,8 +25,9 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 
 
 * [**Installation**](#installation)
-  * [**One-click GUI**](#one-click-gui)
-  * [**Developer installer**](#developer-installation)
+  * [**One-click GUI**](#one-click-gui-installation)
+  * [**Pip**](#pip)
+  * [**Developer installation**](#developer-installation)
 * [**Usage**](#usage)
   * [**GUI**](#gui)
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
@@ -43,11 +44,11 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
 There are currently two different types of installation possible:
 
-* [**One-click GUI installer**](#one-click-gui) Choose this installation if you only want the GUI and/or keep things as simple as possible.
+* [**One-click GUI installer**](#one-click-gui-installation) Choose this installation if you only want the GUI and/or keep things as simple as possible.
 
 * [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing python 3.11 environment (e.g. a Jupyter notebook). If needed, the GUI can be installed with pip as well.
 
-* [**Developer installer:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
+* [**Developer installation:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
 ### One-click GUI installation
 Currently available for **MacOS**, **Windows**. **Linux** i.
@@ -89,7 +90,7 @@ For those who are really adventurous, it is also possible to directly install an
 pip install "git+https://github.com/MannLabs/alphaquant.git@development#egg=alphaquant[stable,development-stable]"
 ```
 
-### Developer
+### Developer installation
 
 AlphaQuant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:
 
