@@ -127,6 +127,34 @@ By using the editable flag `-e`, you can make modifications to the [alphaquant s
 
 Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
+## Docker
+The containerized version can be used to run AlphaQuant without any installation to your system.
+
+### 1. Setting up Docker
+Install the latest version of docker (https://docs.docker.com/engine/install/).
+
+### 2. Prepare folder structure
+Set up your data to match the expected folder structure:Create a folder and store its name in a variable, 
+e.g. `DATA_FOLDER=/home/username/data; mkdir -p $DATA_FOLDER`
+
+### 3. Start the container
+```bash
+docker run -v $DATA_FOLDER:/app/data -p 41215:41215 mannlabs/alphaquant:latest
+```
+After initial download of the container, alphaquant will start running immediately,
+and can be accessed under [localhost:41215](localhost:41215). 
+
+Note: in the app, the local `$DATA_FOLDER` needs to be referred to as "`/app/data`".
+
+### Alternatively: Build the image yourself
+If you want to build the image yourself, you can do so by
+```bash
+docker build -t alphaquant .
+```
+and run it with
+```bash
+docker run -p 41215:41215 -v $DATA_FOLDER:/app/data -t alphaquant
+```
 
 ---
 ## Usage
