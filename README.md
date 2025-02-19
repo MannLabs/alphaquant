@@ -51,7 +51,7 @@ There are currently two different types of installation possible:
 * [**Developer installation:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
 ### One-click GUI installation
-Currently available for **MacOS**, **Windows**. **Linux** i.
+Currently available for **MacOS**, **Windows** and **Linux**.
 You can download the latest release of alphaquant [here](https://github.com/Mannlabs/alphaquant/releases/latest).
 
 * **Windows:** Download the latest `alphaquant-X.Y.Z-windows-amd64.exe` build and double click it to install. If you receive a warning during installation click *Run anyway*.
