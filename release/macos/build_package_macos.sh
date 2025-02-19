@@ -30,7 +30,7 @@ cd ${CONTENTS_FOLDER}
 ln -s ./MacOS/_internal ./Frameworks
 cd -
 
-#make directory for AlphaMap. This is where AlphaMap expects its fasta file
+#make directory for AlphaMap. This is where AlphaMap stores downloaded data, such as fasta files
 mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 
 chmod 777 release/macos/scripts/*
