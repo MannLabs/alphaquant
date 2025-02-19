@@ -117,7 +117,11 @@ class GUI(object):
             bokeh_ws_handler.on_close = self.__close_browser_tab(
                 self.bokeh_server_on_close
             )
-        self.server = self.layout.show(threaded=True, title=self.name)
+
+        port = os.environ.get("PORT", None)
+        port_arg = {"port":int(port)} if port is not None else {}
+        self.server = self.layout.show(threaded=True, title=self.name, **port_arg)
+
         if not run_in_background:
             self.server.join()
         elif not self.run_in_background:
