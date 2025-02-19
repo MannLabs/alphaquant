@@ -15,7 +15,6 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 
 ## Key Features
 
-- **Tree-based Quantification**: Novel hierarchical framework that organizes and analyzes quantitative data across all levels (fragments, MS1 isotopes, charge states, modifications, peptides, and genes)
 - **Enhanced Differential Analysis**: Fragment and MS1-level analysis uncovering order-of-magnitude more regulated proteins in challenging setups compared to state-of-the-art methods
 - **Advanced Missing Value Analysis**: Sophisticated handling of missing values using tree-based and intensity dependent counting statistics
 - **Proteoform Inference**: Automatic clustering of peptides with similar quantitative behavior to infer regulated proteoforms
