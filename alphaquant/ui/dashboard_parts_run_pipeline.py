@@ -19,7 +19,7 @@ import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_p
 import alphaquant.ui.gui as gui
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
-config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_for_gui.yaml")
+config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_lightweight.yaml")
 # If using Plotly in Panel
 pn.extension('plotly')
 

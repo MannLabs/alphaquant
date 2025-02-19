@@ -13,7 +13,7 @@ import alphaquant.ptm.ptmsite_mapping as aqptm
 import multiprocess
 import alphaquant.config.variables as aqvariables
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
-config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "./config/quant_reader_config.yaml")
+config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "./config/quant_reader_config_lightweight.yaml")
 
 import alphaquant.classify.ml_info_table as aq_ml_info_table
 import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
