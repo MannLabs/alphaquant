@@ -1,5 +1,6 @@
 #!/bin/bash
 conda activate alphaquant
+cd ../example_nbs
 echo "Running example notebooks"
-pytest --nbmake example_nbs/
+pytest --nbmake .
 conda deactivate
