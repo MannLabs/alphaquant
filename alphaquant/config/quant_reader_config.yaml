@@ -1477,54 +1477,6 @@ spectronaut_fragion_ms1_protein:
 
 
 
-spectronaut_fragion_ms1_gene_unspecific:
-  format: longtable
-  sample_ID: R.Label
-  quant_ID:
-    fragion: F.PeakArea
-    ms1iso: FG.MS1IsotopeIntensities (Measured)
-  protein_cols:
-   - PG.Genes
-  ion_cols:
-   - FG.Id
-   - F.FrgIon
-   - F.FrgLossType
-   - F.Charge
-  split_cols:
-    FG.MS1IsotopeIntensities (Measured): ";"
-  ion_hierarchy:
-    fragion:
-      order: [SEQ, MOD, CHARGE, FRGION]
-      mapping:
-        SEQ:
-         - PEP.StrippedSequence
-        MOD:
-         - EG.ModifiedSequence
-        CHARGE:
-         - FG.Charge
-        FRGION:
-         - F.FrgIon
-         - F.FrgLossType
-         - F.Charge
-    ms1iso:
-      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
-      mapping:
-        SEQ:
-         - PEP.StrippedSequence
-        MOD:
-         - EG.ModifiedSequence
-        CHARGE:
-         - FG.Charge
-        MS1ISOTOPES:
-         - FG.MS1IsotopeIntensities (Measured)
-  filters:
-    fragion_intensity:
-      param: F.PeakArea
-      comparator: ">"
-      value: 5.0
-  use_iontree: True
-  ml_level: CHARGE
-
 spectronaut_fragion_protein:
   format: longtable
   sample_ID: R.Label
