@@ -20,25 +20,22 @@ class DownloadSchemes():
     spectronaut_fragion = pn.widgets.FileDownload(
         file=Paths.spectronaut_fragion_path,
         filename="spectronaut_tableconfig_fragion.rs",
-        label="Download fragion config",
-        button_type="primary",
-        width=200
+        label="spectronaut_tableconfig_fragion.rs",
+        button_type="light",
     )
 
     spectronaut_precursor = pn.widgets.FileDownload(
         file=Paths.spectronaut_precursor_path,
         filename="spectronaut_tableconfig_precursor.rs",
-        label="Download precursor config",
-        button_type="primary",
-        width=200
+        label="spectronaut_tableconfig_precursor.rs",
+        button_type="light",
     )
 
     spectronaut_ptm = pn.widgets.FileDownload(
         file=Paths.spectronaut_ptm_path,
         filename="spectronaut_tableconfig_ptm_fragion.rs",
-        label="Download PTM config",
-        button_type="primary",
-        width=200
+        label="spectronaut_tableconfig_ptm_fragion.rs",
+        button_type="light",
     )
 
 
@@ -111,8 +108,17 @@ In this tab you can re-create peptide resolved plots mapped to the protein seque
 
     table_instructions = pn.Column(
         pn.pane.Markdown("""
+**DIA-NN:**
+Provide the path to the DIANN report.tsv output table.
+
+**AlphaPept:**
+Provide the path to the AlphaPept results_peptides.csv output table.
+
+**MaxQuant:**
+Provide the path to the MaxQuant peptides.txt output table.
+
 **Spectronaut:**
-Spectronaut exports tables based on user specification. You can load in predefined configs using the buttons below.
+Spectronaut exports tables based on user specification. You can download predefined configs below.
 Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
 The data needs to be exported in long format as .tsv or .csv file.
 """),
@@ -128,16 +134,6 @@ The data needs to be exported in long format as .tsv or .csv file.
             DownloadSchemes.spectronaut_ptm,
             pn.pane.Markdown("For PTM analyses")
         ),
-        pn.pane.Markdown("""
-**DIA-NN:**
-Provide the path to the DIANN report.tsv output table.
-
-**AlphaPept:**
-Provide the path to the AlphaPept results_peptides.csv output table.
-
-**MaxQuant:**
-Provide the path to the MaxQuant peptides.txt output table.
-"""),
         width=ButtonConfiguration.width,
         align='start',
         margin=(0, 80, 0, 20)
