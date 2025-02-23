@@ -12,6 +12,10 @@ rm -rf ${BUILD_NAME}.deb
 # Wrapping the pyinstaller folder in a .deb package
 mkdir -p dist_pyinstaller/${BUILD_NAME}/usr/local/bin
 mv dist_pyinstaller/${PACKAGE_NAME} dist_pyinstaller/${BUILD_NAME}/usr/local/bin/${PACKAGE_NAME}
+
+#make directory for AlphaMap. This is where AlphaMap stores downloaded data, such as fasta files
+mkdir -p dist_pyinstaller/${BUILD_NAME}/usr/local/bin/${PACKAGE_NAME}/alphamap/data/
+
 mkdir dist_pyinstaller/${BUILD_NAME}/DEBIAN
 cp release/linux/control dist_pyinstaller/${BUILD_NAME}/DEBIAN
 dpkg-deb --build --root-owner-group dist_pyinstaller/${BUILD_NAME}
