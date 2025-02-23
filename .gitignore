@@ -225,3 +225,4 @@ sandbox
 alphaquant-*-arm64.pkg
 alphaquant.pkg
 build_mac_release.sh
+paper_analyses
