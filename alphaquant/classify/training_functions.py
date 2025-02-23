@@ -168,17 +168,17 @@ def train_gradient_boosting_with_grid_search(X, y, shorten_features_for_speed, n
 def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed, num_splits=5, n_iter=10):
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)
-    
+
     models = []
     test_set_predictions = []
     y_pred_cv = np.zeros_like(y)
-    
+
     kf = sklearn.model_selection.KFold(n_splits=num_splits, shuffle=True, random_state=42)
-    
+
     for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-        
+
         # Define the parameter distributions for RandomizedSearchCV
         param_distributions = {
             'n_estimators': [100, 200],
@@ -188,15 +188,15 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
             'max_features': [None, 'sqrt'],
             'subsample': [1.0, 0.8]
         }
-        
+
         # Adjust max_features based on the flag
         if shorten_features_for_speed:
             param_distributions['max_features'] = ['sqrt']
         else:
             param_distributions['max_features'] = [None, 'sqrt']
-        
+
         gbr = sklearn.ensemble.GradientBoostingRegressor(random_state=42 + fold_num)
-        
+
         random_search = sklearn.model_selection.RandomizedSearchCV(
             estimator=gbr,
             param_distributions=param_distributions,
@@ -208,32 +208,33 @@ def train_gradient_boosting_with_random_search(X, y, shorten_features_for_speed,
             random_state=42,
             return_train_score=True
         )
-        
+
         # Fit the RandomizedSearchCV on the training data
         random_search.fit(X_train, y_train)
         best_model = random_search.best_estimator_
-        
+
         LOGGER.info(f"Fold {fold_num} Best parameters found:", random_search.best_params_)
-        
+
         y_pred_test = best_model.predict(X_test)
         y_pred_cv[test_index] = y_pred_test
-        
+
         models.append(best_model)
         test_set_predictions.append((y_test, y_pred_test))
-        
+
         # Evaluate performance
         fold_mse = np.mean((y_test - y_pred_test) ** 2)
         LOGGER.info(f"Fold {fold_num} MSE: {fold_mse}")
-        
+
         correlation = np.corrcoef(y_test, y_pred_test)[0, 1]
         LOGGER.info(f"Overall correlation in fold {fold_num}: {correlation}")
-    
+
     return models, test_set_predictions, y_pred_cv
 
 
 
 
 def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3, n_iter=10):
+    LOGGER.info("Starting train_fast_gradient_boosting, no parallel processing")
     # Take the absolute value of y to predict magnitudes only
     y = np.abs(y)
 
@@ -267,14 +268,15 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
         n_iter=n_iter,
         cv=3,
         scoring='neg_mean_squared_error',
-        n_jobs=-1,
+        n_jobs=1,
         verbose=0,
         random_state=42,
         return_train_score=True,
         error_score='raise'  # Raise an error if a fit fails
     )
-
+    LOGGER.info("Starting RandomizedSearchCV")
     # Fit RandomizedSearchCV on the entire dataset
+
     random_search.fit(X, y)
     best_params = random_search.best_params_
     LOGGER.info(f"Best parameters found: {best_params}")
@@ -284,12 +286,13 @@ def train_fast_gradient_boosting(X, y, shorten_features_for_speed, num_splits=3,
     test_set_predictions = []
     y_pred_cv = np.zeros_like(y)
     kf = KFold(n_splits=num_splits, shuffle=True, random_state=42)
-
+    LOGGER.info("Starting cross-validation")
     for fold_num, (train_index, test_index) in enumerate(kf.split(X), 1):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
 
         model = HistGradientBoostingRegressor(**best_params, random_state=42 + fold_num)
+
         model.fit(X_train, y_train)
 
         # Compute permutation feature importances

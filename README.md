@@ -239,7 +239,7 @@ For "peptides.txt", the **samplemap.tsv** file must map the names of the columns
 * *peptides:* sequences of all peptides that map
 * *quality_score:* alphaquant quality score between 0 and 1 (higher is better)
 * *log2fc:* the estimated log2 fold change
-* *fraction_of_peptides:* the fraction of peptides within the whole protein that belongs to the proteoform
+* *fraction_of_peptides:* the fraction of peptides within the whole protein that belongs to the proteoform_id
 * *fcdiff:* fold change difference relative to the reference proteoform
 
 ---
