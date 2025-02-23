@@ -9,7 +9,7 @@
 <img src="release/images/alphaquant_gui.png" alt="preview" width="800"/>
 
 # AlphaQuant
-AlphaQuant is an innovative open-source Python package that introduces tree-based quantification for proteomics data analysis. It implements a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
+AlphaQuant is an innovative open-source Python package that introduces tree-based quantification for proteomics data analysis. It implements tree-based quantification - a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
 
 It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Institute of Biochemistry](https://www.biochem.mpg.de/mann) and the [University of Copenhagen](https://www.cpr.ku.dk/research/proteomics/mann/).
 
@@ -19,7 +19,7 @@ It is part of the AlphaPept ecosystem from the [Mann Labs at the Max Planck Inst
 AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experiments with multiple conditions (e.g., control vs. treatment, time-series, or multi-condition studies). If your goal is to compare and interpret quantitative proteomics data systematically, AlphaQuant provides:
 
 - **All-in-one Statistical Analysis**: AlphaQuant delivers comprehensive statistical analysis of your differential experiments, performing all critical steps from normalization to multiple testing correction in one go, with results visualized through volcano plots and other informative displays.
-- **Sensitive Detection of Changes**: AlphaQuant excels at capturing subtle patterns and handling missing-value-heavy datasets that might be overlooked by conventional methods to ensure important biological signals are not overlooked. This is achieved by using Fragment and MS1-level analysis as well as intensity-dependent counting statistics.
+- **Sensitive Detection of Changes**: AlphaQuant excels at capturing subtle patterns and handling missing values, to ensure important biological signals are not overlooked. This is achieved by using Fragment and MS1-level analysis as well as intensity-dependent counting statistics.
 - **Proteoform Analysis**: AlphaQuant automatically performs clustering of peptides with similar quantitative behavior to infer regulated proteoforms.
 - **Support for Major Search Engines**: Direct support for all major search engines in DDA and DIA workflows (DIA-NN, Spectronaut, AlphaDIA, MaxQuant, FragPipe, AlphaPept) - just use their standard output files
 
