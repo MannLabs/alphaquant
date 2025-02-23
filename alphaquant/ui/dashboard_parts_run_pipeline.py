@@ -631,6 +631,19 @@ class RunPipeline(BaseWidget):
 		self.run_pipeline_error.visible = False
 		self.console_output.value = "Starting pipeline...\n"
 
+		# Save samplemap to results directory
+		try:
+			if self.samplemap_table.value is not None and self.path_output_folder.value:
+				# Create results directory if it doesn't exist
+				os.makedirs(self.path_output_folder.value, exist_ok=True)
+
+				# Save the sample mapping file
+				samplemap_path = os.path.join(self.path_output_folder.value, 'samplemap.tsv')
+				self.samplemap_table.value.to_csv(samplemap_path, sep='\t', index=False)
+				self.console_output.value += f"Saved sample mapping to: {samplemap_path}\n"
+		except Exception as e:
+			self.console_output.value += f"Warning: Could not save sample mapping file: {str(e)}\n"
+
 		# Update progress panel with selected condition pairs
 		self._update_progress_panel(self.assign_cond_pairs.value or [])
 
