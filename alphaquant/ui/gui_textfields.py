@@ -18,6 +18,7 @@ class Descriptions():
 
     project_instruction = panel.pane.Markdown("""
         #### How to use AlphaQuant:
+        You can download example input data here "https://github.com/MannLabs/alphaquant/tree/main/example_nbs/data".
         * Run Pipeline
             The run pipeline tab allows you to run differential expression analysis on your data and will write out results tables for you. To run the pipeline, you need to:
                 1. Provide the filepath to your proteomic datasets analyzed by DIA-NN, Spectronaut, AlphaDIA, AlphaPept, MaxQuant or FragPipe (detailed instructions on which tables are needed are given below).
@@ -35,16 +36,17 @@ class Descriptions():
                 2. Organism. AlphaQuant needs to know which proteome .fastas to use in order to perform site mapping. Currently you can chose between human and mouse. If you need broader support, please reach out.
 
         * Basic Plots
+        The basic plots will show you a volcano plot for every condition pair. Additionally you can visualize the peptides underlying each protein individually. For this, you need to:
+            1. Provide the filepath to the results directory
+            2. Upload the sample mapping file. If you have created the samplemap from the GUI, you can find the samplemap.tsv in the results directory.
 
-
-
-
-        2. (optional) An output folder to store output tables and plots is chosen automatically, change the folder if needed
-        3. Wait until the names of your samples appear in the experiment-to-condition map (for very large datasets, this might take a while)
-        4. Either assign the experiments to a condition by hand, or upload a tab-separated mapping file
-        5. Click on the _RUN PIPELINE_ button, you can follow the progress on the terminal window
-        6. The results are stored as textfiles in the output folder
-        7. To explore the results, click on the _VISUALIZE DATA_ button
+        * Proteoform Plots
+        In this tab you can re-create peptide resolved plots mapped to the protein sequence, as described in the AlphaQuant paper. For this, you need to
+            1. Provide the filepath to the results directory
+            2. Provide the fielpath to the sample mapping file. If you have created the samplemap from the GUI, you can find the samplemap.tsv in the results directory.
+            3. Specify the organism. AlphaQuant needs to know which proteome .fastas to use in order to create the proteoform plots. Currently you can chose between human, mouse and yeast. If you need broader support, please reach out.
+            4. Select the condition pair, where you want to investigate proteoform candidates
+            5. Select which protein to visualize. A table with all proteoform candidates will appear and you can select by either clicking on the row in the table, or by typing the protein name in the field below.
         """,
         width=ButtonConfiguration.width,
         align='start',
