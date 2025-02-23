@@ -6,13 +6,40 @@ import pathlib
 
 
 class Paths():
-    CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs")
+    CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.parent.absolute(), "..","config")
     spectronaut_fragion_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_fragion.rs")
     spectronaut_precursor_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_precursor.rs")
     spectronaut_ptm_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_ptm_fragion.rs")
 
+
 class ButtonConfiguration():
     width = 530
+
+
+class DownloadSchemes():
+    spectronaut_fragion = pn.widgets.FileDownload(
+        file=Paths.spectronaut_fragion_path,
+        filename="spectronaut_tableconfig_fragion.rs",
+        label="Download fragion config",
+        button_type="primary",
+        width=200
+    )
+
+    spectronaut_precursor = pn.widgets.FileDownload(
+        file=Paths.spectronaut_precursor_path,
+        filename="spectronaut_tableconfig_precursor.rs",
+        label="Download precursor config",
+        button_type="primary",
+        width=200
+    )
+
+    spectronaut_ptm = pn.widgets.FileDownload(
+        file=Paths.spectronaut_ptm_path,
+        filename="spectronaut_tableconfig_ptm_fragion.rs",
+        label="Download PTM config",
+        button_type="primary",
+        width=200
+    )
 
 
 class Descriptions():
@@ -82,61 +109,26 @@ In this tab you can re-create peptide resolved plots mapped to the protein seque
         align='start',
         margin=(0, 80, 0, 10))
 
-    alphapept = pn.pane.Markdown(
-        """
-        Provide the path to the AlphaPept results_peptides.csv output table.
-
-        """,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(0, 80, 0, 20)
-    )
-
-    spectronaut = pn.pane.Markdown(
-        """
-        Spectronaut exports tables based on user specification. You can load in predefined configs, which are provided below.
-
-        Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
-
-        The data needs to be exported in long format as .tsv or .csv file.
-
-        Available configs:
-        - spectronaut_tableconfig_fragion.rs: Most detailed report, good for analyses where you need high statistical power (e.g. small fold changes, or few peptides)
-        - spectronaut_tableconfig_precursor.rs: About 10x less data heavy, good for analyses with clear regulation happening
-        - spectronaut_tableconfig_ptm_fragion.rs: For PTM analyses
-        """,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(0, 80, 0, 20)
-    )
-
-    diann = pn.pane.Markdown(
-            """
-            Provide the path to the DIANN report.tsv output table.
-            """,
-            width=ButtonConfiguration.width,
-            align='start',
-            margin=(0, 80, 0, 20)
-        )
-
-    maxquant = pn.pane.Markdown(
-            """
-            Provide the path to the MaxQuant peptides.txt output table.
-            """,
-            width=ButtonConfiguration.width,
-            align='start',
-            margin=(0, 80, 0, 20)
-        )
-
-    table_instructions = panel.pane.Markdown("""
+    table_instructions = pn.Column(
+        pn.pane.Markdown("""
 **Spectronaut:**
-To get the most out of the Spectronaut data, AlphaQuant utilizes more than 30 different columns.
-These can be obtained by downloading the export scheme "spectronaut_tableconfig_fragion.rs",
-which can then simply be loaded into Spectronaut as follows:
-
+Spectronaut exports tables based on user specification. You can load in predefined configs using the buttons below.
 Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
-The data needs to be exported in the **normal long** format as .tsv or .csv file.
-
+The data needs to be exported in long format as .tsv or .csv file.
+"""),
+        pn.Row(
+            DownloadSchemes.spectronaut_fragion,
+            pn.pane.Markdown("Most detailed report, good for analyses where you need high statistical power (e.g. small fold changes, or few peptides)")
+        ),
+        pn.Row(
+            DownloadSchemes.spectronaut_precursor,
+            pn.pane.Markdown("About 10x less data heavy, good for analyses with clear regulation happening")
+        ),
+        pn.Row(
+            DownloadSchemes.spectronaut_ptm,
+            pn.pane.Markdown("For PTM analyses")
+        ),
+        pn.pane.Markdown("""
 **DIA-NN:**
 Provide the path to the DIANN report.tsv output table.
 
@@ -145,91 +137,19 @@ Provide the path to the AlphaPept results_peptides.csv output table.
 
 **MaxQuant:**
 Provide the path to the MaxQuant peptides.txt output table.
-""",
+"""),
         width=ButtonConfiguration.width,
         align='start',
         margin=(0, 80, 0, 20)
     )
 
 
-
-
-class DownloadSchemes():
-
-    spectronaut_fragion = pn.widgets.FileDownload(
-        file=Paths.spectronaut_fragion_path,
-        filename="spectronaut_tableconfig_fragion.rs",
-        button_type='default',
-        auto=True,
-        css_classes=['button_options'],
-    )
-
-    spectronaut_precursor = pn.widgets.FileDownload(
-        file=Paths.spectronaut_precursor_path,
-        filename="spectronaut_tableconfig_precursor.rs",
-        button_type='default',
-        auto=True,
-        css_classes=['button_options'],
-    )
-
-    spectronaut_ptm = pn.widgets.FileDownload(
-        file=Paths.spectronaut_ptm_path,
-        filename="spectronaut_tableconfig_ptm_fragion.rs",
-        button_type='default',
-        auto=True,
-        css_classes=['button_options'],
-    )
-
-
 class Cards():
     width = 530
 
-    alphapept = pn.Card(
-        Descriptions.alphapept,
-        header='AlphaPept instructions',
-        collapsed=True,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(20, 0, 20, 0),
-        css_classes=['spectronaut_instr']
-    )
-
-
-    spectronaut = pn.Card(
-        Descriptions.spectronaut,
-        DownloadSchemes.spectronaut_fragion,
-        DownloadSchemes.spectronaut_precursor,
-        DownloadSchemes.spectronaut_ptm,
-        header='Spectronaut instructions',
-        collapsed=True,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(0, 80, 5, 10),
-        css_classes=['spectronaut_instr']
-    )
-    diann = pn.Card(
-        Descriptions.diann,
-        header='DIANN instructions',
-        collapsed=True,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(20, 0, 20, 0),
-        css_classes=['spectronaut_instr']
-    )
-
-    maxquant = pn.Card(
-        Descriptions.maxquant,
-        header='MaxQuant instructions',
-        collapsed=True,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(20, 0, 20, 0),
-        css_classes=['spectronaut_instr']
-    )
 
     table_instructions = pn.Card(
         Descriptions.table_instructions,
-        DownloadSchemes.spectronaut_fragion,
         header='Table instructions for different search engines',
         collapsed=True,
         width=ButtonConfiguration.width,
