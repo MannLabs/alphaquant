@@ -8,6 +8,8 @@ import pathlib
 class Paths():
     CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs")
     spectronaut_fragion_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_fragion.rs")
+    spectronaut_precursor_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_precursor.rs")
+    spectronaut_ptm_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_ptm_fragion.rs")
 
 class ButtonConfiguration():
     width = 530
@@ -15,7 +17,7 @@ class ButtonConfiguration():
 
 class Descriptions():
     run_pipeline_instruction = panel.pane.Markdown("""
-#### Run Pipeline
+#### **Run Pipeline**
 
 The run pipeline tab allows you to run differential expression analysis on your data and will write out results tables for you. To run the pipeline, you need to:
 1. Provide the filepath to your proteomic datasets analyzed by DIA-NN, Spectronaut, AlphaDIA, AlphaPept, MaxQuant or FragPipe (detailed instructions on which tables are needed are given below).
@@ -39,7 +41,7 @@ S1. Filtering options. It often happens that one protein is detected in several 
         margin=(0, 80, 0, 10))
 
     basic_plots_instruction = panel.pane.Markdown("""
-#### Basic Plots
+#### **Basic Plots**
 
 The basic plots will show you a volcano plot for every condition pair. Additionally you can visualize the peptides underlying each protein individually. For this, you need to:
 1. Provide the filepath to the results directory
@@ -50,7 +52,7 @@ The basic plots will show you a volcano plot for every condition pair. Additiona
         margin=(0, 80, 0, 10))
 
     proteoform_plots_instruction = panel.pane.Markdown("""
-#### Proteoform Plots
+#### **Proteoform Plots**
 
 In this tab you can re-create peptide resolved plots mapped to the protein sequence, as described in the AlphaQuant paper. For this, you need to
 1. Provide the filepath to the results directory
@@ -92,14 +94,16 @@ In this tab you can re-create peptide resolved plots mapped to the protein seque
 
     spectronaut = pn.pane.Markdown(
         """
-        To get the most out of the Spectronaut data, AlphaQuant utilizes more than 30 different columns.
-        These can be obtained by downloading the export scheme "spectronaut_tableconfig_fragion.rs",
-        which can then simply be loaded into Spectronaut as follows:
+        Spectronaut exports tables based on user specification. You can load in predefined configs, which are provided below.
 
         Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
 
-        The data needs to be exported in the **normal long** format as .tsv or .csv file.
+        The data needs to be exported in long format as .tsv or .csv file.
 
+        Available configs:
+        - spectronaut_tableconfig_fragion.rs: Most detailed report, good for analyses where you need high statistical power (e.g. small fold changes, or few peptides)
+        - spectronaut_tableconfig_precursor.rs: About 10x less data heavy, good for analyses with clear regulation happening
+        - spectronaut_tableconfig_ptm_fragion.rs: For PTM analyses
         """,
         width=ButtonConfiguration.width,
         align='start',
@@ -124,18 +128,57 @@ In this tab you can re-create peptide resolved plots mapped to the protein seque
             margin=(0, 80, 0, 20)
         )
 
+    table_instructions = panel.pane.Markdown("""
+**Spectronaut:**
+To get the most out of the Spectronaut data, AlphaQuant utilizes more than 30 different columns.
+These can be obtained by downloading the export scheme "spectronaut_tableconfig_fragion.rs",
+which can then simply be loaded into Spectronaut as follows:
+
+Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
+The data needs to be exported in the **normal long** format as .tsv or .csv file.
+
+**DIA-NN:**
+Provide the path to the DIANN report.tsv output table.
+
+**AlphaPept:**
+Provide the path to the AlphaPept results_peptides.csv output table.
+
+**MaxQuant:**
+Provide the path to the MaxQuant peptides.txt output table.
+""",
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(0, 80, 0, 20)
+    )
+
 
 
 
 class DownloadSchemes():
 
-    spectronaut = pn.widgets.FileDownload(
-    file=Paths.spectronaut_fragion_path,
-    filename="spectronaut_tableconfig_fragion.rs",
-    button_type='default',
-    auto=True,
-    css_classes=['button_options'],
-)
+    spectronaut_fragion = pn.widgets.FileDownload(
+        file=Paths.spectronaut_fragion_path,
+        filename="spectronaut_tableconfig_fragion.rs",
+        button_type='default',
+        auto=True,
+        css_classes=['button_options'],
+    )
+
+    spectronaut_precursor = pn.widgets.FileDownload(
+        file=Paths.spectronaut_precursor_path,
+        filename="spectronaut_tableconfig_precursor.rs",
+        button_type='default',
+        auto=True,
+        css_classes=['button_options'],
+    )
+
+    spectronaut_ptm = pn.widgets.FileDownload(
+        file=Paths.spectronaut_ptm_path,
+        filename="spectronaut_tableconfig_ptm_fragion.rs",
+        button_type='default',
+        auto=True,
+        css_classes=['button_options'],
+    )
 
 
 class Cards():
@@ -154,7 +197,9 @@ class Cards():
 
     spectronaut = pn.Card(
         Descriptions.spectronaut,
-        DownloadSchemes.spectronaut,
+        DownloadSchemes.spectronaut_fragion,
+        DownloadSchemes.spectronaut_precursor,
+        DownloadSchemes.spectronaut_ptm,
         header='Spectronaut instructions',
         collapsed=True,
         width=ButtonConfiguration.width,
@@ -175,6 +220,17 @@ class Cards():
     maxquant = pn.Card(
         Descriptions.maxquant,
         header='MaxQuant instructions',
+        collapsed=True,
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(20, 0, 20, 0),
+        css_classes=['spectronaut_instr']
+    )
+
+    table_instructions = pn.Card(
+        Descriptions.table_instructions,
+        DownloadSchemes.spectronaut_fragion,
+        header='Table instructions for different search engines',
         collapsed=True,
         width=ButtonConfiguration.width,
         align='start',
