@@ -43,6 +43,18 @@ hidden_imports = [h for h in hidden_imports if "__pycache__" not in h]
 # 	)
 datas = [d for d in datas if ("__pycache__" not in d[0]) and (d[1] not in [".", "Resources", "scripts"])]
 
+# add certifi to datas, otherwise ssh connections fail when they are triggered from the installer, because the certificates are not available
+# In the case of the AlphaQuant repo, AlphaMap needs to download data from GitHub and this fails without certifi
+datas.extend(PyInstaller.utils.hooks.collect_data_files('certifi'))
+
+# add matplotlib backends to hidden imports
+# When using the GUI with windows installer, runs fail because these matplotlib backends are not available. No issues when
+# running from command line on windows. And no issues on macOS.
+hidden_imports.extend([
+	'matplotlib.backends.backend_pdf',
+	'matplotlib.backends.backend_agg'
+])
+
 a = Analysis(
 	[script_name],
 	pathex=[location],
