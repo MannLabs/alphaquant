@@ -255,7 +255,7 @@ class RunPipeline(BaseWidget):
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
 			width=300,
-			description='Specify the modification type exactly as it appears in your data (e.g., [Phospho (STY)] for Spectronaut)'
+			description=gui_textfields.Descriptions.tooltips['ptm_settings']
 		)
 		self.input_type = pn.widgets.TextInput(
 			name='Input type:',
@@ -278,7 +278,7 @@ class RunPipeline(BaseWidget):
 			],
 			value='min. valid values in condition1 OR condition2',
 			width=300,
-			description='Choose how to filter your data based on the number of valid values in each condition'
+			description=gui_textfields.Descriptions.tooltips['filtering_options']
 		)
 
 		# Update threshold settings widgets with descriptions
@@ -499,28 +499,14 @@ class RunPipeline(BaseWidget):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
-		# Create help cards for complex sections
-		ptm_help = pn.Card(
-			pn.pane.Markdown(gui_textfields.Descriptions.tooltips['ptm_settings']),
-			title='PTM Analysis Help',
-			collapsed=True
-		)
-
-		filtering_help = pn.Card(
-			pn.pane.Markdown(gui_textfields.Descriptions.tooltips['filtering_options']),
-			title='Filtering Options Help',
-			collapsed=True
-		)
 
 		# Add help cards next to their respective controls
 		ptm_section = pn.Row(
-			pn.Column(self.modification_type, self.organism),
-			ptm_help
+			pn.Column(self.modification_type, self.organism)
 		)
 
 		filtering_section = pn.Row(
-			pn.Column(self.filtering_options, self.minrep_either),
-			filtering_help
+			pn.Column(self.filtering_options, self.minrep_either)
 		)
 
 		# Advanced Configuration Card

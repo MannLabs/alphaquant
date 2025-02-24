@@ -137,31 +137,44 @@ The data needs to be exported in long format as .tsv or .csv file.
 
     # Add tooltips/help text for each control
     tooltips = {
-        'file_input': """Supported file formats:
-- DIA-NN: report.tsv
-- AlphaPept: results_peptides.csv
-- MaxQuant: peptides.txt
-- Spectronaut: custom export (see table config downloads)""",
+        'file_input': """Provide the filepath to your proteomic datasets analyzed by DIA-NN, Spectronaut, AlphaDIA, AlphaPept, MaxQuant or FragPipe (details on which tables are needed are given in the "Instructions" tab)""",
 
-        'sample_mapping': """Two options available:
-1. GUI Mapping: Fill in conditions for each sample in the interactive table
-2. Manual Upload: Prepare a samplemap.tsv with 'sample' and 'condition' columns""",
+        'sample_mapping': """Map the experiment names (i.e. the names of the MS runs, such as sample1_control_23_2025.raw) to the condition names (e.g. "control", "treatment").
+
+You have two options:
+
+1. Do the sample mapping in the GUI:
+   - Provide the filepath to your proteomics dataset
+   - Experiment names will be displayed in an interactive table
+   - Fill in the condition name for each sample
+
+2. Prepare a samplemap.tsv manually:
+   - Use Excel or any text editor
+   - Required columns: 'sample' and 'condition' (tab-separated)
+   - Sample names must match the MS run names from your input file
+   - Column names vary by search engine (e.g. 'Run' in DIA-NN)
+   - Check table instructions below for specific column names
+""",
 
         'analysis_mode': """Choose between:
-- Pairwise Comparison: Compare specific condition pairs
-- Median Condition Analysis: Compare each condition against the median of all conditions""",
+Decide the analysis mode. In most cases, this will be the "Pairwise Comparison" mode (e.g. treatment1 vs. control, treatment2 vs. control).
+There is also a more global analysis, "Median Condition Analysis", where each condition will be compared against the median of all conditions.
+This allows direct comparability of each condition.""",
 
         'filtering_options': """Available filtering modes:
 - OR mode: ≥2 values in either condition (default)
 - AND mode: ≥2 values in both conditions
 - Custom: Specify values per condition
 
-Note: Missing values handled by AlphaQuant counting statistics.""",
+Note: Missing values are handled by AlphaQuant counting statistics.
+""",
 
         'ptm_settings': """For Spectronaut PTM analysis:
-1. Specify modification type (e.g., '[Phospho(STY)]')
-2. Select organism for proteome mapping
-Currently supports human and mouse."""
+1. Modification Type: Specify exactly as it appears in Spectronaut modified sequence
+   Example: '[Phospho(STY)]' for phosphorylation
+2. Organism: Select proteome for site mapping (human/mouse available at the moment)
+
+Note: Requires Spectronaut table with correct PTM columns (see table instructions)."""
     }
 
 
