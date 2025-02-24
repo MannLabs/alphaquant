@@ -626,6 +626,9 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.object = "Please select an analysis type before running the pipeline."
 			self.run_pipeline_error.visible = True
 			return
+		if not self.assign_cond_pairs.value:
+			self.run_pipeline_error.object = "Please specify which condition pairs to compare."
+			self.run_pipeline_error.visible = True
 
 		print("\n=== Starting Pipeline Run ===")
 		self.run_pipeline_progress.active = True
@@ -683,16 +686,10 @@ class RunPipeline(BaseWidget):
 
 		try:
 			# Get condition combinations
-			if self.assign_cond_pairs.value:
-				cond_combinations = [
-					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
-					for pair in self.assign_cond_pairs.value
-				]
-			else:
-				cond_combinations = [
-					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
-					for pair in self.assign_cond_pairs.options
-				]
+			cond_combinations = [
+				tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
+				for pair in self.assign_cond_pairs.value
+			]
 
 			# Collect all configuration parameters
 			pipeline_params = {
