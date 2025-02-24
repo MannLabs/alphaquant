@@ -181,6 +181,7 @@ class AlphaQuantGUI(GUI):
         # Create instructions card
         self.instructions_card = pn.Card(
             gui_textfields.Descriptions.intro_text,
+            gui_textfields.Cards.who_should_use,
             gui_textfields.Cards.run_pipeline,
             gui_textfields.Cards.basic_plots,
             gui_textfields.Cards.proteoform_plots,

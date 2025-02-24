@@ -40,6 +40,21 @@ class DownloadSchemes():
 
 
 class Descriptions():
+    who_should_use = panel.pane.Markdown("""
+#### **Who Should Use AlphaQuant?**
+
+AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experiments with multiple conditions (e.g., control vs. treatment, time-series, or multi-condition studies).
+
+Key features:
+- **All-in-one Statistical Analysis**: Comprehensive statistical analysis from normalization to multiple testing correction, with volcano plots and other visualizations
+- **Sensitive Detection of Changes**: Captures subtle patterns using Fragment and MS1-level analysis with intensity-dependent counting statistics
+- **Proteoform Analysis**: Automatic clustering of peptides with similar quantitative behavior to infer regulated proteoforms
+- **Support for Major Search Engines**: Direct support for DIA-NN, Spectronaut, AlphaDIA, MaxQuant, FragPipe, and AlphaPept
+""",
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(0, 80, 0, 10))
+
     run_pipeline_instruction = panel.pane.Markdown("""
 #### **Run Pipeline**
 
@@ -200,6 +215,15 @@ Note: Requires Spectronaut table with correct PTM columns (see table instruction
 class Cards():
     width = 530
 
+    who_should_use = pn.Card(
+        Descriptions.who_should_use,
+        header='Who Should Use AlphaQuant?',
+        collapsed=True,
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(20, 0, 20, 0),
+        css_classes=['spectronaut_instr']
+    )
 
     table_instructions = pn.Card(
         Descriptions.table_instructions,
