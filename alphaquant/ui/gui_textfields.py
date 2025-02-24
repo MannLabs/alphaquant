@@ -88,7 +88,7 @@ Use the help icons (?) for detailed instructions.
     intro_text = panel.pane.Markdown("""
 ####
 
-[Download example data](https://datashare.biochem.mpg.de/s/j98TnBzPJWLrtnC/download)
+<a href="https://datashare.biochem.mpg.de/s/j98TnBzPJWLrtnC/download" target="_blank">Download example data</a>
 """,
         width=ButtonConfiguration.width,
         align='start',
