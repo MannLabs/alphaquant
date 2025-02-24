@@ -46,10 +46,10 @@ class Descriptions():
 Follow these steps to analyze your data:
 1. Upload your proteomics data file
 2. Set output folder
-3. Map samples to conditions
-4. Choose analysis mode
-5. Select condition pairs (for pairwise comparison)
-6. Click RUN_PIPELINE
+3. Map samples: Either use GUI table or create samplemap.tsv
+4. Select mode: "Pairwise Comparison" or "Median Condition Analysis"
+5. Choose conditions to compare (for pairwise mode)
+6. Click "RUN PIPELINE" to execute
 
 For detailed instructions, use the help icons (?) next to each control.
 """,
