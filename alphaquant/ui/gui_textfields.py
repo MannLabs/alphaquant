@@ -105,18 +105,37 @@ Use the help icons (?) for detailed instructions.
     table_instructions = pn.Column(
         pn.pane.Markdown("""
 **DIA-NN:**
-Provide the path to the DIANN report.tsv output table.
+Provide the path to the DIANN "report.tsv" output table. The samplemap.tsv file must map the Run column.
+
+**AlphaDIA:**
+Provide the path to "precursors.tsv", or "fragment_precursorfiltered.matrix.parquet". The samplemap.tsv file must map to the run column.
 
 **AlphaPept:**
 Provide the path to the AlphaPept results_peptides.csv output table.
 
 **MaxQuant:**
-Provide the path to the MaxQuant peptides.txt output table.
+Provide the path to the MaxQuant "peptides.txt" or "evidence.txt" output table.
+- For "peptides.txt": Map samplemap.tsv to column names starting with "Intensity " (without "Intensity ")
+  Example: "Intensity sample1.raw" → "sample1.raw"
+- For "evidence.txt": Map samplemap.tsv to the Experiment column
+
+**FragPipe:**
+Provide the path to the "combined_ion.tsv" output table. Map samplemap.tsv to column names ending with " Intensity" (without " Intensity")
+Example: "sample1 Intensity" → "sample1"
 
 **Spectronaut:**
-Spectronaut exports tables based on user specification. You can download predefined configs below.
-Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
-The data needs to be exported in long format as .tsv or .csv file.
+AlphaQuant takes a Spectronaut .tsv table as input. Export schemes are available below for:
+- Precursor quantification
+- Fragment ion quantification (more accurate but ~10x larger files)
+- Fragment ion quantification with PTM
+
+To use an export scheme:
+1. Go to the "Report" perspective in Spectronaut
+2. Click "Import Schema" and provide the file
+3. Export data in long format as .tsv file
+Note: Verify schema selection as Spectronaut may lag when selecting
+
+The samplemap.tsv file must map to the R.Label column.
 """),
         pn.Row(
             DownloadSchemes.spectronaut_fragion,
