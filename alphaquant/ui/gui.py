@@ -266,6 +266,9 @@ class AlphaQuantGUI(GUI):
 
 def run():
     try:
+        print("\nInitializing AlphaQuant GUI...")
+        print("Please wait while the server and components are loading...")
+        print("Your default web browser will open automatically when ready.\n")
         # Add error handling wrapper
         gui = AlphaQuantGUI(start_server=True)
         return gui
