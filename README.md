@@ -6,7 +6,7 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
 
 
-<img src="release/images/alphaquant_gui.png" alt="preview" width="800"/>
+<img src="release/images/alphaquant_gui.jpg" alt="preview" width="800"/>
 
 # AlphaQuant
 AlphaQuant is an innovative open-source Python package that introduces tree-based quantification for proteomics data analysis. It implements tree-based quantification - a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
