@@ -6,7 +6,7 @@ import pathlib
 
 
 class Paths():
-    CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.parent.absolute(), "..","config")
+    CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.parent.absolute(), "config")
     spectronaut_fragion_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_fragion.rs")
     spectronaut_precursor_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_precursor.rs")
     spectronaut_ptm_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_ptm_fragion.rs")
