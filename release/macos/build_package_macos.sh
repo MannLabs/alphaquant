@@ -32,8 +32,15 @@ cd -
 
 #make directory for AlphaMap. This is where AlphaMap stores downloaded data, such as fasta files
 mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
-# cp alphamap/data/*.fasta ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
-# cp alphamap/data/*.csv ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
+
+# Download all AlphaMap FASTA and CSV files from GitHub
+curl -L https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main | \
+  grep "\"download_url\".*\.\(fasta\|csv\)\"" | \
+  cut -d '"' -f 4 | \
+  while read url; do
+    filename=$(basename $url)
+    curl -L "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"
+  done
 
 chmod 777 release/macos/scripts/*
 
