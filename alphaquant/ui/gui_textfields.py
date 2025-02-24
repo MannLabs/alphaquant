@@ -92,7 +92,7 @@ In this tab you can re-create peptide resolved plots mapped to the protein seque
     intro_text = panel.pane.Markdown("""
 ####
 
-[Download example data](https://datashare.biochem.mpg.de/s/m1qR1hbz7lOyIzn/download)
+<a href="https://datashare.biochem.mpg.de/s/m1qR1hbz7lOyIzn/download" target="_blank">Download example data</a>
 """,
         width=ButtonConfiguration.width,
         align='start',
