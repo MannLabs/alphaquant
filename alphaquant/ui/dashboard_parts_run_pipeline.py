@@ -637,7 +637,6 @@ class RunPipeline(BaseWidget):
 				# Create results directory if it doesn't exist
 				os.makedirs(self.path_output_folder.value, exist_ok=True)
 
-				# Save the sample mapping file
 				samplemap_path = os.path.join(self.path_output_folder.value, 'samplemap.tsv')
 				self.samplemap_table.value.to_csv(samplemap_path, sep='\t', index=False)
 				self.console_output.value += f"Saved sample mapping to: {samplemap_path}\n"
