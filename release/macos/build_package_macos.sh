@@ -33,7 +33,8 @@ cd -
 #make directory for AlphaMap. This is where AlphaMap stores downloaded data, such as fasta files
 mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 
-# Download all AlphaMap FASTA and CSV files from GitHub
+####
+####Download all AlphaMap FASTA and CSV files from GitHub, which are needed for the further analyses. There is a lot of error checking to ensure that the files get actually added during the build
 echo "Starting downloads of FASTA and CSV files..."
 DOWNLOAD_LIST=$(curl -L -f https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main)
 if [ $? -ne 0 ]; then
@@ -65,6 +66,9 @@ if [ $file_count -eq 0 ]; then
     echo "Error: No files were downloaded"
     exit 1
 fi
+####
+###Download section complete
+
 
 chmod 777 release/macos/scripts/*
 
