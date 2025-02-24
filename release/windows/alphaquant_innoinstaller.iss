@@ -43,7 +43,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Dirs]
-; Create the alphamap data directory and ensure users can modify it. This is where AlphaMap stores downloaded data, such as fasta files
+; Create the alphamap (no typo!) data directory and ensure users can modify it. This is where AlphaMap (which is imported by AlphaQuant) stores downloaded data, such as fasta files.
 Name: "{app}\_internal\alphamap\data"; Permissions: users-modify
 
 [Files]
