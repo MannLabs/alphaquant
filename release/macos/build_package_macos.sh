@@ -39,6 +39,7 @@ curl -L https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?re
   cut -d '"' -f 4 | \
   while read url; do
     filename=$(basename $url)
+    echo "Downloading $filename..."
     curl -L "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"
   done
 
