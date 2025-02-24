@@ -34,14 +34,37 @@ cd -
 mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 
 # Download all AlphaMap FASTA and CSV files from GitHub
-curl -L https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main | \
+echo "Starting downloads of FASTA and CSV files..."
+DOWNLOAD_LIST=$(curl -L -f https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main)
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to fetch file list from GitHub API"
+    exit 1
+fi
+
+echo "$DOWNLOAD_LIST" | \
   grep "\"download_url\".*\.\(fasta\|csv\)\"" | \
   cut -d '"' -f 4 | \
   while read url; do
+    if [ -z "$url" ]; then
+        echo "Warning: Empty URL detected, skipping..."
+        continue
+    fi
     filename=$(basename $url)
     echo "Downloading $filename..."
-    curl -L "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"
+    if ! curl -L -f "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"; then
+        echo "Error: Failed to download $filename"
+        exit 1
+    fi
+    echo "Successfully downloaded $filename"
   done
+
+# Verify downloads
+file_count=$(ls -1 ${CONTENTS_FOLDER}/Frameworks/alphamap/data/*.{fasta,csv} 2>/dev/null | wc -l)
+echo "Downloaded $file_count files"
+if [ $file_count -eq 0 ]; then
+    echo "Error: No files were downloaded"
+    exit 1
+fi
 
 chmod 777 release/macos/scripts/*
 
