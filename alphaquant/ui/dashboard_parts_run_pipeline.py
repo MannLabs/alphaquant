@@ -17,6 +17,7 @@ import alphaquant.config.variables as aq_variables
 import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
 import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_proteoforms
 import alphaquant.ui.gui as gui
+import alphaquant.ui.gui_textfields as gui_textfields
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_lightweight.yaml")
@@ -204,7 +205,7 @@ class RunPipeline(BaseWidget):
 			placeholder='Path to MQ/Spectronaut/DIA-NN file',
 			width=700,
 			sizing_mode='fixed',
-			description='Enter the full path to your input file from MaxQuant, Spectronaut, or DIA-NN'
+			description=gui_textfields.Descriptions.tooltips['file_input']
 		)
 		self.path_output_folder = pn.widgets.TextInput(
 			name='Output folder:',
@@ -217,13 +218,10 @@ class RunPipeline(BaseWidget):
 		# Create a Row with the Select widget and its description
 		self.sample_mapping_select = pn.widgets.Select(
 			name='Sample Mapping Mode',
-			options=[
-				'Upload sample to condition file',
-				'Generate new sample to condition map'
-			],
+			options=['Upload sample to condition file', 'Generate new sample to condition map'],
 			value='Upload sample to condition file',
 			width=300,
-			description='Choose whether to upload an existing sample-to-condition mapping file or create a new one'
+			description=gui_textfields.Descriptions.tooltips['sample_mapping']
 		)
 
 		self.sample_mapping_mode_container = pn.Row(
@@ -501,6 +499,30 @@ class RunPipeline(BaseWidget):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
+		# Create help cards for complex sections
+		ptm_help = pn.Card(
+			pn.pane.Markdown(gui_textfields.Descriptions.tooltips['ptm_settings']),
+			title='PTM Analysis Help',
+			collapsed=True
+		)
+
+		filtering_help = pn.Card(
+			pn.pane.Markdown(gui_textfields.Descriptions.tooltips['filtering_options']),
+			title='Filtering Options Help',
+			collapsed=True
+		)
+
+		# Add help cards next to their respective controls
+		ptm_section = pn.Row(
+			pn.Column(self.modification_type, self.organism),
+			ptm_help
+		)
+
+		filtering_section = pn.Row(
+			pn.Column(self.filtering_options, self.minrep_either),
+			filtering_help
+		)
+
 		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
@@ -548,10 +570,7 @@ class RunPipeline(BaseWidget):
 
 		# Create PTM settings card with fixed width
 		ptm_settings_card = pn.Card(
-			pn.Column(
-				self.modification_type,
-				self.organism,
-			),
+			ptm_section,
 			title='PTM Settings',
 			collapsed=True,
 			margin=(5, 5, 5, 5),
@@ -569,11 +588,7 @@ class RunPipeline(BaseWidget):
 			self.analysis_type,
 			condition_comparison_layout,
 			"### Basic Settings",
-			self.filtering_options,
-			self.minrep_either,
-			self.minrep_both,
-			self.minrep_c1,
-			self.minrep_c2,
+			filtering_section,
 			ptm_settings_card,
 			advanced_settings_card,
 			"### Pipeline Controls",

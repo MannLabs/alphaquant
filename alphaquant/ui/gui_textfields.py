@@ -43,22 +43,15 @@ class Descriptions():
     run_pipeline_instruction = panel.pane.Markdown("""
 #### **Run Pipeline**
 
-The run pipeline tab allows you to run differential expression analysis on your data and will write out results tables for you. To run the pipeline, you need to:
-1. Provide the filepath to your proteomic datasets analyzed by DIA-NN, Spectronaut, AlphaDIA, AlphaPept, MaxQuant or FragPipe (detailed instructions on which tables are needed are given below).
-2. Specify a folder where results are saved
-3. Map the experiment names (i.e. the names of the MS runs, such as sample1_control_23_2025.raw) to the condition names (e.g. "control" and "treatment"). You have two options here:
-    1) Do the sample mapping here in the GUI. Once you provide the filepath to your proteomics dataset, the experiment names will be displayed in a small interactive table and you can fill in the condition name for each sample.
-    2) You can prepare a samplemap.tsv yourself, e.g. with Excel or any text editor. The column names are *sample* and *condition* and they are separated by tabs. The names of the MS runs are extracted from your input file and they differ for the different search engines. You can check which column contains the experiments in the table instructions below (e.g. in the DIA-NN table, the column is called 'Run').
-4. Now, you need to decide the analysis mode. In most cases, this will be the "Pairwise Comparison" mode (e.g. treatment1 vs. control, treatment2 vs. control). There is also a more global analysis, "Median Condition Analysis", where each condition will be compared against the median of all conditions. This allows direct comparability of each condition.
-5. If you chose "Pairwise Comparison", you need to specify which conditions you want to compare. To select the condition pairs you want, highlight them in the box on the left and use the arrow to move them to the right.
-6. Now you can click the _RUN_PIPELINE_ button and the analysis will be carried out. You can track the progress via the GUI.
+Follow these steps to analyze your data:
+1. Upload your proteomics data file
+2. Set output folder
+3. Map samples to conditions
+4. Choose analysis mode
+5. Select condition pairs (for pairwise comparison)
+6. Click RUN_PIPELINE
 
-**Basic Settings for Run Pipeline:**
-S1. Filtering options. It often happens that one protein is detected in several experiments in one condition and in very few or none in the other condition. We need to specify how to handle these cases. Per default, all proteins will be included that have at least 2 datapoints in one of the two conditions (`min. valid values in condition1 OR condition2`). If the datapoints are missing in the other condition, the AlphaQuant counting statistics module is used. There is also the option to filter only for proteins that have at least two datapoints in both conditons (`min. valid values in condition1 AND condition2`), or you can individually specify the number of datapoints in each condition (carefull if you have multiple condition pairs!)
-
-**PTM Settings for Run Pipeline:**
-1. Modification Type. If you use Spectronaut tables, you can run a PTM analysis including site mapping. You need to export the Spectronaut table with the correct columns (see instructions below). Then you need to specify the type of modification you want to perform site mapping on, in the way it appears in the Spectronaut modified sequence. In the case of phospho, for example, this is `[Phospho(STY)]`
-2. Organism. AlphaQuant needs to know which proteome .fastas to use in order to perform site mapping. Currently you can chose between human and mouse. If you need broader support, please reach out.
+For detailed instructions, use the help icons (?) next to each control.
 """,
         width=ButtonConfiguration.width,
         align='start',
@@ -67,9 +60,11 @@ S1. Filtering options. It often happens that one protein is detected in several 
     basic_plots_instruction = panel.pane.Markdown("""
 #### **Basic Plots**
 
-The basic plots will show you a volcano plot for every condition pair. Additionally you can visualize the peptides underlying each protein individually. For this, you need to:
-1. Provide the filepath to the results directory
-2. Upload the sample mapping file. If you have created the samplemap from the GUI, you can find the samplemap.tsv in the results directory.
+1. Select results directory
+2. Upload sample mapping file
+3. Choose visualization options
+
+Use the help icons (?) for detailed instructions.
 """,
         width=ButtonConfiguration.width,
         align='start',
@@ -78,12 +73,13 @@ The basic plots will show you a volcano plot for every condition pair. Additiona
     proteoform_plots_instruction = panel.pane.Markdown("""
 #### **Proteoform Plots**
 
-In this tab you can re-create peptide resolved plots mapped to the protein sequence, as described in the AlphaQuant paper. For this, you need to
-1. Provide the filepath to the results directory
-2. Provide the fielpath to the sample mapping file. If you have created the samplemap from the GUI, you can find the samplemap.tsv in the results directory.
-3. Specify the organism. AlphaQuant needs to know which proteome .fastas to use in order to create the proteoform plots. Currently you can chose between human, mouse and yeast. If you need broader support, please reach out.
-4. Select the condition pair, where you want to investigate proteoform candidates
-5. Select which protein to visualize. A table with all proteoform candidates will appear and you can select by either clicking on the row in the table, or by typing the protein name in the field below.
+1. Select results directory
+2. Upload sample mapping file
+3. Choose organism
+4. Select condition pair
+5. Pick protein to visualize
+
+Use the help icons (?) for detailed instructions.
 """,
         width=ButtonConfiguration.width,
         align='start',
@@ -138,6 +134,35 @@ The data needs to be exported in long format as .tsv or .csv file.
         align='start',
         margin=(0, 80, 0, 20)
     )
+
+    # Add tooltips/help text for each control
+    tooltips = {
+        'file_input': """Supported file formats:
+- DIA-NN: report.tsv
+- AlphaPept: results_peptides.csv
+- MaxQuant: peptides.txt
+- Spectronaut: custom export (see table config downloads)""",
+
+        'sample_mapping': """Two options available:
+1. GUI Mapping: Fill in conditions for each sample in the interactive table
+2. Manual Upload: Prepare a samplemap.tsv with 'sample' and 'condition' columns""",
+
+        'analysis_mode': """Choose between:
+- Pairwise Comparison: Compare specific condition pairs
+- Median Condition Analysis: Compare each condition against the median of all conditions""",
+
+        'filtering_options': """Available filtering modes:
+- OR mode: ≥2 values in either condition (default)
+- AND mode: ≥2 values in both conditions
+- Custom: Specify values per condition
+
+Note: Missing values handled by AlphaQuant counting statistics.""",
+
+        'ptm_settings': """For Spectronaut PTM analysis:
+1. Specify modification type (e.g., '[Phospho(STY)]')
+2. Select organism for proteome mapping
+Currently supports human and mouse."""
+    }
 
 
 class Cards():
