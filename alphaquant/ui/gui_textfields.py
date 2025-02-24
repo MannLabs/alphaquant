@@ -88,7 +88,7 @@ Use the help icons (?) for detailed instructions.
     intro_text = panel.pane.Markdown("""
 ####
 
-[Download example data](https://datashare.biochem.mpg.de/s/m1qR1hbz7lOyIzn/download)
+[Download example data](https://datashare.biochem.mpg.de/s/j98TnBzPJWLrtnC/download)
 """,
         width=ButtonConfiguration.width,
         align='start',
