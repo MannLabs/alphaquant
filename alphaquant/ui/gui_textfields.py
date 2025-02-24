@@ -79,7 +79,6 @@ For detailed instructions, use the help icons (?) next to each control.
 2. Upload sample mapping file
 3. Choose visualization options
 
-Use the help icons (?) for detailed instructions.
 """,
         width=ButtonConfiguration.width,
         align='start',
@@ -94,7 +93,6 @@ Use the help icons (?) for detailed instructions.
 4. Select condition pair
 5. Pick protein to visualize
 
-Use the help icons (?) for detailed instructions.
 """,
         width=ButtonConfiguration.width,
         align='start',
