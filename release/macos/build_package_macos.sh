@@ -32,6 +32,8 @@ cd -
 
 #make directory for AlphaMap. This is where AlphaMap stores downloaded data, such as fasta files
 mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
+# cp alphamap/data/*.fasta ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
+# cp alphamap/data/*.csv ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 
 chmod 777 release/macos/scripts/*
 
