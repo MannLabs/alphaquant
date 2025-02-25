@@ -293,7 +293,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 # Cell
 import pandas as pd
 
-def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None): 
+def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None):
 
     if normalize_within_conds:
         df_c1 = normalize_within_cond(df_c=df_c1, samples_c= c1_samples)
@@ -383,12 +383,3 @@ def calculate_fraction_with_no_NAs(df, df_nonnans):
     return len(df_nonnans.index)/len(df.index)
 
 
-
-
-def use_benchmark_prenormed_file(prenormed_file, minrep, c1_samples, c2_samples):
-    LOGGER.info("using pre-normalized data - skipping normalization")
-    df_prenormed = pd.read_csv(prenormed_file, sep="\t",index_col = QUANT_ID)
-    df_c1_normed = df_prenormed[c1_samples].dropna(thresh=minrep, axis=0)
-    df_c2_normed = df_prenormed[c2_samples].dropna(thresh=minrep, axis=0)
-    df_c2_normed = df_c2_normed +0.18
-    return df_c1_normed, df_c2_normed
