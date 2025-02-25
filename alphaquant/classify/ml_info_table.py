@@ -1,5 +1,6 @@
 import alphabase.quantification.quant_reader.config_dict_loader as ab_config_loader
 import alphabase.quantification.quant_reader.table_reformatter as ab_table_reformatter
+import alphaquant.utils.reader_utils as aq_reader_utils
 
 import pandas as pd
 import alphaquant.utils.utils as aq_utils
@@ -19,25 +20,25 @@ class MLInfoTableCreator():
         self._define_ml_info_df()
         self._define_ml_info_filename()
         self._write_ml_info_table()
-    
+
     def _define_ml_info_df(self):
-        
+
         """We need to stitch together the relevant columns to an ionname. For this we use the 'config dict' from the quant table reader. An example config_dict is given below
-        
+
             ion_hierarchy:
                 fragion:
                 order: [SEQ, MOD, CHARGE, FRGION]
                 mapping:
-                    SEQ: 
+                    SEQ:
                     - Stripped.Sequence
-                    MOD: 
+                    MOD:
                     - Modified.Sequence
-                    CHARGE: 
+                    CHARGE:
                     - Precursor.Charge
-                    FRGION: 
+                    FRGION:
                     - Fragment.Quant.Corrected
         """
-        input_df = pd.read_csv(self._input_file, sep="\t",encoding='latin-1')
+        input_df = aq_reader_utils.read_file(self._input_file, sep="\t")
         _, config_dict, _ = ab_config_loader.get_input_type_and_config_dict(self._input_file, self._input_type_to_use)
         ion_hierarchy = config_dict.get("ion_hierarchy")
         #get first dict entry
@@ -71,12 +72,12 @@ class MLInfoTableCreator():
 
 class MLInfoTableLoader():
     def __init__(self, ml_info_file, samples_used):
-        self.ml_info_df = pd.read_csv(ml_info_file, sep="\t")
+        self.ml_info_df = aq_reader_utils.read_file(ml_info_file, sep="\t")
 
         self._samples_used = samples_used
 
         self._subset_df_to_relevant_samples()
-    
+
     def _subset_df_to_relevant_samples(self):
         self.ml_info_df = self.ml_info_df[self.ml_info_df["sample_ID"].isin(self._samples_used)]
         self.ml_info_df = self.ml_info_df.drop(columns=["sample_ID"])
