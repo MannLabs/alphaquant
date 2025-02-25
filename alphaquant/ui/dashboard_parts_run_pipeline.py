@@ -195,7 +195,7 @@ class RunPipeline(BaseWidget):
 			visible=False
 		)
 		self.loading_samples_message = pn.pane.Markdown(
-			"Loading sample names...",
+			"Loading sample names... In case you have a large file, this can take some minutes.",
 			visible=False
 		)
 
@@ -787,6 +787,9 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table.visible = True
 			self._import_sample_names()
 			self._init_samplemap_df_template()
+			os.makedirs(self.path_output_folder.value, exist_ok=True)
+			self.samplemap_table.value.to_csv(os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'), sep = "\t", index=None)
+			print("wrote samplemap template to disk")
 
 
 	def _activate_after_analysis_file_upload(self, event):
