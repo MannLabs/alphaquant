@@ -536,64 +536,6 @@ diann_fragion:
       value: 0.01
 
 
-diann_fragion_protein:
-  format: longtable
-  sample_ID: Run
-  quant_ID:
-    fragion: Fragment.Quant.Raw
-  protein_cols:
-   - Protein.Group
-  split_cols:
-    Fragment.Quant.Raw: ";"
-  ion_hierarchy:
-    fragion:
-      order: [SEQ, MOD, CHARGE, FRGION]
-      mapping:
-        SEQ:
-         - Stripped.Sequence
-        MOD:
-         - Modified.Sequence
-        CHARGE:
-         - Precursor.Charge
-        FRGION:
-         - Fragment.Quant.Raw
-  use_iontree: True
-  ml_level: CHARGE
-  filters:
-    protein_qval:
-      param: Lib.PG.Q.Value
-      comparator: "<="
-      value: 0.01
-
-  format: longtable
-  sample_ID: Run
-  quant_ID:
-    ms1iso: Ms1.Area
-  protein_cols:
-   - Protein.Group
-  ion_hierarchy:
-    ms1iso:
-      order: [SEQ, MOD, CHARGE, MS1ISOTOPES]
-      mapping:
-        SEQ:
-         - Stripped.Sequence
-        MOD:
-         - Modified.Sequence
-        CHARGE:
-         - Precursor.Charge
-        MS1ISOTOPES:
-         - Precursor.Charge
-  use_iontree: True
-  ml_level: CHARGE
-  annotation_columns:
-    - Genes
-    - Protein.Names
-  filters:
-    protein_qval:
-      param: Lib.PG.Q.Value
-      comparator: "<="
-      value: 0.01
-
 diann_fragion_corrected:
   format: longtable
   sample_ID: Run
@@ -623,6 +565,34 @@ diann_fragion_corrected:
       comparator: "<="
       value: 0.01
 
+diann_fragion_protein:
+  format: longtable
+  sample_ID: Run
+  quant_ID:
+    fragion: Fragment.Quant.Raw
+  protein_cols:
+   - Protein.Group
+  split_cols:
+    Fragment.Quant.Raw: ";"
+  ion_hierarchy:
+    fragion:
+      order: [SEQ, MOD, CHARGE, FRGION]
+      mapping:
+        SEQ:
+         - Stripped.Sequence
+        MOD:
+         - Modified.Sequence
+        CHARGE:
+         - Precursor.Charge
+        FRGION:
+         - Fragment.Quant.Raw
+  use_iontree: True
+  ml_level: CHARGE
+  filters:
+    protein_qval:
+      param: Lib.PG.Q.Value
+      comparator: "<="
+      value: 0.01
 
 diann_precursor:
   format: longtable
