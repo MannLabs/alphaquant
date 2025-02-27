@@ -226,16 +226,17 @@ class RunPipeline(BaseWidget):
 
 		# Add the generate button
 		self.generate_samplemap_button = pn.widgets.Button(
-			name='Generate',
+			name='Generate Samplemap Template',
 			button_type='primary',
 			width=100,
-			visible=True  # Initially visible since 'Generate' is default
+			disabled=True,  # Initially disabled until file is loaded
+			description='Please load an input file first'
 		)
 
 		self.sample_mapping_mode_container = pn.Row(
 			self.sample_mapping_select,
 			self.generate_samplemap_button,
-			align='start'
+			align='center'  # Better alignment
 		)
 
 		self.samplemap_fileupload = pn.widgets.FileInput(
@@ -792,11 +793,13 @@ class RunPipeline(BaseWidget):
 		if event.new == 'Upload sample to condition file':
 			self.samplemap_fileupload.visible = True
 			self.samplemap_table.visible = False
-			self.generate_samplemap_button.visible = False
+			self.generate_samplemap_button.disabled = True
+			self.generate_samplemap_button.description = 'Please load an input file first'
 		else:  # 'Generate new sample to condition map'
 			self.samplemap_fileupload.visible = False
 			self.samplemap_table.visible = False  # Only show after button click
-			self.generate_samplemap_button.visible = True
+			self.generate_samplemap_button.disabled = False
+			self.generate_samplemap_button.description = 'Generate sample mapping'
 
 	def _activate_after_analysis_file_upload(self, event):
 		"""Handle analysis file upload."""
@@ -804,6 +807,13 @@ class RunPipeline(BaseWidget):
 			self._set_default_output_folder()
 			self.path_output_folder.disabled = False
 			self.run_pipeline_button.disabled = False
+			# Enable the generate button when a file is loaded
+			self.generate_samplemap_button.disabled = False
+			self.generate_samplemap_button.description = 'Generate sample mapping'
+		else:
+			# Disable the generate button if file is removed
+			self.generate_samplemap_button.disabled = True
+			self.generate_samplemap_button.description = 'Please load an input file first'
 
 	def _set_default_output_folder(self):
 		"""Set default output folder based on analysis file path."""
@@ -1077,18 +1087,27 @@ class RunPipeline(BaseWidget):
 
 	def _generate_samplemap(self, event):
 		"""Handle the generate button click event."""
-		self._import_sample_names()
-		self._init_samplemap_df_template()
-		self.samplemap_table.visible = True
+		# Show loading indicators
+		self.loading_samples_indicator.visible = True
+		self.loading_samples_message.visible = True
 
-		if self.path_output_folder.value:  # Only save if output folder is set
-			os.makedirs(self.path_output_folder.value, exist_ok=True)
-			self.samplemap_table.value.to_csv(
-				os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'),
-				sep="\t",
-				index=None
-			)
-			print("wrote samplemap template to disk")
+		try:
+			self._import_sample_names()
+			self._init_samplemap_df_template()
+			self.samplemap_table.visible = True
+
+			if self.path_output_folder.value:  # Only save if output folder is set
+				os.makedirs(self.path_output_folder.value, exist_ok=True)
+				self.samplemap_table.value.to_csv(
+					os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'),
+					sep="\t",
+					index=None
+				)
+				print("wrote samplemap template to disk")
+		finally:
+			# Hide loading indicators when done
+			self.loading_samples_indicator.visible = False
+			self.loading_samples_message.visible = False
 
 	def natural_sort(self, l):
 		"""
