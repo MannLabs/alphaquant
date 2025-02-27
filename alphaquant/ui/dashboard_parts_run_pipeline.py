@@ -218,8 +218,8 @@ class RunPipeline(BaseWidget):
 		# Create a Row with the Select widget and its description
 		self.sample_mapping_select = pn.widgets.Select(
 			name='Sample Mapping Mode',
-			options=['Upload sample to condition file', 'Generate new sample to condition map'],
-			value='Upload sample to condition file',
+			options=['Generate new sample to condition map', 'Upload sample to condition file'],
+			value='Generate new sample to condition map',
 			width=300,
 			description=gui_textfields.Descriptions.tooltips['sample_mapping']
 		)
@@ -232,7 +232,7 @@ class RunPipeline(BaseWidget):
 		self.samplemap_fileupload = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
 			margin=(5, 5, 10, 20),
-			visible=True  # Add this line explicitly
+			visible=False  # Set initial visibility to False
 		)
 		# In _make_widgets(), when initializing samplemap_table, add visible=False:
 		self.samplemap_table = pn.widgets.Tabulator(
@@ -787,9 +787,14 @@ class RunPipeline(BaseWidget):
 			self.samplemap_table.visible = True
 			self._import_sample_names()
 			self._init_samplemap_df_template()
-			os.makedirs(self.path_output_folder.value, exist_ok=True)
-			self.samplemap_table.value.to_csv(os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'), sep = "\t", index=None)
-			print("wrote samplemap template to disk")
+			if self.path_output_folder.value:  # Only save if output folder is set
+				os.makedirs(self.path_output_folder.value, exist_ok=True)
+				self.samplemap_table.value.to_csv(
+					os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'),
+					sep="\t",
+					index=None
+				)
+				print("wrote samplemap template to disk")
 
 
 	def _activate_after_analysis_file_upload(self, event):
