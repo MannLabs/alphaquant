@@ -41,10 +41,3 @@ def _read_parquet_file_chunkwise(file_path, usecols=None, chunksize=None):
     parquet_file = pyarrow.parquet.ParquetFile(file_path)
     for batch in parquet_file.iter_batches(columns=usecols, batch_size=chunksize):
         yield batch.to_pandas()
-
-
-def read_columns_from_file(file, sep="\t"):
-    if file.endswith(".parquet"):
-        parquet_file = pyarrow.parquet.ParquetFile(file)
-        return parquet_file.schema.names
-    return pd.read_csv(file, sep=sep, nrows=1).columns.tolist()
