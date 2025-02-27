@@ -17,6 +17,7 @@ import alphaquant.config.variables as aq_variables
 import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
 import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_proteoforms
 import alphaquant.ui.gui as gui
+import alphaquant.ui.gui_textfields as gui_textfields
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_lightweight.yaml")
@@ -204,7 +205,7 @@ class RunPipeline(BaseWidget):
 			placeholder='Path to MQ/Spectronaut/DIA-NN file',
 			width=700,
 			sizing_mode='fixed',
-			description='Enter the full path to your input file from MaxQuant, Spectronaut, or DIA-NN'
+			description=gui_textfields.Descriptions.tooltips['file_input']
 		)
 		self.path_output_folder = pn.widgets.TextInput(
 			name='Output folder:',
@@ -217,13 +218,10 @@ class RunPipeline(BaseWidget):
 		# Create a Row with the Select widget and its description
 		self.sample_mapping_select = pn.widgets.Select(
 			name='Sample Mapping Mode',
-			options=[
-				'Upload sample to condition file',
-				'Generate new sample to condition map'
-			],
+			options=['Upload sample to condition file', 'Generate new sample to condition map'],
 			value='Upload sample to condition file',
 			width=300,
-			description='Choose whether to upload an existing sample-to-condition mapping file or create a new one'
+			description=gui_textfields.Descriptions.tooltips['sample_mapping']
 		)
 
 		self.sample_mapping_mode_container = pn.Row(
@@ -257,7 +255,7 @@ class RunPipeline(BaseWidget):
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
 			width=300,
-			description='Specify the modification type exactly as it appears in your data (e.g., [Phospho (STY)] for Spectronaut)'
+			description=gui_textfields.Descriptions.tooltips['ptm_settings']
 		)
 		self.input_type = pn.widgets.TextInput(
 			name='Input type:',
@@ -280,7 +278,7 @@ class RunPipeline(BaseWidget):
 			],
 			value='min. valid values in condition1 OR condition2',
 			width=300,
-			description='Choose how to filter your data based on the number of valid values in each condition'
+			description=gui_textfields.Descriptions.tooltips['filtering_options']
 		)
 
 		# Update threshold settings widgets with descriptions
@@ -501,6 +499,16 @@ class RunPipeline(BaseWidget):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
+
+		# Add help cards next to their respective controls
+		ptm_section = pn.Row(
+			pn.Column(self.modification_type, self.organism)
+		)
+
+		filtering_section = pn.Row(
+			pn.Column(self.filtering_options, self.minrep_either)
+		)
+
 		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
@@ -548,10 +556,7 @@ class RunPipeline(BaseWidget):
 
 		# Create PTM settings card with fixed width
 		ptm_settings_card = pn.Card(
-			pn.Column(
-				self.modification_type,
-				self.organism,
-			),
+			ptm_section,
 			title='PTM Settings',
 			collapsed=True,
 			margin=(5, 5, 5, 5),
@@ -569,11 +574,7 @@ class RunPipeline(BaseWidget):
 			self.analysis_type,
 			condition_comparison_layout,
 			"### Basic Settings",
-			self.filtering_options,
-			self.minrep_either,
-			self.minrep_both,
-			self.minrep_c1,
-			self.minrep_c2,
+			filtering_section,
 			ptm_settings_card,
 			advanced_settings_card,
 			"### Pipeline Controls",
@@ -625,11 +626,26 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.object = "Please select an analysis type before running the pipeline."
 			self.run_pipeline_error.visible = True
 			return
+		if not self.assign_cond_pairs.value:
+			self.run_pipeline_error.object = "Please specify which condition pairs to compare."
+			self.run_pipeline_error.visible = True
 
 		print("\n=== Starting Pipeline Run ===")
 		self.run_pipeline_progress.active = True
 		self.run_pipeline_error.visible = False
 		self.console_output.value = "Starting pipeline...\n"
+
+		# Save samplemap to results directory
+		try:
+			if self.samplemap_table.value is not None and self.path_output_folder.value:
+				# Create results directory if it doesn't exist
+				os.makedirs(self.path_output_folder.value, exist_ok=True)
+
+				samplemap_path = os.path.join(self.path_output_folder.value, 'samplemap.tsv')
+				self.samplemap_table.value.to_csv(samplemap_path, sep='\t', index=False)
+				self.console_output.value += f"Saved sample mapping to: {samplemap_path}\n"
+		except Exception as e:
+			self.console_output.value += f"Warning: Could not save sample mapping file: {str(e)}\n"
 
 		# Update progress panel with selected condition pairs
 		self._update_progress_panel(self.assign_cond_pairs.value or [])
@@ -670,16 +686,10 @@ class RunPipeline(BaseWidget):
 
 		try:
 			# Get condition combinations
-			if self.assign_cond_pairs.value:
-				cond_combinations = [
-					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
-					for pair in self.assign_cond_pairs.value
-				]
-			else:
-				cond_combinations = [
-					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
-					for pair in self.assign_cond_pairs.options
-				]
+			cond_combinations = [
+				tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
+				for pair in self.assign_cond_pairs.value
+			]
 
 			# Collect all configuration parameters
 			pipeline_params = {

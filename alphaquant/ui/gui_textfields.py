@@ -6,103 +6,204 @@ import pathlib
 
 
 class Paths():
-    CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.absolute(), "configs")
+    CONFIGS_PATH = os.path.join(pathlib.Path(__file__).parent.parent.absolute(), "config")
     spectronaut_fragion_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_fragion.rs")
-    
+    spectronaut_precursor_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_precursor.rs")
+    spectronaut_ptm_path = os.path.join(CONFIGS_PATH, "spectronaut_tableconfig_ptm_fragion.rs")
+
+
 class ButtonConfiguration():
     width = 530
 
 
+class DownloadSchemes():
+    spectronaut_fragion = pn.widgets.FileDownload(
+        file=Paths.spectronaut_fragion_path,
+        filename="spectronaut_tableconfig_fragion.rs",
+        label="spectronaut_tableconfig_fragion.rs",
+        button_type="light",
+    )
+
+    spectronaut_precursor = pn.widgets.FileDownload(
+        file=Paths.spectronaut_precursor_path,
+        filename="spectronaut_tableconfig_precursor.rs",
+        label="spectronaut_tableconfig_precursor.rs",
+        button_type="light",
+    )
+
+    spectronaut_ptm = pn.widgets.FileDownload(
+        file=Paths.spectronaut_ptm_path,
+        filename="spectronaut_tableconfig_ptm_fragion.rs",
+        label="spectronaut_tableconfig_ptm_fragion.rs",
+        button_type="light",
+    )
+
+
 class Descriptions():
+    run_pipeline_instruction = panel.pane.Markdown("""
+#### **Run Pipeline**
 
+Follow these steps to analyze your data:
+1. Upload your proteomics data file
+2. Set output folder
+3. Map samples: Either use GUI table or create samplemap.tsv
+4. Select mode: "Pairwise Comparison" or "Median Condition Analysis"
+5. Choose conditions to compare (for pairwise mode)
+6. Click "RUN PIPELINE" to execute
 
-    project_instruction = panel.pane.Markdown("""
-        #### How to use AlphaQuant:
-        1. Provide the filepath to your proteomic datasets analyzed by
-        Spectronaut, DIA-NN, AlphaPept or MaxQuant (see instructions below!).
-        2. (optional) An output folder to store output tables and plots is chosen automatically, change the folder if needed
-        3. Wait until the names of your samples appear in the experiment-to-condition map (for very large datasets, this might take a while)
-        4. Either assign the experiments to a condition by hand, or upload a tab-separated mapping file
-        5. Click on the _RUN PIPELINE_ button, you can follow the progress on the terminal window
-        6. The results are stored as textfiles in the output folder
-        7. To explore the results, click on the _VISUALIZE DATA_ button
-        """,
+For detailed instructions, use the help icons (?) next to each control.
+""",
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(0, 80, 0, 10))
+
+    basic_plots_instruction = panel.pane.Markdown("""
+#### **Basic Plots**
+
+1. Select results directory
+2. Upload sample mapping file
+3. Choose visualization options
+
+Use the help icons (?) for detailed instructions.
+""",
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(0, 80, 0, 10))
+
+    proteoform_plots_instruction = panel.pane.Markdown("""
+#### **Proteoform Plots**
+
+1. Select results directory
+2. Upload sample mapping file
+3. Choose organism
+4. Select condition pair
+5. Pick protein to visualize
+
+Use the help icons (?) for detailed instructions.
+""",
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(0, 80, 0, 10))
+
+    intro_text = panel.pane.Markdown("""
+####
+
+<a href="https://datashare.biochem.mpg.de/s/j98TnBzPJWLrtnC/download" target="_blank">Download example data</a>
+""",
         width=ButtonConfiguration.width,
         align='start',
         margin=(0, 80, 0, 10))
 
     single_comparison_instruction = panel.pane.Markdown("""
-        Here you can visualize comparisons of two conditions as a volcano plot. You can click or search proteins of interest and detail plots of the quantification will be shown. 
+        Here you can visualize comparisons of two conditions as a volcano plot. You can click or search proteins of interest and detail plots of the quantification will be shown.
         The displayed data is stored as text files in the output folder you specified.
         """,
         width=830,
         align='start',
         margin=(0, 80, 0, 10))
 
-    alphapept = pn.pane.Markdown(
-        """
-        Provide the path to the AlphaPept results_peptides.csv output table.
+    table_instructions = pn.Column(
+        pn.pane.Markdown("""
+**DIA-NN:**
+Provide the path to the DIANN "report.tsv" output table. The samplemap.tsv file must map the Run column.
 
-        """,
+**AlphaDIA:**
+Provide the path to "precursors.tsv", or "fragment_precursorfiltered.matrix.parquet". The samplemap.tsv file must map to the run column.
+
+**AlphaPept:**
+Provide the path to the AlphaPept results_peptides.csv output table.
+
+**MaxQuant:**
+Provide the path to the MaxQuant "peptides.txt" or "evidence.txt" output table.
+- For "peptides.txt": Map samplemap.tsv to column names starting with "Intensity " (without "Intensity ")
+  Example: "Intensity sample1.raw" → "sample1.raw"
+- For "evidence.txt": Map samplemap.tsv to the Experiment column
+
+**FragPipe:**
+Provide the path to the "combined_ion.tsv" output table. Map samplemap.tsv to column names ending with " Intensity" (without " Intensity")
+Example: "sample1 Intensity" → "sample1"
+
+**Spectronaut:**
+AlphaQuant takes a Spectronaut .tsv table as input. Export schemes are available below for:
+- Precursor quantification
+- Fragment ion quantification (more accurate but ~10x larger files)
+- Fragment ion quantification with PTM
+
+To use an export scheme:
+1. Go to the "Report" perspective in Spectronaut
+2. Click "Import Schema" and provide the file
+3. Export data in long format as .tsv file
+Note: Verify schema selection as Spectronaut may lag when selecting
+
+The samplemap.tsv file must map to the R.Label column.
+"""),
+        pn.Row(
+            DownloadSchemes.spectronaut_fragion,
+            pn.pane.Markdown("Most detailed report, good for analyses where you need high statistical power (e.g. small fold changes, or few peptides)")
+        ),
+        pn.Row(
+            DownloadSchemes.spectronaut_precursor,
+            pn.pane.Markdown("About 10x less data heavy, good for analyses with clear regulation happening")
+        ),
+        pn.Row(
+            DownloadSchemes.spectronaut_ptm,
+            pn.pane.Markdown("For PTM analyses")
+        ),
         width=ButtonConfiguration.width,
         align='start',
         margin=(0, 80, 0, 20)
     )
 
-    spectronaut = pn.pane.Markdown(
-        """
-        To get the most out of the Spectronaut data, AlphaQuant utilizes more than 30 different columns.
-        These can be obtained by downloading the export scheme "spectronaut_tableconfig_fragion.rs", 
-        which can then simply be loaded into Spectronaut as follows: 
-        
-        Go to the "Report" perspective in Spectronaut, click "Import Schema" and provide the file.
+    # Add tooltips/help text for each control
+    tooltips = {
+        'file_input': """Provide the filepath to your proteomic datasets analyzed by DIA-NN, Spectronaut, AlphaDIA, AlphaPept, MaxQuant or FragPipe (details on which tables are needed are given in the "Instructions" tab)""",
 
-        The data needs to be exported in the **normal long** format as .tsv or .csv file. 
+        'sample_mapping': """Map the experiment names (i.e. the names of the MS runs, such as sample1_control_23_2025.raw) to the condition names (e.g. "control", "treatment").
 
-        """,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(0, 80, 0, 20)
-    )
+You have two options:
 
-    diann = pn.pane.Markdown(
-            """
-            Provide the path to the DIANN report.tsv output table.
-            """,
-            width=ButtonConfiguration.width,
-            align='start',
-            margin=(0, 80, 0, 20)
-        )
+1. Do the sample mapping in the GUI:
+   - Provide the filepath to your proteomics dataset
+   - Experiment names will be displayed in an interactive table
+   - Fill in the condition name for each sample
 
-    maxquant = pn.pane.Markdown(
-            """
-            Provide the path to the MaxQuant peptides.txt output table.
-            """,
-            width=ButtonConfiguration.width,
-            align='start',
-            margin=(0, 80, 0, 20)
-        )
+2. Prepare a samplemap.tsv manually:
+   - Use Excel or any text editor
+   - Required columns: 'sample' and 'condition' (tab-separated)
+   - Sample names must match the MS run names from your input file
+   - Column names vary by search engine (e.g. 'Run' in DIA-NN)
+   - Check table instructions below for specific column names
+""",
 
+        'analysis_mode': """Choose between:
+Decide the analysis mode. In most cases, this will be the "Pairwise Comparison" mode (e.g. treatment1 vs. control, treatment2 vs. control).
+There is also a more global analysis, "Median Condition Analysis", where each condition will be compared against the median of all conditions.
+This allows direct comparability of each condition.""",
 
+        'filtering_options': """Available filtering modes:
+- OR mode: ≥2 values in either condition (default)
+- AND mode: ≥2 values in both conditions
+- Custom: Specify values per condition
 
+Note: Missing values are handled by AlphaQuant counting statistics.
+""",
 
-class DownloadSchemes():
+        'ptm_settings': """For Spectronaut PTM analysis:
+1. Modification Type: Specify exactly as it appears in Spectronaut modified sequence
+   Example: '[Phospho(STY)]' for phosphorylation
+2. Organism: Select proteome for site mapping (human/mouse available at the moment)
 
-    spectronaut = pn.widgets.FileDownload(
-    file=Paths.spectronaut_fragion_path,
-    filename="spectronaut_tableconfig_fragion.rs",
-    button_type='default',
-    auto=True,
-    css_classes=['button_options'],
-)
+Note: Requires Spectronaut table with correct PTM columns (see table instructions)."""
+    }
 
 
 class Cards():
     width = 530
 
-    alphapept = pn.Card(
-        Descriptions.alphapept,
-        header='AlphaPept instructions',
+
+    table_instructions = pn.Card(
+        Descriptions.table_instructions,
+        header='Table instructions for different search engines',
         collapsed=True,
         width=ButtonConfiguration.width,
         align='start',
@@ -110,20 +211,9 @@ class Cards():
         css_classes=['spectronaut_instr']
     )
 
-
-    spectronaut = pn.Card(
-        Descriptions.spectronaut,
-        DownloadSchemes.spectronaut,
-        header='Spectronaut instructions',
-        collapsed=True,
-        width=ButtonConfiguration.width,
-        align='start',
-        margin=(0, 80, 5, 10),
-        css_classes=['spectronaut_instr']
-    )
-    diann = pn.Card(
-        Descriptions.diann,
-        header='DIANN instructions',
+    run_pipeline = pn.Card(
+        Descriptions.run_pipeline_instruction,
+        header='Run Pipeline',
         collapsed=True,
         width=ButtonConfiguration.width,
         align='start',
@@ -131,9 +221,19 @@ class Cards():
         css_classes=['spectronaut_instr']
     )
 
-    maxquant = pn.Card(
-        Descriptions.maxquant,
-        header='MaxQuant instructions',
+    basic_plots = pn.Card(
+        Descriptions.basic_plots_instruction,
+        header='Basic Plots',
+        collapsed=True,
+        width=ButtonConfiguration.width,
+        align='start',
+        margin=(20, 0, 20, 0),
+        css_classes=['spectronaut_instr']
+    )
+
+    proteoform_plots = pn.Card(
+        Descriptions.proteoform_plots_instruction,
+        header='Proteoform Plots',
         collapsed=True,
         width=ButtonConfiguration.width,
         align='start',

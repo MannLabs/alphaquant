@@ -33,7 +33,44 @@ cd -
 #make directory for AlphaMap. This is where AlphaMap stores downloaded data, such as fasta files
 mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 
+####
+####Download all AlphaMap FASTA and CSV files from GitHub, which are needed for the further analyses. There is a lot of error checking to ensure that the files get actually added during the build
+echo "Starting downloads of FASTA and CSV files..."
+DOWNLOAD_LIST=$(curl -L -f https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main)
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to fetch file list from GitHub API"
+    exit 1
+fi
+
+echo "$DOWNLOAD_LIST" | \
+  grep "\"download_url\".*\.\(fasta\|csv\)\"" | \
+  cut -d '"' -f 4 | \
+  while read url; do
+    if [ -z "$url" ]; then
+        echo "Warning: Empty URL detected, skipping..."
+        continue
+    fi
+    filename=$(basename $url)
+    echo "Downloading $filename..."
+    if ! curl -L -f "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"; then
+        echo "Error: Failed to download $filename"
+        exit 1
+    fi
+    echo "Successfully downloaded $filename"
+  done
+
+# Verify downloads
+file_count=$(ls -1 ${CONTENTS_FOLDER}/Frameworks/alphamap/data/*.{fasta,csv} 2>/dev/null | wc -l)
+echo "Downloaded $file_count files"
+if [ $file_count -eq 0 ]; then
+    echo "Error: No files were downloaded"
+    exit 1
+fi
+####
+###Download section complete
+
+
 chmod 777 release/macos/scripts/*
 
-pkgbuild --root dist_pyinstaller/${PACKAGE_NAME} --identifier de.mpg.biochem.${PACKAGE_NAME}.app --version 0.1.5-dev0 --install-location /Applications/${PACKAGE_NAME}.app --scripts release/macos/scripts ${PACKAGE_NAME}.pkg
+pkgbuild --root dist_pyinstaller/${PACKAGE_NAME} --identifier de.mpg.biochem.${PACKAGE_NAME}.app --version 0.1.5 --install-location /Applications/${PACKAGE_NAME}.app --scripts release/macos/scripts ${PACKAGE_NAME}.pkg
 productbuild --distribution release/macos/distribution.xml --resources release/macos/Resources --package-path ${PACKAGE_NAME}.pkg ${BUILD_NAME}.pkg

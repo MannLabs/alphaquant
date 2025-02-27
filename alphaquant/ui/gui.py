@@ -180,12 +180,11 @@ class AlphaQuantGUI(GUI):
 
         # Create instructions card
         self.instructions_card = pn.Card(
-            "### Instructions",
-            gui_textfields.Descriptions.project_instruction,
-            gui_textfields.Cards.spectronaut,
-            gui_textfields.Cards.diann,
-            gui_textfields.Cards.alphapept,
-            gui_textfields.Cards.maxquant,
+            gui_textfields.Descriptions.intro_text,
+            gui_textfields.Cards.run_pipeline,
+            gui_textfields.Cards.basic_plots,
+            gui_textfields.Cards.proteoform_plots,
+            gui_textfields.Cards.table_instructions,
             title='Instructions',
             collapsed=True,
             margin=(5, 5, 5, 5),
@@ -267,6 +266,9 @@ class AlphaQuantGUI(GUI):
 
 def run():
     try:
+        print("\nInitializing AlphaQuant GUI...")
+        print("Please wait while the server and components are loading...")
+        print("Your default web browser will open automatically when ready.\n")
         # Add error handling wrapper
         gui = AlphaQuantGUI(start_server=True)
         return gui
