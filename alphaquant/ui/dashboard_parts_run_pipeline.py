@@ -802,12 +802,19 @@ class RunPipeline(BaseWidget):
 		if event.new == 'Upload sample to condition file':
 			self.samplemap_fileupload.visible = True
 			self.samplemap_table.visible = False
-			# Don't modify the generate button state here - it depends on file upload status
+			# Hide the generate button when in upload mode
+			self.generate_samplemap_button.visible = False
+			# Hide the template success message when switching to upload mode
+			self.template_success_message.visible = False
 		else:  # 'Generate new sample to condition map'
 			self.samplemap_fileupload.visible = False
 			self.samplemap_table.visible = False  # Only show after button click
+			# Show the generate button when in generate mode
+			self.generate_samplemap_button.visible = True
 			# Update button state based on whether we have an analysis file
 			self._update_generate_button_state()
+			# Also hide the template success message when switching back
+			self.template_success_message.visible = False
 
 	def _activate_after_analysis_file_upload(self, event):
 		"""Handle analysis file upload."""
