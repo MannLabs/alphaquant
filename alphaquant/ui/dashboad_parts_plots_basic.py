@@ -58,7 +58,7 @@ class PlottingTab(param.Parameterized):
 
         self.tree_level_select = pn.widgets.Select(
             name="Tree Level",
-            options=['seq', 'mod_seq', 'mod_seq_charge', 'ion_type', 'base'],
+            options=['seq', 'base'],
             value='seq',
             width=200
         )
@@ -73,26 +73,6 @@ class PlottingTab(param.Parameterized):
         )
         self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
-        # Add file upload widget
-        self.samplemap_fileupload = pn.widgets.FileInput(
-            name='Upload Sample Map',
-            accept=",".join([".tsv", ".csv", ".txt"]),
-            margin=(5, 5, 10, 20)
-        )
-        self.samplemap_fileupload.param.watch(self._handle_samplemap_upload, 'value')
-
-        # Create a row for samplemap controls
-        self.samplemap_controls = pn.Row(
-            pn.Column(
-                pn.widgets.StaticText(
-                    name='',
-                    value='Sample Map: No sample map loaded',
-                    styles={'font-weight': 'normal'}
-                ),
-                self.samplemap_fileupload,
-            ),
-            margin=(5, 5, 5, 5)
-        )
 
         # Plot panes
         self.volcano_pane = pn.Column()
@@ -102,7 +82,6 @@ class PlottingTab(param.Parameterized):
         self.main_layout = pn.Column(
             "## Protein Visualization",
             self.results_dir_input,
-            self.samplemap_controls,
             self.condpairname_select,
             self.volcano_pane,
             pn.Row(self.tree_level_select),
@@ -115,9 +94,9 @@ class PlottingTab(param.Parameterized):
         if self.results_dir:
             self._extract_condpairs()
 
+
         # Watch for state changes
         self.state.param.watch(self._on_state_results_dir_changed, 'results_dir')
-        self.state.param.watch(self._on_state_samplemap_changed, 'samplemap_df')
 
     def panel(self):
         """Return the main panel layout."""
@@ -140,29 +119,6 @@ class PlottingTab(param.Parameterized):
                 self.results_dir_input.value = value
                 self._extract_condpairs()
 
-    def _handle_samplemap_upload(self, event):
-        """Handle new samplemap file uploads."""
-        if not event.new:
-            return
-
-        try:
-            # Determine file type and separator
-            file_ext = os.path.splitext(self.samplemap_fileupload.filename)[-1].lower()
-            sep = ',' if file_ext == '.csv' else '\t'
-
-            # Parse the uploaded file into DataFrame
-            df = pd.read_csv(
-                StringIO(event.new.decode('utf-8')),
-                sep=sep,
-                dtype=str
-            )
-
-            # Update the state with the new DataFrame
-            self.state.samplemap_df = df
-            self.state.notify_subscribers('samplemap_df')
-
-        except Exception as e:
-            self.samplemap_controls[0][0].value = f"Error loading sample map: {str(e)}"
 
     def _on_state_results_dir_changed(self, event):
         """Handle changes to results directory from state."""
@@ -170,21 +126,13 @@ class PlottingTab(param.Parameterized):
             self.results_dir = event.new
             self.results_dir_input.value = event.new
             self._extract_condpairs()
+            self.samplemap_file = os.path.join(self.results_dir_input.value, "samplemap.tsv")
 
-    def _on_state_samplemap_changed(self, event):
-        """Handle changes to samplemap from state."""
-        if event.new is not None and not event.new.empty:
-            self._update_condition_pairs_from_df(event.new)
 
     def _extract_condpairs(self):
         """Look for '*_VS_*.results.tsv' in the results_dir and update the condition pairs."""
         self.cond_pairs = []
         if not self.results_dir or not os.path.isdir(self.results_dir):
-            self.condpairname_select.options = ["No conditions"]
-            return
-
-        # Don't populate condition pairs until samplemap is loaded
-        if not hasattr(self.state, 'samplemap_df') or self.state.samplemap_df.empty:
             self.condpairname_select.options = ["No conditions"]
             return
 
@@ -310,29 +258,13 @@ class PlottingTab(param.Parameterized):
         """Update FoldChangeVisualizer with current settings."""
         if hasattr(self, 'fc_visualizer') and self.cond1 and self.cond2:
             try:
-                # Save DataFrame temporarily if needed
-                if self.state.samplemap_df is not None and not self.state.samplemap_df.empty:
-                    temp_dir = os.path.join(self.results_dir_input.value, 'temp')
-                    os.makedirs(temp_dir, exist_ok=True)
-                    temp_path = os.path.join(temp_dir, 'current_samplemap.tsv')
-                    self.state.samplemap_df.to_csv(temp_path, sep='\t', index=False)
-
-                    # Initialize visualizer with file path
-                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                        condition1=self.cond1,
-                        condition2=self.cond2,
-                        results_directory=self.results_dir_input.value,
-                        samplemap_file=temp_path,  # Use file path instead of DataFrame
-                        tree_level=self.tree_level_select.value
-                    )
-                else:
-                    # Initialize without samplemap if none available
-                    self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                        condition1=self.cond1,
-                        condition2=self.cond2,
-                        results_directory=self.results_dir_input.value,
-                        tree_level=self.tree_level_select.value
-                    )
+                self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                    condition1=self.cond1,
+                    condition2=self.cond2,
+                    results_directory=self.results_dir_input.value,
+                    samplemap_file=self.samplemap_file,  # Use file path instead of DataFrame
+                    tree_level=self.tree_level_select.value
+                )
             except Exception as e:
                 self.fc_visualizer = None
 
@@ -343,23 +275,3 @@ class PlottingTab(param.Parameterized):
         if self.protein_input.value:
             # Update the plot
             self._update_protein_plot(self.protein_input.value)
-
-    def _update_condition_pairs_from_df(self, df):
-        """Update condition pairs based on the samplemap DataFrame."""
-        if 'condition' in df.columns:
-            unique_conditions = df['condition'].dropna().unique()
-            pairs = [(c1, c2) for c1, c2 in itertools.permutations(unique_conditions, 2)]
-            self.cond_pairs = pairs
-            pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in pairs]
-
-            # Combine existing pairs from results directory with pairs from samplemap
-            existing_pairs = [opt for opt in self.condpairname_select.options if opt != "No conditions"]
-            all_pairs = list(set(existing_pairs + pairs_str))
-
-            if all_pairs:
-                self.condpairname_select.options = ["No conditions"] + all_pairs
-                # Select first pair by default if none selected
-                if self.condpairname_select.value == "No conditions" and len(all_pairs) > 0:
-                    self.condpairname_select.value = all_pairs[0]
-            else:
-                self.condpairname_select.options = ["No conditions"]
