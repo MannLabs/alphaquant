@@ -99,7 +99,6 @@ class PlottingTab(param.Parameterized):
     def _update_from_input(self, event):
         """Direct handler for input widget changes"""
         if event.new:
-            print(f"Updating from input: {event.new}")  # Debug print
             self.results_dir = event.new
             self.param.trigger('results_dir')  # Trigger the parameter change
             self._extract_condpairs()
@@ -113,8 +112,6 @@ class PlottingTab(param.Parameterized):
         """Handle changes to results directory from other components.
         !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager
         """
-        print(f"on_results_dir_changed called with: {new_value}")  # Debug print
-
         if isinstance(new_value, param.Event):
             value = new_value.new
         elif hasattr(new_value, 'new'):  # Handle Panel event objects
@@ -132,7 +129,6 @@ class PlottingTab(param.Parameterized):
 
     def _on_state_results_dir_changed(self, event):
         """Handle changes to results directory from state."""
-        print(f"State results_dir changed: {event.new}")  # Debug print
         if event.new and event.new != self.results_dir:
             self.results_dir = event.new
             self.results_dir_input.value = event.new
@@ -141,16 +137,13 @@ class PlottingTab(param.Parameterized):
 
     def _extract_condpairs(self):
         """Look for '*_VS_*.results.tsv' in the results_dir and update the condition pairs."""
-        print(f"Extracting condition pairs from: {self.results_dir}")  # Debug print
         self.cond_pairs = []
         if not self.results_dir or not os.path.isdir(self.results_dir):
-            print(f"Invalid directory: {self.results_dir}")  # Debug print
             self.condpairname_select.options = ["No conditions"]
             return
 
         pattern = os.path.join(self.results_dir, "*_VS_*.results.tsv")
         files = glob.glob(pattern)
-        print(f"Found {len(files)} matching files")  # Debug print
 
         for f in files:
             basename = os.path.basename(f)
