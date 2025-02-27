@@ -364,7 +364,7 @@ class RunPipeline(BaseWidget):
 		)
 
 		self.condition_comparison_instructions = pn.pane.Markdown(
-			"**Select** the condition pairs you want to analyze **on the left** and **move to the right**",
+			"**Select** the condition pairs you want to analyze **on the left** and **move to the right:**",
 			visible=True
 		)
 
