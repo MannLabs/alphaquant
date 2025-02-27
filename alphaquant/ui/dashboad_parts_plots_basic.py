@@ -191,6 +191,8 @@ class PlottingTab(param.Parameterized):
             return
 
         self.cond1, self.cond2 = selected_str.split("_VS_")
+        if not self.samplemap_file:
+            self.samplemap_file = os.path.join(self.results_dir_input.value, "samplemap.tsv")
         self._update_data_for_condpair()
         self.show_plots_button.disabled = False
 
@@ -251,7 +253,10 @@ class PlottingTab(param.Parameterized):
     def _on_volcano_click(self, event):
         """Handle volcano plot click events."""
         if event.new and 'points' in event.new and event.new['points']:
-            self.protein_input.value = event.new['points'][0]['text']
+            protein_name = event.new['points'][0]['text']
+            self.protein_input.value = protein_name
+            # Directly update the protein plot when clicked
+            self._update_protein_plot(protein_name)
 
     def _on_protein_selected(self, event):
         """Handle protein selection."""
@@ -289,7 +294,7 @@ class PlottingTab(param.Parameterized):
                     condition1=self.cond1,
                     condition2=self.cond2,
                     results_directory=self.results_dir_input.value,
-                    samplemap_file=self.samplemap_file,  # Use file path instead of DataFrame
+                    samplemap_file=self.samplemap_file,
                     tree_level=self.tree_level_select.value
                 )
             except Exception as e:
