@@ -650,6 +650,7 @@ class RunPipeline(BaseWidget):
 		if not self.assign_cond_pairs.value:
 			self.run_pipeline_error.object = "Please specify which condition pairs to compare."
 			self.run_pipeline_error.visible = True
+			return
 
 		print("\n=== Starting Pipeline Run ===")
 		self.run_pipeline_progress.active = True
