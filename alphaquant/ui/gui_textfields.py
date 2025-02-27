@@ -117,11 +117,12 @@ For detailed instructions, use the help icons (?) next to each control.
 
     table_instructions = pn.Column(
         pn.pane.Markdown("""
-**DIA-NN:**
-Provide the path to the DIANN "report.tsv" output table. The samplemap.tsv file must map the Run column.
 
 **AlphaDIA:**
 Provide the path to "precursors.tsv", or "fragment_precursorfiltered.matrix.parquet". The samplemap.tsv file must map to the run column of the precursors.tsv.
+
+**DIA-NN:**
+Provide the path to the DIANN "report.tsv" output table. The samplemap.tsv file must map the Run column.
 
 **AlphaPept:**
 Provide the path to the AlphaPept results_peptides.csv output table.
@@ -173,19 +174,16 @@ The samplemap.tsv file must map to the R.Label column.
 
         'sample_mapping': """Map the experiment names (i.e. the names of the MS runs, such as sample1_control_23_2025.raw) to the condition names (e.g. "control", "treatment").
 
-You have two options:
-
-1. Do the sample mapping in the GUI:
+1. You do not have a samplemap.tsv yet:
    - Provide the filepath to your proteomics dataset
+   - Click "Generate Samplemap Template"
    - Experiment names will be displayed in an interactive table
    - Fill in the condition name for each sample
+   - Alternatively, a file named samplemap_template.tsv is saved in your results directory. Fill it out and proceed with step 2.
 
-2. Prepare a samplemap.tsv manually:
-   - Use Excel or any text editor
-   - Required columns: 'sample' and 'condition' (tab-separated)
-   - Sample names must match the MS run names from your input file
-   - Column names vary by search engine (e.g. 'Run' in DIA-NN)
-   - Check table instructions below for specific column names
+2. You already have a samplemap.tsv
+   - Set the switch to "Upload sample to condition file"
+   - Upload samplemap.tsv file
 """,
 
         'analysis_mode': """Choose between:
