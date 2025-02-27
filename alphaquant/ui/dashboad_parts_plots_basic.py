@@ -86,6 +86,13 @@ class PlottingTab(param.Parameterized):
         self.volcano_pane = pn.Column()
         self.protein_plot_pane = pn.Column()
 
+        # Create a container for protein selection controls that will be hidden initially
+        self.protein_controls = pn.Column(
+            pn.Row(self.tree_level_select),
+            self.protein_input,
+            visible=False  # Hide initially
+        )
+
         # Construct layout
         self.main_layout = pn.Column(
             "## Protein Visualization",
@@ -93,8 +100,7 @@ class PlottingTab(param.Parameterized):
             self.condpairname_select,
             self.show_plots_button,
             self.volcano_pane,
-            pn.Row(self.tree_level_select),
-            self.protein_input,
+            self.protein_controls,  # Use the container instead of individual widgets
             self.protein_plot_pane,
             sizing_mode='stretch_width'
         )
@@ -270,6 +276,8 @@ class PlottingTab(param.Parameterized):
         """Clear all plots."""
         self.volcano_pane.clear()
         self.protein_plot_pane.clear()
+        # Hide protein selection controls
+        self.protein_controls.visible = False
 
     def _update_fc_visualizer(self):
         """Update FoldChangeVisualizer with current settings."""
@@ -297,3 +305,5 @@ class PlottingTab(param.Parameterized):
         """Handle show plots button click."""
         if self.cond1 and self.cond2:
             self._build_volcano_plot()
+            # Show protein selection controls after plots are built
+            self.protein_controls.visible = True
