@@ -88,9 +88,15 @@ class PlottingTab(param.Parameterized):
 
         # Create a container for protein selection controls that will be hidden initially
         self.protein_controls = pn.Column(
-            pn.Row(self.tree_level_select),
             self.protein_input,
+            pn.Row(self.tree_level_select),
             visible=False  # Hide initially
+        )
+
+        # Create a title for the protein detail section
+        self.protein_section_title = pn.pane.Markdown(
+            "## Protein Detail Plot\nSelect a protein by clicking on a point in the volcano plot above",
+            visible=False  # Hide initially, just like protein_controls
         )
 
         # Construct layout
@@ -100,6 +106,8 @@ class PlottingTab(param.Parameterized):
             self.condpairname_select,
             self.show_plots_button,
             self.volcano_pane,
+            pn.layout.Divider(),  # Add a divider here for visual separation
+            self.protein_section_title,  # Add the section title
             self.protein_controls,  # Use the container instead of individual widgets
             self.protein_plot_pane,
             sizing_mode='stretch_width'
@@ -283,8 +291,9 @@ class PlottingTab(param.Parameterized):
         """Clear all plots."""
         self.volcano_pane.clear()
         self.protein_plot_pane.clear()
-        # Hide protein selection controls
+        # Hide protein selection controls and section title
         self.protein_controls.visible = False
+        self.protein_section_title.visible = False
 
     def _update_fc_visualizer(self):
         """Update FoldChangeVisualizer with current settings."""
@@ -312,5 +321,6 @@ class PlottingTab(param.Parameterized):
         """Handle show plots button click."""
         if self.cond1 and self.cond2:
             self._build_volcano_plot()
-            # Show protein selection controls after plots are built
+            # Show protein selection controls and section title after plots are built
             self.protein_controls.visible = True
+            self.protein_section_title.visible = True
