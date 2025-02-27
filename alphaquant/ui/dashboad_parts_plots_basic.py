@@ -233,7 +233,9 @@ class PlottingTab(param.Parameterized):
                 volcano_figure.update_layout(
                     clickmode='event+select',
                     width=800,  # Set fixed width for volcano plot
-                    height=600
+                    height=600,
+                    title=f"Volcano Plot: {self.cond1} vs {self.cond2}",
+                    xaxis_title={"text": f"Log2(FC)<br>{self.cond1} - {self.cond2}"},
                 )
                 volcano_pane = pn.pane.Plotly(
                     volcano_figure,
