@@ -507,7 +507,7 @@ class RunPipeline(BaseWidget):
 		self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
 		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
-		self.analysis_type.param.watch(self._toggle_analysis_type, 'value')
+		self.analysis_type.param.watch(self._update_analysis_type_visibility, 'value')
 		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
@@ -650,8 +650,18 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.object = "Please select an analysis type before running the pipeline."
 			self.run_pipeline_error.visible = True
 			return
-		if not self.assign_cond_pairs.value:
+
+		# Only check for condition pairs if doing pairwise comparison
+		if self.analysis_type.value == 'Pairwise Comparison' and not self.assign_cond_pairs.value:
 			self.run_pipeline_error.object = "Please select the condition pairs you want to analyze in the cross-selector above."
+			self.run_pipeline_error.visible = True
+			return
+
+		# Print debug info about samplemap
+		print("\n=== Pipeline Run Samplemap Check ===")
+		print(f"Samplemap status: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
+		if self.samplemap_table.value is None:
+			self.run_pipeline_error.object = "Missing sample mapping. Please generate or upload a sample mapping before running the pipeline."
 			self.run_pipeline_error.visible = True
 			return
 
@@ -710,16 +720,40 @@ class RunPipeline(BaseWidget):
 			traceback.print_exc()
 
 		try:
-			# Get condition combinations
-			cond_combinations = [
-				tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
-				for pair in self.assign_cond_pairs.value
-			]
+			# Get condition combinations based on analysis type
+			is_median_analysis = self.analysis_type.value == 'Median Condition Analysis'
+
+			# Ensure the samplemap is saved to a file in the results directory
+			samplemap_path = None
+			if self.samplemap_table.value is not None and self.path_output_folder.value is not None:
+				# Create the results directory if it doesn't exist
+				os.makedirs(self.path_output_folder.value, exist_ok=True)
+
+				# Save the samplemap to a file in the results directory
+				samplemap_path = os.path.join(self.path_output_folder.value, "samplemap.tsv")
+				self.samplemap_table.value.to_csv(samplemap_path, sep='\t', index=False)
+				print(f"Saved samplemap to file: {samplemap_path}")
+
+			if is_median_analysis:
+				# For median analysis, set condition pairs to None
+				cond_combinations = None
+				print(f"Running median analysis with samplemap containing {len(self.samplemap_table.value)} rows")
+				print(f"Samplemap columns: {', '.join(self.samplemap_table.value.columns)}")
+			else:
+				# For pairwise comparison, get the selected pairs
+				cond_combinations = [
+					tuple(pair.split(aq_variables.CONDITION_PAIR_SEPARATOR))
+					for pair in self.assign_cond_pairs.value
+				]
+
+			# Log samplemap status right before passing to pipeline
+			print(f"Samplemap right before pipeline run: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
 
 			# Collect all configuration parameters
 			pipeline_params = {
 				'input_file': self.path_analysis_file.value,
 				'samplemap_df': self.samplemap_table.value,
+				'samplemap_file': samplemap_path,  # Pass the samplemap path to samplemap_file parameter
 				'results_dir': self.path_output_folder.value,
 				'condpairs_list': cond_combinations,
 				'modification_type': self.modification_type.value or None,
@@ -730,22 +764,20 @@ class RunPipeline(BaseWidget):
 				'cluster_threshold_pval': self.cluster_threshold_pval.value,
 				'volcano_fdr': self.volcano_fdr.value,
 				'volcano_fcthresh': self.volcano_fcthresh.value,
+				'multicond_median_analysis': is_median_analysis,
 			}
-			# Add all switch values
-			pipeline_params.update({
-				key: switch.value for key, switch in self.switches.items()
-			})
 
-			if self.filtering_options.value == 'min. valid values in condition1 OR condition2':
-				pipeline_params['minrep_either'] = self.minrep_either.value
-			elif self.filtering_options.value == 'min. valid values in condition1 AND condition2':
-				pipeline_params['minrep_both'] = self.minrep_both.value
-			else:  # set min. valid values per condition
-				pipeline_params['minrep_c1'] = self.minrep_c1.value
-				pipeline_params['minrep_c2'] = self.minrep_c2.value
-
-			# Update console output
-			self.console_output.value += f"Running pipeline with parameters:\n{pipeline_params}\n"
+			# Log key parameters
+			print("\n=== Pipeline Parameters ===")
+			for key, value in pipeline_params.items():
+				if key == 'samplemap_df':
+					print(f"samplemap_df: {'DataFrame with ' + str(len(value)) + ' rows' if value is not None else 'None'}")
+				elif key == 'samplemap_file':
+					print(f"samplemap_file: {value}")
+				elif key == 'condpairs_list':
+					print(f"condpairs_list: {value}")
+				else:
+					print(f"{key}: {value}")
 
 			# Run the pipeline
 			diffmgr.run_pipeline(**pipeline_params)
@@ -1155,20 +1187,50 @@ class RunPipeline(BaseWidget):
 		alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
 		return sorted(l, key=alphanum_key)
 
-	def _toggle_analysis_type(self, event):
-		"""Show/hide CrossSelector and message based on analysis type."""
-		if event.new == 'Median Condition Analysis':
-			# Hide CrossSelector and its explanatory text
-			self.assign_cond_pairs.visible = False
-			self.condition_comparison_header.visible = False
-			self.condition_comparison_instructions.visible = False
-			# Show median reference message
-			self.medianref_message.visible = True
+	def _update_analysis_type_visibility(self, change=None):
+		"""
+		Update the visibility of UI elements based on the selected analysis type.
+		"""
+		# Handle both dictionary-like objects and param.parameterized.Event objects
+		if change is None:
+			pass
+		elif hasattr(change, 'get'):  # Dictionary-like object
+			if change.get('name') != 'value':
+				return
+		elif hasattr(change, 'name'):  # param.parameterized.Event object
+			if change.name != 'value':
+				return
 		else:
+			# Unknown object type, print for debugging
+			print(f"Unexpected change object type: {type(change)}")
+			return
+
+		analysis_type = self.analysis_type.value
+
+		# Print debug info
+		print(f"\n=== Changing Analysis Type to: {analysis_type} ===")
+
+		# Before making any changes, print the samplemap status
+		if hasattr(self, 'samplemap_table'):
+			print(f"Samplemap before UI update: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
+
+		# Show/hide condition pairs selector based on analysis type
+		if analysis_type == 'Pairwise Comparison':
 			self.assign_cond_pairs.visible = True
-			self.condition_comparison_header.visible = True
-			self.condition_comparison_instructions.visible = True
-			self.medianref_message.visible = False
+		elif analysis_type == 'Median Condition Analysis':
+			self.assign_cond_pairs.visible = False
+			# Make sure we don't inadvertently clear the samplemap
+			if hasattr(self, 'samplemap_table') and self.samplemap_table.value is None:
+				print("WARNING: Samplemap is None when switching to Median Condition Analysis!")
+		else:
+			self.assign_cond_pairs.visible = False
+
+		# After making changes, print the samplemap status again
+		if hasattr(self, 'samplemap_table'):
+			print(f"Samplemap after UI update: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
+
+		# Update the run button state
+		self._update_run_button_state()
 
 	def _toggle_filtering_options(self, event):
 		"""Toggle visibility of replicate input fields based on filtering option."""
