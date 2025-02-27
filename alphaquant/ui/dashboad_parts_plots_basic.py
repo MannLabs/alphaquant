@@ -46,6 +46,15 @@ class PlottingTab(param.Parameterized):
         )
         self.condpairname_select.param.watch(self._on_condpair_selected, 'value')
 
+        # Add show plots button
+        self.show_plots_button = pn.widgets.Button(
+            name="Show Plots for Selected Condition Pair",
+            button_type="primary",
+            width=150,
+            disabled=True
+        )
+        self.show_plots_button.on_click(self._on_show_plots_clicked)
+
         self.protein_input = pn.widgets.AutocompleteInput(
             name='Select Protein',
             placeholder="Type to search protein...",
@@ -82,6 +91,7 @@ class PlottingTab(param.Parameterized):
             "## Protein Visualization",
             self.results_dir_input,
             self.condpairname_select,
+            self.show_plots_button,
             self.volcano_pane,
             pn.Row(self.tree_level_select),
             self.protein_input,
@@ -168,6 +178,7 @@ class PlottingTab(param.Parameterized):
             self.cond1 = None
             self.cond2 = None
             self._clear_plots()
+            self.show_plots_button.disabled = True
             return
 
         if "_VS_" not in selected_str:
@@ -175,7 +186,7 @@ class PlottingTab(param.Parameterized):
 
         self.cond1, self.cond2 = selected_str.split("_VS_")
         self._update_data_for_condpair()
-        self._build_volcano_plot()
+        self.show_plots_button.disabled = False
 
     def _update_data_for_condpair(self):
         """Load the results data and initialize FoldChangeVisualizer."""
@@ -281,3 +292,8 @@ class PlottingTab(param.Parameterized):
         if self.protein_input.value:
             # Update the plot
             self._update_protein_plot(self.protein_input.value)
+
+    def _on_show_plots_clicked(self, event):
+        """Handle show plots button click."""
+        if self.cond1 and self.cond2:
+            self._build_volcano_plot()
