@@ -199,6 +199,13 @@ class RunPipeline(BaseWidget):
 			visible=False
 		)
 
+		# Add a success message for after template generation (initially hidden)
+		self.template_success_message = pn.pane.Alert(
+			"Template has been generated. Please fill out the condition column in the table below. The template has also been saved to your output folder if you prefer to edit it with Excel or other applications.",
+			alert_type="success",
+			visible=False
+		)
+
 		# File paths with descriptions
 		self.path_analysis_file = pn.widgets.TextInput(
 			name='Analysis file:',
@@ -556,6 +563,7 @@ class RunPipeline(BaseWidget):
 				self.loading_samples_indicator,
 				self.loading_samples_message
 			),
+			self.template_success_message,
 			self.samplemap_fileupload,
 			self.samplemap_table
 		)
@@ -1102,6 +1110,7 @@ class RunPipeline(BaseWidget):
 		# Show loading indicators
 		self.loading_samples_indicator.visible = True
 		self.loading_samples_message.visible = True
+		self.template_success_message.visible = False  # Hide any previous success message
 
 		try:
 			self._import_sample_names()
@@ -1110,12 +1119,18 @@ class RunPipeline(BaseWidget):
 
 			if self.path_output_folder.value:  # Only save if output folder is set
 				os.makedirs(self.path_output_folder.value, exist_ok=True)
+				template_path = os.path.join(self.path_output_folder.value, 'samplemap_template.tsv')
 				self.samplemap_table.value.to_csv(
-					os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'),
+					template_path,
 					sep="\t",
 					index=None
 				)
 				print("wrote samplemap template to disk")
+
+				# Show success message with the actual path
+				self.template_success_message.object = f"""Template has been generated. Please fill out the condition column in the table below.\nThe template has also been saved to
+				<code>{template_path}</code>\nif you prefer to edit it with Excel or other applications."""
+				self.template_success_message.visible = True
 		finally:
 			# Hide loading indicators when done
 			self.loading_samples_indicator.visible = False
