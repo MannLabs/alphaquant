@@ -233,10 +233,11 @@ class RunPipeline(BaseWidget):
 			description='Please load an input file first'
 		)
 
-		self.sample_mapping_mode_container = pn.Row(
+		# Replace the Row with a Column to stack the widgets vertically
+		self.sample_mapping_mode_container = pn.Column(
 			self.sample_mapping_select,
 			self.generate_samplemap_button,
-			align='center'  # Better alignment
+			align='start'  # Align to the left
 		)
 
 		self.samplemap_fileupload = pn.widgets.FileInput(
