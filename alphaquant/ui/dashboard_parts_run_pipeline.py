@@ -224,25 +224,35 @@ class RunPipeline(BaseWidget):
 			description=gui_textfields.Descriptions.tooltips['sample_mapping']
 		)
 
+		# Add the generate button
+		self.generate_samplemap_button = pn.widgets.Button(
+			name='Generate',
+			button_type='primary',
+			width=100,
+			visible=True  # Initially visible since 'Generate' is default
+		)
+
 		self.sample_mapping_mode_container = pn.Row(
 			self.sample_mapping_select,
+			self.generate_samplemap_button,
 			align='start'
 		)
 
 		self.samplemap_fileupload = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
 			margin=(5, 5, 10, 20),
-			visible=False  # Set initial visibility to False
+			visible=False
 		)
-		# In _make_widgets(), when initializing samplemap_table, add visible=False:
+
 		self.samplemap_table = pn.widgets.Tabulator(
 			layout='fit_data_fill',
 			height=250,
 			show_index=False,
 			width=500,
 			margin=(5, 5, 5, 5),
-			visible=False  # Add this line
+			visible=False
 		)
+
 		self.assign_cond_pairs = pn.widgets.CrossSelector(
 			width=600,
 			height=250,
@@ -493,6 +503,7 @@ class RunPipeline(BaseWidget):
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
 		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
+		self.generate_samplemap_button.on_click(self._generate_samplemap)
 
 
 	def create(self):
@@ -780,22 +791,12 @@ class RunPipeline(BaseWidget):
 		"""Toggle visibility of sample mapping components based on selected mode."""
 		if event.new == 'Upload sample to condition file':
 			self.samplemap_fileupload.visible = True
-			# Only show table if there's data in it
-			#self.samplemap_table.visible = hasattr(self, 'data') and not self.data.empty
-		else:
+			self.samplemap_table.visible = False
+			self.generate_samplemap_button.visible = False
+		else:  # 'Generate new sample to condition map'
 			self.samplemap_fileupload.visible = False
-			self.samplemap_table.visible = True
-			self._import_sample_names()
-			self._init_samplemap_df_template()
-			if self.path_output_folder.value:  # Only save if output folder is set
-				os.makedirs(self.path_output_folder.value, exist_ok=True)
-				self.samplemap_table.value.to_csv(
-					os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'),
-					sep="\t",
-					index=None
-				)
-				print("wrote samplemap template to disk")
-
+			self.samplemap_table.visible = False  # Only show after button click
+			self.generate_samplemap_button.visible = True
 
 	def _activate_after_analysis_file_upload(self, event):
 		"""Handle analysis file upload."""
@@ -1073,6 +1074,21 @@ class RunPipeline(BaseWidget):
 			except Exception as e:
 				self.run_pipeline_error.object = f"Error reading sample map: {str(e)}"
 				self.run_pipeline_error.visible = True
+
+	def _generate_samplemap(self, event):
+		"""Handle the generate button click event."""
+		self._import_sample_names()
+		self._init_samplemap_df_template()
+		self.samplemap_table.visible = True
+
+		if self.path_output_folder.value:  # Only save if output folder is set
+			os.makedirs(self.path_output_folder.value, exist_ok=True)
+			self.samplemap_table.value.to_csv(
+				os.path.join(self.path_output_folder.value, 'samplemap_template.tsv'),
+				sep="\t",
+				index=None
+			)
+			print("wrote samplemap template to disk")
 
 	def natural_sort(self, l):
 		"""
