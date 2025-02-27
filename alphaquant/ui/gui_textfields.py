@@ -121,7 +121,7 @@ For detailed instructions, use the help icons (?) next to each control.
 Provide the path to the DIANN "report.tsv" output table. The samplemap.tsv file must map the Run column.
 
 **AlphaDIA:**
-Provide the path to "precursors.tsv", or "fragment_precursorfiltered.matrix.parquet". The samplemap.tsv file must map to the run column.
+Provide the path to "precursors.tsv", or "fragment_precursorfiltered.matrix.parquet". The samplemap.tsv file must map to the run column of the precursors.tsv.
 
 **AlphaPept:**
 Provide the path to the AlphaPept results_peptides.csv output table.
