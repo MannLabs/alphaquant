@@ -209,7 +209,7 @@ class RunPipeline(BaseWidget):
 		# File paths with descriptions
 		self.path_analysis_file = pn.widgets.TextInput(
 			name='Analysis file:',
-			placeholder='Path to MQ/Spectronaut/DIA-NN file',
+			placeholder='Path to AlphaDIA/DIA-NN/Spectronaut/Fragpipe etc. file',
 			width=700,
 			sizing_mode='fixed',
 			description=gui_textfields.Descriptions.tooltips['file_input']
