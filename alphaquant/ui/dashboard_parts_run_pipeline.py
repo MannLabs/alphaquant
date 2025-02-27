@@ -793,13 +793,12 @@ class RunPipeline(BaseWidget):
 		if event.new == 'Upload sample to condition file':
 			self.samplemap_fileupload.visible = True
 			self.samplemap_table.visible = False
-			self.generate_samplemap_button.disabled = True
-			self.generate_samplemap_button.description = 'Please load an input file first'
+			# Don't modify the generate button state here - it depends on file upload status
 		else:  # 'Generate new sample to condition map'
 			self.samplemap_fileupload.visible = False
 			self.samplemap_table.visible = False  # Only show after button click
-			self.generate_samplemap_button.disabled = False
-			self.generate_samplemap_button.description = 'Generate sample mapping'
+			# Update button state based on whether we have an analysis file
+			self._update_generate_button_state()
 
 	def _activate_after_analysis_file_upload(self, event):
 		"""Handle analysis file upload."""
@@ -807,13 +806,25 @@ class RunPipeline(BaseWidget):
 			self._set_default_output_folder()
 			self.path_output_folder.disabled = False
 			self.run_pipeline_button.disabled = False
-			# Enable the generate button when a file is loaded
-			self.generate_samplemap_button.disabled = False
-			self.generate_samplemap_button.description = 'Generate sample mapping'
 		else:
-			# Disable the generate button if file is removed
-			self.generate_samplemap_button.disabled = True
+			self.run_pipeline_button.disabled = True
+
+		# Update generate button state based on file presence
+		self._update_generate_button_state()
+
+	def _update_generate_button_state(self):
+		"""Update generate button state based on current conditions."""
+		has_file = bool(self.path_analysis_file.value)
+		is_generate_mode = self.sample_mapping_select.value == 'Generate new sample to condition map'
+
+		# Only enable the button if we have a file and are in generate mode
+		self.generate_samplemap_button.disabled = not (has_file and is_generate_mode)
+
+		# Update description based on state
+		if not has_file:
 			self.generate_samplemap_button.description = 'Please load an input file first'
+		else:
+			self.generate_samplemap_button.description = 'Generate sample mapping'
 
 	def _set_default_output_folder(self):
 		"""Set default output folder based on analysis file path."""
