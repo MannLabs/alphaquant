@@ -513,6 +513,9 @@ class RunPipeline(BaseWidget):
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
 		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
 		self.generate_samplemap_button.on_click(self._generate_samplemap)
+		# Add watcher for condition pairs selection
+		self.assign_cond_pairs.param.watch(self._update_run_button_state, 'value')
+		self.analysis_type.param.watch(self._update_run_button_state, 'value')
 
 
 	def create(self):
@@ -648,7 +651,7 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 			return
 		if not self.assign_cond_pairs.value:
-			self.run_pipeline_error.object = "Please specify which condition pairs to compare."
+			self.run_pipeline_error.object = "Please select the condition pairs you want to analyze in the cross-selector above."
 			self.run_pipeline_error.visible = True
 			return
 
@@ -1204,6 +1207,27 @@ class RunPipeline(BaseWidget):
 		if self._stream_handler is not None:
 			self._logger.removeHandler(self._stream_handler)
 			self._stream_handler.close()
+
+	def _update_run_button_state(self, event=None):
+		"""
+		Update the run button state based on condition pairs selection and analysis type.
+		"""
+		# For Median Condition Analysis, we don't need condition pairs
+		if self.analysis_type.value == 'Median Condition Analysis':
+			self.run_pipeline_button.disabled = False
+			self.run_pipeline_button.description = 'Run pipeline'
+		# For Pairwise Comparison, we need at least one condition pair
+		elif self.analysis_type.value == 'Pairwise Comparison':
+			has_pairs = bool(self.assign_cond_pairs.value)
+			self.run_pipeline_button.disabled = not has_pairs
+			if not has_pairs:
+				self.run_pipeline_button.description = 'Please select condition pairs'
+			else:
+				self.run_pipeline_button.description = 'Run pipeline'
+		# If no analysis type is selected
+		else:
+			self.run_pipeline_button.disabled = True
+			self.run_pipeline_button.description = 'Please select an analysis type'
 
 class Tabs(param.Parameterized):
 	"""
