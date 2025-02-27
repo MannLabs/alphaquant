@@ -1205,13 +1205,22 @@ class RunPipeline(BaseWidget):
 
 		analysis_type = self.analysis_type.value
 
-		# Show/hide condition pairs selector based on analysis type
+		# Show/hide condition pairs selector and related elements based on analysis type
 		if analysis_type == 'Pairwise Comparison':
 			self.assign_cond_pairs.visible = True
+			self.condition_comparison_header.visible = True
+			self.condition_comparison_instructions.visible = True
+			self.medianref_message.visible = False
 		elif analysis_type == 'Median Condition Analysis':
 			self.assign_cond_pairs.visible = False
+			self.condition_comparison_header.visible = False
+			self.condition_comparison_instructions.visible = False
+			self.medianref_message.visible = True
 		else:
 			self.assign_cond_pairs.visible = False
+			self.condition_comparison_header.visible = False
+			self.condition_comparison_instructions.visible = False
+			self.medianref_message.visible = False
 
 		# Update the run button state
 		self._update_run_button_state()
