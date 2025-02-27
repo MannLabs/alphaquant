@@ -1201,33 +1201,17 @@ class RunPipeline(BaseWidget):
 			if change.name != 'value':
 				return
 		else:
-			# Unknown object type, print for debugging
-			print(f"Unexpected change object type: {type(change)}")
 			return
 
 		analysis_type = self.analysis_type.value
-
-		# Print debug info
-		print(f"\n=== Changing Analysis Type to: {analysis_type} ===")
-
-		# Before making any changes, print the samplemap status
-		if hasattr(self, 'samplemap_table'):
-			print(f"Samplemap before UI update: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
 
 		# Show/hide condition pairs selector based on analysis type
 		if analysis_type == 'Pairwise Comparison':
 			self.assign_cond_pairs.visible = True
 		elif analysis_type == 'Median Condition Analysis':
 			self.assign_cond_pairs.visible = False
-			# Make sure we don't inadvertently clear the samplemap
-			if hasattr(self, 'samplemap_table') and self.samplemap_table.value is None:
-				print("WARNING: Samplemap is None when switching to Median Condition Analysis!")
 		else:
 			self.assign_cond_pairs.visible = False
-
-		# After making changes, print the samplemap status again
-		if hasattr(self, 'samplemap_table'):
-			print(f"Samplemap after UI update: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
 
 		# Update the run button state
 		self._update_run_button_state()
