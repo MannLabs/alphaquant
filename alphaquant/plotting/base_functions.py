@@ -648,7 +648,7 @@ def plot_volcano_plotly(
             marker=dict(
                 size=marker_size,
                 symbol=marker_symbol,
-                color='darkgreen',
+                color=AlphaQuantColorMap().colorlist_hex[1],
                 opacity=opacity,
                 line=dict(
                     width=1,
@@ -666,19 +666,19 @@ def plot_volcano_plotly(
         y=-np.log10(significance_cutoff),
         line_width=1,
         line_dash="dash",
-        line_color="green"
+        line_color=AlphaQuantColorMap().colorlist_hex[1]
     )
     fig.add_vline(
         x=log2fc_cutoff,
         line_width=1,
         line_dash="dash",
-        line_color="green"
+        line_color=AlphaQuantColorMap().colorlist_hex[1]
     )
     fig.add_vline(
         x=-log2fc_cutoff,
         line_width=1,
         line_dash="dash",
-        line_color="green"
+        line_color=AlphaQuantColorMap().colorlist_hex[1]
     )
 
     maxfc = max(abs(result_df[fc_header])) + 0.5
