@@ -71,8 +71,7 @@ class PlottingTab(param.Parameterized):
             placeholder='Enter path to results directory',
             width=600
         )
-        self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
-
+        self.results_dir_input.param.watch(self._update_from_input, 'value')
 
         # Plot panes
         self.volcano_pane = pn.Column()
@@ -94,9 +93,17 @@ class PlottingTab(param.Parameterized):
         if self.results_dir:
             self._extract_condpairs()
 
-
         # Watch for state changes
         self.state.param.watch(self._on_state_results_dir_changed, 'results_dir')
+
+    def _update_from_input(self, event):
+        """Direct handler for input widget changes"""
+        if event.new:
+            print(f"Updating from input: {event.new}")  # Debug print
+            self.results_dir = event.new
+            self.param.trigger('results_dir')  # Trigger the parameter change
+            self._extract_condpairs()
+            self.samplemap_file = os.path.join(event.new, "samplemap.tsv")
 
     def panel(self):
         """Return the main panel layout."""
@@ -106,6 +113,8 @@ class PlottingTab(param.Parameterized):
         """Handle changes to results directory from other components.
         !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager
         """
+        print(f"on_results_dir_changed called with: {new_value}")  # Debug print
+
         if isinstance(new_value, param.Event):
             value = new_value.new
         elif hasattr(new_value, 'new'):  # Handle Panel event objects
@@ -115,29 +124,33 @@ class PlottingTab(param.Parameterized):
 
         if value is not None:
             value = str(value)
+            self.results_dir = value
             if self.results_dir_input.value != value:
                 self.results_dir_input.value = value
-                self._extract_condpairs()
-
+            self._extract_condpairs()
+            self.samplemap_file = os.path.join(value, "samplemap.tsv")
 
     def _on_state_results_dir_changed(self, event):
         """Handle changes to results directory from state."""
+        print(f"State results_dir changed: {event.new}")  # Debug print
         if event.new and event.new != self.results_dir:
             self.results_dir = event.new
             self.results_dir_input.value = event.new
             self._extract_condpairs()
             self.samplemap_file = os.path.join(self.results_dir_input.value, "samplemap.tsv")
 
-
     def _extract_condpairs(self):
         """Look for '*_VS_*.results.tsv' in the results_dir and update the condition pairs."""
+        print(f"Extracting condition pairs from: {self.results_dir}")  # Debug print
         self.cond_pairs = []
         if not self.results_dir or not os.path.isdir(self.results_dir):
+            print(f"Invalid directory: {self.results_dir}")  # Debug print
             self.condpairname_select.options = ["No conditions"]
             return
 
         pattern = os.path.join(self.results_dir, "*_VS_*.results.tsv")
         files = glob.glob(pattern)
+        print(f"Found {len(files)} matching files")  # Debug print
 
         for f in files:
             basename = os.path.basename(f)
@@ -148,7 +161,7 @@ class PlottingTab(param.Parameterized):
 
         if self.cond_pairs:
             pairs_str = [f"{c1}_VS_{c2}" for c1, c2 in self.cond_pairs]
-            self.condpairname_select.options = ["No conditions"] + pairs_str
+            self.condpairname_select.options = pairs_str
             # Select first pair by default if available
             if len(pairs_str) > 0:
                 self.condpairname_select.value = pairs_str[0]
