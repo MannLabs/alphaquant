@@ -85,7 +85,7 @@ class ProteoformPlottingTab(param.Parameterized):
         self.protein_input = pn.widgets.AutocompleteInput(
             name='Select Protein',
             placeholder="Type protein name or click a row in the table above to visualize peptide fold changes...",
-            min_characters=2,
+            min_characters=0,
             disabled=True,
             width=400,
             margin=(5, 5, 5, 5)
