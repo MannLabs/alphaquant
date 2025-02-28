@@ -110,11 +110,12 @@ class ProteoformPlottingTab(param.Parameterized):
         )
 
         # Create container for elements that should be hidden initially AFTER all widgets are created
-        self.warning_pane = pn.pane.Markdown("", sizing_mode='stretch_width')  # Add new warning pane
+        self.table_warning_pane = pn.pane.Markdown("", sizing_mode='stretch_width')  # Warning pane for table
+        self.viz_warning_pane = pn.pane.Markdown("", sizing_mode='stretch_width')    # Warning pane for visualization
 
         # Add second load button for AlphaMap
         self.load_alphamap_button = pn.widgets.Button(
-            name="Load AlphaMap Visualization",
+            name="Load AlphaMap",
             button_type="primary",
             width=300,
             disabled=True  # Start disabled
@@ -130,10 +131,11 @@ class ProteoformPlottingTab(param.Parameterized):
 
         self.hidden_elements = pn.Column(
             self.proteoform_table,
-            self.warning_pane,  # Add warning pane right after the table
+            self.table_warning_pane,  # Warning pane for table issues
             pn.Row(self.proteoform_view_select),
             pn.Row(self.organism_select, self.protein_id_select),
             self.load_alphamap_button,
+            self.viz_warning_pane,     # Warning pane for visualization issues
             self.visualization_elements,
             visible=False  # Hide by default
         )
@@ -341,7 +343,7 @@ class ProteoformPlottingTab(param.Parameterized):
 
             # Show visualization elements
             self.visualization_elements.visible = True
-            self.warning_pane.object = ""  # Clear any previous warnings
+            self.viz_warning_pane.object = ""  # Clear any previous warnings
 
         except Exception as viz_error:
             print("Error initializing visualizers:", str(viz_error))
@@ -349,6 +351,6 @@ class ProteoformPlottingTab(param.Parameterized):
             import traceback
             print("Traceback:", traceback.format_exc())
             error_msg = "Warning: Visualization features could not be initialized with the selected settings."
-            self.warning_pane.object = f"### Note\n{error_msg}"
+            self.viz_warning_pane.object = f"### Note\n{error_msg}"
             self.visualization_elements.visible = False
 
