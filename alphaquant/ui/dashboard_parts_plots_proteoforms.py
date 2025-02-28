@@ -60,7 +60,8 @@ class ProteoformPlottingTab(param.Parameterized):
         self.load_button = pn.widgets.Button(
             name="Load Selected Condition Pair",
             button_type="primary",
-            width=200
+            width=200,
+            disabled=True  # Start disabled
         )
         self.load_button.on_click(self._on_load_button_clicked)
 
@@ -109,8 +110,11 @@ class ProteoformPlottingTab(param.Parameterized):
         )
 
         # Create container for elements that should be hidden initially AFTER all widgets are created
+        self.warning_pane = pn.pane.Markdown("", sizing_mode='stretch_width')  # Add new warning pane
+
         self.hidden_elements = pn.Column(
             self.proteoform_table,
+            self.warning_pane,  # Add warning pane right after the table
             pn.Row(self.proteoform_view_select),
             self.protein_input,
             self.proteoform_plot_pane,
@@ -152,6 +156,7 @@ class ProteoformPlottingTab(param.Parameterized):
         """Look for '*_VS_*.proteoforms.tsv' in the results_dir and update the condition pairs."""
         if not self.results_dir or not os.path.isdir(self.results_dir):
             self.condpairname_select.options = ["No conditions"]
+            self.load_button.disabled = True  # Disable button
             return
 
         pattern = os.path.join(self.results_dir, f"*{aq_variables.CONDITION_PAIR_SEPARATOR}*.proteoforms.tsv")
@@ -168,8 +173,10 @@ class ProteoformPlottingTab(param.Parameterized):
         if cond_pairs:
             pairs_str = [f"{c1}{aq_variables.CONDITION_PAIR_SEPARATOR}{c2}" for c1, c2 in cond_pairs]
             self.condpairname_select.options = ["No conditions"] + pairs_str
+            self.load_button.disabled = False  # Enable button when pairs are available
         else:
             self.condpairname_select.options = ["No conditions"]
+            self.load_button.disabled = True  # Disable button
 
     def _on_load_button_clicked(self, event):
         """Handle load button click."""
@@ -230,8 +237,7 @@ class ProteoformPlottingTab(param.Parameterized):
                 import traceback
                 print("Traceback:", traceback.format_exc())
                 error_msg = "Warning: Some visualization features may be limited due to data loading issues. The table view is still available."
-                self.proteoform_plot_pane.clear()
-                self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Note\n{error_msg}"))
+                self.warning_pane.object = f"### Note\n{error_msg}"  # Update warning pane instead of plot pane
 
             # Show the hidden elements if at least the data was loaded
             self.hidden_elements.visible = True
