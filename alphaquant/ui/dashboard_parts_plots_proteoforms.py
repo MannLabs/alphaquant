@@ -49,13 +49,20 @@ class ProteoformPlottingTab(param.Parameterized):
         super().__init__(**params)
         self.state = state
 
-        # Create widgets
+        # Create all widgets first
         self.condpairname_select = pn.widgets.Select(
             name="Select Condition Pair",
             options=["No conditions"],
             width=300
         )
-        self.condpairname_select.param.watch(self._on_condpair_selected, 'value')
+
+        # Add load button
+        self.load_button = pn.widgets.Button(
+            name="Load Selected Condition Pair",
+            button_type="primary",
+            width=200
+        )
+        self.load_button.on_click(self._on_load_button_clicked)
 
         self.protein_input = pn.widgets.AutocompleteInput(
             name='Select Protein',
@@ -83,7 +90,7 @@ class ProteoformPlottingTab(param.Parameterized):
         )
         self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
-        # Add new widget for proteoform table
+        # Add proteoform table
         self.proteoform_table = pn.widgets.Tabulator(
             pagination='remote',
             page_size=10,
@@ -101,17 +108,23 @@ class ProteoformPlottingTab(param.Parameterized):
             sizing_mode='stretch_width'
         )
 
+        # Create container for elements that should be hidden initially AFTER all widgets are created
+        self.hidden_elements = pn.Column(
+            self.proteoform_table,
+            pn.Row(self.proteoform_view_select),
+            self.protein_input,
+            self.proteoform_plot_pane,
+            pn.Row(self.organism_select, self.protein_id_select),
+            visible=False  # Hide by default
+        )
+
         # Construct layout
         self.main_layout = pn.Column(
             "## Outlier Peptide Visualization",
             self.results_dir_input,
             self.samplemap_file,
-            self.condpairname_select,
-            self.proteoform_table,
-            pn.Row(self.proteoform_view_select),
-            self.protein_input,
-            self.proteoform_plot_pane,
-            pn.Row(self.organism_select, self.protein_id_select),  # Moved to bottom
+            pn.Row(self.condpairname_select, self.load_button),
+            self.hidden_elements,
             sizing_mode='stretch_width'
         )
 
@@ -158,18 +171,18 @@ class ProteoformPlottingTab(param.Parameterized):
         else:
             self.condpairname_select.options = ["No conditions"]
 
-    def _on_condpair_selected(self, event):
-        """Handle condition pair selection."""
-        if not event.new or event.new == "No conditions":
+    def _on_load_button_clicked(self, event):
+        """Handle load button click."""
+        if not self.condpairname_select.value or self.condpairname_select.value == "No conditions":
             return
 
-        condition1, condition2 = event.new.split(aq_variables.CONDITION_PAIR_SEPARATOR)
-        results_file = os.path.join(
-            self.results_dir,
-            f"{condition1}{aq_variables.CONDITION_PAIR_SEPARATOR}{condition2}.proteoforms.tsv"
-        )
-
         try:
+            condition1, condition2 = self.condpairname_select.value.split(aq_variables.CONDITION_PAIR_SEPARATOR)
+            results_file = os.path.join(
+                self.results_dir,
+                f"{condition1}{aq_variables.CONDITION_PAIR_SEPARATOR}{condition2}.proteoforms.tsv"
+            )
+
             # Load and filter proteoforms
             proteoforms_df = pd.read_csv(results_file, sep='\t')
             filtered_df = aq_proteoform_utils.filter_proteoform_df(proteoforms_df)
@@ -182,37 +195,46 @@ class ProteoformPlottingTab(param.Parameterized):
 
             # Update table
             self.proteoform_table.value = filtered_df
-            self.proteoform_table.visible = True
 
             # Update protein input options
             protein_ids = filtered_df['protein'].unique().tolist()
             self.protein_input.options = protein_ids
             self.protein_input.disabled = False
 
-            print("Selected condition pair:", event.new)
-            print(f"Parsed conditions: {condition1=}, {condition2=}")
+            visualizers_initialized = False
+            try:
+                # Initialize visualizers
+                self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
+                    condition1=condition1,
+                    condition2=condition2,
+                    results_directory=self.results_dir,
+                    samplemap_file=self.samplemap_file,
+                    protein_identifier=self.protein_id_select.value,
+                    organism=self.organism_select.value
+                )
 
-            print("Updating visualizers")
-            # Initialize both visualizers
-            self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
-                condition1=condition1,
-                condition2=condition2,
-                results_directory=self.results_dir,
-                samplemap_file=self.samplemap_file,
-                protein_identifier=self.protein_id_select.value,
-                organism=self.organism_select.value
-            )
+                self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                    condition1=condition1,
+                    condition2=condition2,
+                    results_directory=self.results_dir,
+                    samplemap_file=self.samplemap_file,
+                    organism=self.organism_select.value,
+                    protein_identifier=self.protein_id_select.value,
+                    order_along_protein_sequence=True,
+                    figsize=(6, 4)
+                )
+                visualizers_initialized = True
+            except Exception as viz_error:
+                print("Error initializing visualizers:", str(viz_error))
+                print("Exception type:", type(viz_error))
+                import traceback
+                print("Traceback:", traceback.format_exc())
+                error_msg = "Warning: Some visualization features may be limited due to data loading issues. The table view is still available."
+                self.proteoform_plot_pane.clear()
+                self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Note\n{error_msg}"))
 
-            self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                condition1=condition1,
-                condition2=condition2,
-                results_directory=self.results_dir,
-                samplemap_file=self.samplemap_file,
-                organism=self.organism_select.value,
-                protein_identifier=self.protein_id_select.value,
-                order_along_protein_sequence=True,
-                figsize=(6, 4)  # Smaller figure size for fold change plot
-            )
+            # Show the hidden elements if at least the data was loaded
+            self.hidden_elements.visible = True
 
         except Exception as e:
             print("Error occurred:", str(e))
@@ -224,7 +246,13 @@ class ProteoformPlottingTab(param.Parameterized):
             error_msg = f"Error loading proteoforms file: {str(e)}"
             self.proteoform_plot_pane.clear()
             self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
-            raise
+            # Keep hidden elements invisible if data loading failed
+            self.hidden_elements.visible = False
+
+    def _on_condpair_selected(self, event):
+        """Handle condition pair selection."""
+        # Reset visibility when condition pair changes
+        self.hidden_elements.visible = False
 
     def _on_protein_selected(self, event):
         """Handle protein selection."""
@@ -232,17 +260,24 @@ class ProteoformPlottingTab(param.Parameterized):
             # Clear existing plots
             self.proteoform_plot_pane.clear()
 
-            # Get sequence plot from AlphaMapVisualizer
-            _, alphamap_go_fig = self.amap_visualizer.visualize_protein(event.new)
+            try:
+                # Get sequence plot from AlphaMapVisualizer
+                _, alphamap_go_fig = self.amap_visualizer.visualize_protein(event.new)
 
-            # Get fold change plot from FoldChangeVisualizer
-            fc_fig = self.fc_visualizer.plot_protein(event.new)
+                # Get fold change plot from FoldChangeVisualizer
+                fc_fig = self.fc_visualizer.plot_protein(event.new)
 
-            # Add both plots to the pane
-            if fc_fig:
-                self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_fig, tight=True))
-            if alphamap_go_fig:
-                self.proteoform_plot_pane.append(pn.pane.Plotly(alphamap_go_fig))
+                # Add both plots to the pane
+                if fc_fig:
+                    self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_fig, tight=True))
+                if alphamap_go_fig:
+                    self.proteoform_plot_pane.append(pn.pane.Plotly(alphamap_go_fig))
+            except AttributeError:
+                # This happens if visualizers weren't initialized
+                self.proteoform_plot_pane.append(pn.pane.Markdown("### Visualization not available\nVisualization components could not be initialized. Table view is still available."))
+            except Exception as e:
+                # Handle other potential errors
+                self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error generating visualization\n{str(e)}"))
 
     def _update_condition_pairs_from_df(self, df):
         """Update condition pairs based on the samplemap DataFrame."""
