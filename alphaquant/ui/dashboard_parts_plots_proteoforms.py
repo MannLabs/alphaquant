@@ -83,14 +83,7 @@ class ProteoformPlottingTab(param.Parameterized):
         )
         self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
-        # Replace file upload with text input for samplemap
-        self.samplemap_input = pn.widgets.TextInput(
-            name='Sample Map File:',
-            value=self.samplemap_file,
-            placeholder='Enter path to sample map file',
-            width=600
-        )
-        self.samplemap_input.param.watch(self._on_samplemap_changed, 'value')
+
 
         # Add new widget for proteoform table
         self.proteoform_table = pn.widgets.Tabulator(
@@ -114,7 +107,7 @@ class ProteoformPlottingTab(param.Parameterized):
         self.main_layout = pn.Column(
             "## Outlier Peptide Visualization",
             self.results_dir_input,
-            self.samplemap_input,
+            self.samplemap_file,
             pn.Row(self.organism_select, self.protein_id_select),  # Add new widgets
             self.condpairname_select,
             self.proteoform_table,
@@ -141,6 +134,7 @@ class ProteoformPlottingTab(param.Parameterized):
         if event.new:
             self.results_dir = event.new
             self._extract_cond_pairs()
+            self.samplemap_file = os.path.join(self.results_dir, 'samplemap.tsv')
         print("=== Finished Handling Results Dir Change ===\n")
 
     def _extract_cond_pairs(self):
@@ -251,33 +245,6 @@ class ProteoformPlottingTab(param.Parameterized):
                 self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_fig, tight=True))
             if alphamap_go_fig:
                 self.proteoform_plot_pane.append(pn.pane.Plotly(alphamap_go_fig))
-
-    def _on_samplemap_changed(self, event):
-        """Handle changes to samplemap file path."""
-        if event.new:
-            self.samplemap_file = event.new
-            try:
-                # Verify the file exists and can be read
-                df = pd.read_csv(self.samplemap_file, sep='\t', dtype=str)
-                num_samples = len(df)
-                num_conditions = len(df['condition'].unique()) if 'condition' in df.columns else 0
-                print(f"Loaded sample map with {num_samples} samples and {num_conditions} conditions")
-            except Exception as e:
-                print(f"Error loading sample map: {str(e)}")
-
-    def on_samplemap_df_changed(self, new_df):
-        """Handle changes to samplemap DataFrame from other components."""
-        if not new_df.empty:
-            # Update status
-            num_samples = len(new_df)
-            num_conditions = len(new_df['condition'].unique()) if 'condition' in new_df.columns else 0
-            status_text = f"Sample Map: Loaded {num_samples} samples, {num_conditions} conditions"
-            self.samplemap_input.value = status_text
-
-            # Update condition pairs and other visualizations
-            self._update_condition_pairs_from_df(new_df)
-        else:
-            self.samplemap_input.value = "Sample Map: No sample map loaded"
 
     def _update_condition_pairs_from_df(self, df):
         """Update condition pairs based on the samplemap DataFrame."""
