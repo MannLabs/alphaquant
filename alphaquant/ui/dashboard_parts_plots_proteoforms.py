@@ -83,8 +83,6 @@ class ProteoformPlottingTab(param.Parameterized):
         )
         self.results_dir_input.param.watch(self.on_results_dir_changed, 'value')
 
-
-
         # Add new widget for proteoform table
         self.proteoform_table = pn.widgets.Tabulator(
             pagination='remote',
@@ -108,12 +106,12 @@ class ProteoformPlottingTab(param.Parameterized):
             "## Outlier Peptide Visualization",
             self.results_dir_input,
             self.samplemap_file,
-            pn.Row(self.organism_select, self.protein_id_select),  # Add new widgets
             self.condpairname_select,
             self.proteoform_table,
             pn.Row(self.proteoform_view_select),
             self.protein_input,
             self.proteoform_plot_pane,
+            pn.Row(self.organism_select, self.protein_id_select),  # Moved to bottom
             sizing_mode='stretch_width'
         )
 
