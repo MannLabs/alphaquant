@@ -6,6 +6,7 @@ import os
 
 import alphaquant.config.config as aqconfig
 import logging
+import alphaquant.utils.reader_utils as aq_reader_utils
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class AlphaDIAFragTableProcessor:
 		self.input_file_reformat = aq_utils.get_progress_folder_filename(fragment_matrix_file, ".alphadia_fragion.aq_reformat.tsv", remove_extension=False)
 
 		precursor_file = os.path.join(os.path.dirname(fragment_matrix_file), "precursors.tsv")
-		self._precursor_df = pd.read_csv(precursor_file, sep="\t")
+		self._precursor_df = aq_reader_utils.read_file(precursor_file, sep="\t")
 		self._precursor2quantID = self._precursor2quantid()
 
 		if not os.path.exists(self.ml_info_file):
@@ -41,7 +42,7 @@ class AlphaDIAFragTableProcessor:
 
 		if not os.path.exists(self.input_file_reformat):
 			LOGGER.info(f"Creating processed fragment matrix")
-			self._fragment_matrix_df = pd.read_csv(fragment_matrix_file, sep="\t")
+			self._fragment_matrix_df = aq_reader_utils.read_file(fragment_matrix_file)
 			self.processed_fragment_matrix = self._process_fragment_matrix()
 			self.processed_fragment_matrix.to_csv(self.input_file_reformat, sep="\t", index=False)
 		else:
