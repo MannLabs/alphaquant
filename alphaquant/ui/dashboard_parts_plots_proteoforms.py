@@ -139,6 +139,14 @@ class ProteoformPlottingTab(param.Parameterized):
         )
         self.load_alphamap_button.on_click(self._on_load_alphamap_clicked)
 
+        # Add loading indicator
+        self.loading_indicator = pn.indicators.LoadingSpinner(
+            value=False,
+            size=20,  # Small size
+            color='primary',
+            visible=False  # Hide initially
+        )
+
         # Create a separate container for visualization elements
         self.visualization_elements = pn.Column(
             self.protein_input,
@@ -152,7 +160,7 @@ class ProteoformPlottingTab(param.Parameterized):
             self.table_warning_pane,  # Warning pane for table issues
             pn.Row(self.proteoform_view_select),
             pn.Row(self.organism_select, self.protein_id_select),
-            self.load_alphamap_button,
+            pn.Row(self.load_alphamap_button, self.loading_indicator),  # Put spinner next to button
             self.viz_warning_pane,     # Warning pane for visualization issues
             self.visualization_elements,
             visible=False  # Hide by default
@@ -319,6 +327,9 @@ class ProteoformPlottingTab(param.Parameterized):
 
     def _on_load_alphamap_clicked(self, event):
         """Handle AlphaMap load button click."""
+        self.loading_indicator.visible = True  # Show spinner
+        self.loading_indicator.value = True
+
         try:
             # Initialize visualizers
             condition1, condition2 = self.condpairname_select.value.split(aq_variables.CONDITION_PAIR_SEPARATOR)
@@ -355,6 +366,10 @@ class ProteoformPlottingTab(param.Parameterized):
             error_msg = "Warning: Visualization features could not be initialized with the selected settings."
             self.viz_warning_pane.object = f"### Note\n{error_msg}"
             self.visualization_elements.visible = False
+
+        finally:
+            self.loading_indicator.value = False
+            self.loading_indicator.visible = False  # Hide spinner when done
 
     def _on_plot_protein_clicked(self, event):
         """Handle Plot Protein button click."""
