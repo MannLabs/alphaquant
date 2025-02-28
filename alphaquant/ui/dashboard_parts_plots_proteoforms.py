@@ -155,13 +155,28 @@ class ProteoformPlottingTab(param.Parameterized):
             visible=False  # Hide by default
         )
 
+        # Add section titles
+        self.proteoform_section_title = pn.pane.Markdown(
+            "## Proteoform Overview",
+            sizing_mode='stretch_width'
+        )
+
+        self.visualization_section_title = pn.pane.Markdown(
+            "## Detail Plots",
+            sizing_mode='stretch_width'
+        )
+
+        # Update the hidden_elements layout to include the new headers and dividers
         self.hidden_elements = pn.Column(
+            self.proteoform_section_title,
             self.proteoform_table,
-            self.table_warning_pane,  # Warning pane for table issues
+            self.table_warning_pane,
+            pn.layout.Divider(),  # Add divider between sections
+            self.visualization_section_title,
             pn.Row(self.proteoform_view_select),
             pn.Row(self.organism_select, self.protein_id_select),
-            pn.Row(self.load_alphamap_button, self.loading_indicator),  # Put spinner next to button
-            self.viz_warning_pane,     # Warning pane for visualization issues
+            pn.Row(self.load_alphamap_button, self.loading_indicator),
+            self.viz_warning_pane,
             self.visualization_elements,
             visible=False  # Hide by default
         )
@@ -172,6 +187,7 @@ class ProteoformPlottingTab(param.Parameterized):
             self.results_dir_input,
             self.samplemap_file,
             pn.Row(self.condpairname_select, self.load_button),
+            pn.layout.Divider(),  # Add divider after the controls
             self.hidden_elements,
             sizing_mode='stretch_width'
         )
