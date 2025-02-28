@@ -57,8 +57,8 @@ class PlottingTab(param.Parameterized):
 
         self.protein_input = pn.widgets.AutocompleteInput(
             name='Select Protein',
-            placeholder="Type to search protein...",
-            min_characters=2,
+            placeholder="Search protein, or click a point in the volcano plot above",
+            min_characters=0,
             disabled=True,
             width=400,
             margin=(5, 5, 5, 5)
