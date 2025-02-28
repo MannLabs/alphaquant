@@ -45,6 +45,14 @@ class ProteoformPlottingTab(param.Parameterized):
         width=200
     )
 
+    # Add load button
+    load_button = pn.widgets.Button(
+        name="Load Selected Condition Pair",
+        button_type="primary",
+        width=200,
+        disabled=True  # Start disabled
+    )
+
     def __init__(self, state, **params):
         super().__init__(**params)
         self.state = state
@@ -55,6 +63,15 @@ class ProteoformPlottingTab(param.Parameterized):
             options=["No conditions"],
             width=300
         )
+
+        # Add Plot Protein button
+        self.plot_protein_button = pn.widgets.Button(
+            name="Plot Protein",
+            button_type="primary",
+            width=200,
+            disabled=True  # Start disabled
+        )
+        self.plot_protein_button.on_click(self._on_plot_protein_clicked)
 
         # Add load button
         self.load_button = pn.widgets.Button(
@@ -105,7 +122,7 @@ class ProteoformPlottingTab(param.Parameterized):
 
         # Plot panes
         self.proteoform_plot_pane = pn.Column(
-            pn.pane.Markdown("### Visualization will appear here when you select a protein"),
+            pn.pane.Markdown("### Visualization will appear here when you Plot Protein"),
             sizing_mode='stretch_width'
         )
 
@@ -125,6 +142,7 @@ class ProteoformPlottingTab(param.Parameterized):
         # Create a separate container for visualization elements
         self.visualization_elements = pn.Column(
             self.protein_input,
+            pn.Row(self.plot_protein_button),  # Add the Plot Protein button
             self.proteoform_plot_pane,
             visible=False  # Hide by default
         )
@@ -254,27 +272,11 @@ class ProteoformPlottingTab(param.Parameterized):
     def _on_protein_selected(self, event):
         """Handle protein selection."""
         if event.new:
+            # Enable the Plot Protein button when a protein is selected
+            self.plot_protein_button.disabled = False
             # Clear existing plots
             self.proteoform_plot_pane.clear()
-
-            try:
-                # Get sequence plot from AlphaMapVisualizer
-                _, alphamap_go_fig = self.amap_visualizer.visualize_protein(event.new)
-
-                # Get fold change plot from FoldChangeVisualizer
-                fc_fig = self.fc_visualizer.plot_protein(event.new)
-
-                # Add both plots to the pane
-                if fc_fig:
-                    self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_fig, tight=True))
-                if alphamap_go_fig:
-                    self.proteoform_plot_pane.append(pn.pane.Plotly(alphamap_go_fig))
-            except AttributeError:
-                # This happens if visualizers weren't initialized
-                self.proteoform_plot_pane.append(pn.pane.Markdown("### Visualization not available\nVisualization components could not be initialized. Table view is still available."))
-            except Exception as e:
-                # Handle other potential errors
-                self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error generating visualization\n{str(e)}"))
+            self.proteoform_plot_pane.append(pn.pane.Markdown("### Click 'Plot Protein' to visualize the data"))
 
     def _update_condition_pairs_from_df(self, df):
         """Update condition pairs based on the samplemap DataFrame."""
@@ -353,4 +355,31 @@ class ProteoformPlottingTab(param.Parameterized):
             error_msg = "Warning: Visualization features could not be initialized with the selected settings."
             self.viz_warning_pane.object = f"### Note\n{error_msg}"
             self.visualization_elements.visible = False
+
+    def _on_plot_protein_clicked(self, event):
+        """Handle Plot Protein button click."""
+        if not self.protein_input.value:
+            return
+
+        # Clear existing plots
+        self.proteoform_plot_pane.clear()
+
+        try:
+            # Get sequence plot from AlphaMapVisualizer
+            _, alphamap_go_fig = self.amap_visualizer.visualize_protein(self.protein_input.value)
+
+            # Get fold change plot from FoldChangeVisualizer
+            fc_fig = self.fc_visualizer.plot_protein(self.protein_input.value)
+
+            # Add both plots to the pane
+            if fc_fig:
+                self.proteoform_plot_pane.append(pn.pane.Matplotlib(fc_fig, tight=True))
+            if alphamap_go_fig:
+                self.proteoform_plot_pane.append(pn.pane.Plotly(alphamap_go_fig))
+        except AttributeError:
+            # This happens if visualizers weren't initialized
+            self.proteoform_plot_pane.append(pn.pane.Markdown("### Visualization not available\nVisualization components could not be initialized. Table view is still available."))
+        except Exception as e:
+            # Handle other potential errors
+            self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error generating visualization\n{str(e)}"))
 
