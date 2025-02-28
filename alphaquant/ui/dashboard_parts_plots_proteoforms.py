@@ -112,13 +112,29 @@ class ProteoformPlottingTab(param.Parameterized):
         # Create container for elements that should be hidden initially AFTER all widgets are created
         self.warning_pane = pn.pane.Markdown("", sizing_mode='stretch_width')  # Add new warning pane
 
+        # Add second load button for AlphaMap
+        self.load_alphamap_button = pn.widgets.Button(
+            name="Load AlphaMap Visualization",
+            button_type="primary",
+            width=300,
+            disabled=True  # Start disabled
+        )
+        self.load_alphamap_button.on_click(self._on_load_alphamap_clicked)
+
+        # Create a separate container for visualization elements
+        self.visualization_elements = pn.Column(
+            self.protein_input,
+            self.proteoform_plot_pane,
+            visible=False  # Hide by default
+        )
+
         self.hidden_elements = pn.Column(
             self.proteoform_table,
             self.warning_pane,  # Add warning pane right after the table
             pn.Row(self.proteoform_view_select),
-            self.protein_input,
-            self.proteoform_plot_pane,
             pn.Row(self.organism_select, self.protein_id_select),
+            self.load_alphamap_button,
+            self.visualization_elements,
             visible=False  # Hide by default
         )
 
@@ -208,39 +224,10 @@ class ProteoformPlottingTab(param.Parameterized):
             self.protein_input.options = protein_ids
             self.protein_input.disabled = False
 
-            visualizers_initialized = False
-            try:
-                # Initialize visualizers
-                self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
-                    condition1=condition1,
-                    condition2=condition2,
-                    results_directory=self.results_dir,
-                    samplemap_file=self.samplemap_file,
-                    protein_identifier=self.protein_id_select.value,
-                    organism=self.organism_select.value
-                )
-
-                self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
-                    condition1=condition1,
-                    condition2=condition2,
-                    results_directory=self.results_dir,
-                    samplemap_file=self.samplemap_file,
-                    organism=self.organism_select.value,
-                    protein_identifier=self.protein_id_select.value,
-                    order_along_protein_sequence=True,
-                    figsize=(6, 4)
-                )
-                visualizers_initialized = True
-            except Exception as viz_error:
-                print("Error initializing visualizers:", str(viz_error))
-                print("Exception type:", type(viz_error))
-                import traceback
-                print("Traceback:", traceback.format_exc())
-                error_msg = "Warning: Some visualization features may be limited due to data loading issues. The table view is still available."
-                self.warning_pane.object = f"### Note\n{error_msg}"  # Update warning pane instead of plot pane
-
-            # Show the hidden elements if at least the data was loaded
+            # Show the hidden elements and enable AlphaMap button
             self.hidden_elements.visible = True
+            self.load_alphamap_button.disabled = False
+            self.visualization_elements.visible = False  # Keep visualization hidden until AlphaMap button is clicked
 
         except Exception as e:
             print("Error occurred:", str(e))
@@ -254,6 +241,8 @@ class ProteoformPlottingTab(param.Parameterized):
             self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
             # Keep hidden elements invisible if data loading failed
             self.hidden_elements.visible = False
+            self.load_alphamap_button.disabled = True
+            self.visualization_elements.visible = False
 
     def _on_condpair_selected(self, event):
         """Handle condition pair selection."""
@@ -323,4 +312,43 @@ class ProteoformPlottingTab(param.Parameterized):
                 print("Setting protein_input.value...")
                 # Just update the value and let the existing watcher handle it
                 self.protein_input.value = selected_protein
+
+    def _on_load_alphamap_clicked(self, event):
+        """Handle AlphaMap load button click."""
+        try:
+            # Initialize visualizers
+            condition1, condition2 = self.condpairname_select.value.split(aq_variables.CONDITION_PAIR_SEPARATOR)
+
+            self.amap_visualizer = aq_plot_proteoform.AlphaMapVisualizer(
+                condition1=condition1,
+                condition2=condition2,
+                results_directory=self.results_dir,
+                samplemap_file=self.samplemap_file,
+                protein_identifier=self.protein_id_select.value,
+                organism=self.organism_select.value
+            )
+
+            self.fc_visualizer = aq_plot_fcviz.FoldChangeVisualizer(
+                condition1=condition1,
+                condition2=condition2,
+                results_directory=self.results_dir,
+                samplemap_file=self.samplemap_file,
+                organism=self.organism_select.value,
+                protein_identifier=self.protein_id_select.value,
+                order_along_protein_sequence=True,
+                figsize=(6, 4)
+            )
+
+            # Show visualization elements
+            self.visualization_elements.visible = True
+            self.warning_pane.object = ""  # Clear any previous warnings
+
+        except Exception as viz_error:
+            print("Error initializing visualizers:", str(viz_error))
+            print("Exception type:", type(viz_error))
+            import traceback
+            print("Traceback:", traceback.format_exc())
+            error_msg = "Warning: Visualization features could not be initialized with the selected settings."
+            self.warning_pane.object = f"### Note\n{error_msg}"
+            self.visualization_elements.visible = False
 
