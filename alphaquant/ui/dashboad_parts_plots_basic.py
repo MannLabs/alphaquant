@@ -99,13 +99,13 @@ class PlottingTab(param.Parameterized):
         self.protein_controls = pn.Column(
             self.protein_input,
             pn.Row(self.tree_level_select, tree_level_desc),
-            visible=False  # Hide initially
+            visible=False
         )
 
         # Create a title for the protein detail section
         self.protein_section_title = pn.pane.Markdown(
             "## Protein Detail Plot\nSelect a protein by clicking on a point in the volcano plot above",
-            visible=False  # Hide initially, just like protein_controls
+            visible=False
         )
 
         # Construct layout
@@ -115,9 +115,9 @@ class PlottingTab(param.Parameterized):
             self.condpairname_select,
             self.show_plots_button,
             self.volcano_pane,
-            pn.layout.Divider(),  # Add a divider here for visual separation
-            self.protein_section_title,  # Add the section title
-            self.protein_controls,  # Use the container instead of individual widgets
+            pn.layout.Divider(),
+            self.protein_section_title,
+            self.protein_controls,
             self.protein_plot_pane,
             sizing_mode='stretch_width'
         )
@@ -133,7 +133,7 @@ class PlottingTab(param.Parameterized):
         """Direct handler for input widget changes"""
         if event.new:
             self.results_dir = event.new
-            self.param.trigger('results_dir')  # Trigger the parameter change
+            self.param.trigger('results_dir')
             self._extract_condpairs()
             self.samplemap_file = os.path.join(event.new, "samplemap.tsv")
 
@@ -147,7 +147,7 @@ class PlottingTab(param.Parameterized):
         """
         if isinstance(new_value, param.Event):
             value = new_value.new
-        elif hasattr(new_value, 'new'):  # Handle Panel event objects
+        elif hasattr(new_value, 'new'):
             value = new_value.new
         else:
             value = new_value
@@ -251,7 +251,7 @@ class PlottingTab(param.Parameterized):
                 # Enable clicking in the plot configuration
                 volcano_figure.update_layout(
                     clickmode='event+select',
-                    width=800,  # Set fixed width for volcano plot
+                    width=800,
                     height=600,
                     title=f"Volcano Plot: {self.cond1} vs {self.cond2}",
                     xaxis_title={"text": f"Log2(FC)<br>{self.cond1} - {self.cond2}"},
@@ -259,7 +259,7 @@ class PlottingTab(param.Parameterized):
                 volcano_pane = pn.pane.Plotly(
                     volcano_figure,
                     config={'responsive': True, 'displayModeBar': True},
-                    sizing_mode='fixed'  # Changed to fixed size
+                    sizing_mode='fixed'
                 )
                 # Connect click event
                 volcano_pane.param.watch(self._on_volcano_click, 'click_data')
@@ -286,11 +286,9 @@ class PlottingTab(param.Parameterized):
         self.protein_plot_pane.clear()
 
         if self.fc_visualizer:
-            # Update tree level
             self.fc_visualizer.plotconfig.tree_level = self.tree_level_select.value
-            self.fc_visualizer.plotconfig.figsize = (10, 6)  # Set smaller figure size
+            self.fc_visualizer.plotconfig.figsize = (10, 6)
 
-            # Generate plot
             fig = self.fc_visualizer.plot_protein(protein_name)
 
             # Convert matplotlib figure to panel
@@ -300,7 +298,6 @@ class PlottingTab(param.Parameterized):
         """Clear all plots."""
         self.volcano_pane.clear()
         self.protein_plot_pane.clear()
-        # Hide protein selection controls and section title
         self.protein_controls.visible = False
         self.protein_section_title.visible = False
 
@@ -323,13 +320,11 @@ class PlottingTab(param.Parameterized):
         !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager"""
         self._update_fc_visualizer()
         if self.protein_input.value:
-            # Update the plot
             self._update_protein_plot(self.protein_input.value)
 
     def _on_show_plots_clicked(self, event):
         """Handle show plots button click."""
         if self.cond1 and self.cond2:
             self._build_volcano_plot()
-            # Show protein selection controls and section title after plots are built
             self.protein_controls.visible = True
             self.protein_section_title.visible = True
