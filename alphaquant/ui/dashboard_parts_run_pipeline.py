@@ -142,7 +142,6 @@ class RunPipeline(BaseWidget):
 	def __init__(self, state, **params):
 		super().__init__(**params)
 		self.state = state
-		# Initialize attributes that would be checked with hasattr
 		self._progress_monitor = None
 		self._path_output_folder = None
 		self._condition_progress = {}
@@ -188,21 +187,25 @@ class RunPipeline(BaseWidget):
 		"""
 		Create all Panel/Param widgets used in the layout.
 		"""
-		# Add a new loading indicator
 		self.loading_samples_indicator = pn.indicators.LoadingSpinner(
 			value=False,
 			color='primary',
 			visible=False
 		)
 		self.loading_samples_message = pn.pane.Markdown(
-			"Loading sample names...",
+			"Loading sample names... In case you have a large file, this can take some minutes.",
 			visible=False
 		)
 
-		# File paths with descriptions
+		self.template_success_message = pn.pane.Alert(
+			"Template has been generated. Please fill out the condition column in the table below. The template has also been saved to your output folder if you prefer to edit it with Excel or other applications.",
+			alert_type="success",
+			visible=False
+		)
+
 		self.path_analysis_file = pn.widgets.TextInput(
 			name='Analysis file:',
-			placeholder='Path to MQ/Spectronaut/DIA-NN file',
+			placeholder='Path to AlphaDIA/DIA-NN/Spectronaut/Fragpipe etc. file',
 			width=700,
 			sizing_mode='fixed',
 			description=gui_textfields.Descriptions.tooltips['file_input']
@@ -215,34 +218,43 @@ class RunPipeline(BaseWidget):
 			description='Specify where you want the analysis results to be saved'
 		)
 
-		# Create a Row with the Select widget and its description
 		self.sample_mapping_select = pn.widgets.Select(
 			name='Sample Mapping Mode',
-			options=['Upload sample to condition file', 'Generate new sample to condition map'],
-			value='Upload sample to condition file',
+			options=['Generate new sample to condition map', 'Upload sample to condition file'],
+			value='Generate new sample to condition map',
 			width=300,
 			description=gui_textfields.Descriptions.tooltips['sample_mapping']
 		)
 
-		self.sample_mapping_mode_container = pn.Row(
+		self.generate_samplemap_button = pn.widgets.Button(
+			name='Generate Samplemap Template',
+			button_type='primary',
+			width=100,
+			disabled=True,  # Initially disabled until file is loaded
+			description='Please load an input file first'
+		)
+
+		self.sample_mapping_mode_container = pn.Column(
 			self.sample_mapping_select,
-			align='start'
+			self.generate_samplemap_button,
+			align='start'  # Align to the left
 		)
 
 		self.samplemap_fileupload = pn.widgets.FileInput(
 			accept='.tsv,.csv,.txt',
 			margin=(5, 5, 10, 20),
-			visible=True  # Add this line explicitly
+			visible=False
 		)
-		# In _make_widgets(), when initializing samplemap_table, add visible=False:
+
 		self.samplemap_table = pn.widgets.Tabulator(
 			layout='fit_data_fill',
 			height=250,
 			show_index=False,
 			width=500,
 			margin=(5, 5, 5, 5),
-			visible=False  # Add this line
+			visible=False
 		)
+
 		self.assign_cond_pairs = pn.widgets.CrossSelector(
 			width=600,
 			height=250,
@@ -250,7 +262,6 @@ class RunPipeline(BaseWidget):
 			name='Select condition pairs'
 		)
 
-		# Advanced configuration widgets with descriptions
 		self.modification_type = pn.widgets.TextInput(
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
@@ -281,7 +292,6 @@ class RunPipeline(BaseWidget):
 			description=gui_textfields.Descriptions.tooltips['filtering_options']
 		)
 
-		# Update threshold settings widgets with descriptions
 		self.minrep_either = pn.widgets.IntInput(
 			name='Min replicates (either condition):',
 			value=2,
@@ -364,11 +374,10 @@ class RunPipeline(BaseWidget):
 		)
 
 		self.condition_comparison_instructions = pn.pane.Markdown(
-			"Select the condition pairs you want to analyze:",
+			"**Select** the condition pairs you want to analyze **on the left** and **move them to the right:**",
 			visible=True
 		)
 
-		# Replace the analysis_type Select widget
 		self.analysis_type = pn.widgets.Select(
 			name='Select Condition Analysis Type',
 			options=['Pairwise Comparison', 'Median Condition Analysis'],
@@ -376,13 +385,12 @@ class RunPipeline(BaseWidget):
 			description='Choose between comparing pairs of conditions or comparing each condition against a median reference'
 		)
 
-		# A pane for showing the "comparing every condition..." message
-		# which is hidden by default
+
 		self.medianref_message = pn.pane.Markdown(
 			"Every condition will be compared against the median reference",
-			visible=False,  # start hidden
+			visible=False,
 		)
-		# Boolean switches with descriptions
+
 		self.switches = {
 			'use_ml': pn.widgets.Switch(
 				name='Enable machine learning',
@@ -426,7 +434,6 @@ class RunPipeline(BaseWidget):
 			),
 		}
 
-		# If you want to keep the descriptions, you can add them separately as Markdown panes
 		self.switch_descriptions = {
 			'use_ml': pn.pane.Markdown('Use machine learning for improved data analysis'),
 			'take_median_ion': pn.pane.Markdown('Center ion intensities around their median values'),
@@ -440,7 +447,6 @@ class RunPipeline(BaseWidget):
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
 		}
 
-		# Pipeline execution widgets with descriptions
 		self.run_pipeline_button = pn.widgets.Button(
 			name='Run pipeline',
 			button_type='primary',
@@ -469,7 +475,6 @@ class RunPipeline(BaseWidget):
 			disabled=True
 		)
 
-		# Replace the visualize_data_button with a progress panel
 		self.condition_progress_panel = pn.Column(
 			pn.pane.Markdown("### Analysis Progress", margin=(0,0,10,0)),
 			pn.pane.Markdown(
@@ -493,6 +498,10 @@ class RunPipeline(BaseWidget):
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
 		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
+		self.generate_samplemap_button.on_click(self._generate_samplemap)
+		# Add watcher for condition pairs selection
+		self.assign_cond_pairs.param.watch(self._update_run_button_state, 'value')
+		self.analysis_type.param.watch(self._update_run_button_state, 'value')
 
 
 	def create(self):
@@ -500,7 +509,6 @@ class RunPipeline(BaseWidget):
 		Build and return the main layout for the pipeline widget.
 		"""
 
-		# Add help cards next to their respective controls
 		ptm_section = pn.Row(
 			pn.Column(self.modification_type, self.organism)
 		)
@@ -509,16 +517,12 @@ class RunPipeline(BaseWidget):
 			pn.Column(self.filtering_options, self.minrep_either)
 		)
 
-		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
 				"### Threshold Settings",
-				self.minrep_both,
 				self.min_num_ions,
 				self.minpep,
 				self.cluster_threshold_pval,
-				self.volcano_fdr,
-				self.volcano_fcthresh,
 				pn.layout.Divider(),
 				"### Analysis Options",
 				pn.Column(*[
@@ -543,6 +547,7 @@ class RunPipeline(BaseWidget):
 				self.loading_samples_indicator,
 				self.loading_samples_message
 			),
+			self.template_success_message,
 			self.samplemap_fileupload,
 			self.samplemap_table
 		)
@@ -564,7 +569,6 @@ class RunPipeline(BaseWidget):
 			width=400
 		)
 
-		# Main column without scroll
 		main_col = pn.Column(
 			"### Input Files",
 			self.path_analysis_file,
@@ -627,8 +631,9 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_error.visible = True
 			return
 		if not self.assign_cond_pairs.value:
-			self.run_pipeline_error.object = "Please specify which condition pairs to compare."
+			self.run_pipeline_error.object = "Please select the condition pairs you want to analyze in the cross-selector above."
 			self.run_pipeline_error.visible = True
+			return
 
 		print("\n=== Starting Pipeline Run ===")
 		self.run_pipeline_progress.active = True
@@ -780,14 +785,20 @@ class RunPipeline(BaseWidget):
 		"""Toggle visibility of sample mapping components based on selected mode."""
 		if event.new == 'Upload sample to condition file':
 			self.samplemap_fileupload.visible = True
-			# Only show table if there's data in it
-			#self.samplemap_table.visible = hasattr(self, 'data') and not self.data.empty
-		else:
+			self.samplemap_table.visible = False
+			# Hide the generate button when in upload mode
+			self.generate_samplemap_button.visible = False
+			# Hide the template success message when switching to upload mode
+			self.template_success_message.visible = False
+		else:  # 'Generate new sample to condition map'
 			self.samplemap_fileupload.visible = False
-			self.samplemap_table.visible = True
-			self._import_sample_names()
-			self._init_samplemap_df_template()
-
+			self.samplemap_table.visible = False  # Only show after button click
+			# Show the generate button when in generate mode
+			self.generate_samplemap_button.visible = True
+			# Update button state based on whether we have an analysis file
+			self._update_generate_button_state()
+			# Also hide the template success message when switching back
+			self.template_success_message.visible = False
 
 	def _activate_after_analysis_file_upload(self, event):
 		"""Handle analysis file upload."""
@@ -795,6 +806,25 @@ class RunPipeline(BaseWidget):
 			self._set_default_output_folder()
 			self.path_output_folder.disabled = False
 			self.run_pipeline_button.disabled = False
+		else:
+			self.run_pipeline_button.disabled = True
+
+		# Update generate button state based on file presence
+		self._update_generate_button_state()
+
+	def _update_generate_button_state(self):
+		"""Update generate button state based on current conditions."""
+		has_file = bool(self.path_analysis_file.value)
+		is_generate_mode = self.sample_mapping_select.value == 'Generate new sample to condition map'
+
+		# Only enable the button if we have a file and are in generate mode
+		self.generate_samplemap_button.disabled = not (has_file and is_generate_mode)
+
+		# Update description based on state
+		if not has_file:
+			self.generate_samplemap_button.description = 'Please load an input file first'
+		else:
+			self.generate_samplemap_button.description = 'Generate sample mapping'
 
 	def _set_default_output_folder(self):
 		"""Set default output folder based on analysis file path."""
@@ -803,10 +833,10 @@ class RunPipeline(BaseWidget):
 			base_path = os.path.dirname(self.path_analysis_file.value)
 			output_path = os.path.join(base_path, 'results')
 			print(f"Setting output path to: {output_path}")
-			# Update local widget
+
 			print("Updating path_output_folder widget...")
 			self.path_output_folder.value = output_path
-			# Update state
+
 			print("Updating state...")
 			self.state.results_dir = output_path
 			print("Notifying subscribers...")
@@ -1066,6 +1096,37 @@ class RunPipeline(BaseWidget):
 				self.run_pipeline_error.object = f"Error reading sample map: {str(e)}"
 				self.run_pipeline_error.visible = True
 
+	def _generate_samplemap(self, event):
+		"""Handle the generate button click event."""
+		# Show loading indicators
+		self.loading_samples_indicator.visible = True
+		self.loading_samples_message.visible = True
+		self.template_success_message.visible = False  # Hide any previous success message
+
+		try:
+			self._import_sample_names()
+			self._init_samplemap_df_template()
+			self.samplemap_table.visible = True
+
+			if self.path_output_folder.value:  # Only save if output folder is set
+				os.makedirs(self.path_output_folder.value, exist_ok=True)
+				template_path = os.path.join(self.path_output_folder.value, 'samplemap_template.tsv')
+				self.samplemap_table.value.to_csv(
+					template_path,
+					sep="\t",
+					index=None
+				)
+				print("wrote samplemap template to disk")
+
+				# Show success message with the actual path
+				self.template_success_message.object = f"""Template has been generated. Please fill out the condition column in the table below.\nThe template has also been saved to
+				<code>{template_path}</code>\nif you prefer to edit it with Excel or other applications."""
+				self.template_success_message.visible = True
+		finally:
+			# Hide loading indicators when done
+			self.loading_samples_indicator.visible = False
+			self.loading_samples_message.visible = False
+
 	def natural_sort(self, l):
 		"""
 		Sort a list in a way that numbers are sorted numerically rather than alphabetically.
@@ -1126,6 +1187,27 @@ class RunPipeline(BaseWidget):
 		if self._stream_handler is not None:
 			self._logger.removeHandler(self._stream_handler)
 			self._stream_handler.close()
+
+	def _update_run_button_state(self, event=None):
+		"""
+		Update the run button state based on condition pairs selection and analysis type.
+		"""
+		# For Median Condition Analysis, we don't need condition pairs
+		if self.analysis_type.value == 'Median Condition Analysis':
+			self.run_pipeline_button.disabled = False
+			self.run_pipeline_button.description = 'Run pipeline'
+		# For Pairwise Comparison, we need at least one condition pair
+		elif self.analysis_type.value == 'Pairwise Comparison':
+			has_pairs = bool(self.assign_cond_pairs.value)
+			self.run_pipeline_button.disabled = not has_pairs
+			if not has_pairs:
+				self.run_pipeline_button.description = 'Please select condition pairs'
+			else:
+				self.run_pipeline_button.description = 'Run pipeline'
+		# If no analysis type is selected
+		else:
+			self.run_pipeline_button.disabled = True
+			self.run_pipeline_button.description = 'Please select an analysis type'
 
 class Tabs(param.Parameterized):
 	"""
@@ -1196,7 +1278,7 @@ class Tabs(param.Parameterized):
 def build_dashboard():
 	"""Build the overall dashboard layout."""
 	# Create state manager first
-	state_manager = gui.DashboardState()  # Changed from StateManager to DashboardState
+	state_manager = gui.DashboardState()
 
 	header = HeaderWidget(
 		title="AlphaQuant Dashboard",
@@ -1215,7 +1297,7 @@ def build_dashboard():
 	pipeline = RunPipeline(state=state_manager)
 	pipeline_layout = pipeline.create()
 
-	# Create plotting tabs with state manager and register as subscribers
+	# Create plotting tabs with state manager
 	plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=state_manager)
 	proteoform_tab = dashboad_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
 
@@ -1223,7 +1305,7 @@ def build_dashboard():
 	state_manager.register_subscriber(plotting_tab)
 	state_manager.register_subscriber(proteoform_tab)
 
-	# Create tabs with Pipeline as the first tab
+	# Create tabs
 	all_tabs = pn.Tabs(
 		('Pipeline', pipeline_layout),
 		('Single Comparison', plotting_tab.panel()),
@@ -1251,8 +1333,3 @@ def build_dashboard():
 		main_layout="width"
 	)
 	return template
-
-# If run as a script, you can do:
-# if __name__ == "__main__":
-#     dash = build_dashboard()
-#     dash.servable()
