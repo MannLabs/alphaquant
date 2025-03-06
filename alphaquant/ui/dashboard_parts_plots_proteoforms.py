@@ -413,5 +413,5 @@ class ProteoformPlottingTab(param.Parameterized):
             self.proteoform_plot_pane.append(pn.pane.Markdown("### Visualization not available\nVisualization components could not be initialized. Table view is still available."))
         except Exception as e:
             # Handle other potential errors
-            self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error generating visualization\n{str(e)}"))
+            self.proteoform_plot_pane.append(pn.pane.Markdown(f"### Error generating visualization, please check that the correct organism and protein identifier are selected\n{str(e)}"))
 
