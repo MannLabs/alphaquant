@@ -82,8 +82,8 @@ For detailed instructions, use the help icons (?) next to each control.
 #### **Basic Plots**
 
 1. Select results directory
-2. Upload sample mapping file
-3. Choose visualization options
+2. Choose condition pair and click the "Show Plots for Selected Condition Pair" button
+Subsequently, a volcano plot will be shown. You can click on the points in the volcano plot to see the detailed quantification for the respective protein.
 
 """,
         width=ButtonConfiguration.width,
@@ -94,10 +94,13 @@ For detailed instructions, use the help icons (?) next to each control.
 #### **Proteoform Plots**
 
 1. Select results directory
-2. Upload sample mapping file
-3. Choose organism
-4. Select condition pair
-5. Pick protein to visualize
+2. Select condition pair
+3. Click "Load Selected Condition Pair" button. This will load the proteoforms.tsv table for the selected condition pair. In this table, you can see which peptides cluster together for a given gene/protein. For more information about the proteoforms tsv, please refer https://github.com/MannLabs/alphaquant#output-tables
+4. If you want to inspect more details, select the correct organism and protein identifier and click the "Initialize AlphaMap" button.
+5. Select the gene/protein of interest and click the "Plot Protein" button. You can also select the gene/protein by clicking on the respective row in the proteoforms table.
+Now, you can see the peptides of the different clusters color coded and aligned to the protein sequence. You also see the fold change plot for every peptide, separated by cluster with the same color code. Note that peptides mapping e.g. to different splice isoforms might not be displayed in the AlphaMap sequence plot, but they will be visible in the fold change plot.
+
+In case you want to use futher functionalities of AlphaMap, such as visualizing different PTM types, check out https://github.com/MannLabs/alphamap
 
 """,
         width=ButtonConfiguration.width,
