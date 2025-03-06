@@ -1,11 +1,8 @@
 import param
 import panel as pn
 import pandas as pd
-import matplotlib.pyplot as plt
 import os
-from io import StringIO
 import itertools
-import tempfile
 import glob
 import re
 
