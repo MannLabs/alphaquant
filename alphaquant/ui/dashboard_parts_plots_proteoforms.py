@@ -22,7 +22,6 @@ class ProteoformPlottingTab(param.Parameterized):
     # Dynamic widgets
     condpairname_select = param.ClassSelector(class_=pn.widgets.Select)
     protein_input = param.ClassSelector(class_=pn.widgets.AutocompleteInput)
-    proteoform_view_select = param.ClassSelector(class_=pn.widgets.Select)
 
     # Add new parameter for the selected proteoform
     selected_proteoform = param.String(default='')
@@ -89,12 +88,6 @@ class ProteoformPlottingTab(param.Parameterized):
         )
         self.protein_input.param.watch(self._on_protein_selected, 'value')
 
-        self.proteoform_view_select = pn.widgets.Select(
-            name="Visualization Type",
-            options=['Sequence Plot'],
-            value='Sequence Plot',
-            width=200
-        )
 
         # Input fields for paths
         self.results_dir_input = pn.widgets.TextInput(
@@ -170,7 +163,6 @@ class ProteoformPlottingTab(param.Parameterized):
             self.table_warning_pane,
             pn.layout.Divider(),
             self.visualization_section_title,
-            pn.Row(self.proteoform_view_select),
             pn.Row(self.organism_select, self.protein_id_select),
             pn.Row(self.load_alphamap_button, self.loading_indicator),
             self.viz_warning_pane,
