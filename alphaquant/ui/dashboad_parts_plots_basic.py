@@ -245,6 +245,9 @@ class PlottingTab(param.Parameterized):
     def _build_volcano_plot(self):
         """Build and display the volcano plot."""
         self.volcano_pane.clear()
+        # Add a heading first
+        self.volcano_pane.append(pn.pane.Markdown("## Volcano Plot"))
+
         if not self.result_df.empty:
             try:
                 volcano_figure = aq_plot_base.plot_volcano_plotly(self.result_df)
