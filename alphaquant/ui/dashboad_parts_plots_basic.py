@@ -71,7 +71,16 @@ class PlottingTab(param.Parameterized):
             value='seq',
             width=200
         )
-        self.tree_level_select.param.watch(self._on_tree_level_changed, 'value')
+
+        # Create description for tree levels
+        tree_level_desc = pn.pane.HTML(
+            """
+            <div style="font-size: 0.9em; color: #666; margin-left: 10px;">
+                <b>seq</b>: show the fold changes at the peptide sequence level<br>
+                <b>base</b>: show the fold changes at the base level (e.g. fragment ions)
+            </div>
+            """
+        )
 
         # Input fields for paths
         self.results_dir_input = pn.widgets.TextInput(
@@ -89,7 +98,7 @@ class PlottingTab(param.Parameterized):
         # Create a container for protein selection controls that will be hidden initially
         self.protein_controls = pn.Column(
             self.protein_input,
-            pn.Row(self.tree_level_select),
+            pn.Row(self.tree_level_select, tree_level_desc),
             visible=False  # Hide initially
         )
 
