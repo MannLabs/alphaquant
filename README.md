@@ -55,7 +55,7 @@ There are currently two different types of installation possible:
 * [**Developer installation:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
 ### One-click GUI installation
-Currently available for **MacOS**, **Windows** and **Linux**.
+Currently available for **MacOS**, **Windows**.
 You can download the latest release of alphaquant [here](https://github.com/Mannlabs/alphaquant/releases/latest).
 
 * **Windows:** Download the latest `alphaquant-X.Y.Z-windows-amd64.exe` build and double click it to install. If you receive a warning during installation click *Run anyway*.
@@ -199,11 +199,11 @@ The data needs to be exported in the normal long format as .tsv file. Please dou
 
 
 
-<a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_precursor.rs" download>Download Spectronaut export scheme for precursor quantification</a>
+<a href="https://github.com/MannLabs/AlphaQuant/raw/main/alphaquant/config/spectronaut_tableconfig_precursor.rs" download="spectronaut_tableconfig_precursor.rs">Download Spectronaut export scheme for precursor quantification</a>
 
-<a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_fragion.rs" download>Download Spectronaut export scheme for fragment ion quantification</a>
+<a href="https://github.com/MannLabs/AlphaQuant/raw/main/alphaquant/config/spectronaut_tableconfig_fragion.rs" download="spectronaut_tableconfig_fragion.rs">Download Spectronaut export scheme for fragment ion quantification</a>
 
-<a href="https://github.com/MannLabs/AlphaQuant/raw/master/alphaquant/config/spectronaut_tableconfig_ptm_fragion.rs" download>Download Spectronaut export scheme for fragment ion quantification WITH PTM </a>
+<a href="https://github.com/MannLabs/AlphaQuant/raw/main/alphaquant/config/spectronaut_tableconfig_ptm_fragion.rs" download="spectronaut_tableconfig_ptm_fragion.rs">Download Spectronaut export scheme for fragment ion quantification WITH PTM</a>
 
 The **samplemap.tsv** file must map to the **R.Label** column.
 
