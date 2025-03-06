@@ -24,6 +24,8 @@ config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.a
 # If using Plotly in Panel
 pn.extension('plotly')
 
+MEDIAN_CONDITION_ANALYSIS = "Median Condition Analysis"
+PAIRWISE_COMPARISON = "Pairwise Comparison"
 
 class BaseWidget(param.Parameterized):
 	"""
@@ -390,7 +392,7 @@ class RunPipeline(BaseWidget):
 		# Replace the analysis_type Select widget
 		self.analysis_type = pn.widgets.Select(
 			name='Select Condition Analysis Type',
-			options=['Pairwise Comparison', 'Median Condition Analysis'],
+			options=[PAIRWISE_COMPARISON, MEDIAN_CONDITION_ANALYSIS],
 			value='Select an analysis',
 			description='Choose between comparing pairs of conditions or comparing each condition against a median reference'
 		)
@@ -721,7 +723,7 @@ class RunPipeline(BaseWidget):
 
 		try:
 			# Get condition combinations based on analysis type
-			is_median_analysis = self.analysis_type.value == 'Median Condition Analysis'
+			is_median_analysis = self.analysis_type.value == MEDIAN_CONDITION_ANALYSIS
 
 			# Ensure the samplemap is saved to a file in the results directory
 			samplemap_path = None
@@ -820,7 +822,7 @@ class RunPipeline(BaseWidget):
 			self.run_pipeline_progress.active = False
 
 		# Show/hide components based on selected analysis type
-		if self.analysis_type.value == 'Median Condition Analysis':
+		if self.analysis_type.value == MEDIAN_CONDITION_ANALYSIS:
 			# Show components related to median condition analysis
 			self.medianref_message.visible = True
 			self.assign_cond_pairs.visible = False
@@ -1211,7 +1213,7 @@ class RunPipeline(BaseWidget):
 			self.condition_comparison_header.visible = True
 			self.condition_comparison_instructions.visible = True
 			self.medianref_message.visible = False
-		elif analysis_type == 'Median Condition Analysis':
+		elif analysis_type == MEDIAN_CONDITION_ANALYSIS:
 			self.assign_cond_pairs.visible = False
 			self.condition_comparison_header.visible = False
 			self.condition_comparison_instructions.visible = False
@@ -1268,7 +1270,7 @@ class RunPipeline(BaseWidget):
 		Update the run button state based on condition pairs selection and analysis type.
 		"""
 		# For Median Condition Analysis, we don't need condition pairs
-		if self.analysis_type.value == 'Median Condition Analysis':
+		if self.analysis_type.value == MEDIAN_CONDITION_ANALYSIS:
 			self.run_pipeline_button.disabled = False
 			self.run_pipeline_button.description = 'Run pipeline'
 		# For Pairwise Comparison, we need at least one condition pair
