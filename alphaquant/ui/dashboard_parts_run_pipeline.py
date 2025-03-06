@@ -142,7 +142,6 @@ class RunPipeline(BaseWidget):
 	def __init__(self, state, **params):
 		super().__init__(**params)
 		self.state = state
-		# Initialize attributes that would be checked with hasattr
 		self._progress_monitor = None
 		self._path_output_folder = None
 		self._condition_progress = {}
@@ -188,7 +187,6 @@ class RunPipeline(BaseWidget):
 		"""
 		Create all Panel/Param widgets used in the layout.
 		"""
-		# Add a new loading indicator
 		self.loading_samples_indicator = pn.indicators.LoadingSpinner(
 			value=False,
 			color='primary',
@@ -199,14 +197,12 @@ class RunPipeline(BaseWidget):
 			visible=False
 		)
 
-		# Add a success message for after template generation (initially hidden)
 		self.template_success_message = pn.pane.Alert(
 			"Template has been generated. Please fill out the condition column in the table below. The template has also been saved to your output folder if you prefer to edit it with Excel or other applications.",
 			alert_type="success",
 			visible=False
 		)
 
-		# File paths with descriptions
 		self.path_analysis_file = pn.widgets.TextInput(
 			name='Analysis file:',
 			placeholder='Path to AlphaDIA/DIA-NN/Spectronaut/Fragpipe etc. file',
@@ -222,7 +218,6 @@ class RunPipeline(BaseWidget):
 			description='Specify where you want the analysis results to be saved'
 		)
 
-		# Create a Row with the Select widget and its description
 		self.sample_mapping_select = pn.widgets.Select(
 			name='Sample Mapping Mode',
 			options=['Generate new sample to condition map', 'Upload sample to condition file'],
@@ -231,7 +226,6 @@ class RunPipeline(BaseWidget):
 			description=gui_textfields.Descriptions.tooltips['sample_mapping']
 		)
 
-		# Add the generate button
 		self.generate_samplemap_button = pn.widgets.Button(
 			name='Generate Samplemap Template',
 			button_type='primary',
@@ -240,7 +234,6 @@ class RunPipeline(BaseWidget):
 			description='Please load an input file first'
 		)
 
-		# Replace the Row with a Column to stack the widgets vertically
 		self.sample_mapping_mode_container = pn.Column(
 			self.sample_mapping_select,
 			self.generate_samplemap_button,
@@ -269,7 +262,6 @@ class RunPipeline(BaseWidget):
 			name='Select condition pairs'
 		)
 
-		# Advanced configuration widgets with descriptions
 		self.modification_type = pn.widgets.TextInput(
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
@@ -300,7 +292,6 @@ class RunPipeline(BaseWidget):
 			description=gui_textfields.Descriptions.tooltips['filtering_options']
 		)
 
-		# Update threshold settings widgets with descriptions
 		self.minrep_either = pn.widgets.IntInput(
 			name='Min replicates (either condition):',
 			value=2,
@@ -387,7 +378,6 @@ class RunPipeline(BaseWidget):
 			visible=True
 		)
 
-		# Replace the analysis_type Select widget
 		self.analysis_type = pn.widgets.Select(
 			name='Select Condition Analysis Type',
 			options=['Pairwise Comparison', 'Median Condition Analysis'],
@@ -395,13 +385,12 @@ class RunPipeline(BaseWidget):
 			description='Choose between comparing pairs of conditions or comparing each condition against a median reference'
 		)
 
-		# A pane for showing the "comparing every condition..." message
-		# which is hidden by default
+
 		self.medianref_message = pn.pane.Markdown(
 			"Every condition will be compared against the median reference",
-			visible=False,  # start hidden
+			visible=False,
 		)
-		# Boolean switches with descriptions
+
 		self.switches = {
 			'use_ml': pn.widgets.Switch(
 				name='Enable machine learning',
@@ -445,7 +434,6 @@ class RunPipeline(BaseWidget):
 			),
 		}
 
-		# If you want to keep the descriptions, you can add them separately as Markdown panes
 		self.switch_descriptions = {
 			'use_ml': pn.pane.Markdown('Use machine learning for improved data analysis'),
 			'take_median_ion': pn.pane.Markdown('Center ion intensities around their median values'),
@@ -459,7 +447,6 @@ class RunPipeline(BaseWidget):
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
 		}
 
-		# Pipeline execution widgets with descriptions
 		self.run_pipeline_button = pn.widgets.Button(
 			name='Run pipeline',
 			button_type='primary',
@@ -488,7 +475,6 @@ class RunPipeline(BaseWidget):
 			disabled=True
 		)
 
-		# Replace the visualize_data_button with a progress panel
 		self.condition_progress_panel = pn.Column(
 			pn.pane.Markdown("### Analysis Progress", margin=(0,0,10,0)),
 			pn.pane.Markdown(
@@ -523,7 +509,6 @@ class RunPipeline(BaseWidget):
 		Build and return the main layout for the pipeline widget.
 		"""
 
-		# Add help cards next to their respective controls
 		ptm_section = pn.Row(
 			pn.Column(self.modification_type, self.organism)
 		)
@@ -532,16 +517,12 @@ class RunPipeline(BaseWidget):
 			pn.Column(self.filtering_options, self.minrep_either)
 		)
 
-		# Advanced Configuration Card
 		advanced_settings_card = pn.Card(
 			pn.Column(
 				"### Threshold Settings",
-				self.minrep_both,
 				self.min_num_ions,
 				self.minpep,
 				self.cluster_threshold_pval,
-				self.volcano_fdr,
-				self.volcano_fcthresh,
 				pn.layout.Divider(),
 				"### Analysis Options",
 				pn.Column(*[
@@ -588,7 +569,6 @@ class RunPipeline(BaseWidget):
 			width=400
 		)
 
-		# Main column without scroll
 		main_col = pn.Column(
 			"### Input Files",
 			self.path_analysis_file,
@@ -853,10 +833,10 @@ class RunPipeline(BaseWidget):
 			base_path = os.path.dirname(self.path_analysis_file.value)
 			output_path = os.path.join(base_path, 'results')
 			print(f"Setting output path to: {output_path}")
-			# Update local widget
+
 			print("Updating path_output_folder widget...")
 			self.path_output_folder.value = output_path
-			# Update state
+
 			print("Updating state...")
 			self.state.results_dir = output_path
 			print("Notifying subscribers...")
@@ -1298,7 +1278,7 @@ class Tabs(param.Parameterized):
 def build_dashboard():
 	"""Build the overall dashboard layout."""
 	# Create state manager first
-	state_manager = gui.DashboardState()  # Changed from StateManager to DashboardState
+	state_manager = gui.DashboardState()
 
 	header = HeaderWidget(
 		title="AlphaQuant Dashboard",
@@ -1317,7 +1297,7 @@ def build_dashboard():
 	pipeline = RunPipeline(state=state_manager)
 	pipeline_layout = pipeline.create()
 
-	# Create plotting tabs with state manager and register as subscribers
+	# Create plotting tabs with state manager
 	plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=state_manager)
 	proteoform_tab = dashboad_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
 
@@ -1325,7 +1305,7 @@ def build_dashboard():
 	state_manager.register_subscriber(plotting_tab)
 	state_manager.register_subscriber(proteoform_tab)
 
-	# Create tabs with Pipeline as the first tab
+	# Create tabs
 	all_tabs = pn.Tabs(
 		('Pipeline', pipeline_layout),
 		('Single Comparison', plotting_tab.panel()),
@@ -1353,8 +1333,3 @@ def build_dashboard():
 		main_layout="width"
 	)
 	return template
-
-# If run as a script, you can do:
-# if __name__ == "__main__":
-#     dash = build_dashboard()
-#     dash.servable()
