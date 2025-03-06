@@ -132,10 +132,10 @@ class ProteoformPlottingTab(param.Parameterized):
 
         # Add second load button for AlphaMap
         self.load_alphamap_button = pn.widgets.Button(
-            name="Load AlphaMap",
+            name="Initialize AlphaMap",
             button_type="primary",
             width=300,
-            disabled=True  # Start disabled
+            disabled=True
         )
         self.load_alphamap_button.on_click(self._on_load_alphamap_clicked)
 
@@ -144,15 +144,15 @@ class ProteoformPlottingTab(param.Parameterized):
             value=False,
             size=20,  # Small size
             color='primary',
-            visible=False  # Hide initially
+            visible=False
         )
 
         # Create a separate container for visualization elements
         self.visualization_elements = pn.Column(
             self.protein_input,
-            pn.Row(self.plot_protein_button),  # Add the Plot Protein button
+            pn.Row(self.plot_protein_button),
             self.proteoform_plot_pane,
-            visible=False  # Hide by default
+            visible=False
         )
 
         # Add section titles
@@ -166,19 +166,19 @@ class ProteoformPlottingTab(param.Parameterized):
             sizing_mode='stretch_width'
         )
 
-        # Update the hidden_elements layout to include the new headers and dividers
+
         self.hidden_elements = pn.Column(
             self.proteoform_section_title,
             self.proteoform_table,
             self.table_warning_pane,
-            pn.layout.Divider(),  # Add divider between sections
+            pn.layout.Divider(),
             self.visualization_section_title,
             pn.Row(self.proteoform_view_select),
             pn.Row(self.organism_select, self.protein_id_select),
             pn.Row(self.load_alphamap_button, self.loading_indicator),
             self.viz_warning_pane,
             self.visualization_elements,
-            visible=False  # Hide by default
+            visible=False
         )
 
         # Construct layout
@@ -186,8 +186,9 @@ class ProteoformPlottingTab(param.Parameterized):
             "## Outlier Peptide Visualization",
             self.results_dir_input,
             self.samplemap_file,
-            pn.Row(self.condpairname_select, self.load_button),
-            pn.layout.Divider(),  # Add divider after the controls
+            self.condpairname_select,
+            self.load_button,
+            pn.layout.Divider(),
             self.hidden_elements,
             sizing_mode='stretch_width'
         )
