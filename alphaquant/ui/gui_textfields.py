@@ -60,11 +60,15 @@ Key features:
 
 Follow these steps to analyze your data:
 1. Upload your proteomics data file
-2. Set output folder
-3. Map samples: Either use GUI table or create samplemap.tsv
+2. (optional) Set output folder. By default, the output will be saved in the same directory as your input file.
+3. Map samples: Either use GUI table or create samplemap.tsv.
 4. Select mode: "Pairwise Comparison" or "Median Condition Analysis"
 5. Choose conditions to compare (for pairwise mode)
 6. Click "RUN PIPELINE" to execute
+
+NOTES:
+ - If you want to use multiple sample mappings use a separate output folder for each samplemap.
+
 
 For detailed instructions, use the help icons (?) next to each control.
 """,
