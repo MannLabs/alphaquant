@@ -66,6 +66,8 @@ Follow these steps to analyze your data:
 5. Choose conditions to compare (for pairwise mode)
 6. Click "RUN PIPELINE" to execute
 
+After the analyses have finished, you can find the output files in your specified output folder. The main results are stored in .results.tsv (protein-level statistics) and .proteoforms.tsv (peptide-resolved statistics). These files can be used directly for downstream analysis such as volcano plots and enrichment analysis, or explored using the visualization tools in this GUI. For detailed information about the output table formats and contents, please refer to our documentation: https://github.com/MannLabs/alphaquant#output-tables
+
 NOTES:
  - If you want to use multiple sample mappings use a separate output folder for each samplemap.
 
