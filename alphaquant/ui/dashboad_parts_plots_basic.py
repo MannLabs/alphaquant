@@ -265,7 +265,8 @@ class PlottingTab(param.Parameterized):
                 volcano_pane.param.watch(self._on_volcano_click, 'click_data')
                 self.volcano_pane.append(volcano_pane)
             except Exception as e:
-                pass
+                error_msg = f"Failed to create volcano plot. Error: {str(e)}"
+                self.volcano_pane.append(pn.pane.Markdown(f"### Error\n{error_msg}"))
 
     def _on_volcano_click(self, event):
         """Handle volcano plot click events."""
