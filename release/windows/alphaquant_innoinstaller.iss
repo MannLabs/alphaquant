@@ -5,7 +5,7 @@
 ; so all paths are given relative to the location of this .iss file.
 
 #define MyAppName "alphaquant"
-#define MyAppVersion "0.1.6"
+#define MyAppVersion "0.1.7-dev0"
 #define MyAppPublisher "Max Planck Institute of Biochemistry and the University of Copenhagen, Mann Labs"
 #define MyAppURL "https://github.com/MannLabs/alphaquant"
 #define MyAppExeName "alphaquant_gui.exe"
