@@ -688,21 +688,25 @@ def plot_volcano_plotly(
         template='plotly_white',
         title=dict(
             text=f"{sighits_down} down, {sighits_up} up of {len(result_df)}",
+            font=dict(size=14, color='black', family='Arial, sans-serif'),
             y=0.92,
             x=0.5,
             xanchor='center',
             yanchor='middle',
         ),
-        titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
         hovermode='closest',
         xaxis=dict(
             range=[-maxfc,maxfc],
-            title='log2 fold change',
-            titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
+            title=dict(
+                text='log2 fold change',
+                font=dict(size=14, color='black', family='Arial, sans-serif'),
+            )
         ),
         yaxis=dict(
-            title='-log10 FDR',
-            titlefont=dict(size=14, color='black', family='Arial, sans-serif'),
+            title=dict(
+                text='-log10 FDR',
+                font=dict(size=14, color='black', family='Arial, sans-serif'),
+            ),
             range=[-0.1, max(-np.log10(result_df[fdr_header])) + 0.5],
         ),
         showlegend=False,
