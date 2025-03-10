@@ -1,6 +1,14 @@
 import os
 import pathlib
 import pandas as pd
+import shutil
+import tempfile
+import alphabase.tools.data_downloader as ab_downloader
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 
 def get_genename2sequence_dict( organism = "human"):
     swissprot_file = get_swissprot_path(organism)
@@ -15,7 +23,7 @@ def get_genename2sequence_dict( organism = "human"):
     for gene_group, sequence in zip(gene_names, sequences):
         for gene in gene_group.split(" "):
             gene2sequence_dict[gene] = sequence
-        
+
     return gene2sequence_dict
 
 def get_swissprot2sequence_dict( organism = "human"):
@@ -59,9 +67,14 @@ def get_swissprot_path( organism = "human"):
     return _get_path_to_database("swissprot_mapping.tsv",organism)
 
 def _get_path_to_database( database_name, organism):
-    database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "reference_databases", organism, database_name)
+    database_folder = os.path.join(pathlib.Path(__file__).parent.absolute(), "reference_databases")
+    if not os.path.exists(database_folder):
+        LOGGER.info(f"Downloading reference databases to {database_folder}")
+        try:
+            dsd = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg", output_dir=f"{database_folder}/..")
+            dsd.download()
+        except Exception as e:
+            LOGGER.error(f"Failed to download reference databases: {str(e)}")
+            raise Exception(f"Failed to download reference databases: {str(e)}") from e
+    database_path =  os.path.join(database_folder, organism, database_name)
     return database_path
-
-
-
-
