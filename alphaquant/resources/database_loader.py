@@ -77,4 +77,6 @@ def _get_path_to_database( database_name, organism):
             LOGGER.error(f"Failed to download reference databases: {str(e)}")
             raise Exception(f"Failed to download reference databases: {str(e)}") from e
     database_path =  os.path.join(database_folder, organism, database_name)
+    if not os.path.exists(database_path):
+        raise Exception(f"Reference database {database_name} for organism {organism} not found at {database_path}")
     return database_path
