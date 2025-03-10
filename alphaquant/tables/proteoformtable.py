@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import alphaquant.ptm.phospho_inference as aq_phospho_inference
+import alphaquant.resources.database_loader as aq_resource_dbloader
 import statsmodels.stats.multitest as mt
 import alphaquant.tables.tableutils as aqtableutils
 
@@ -14,7 +14,7 @@ class ProteoFormTableCreator():
 
         self._define_proteoform_df()
         self._annotate_proteoform_df()
-        
+
 
     def _define_proteoform_df(self):
         combined_value_dicts = []
@@ -26,7 +26,7 @@ class ProteoFormTableCreator():
         combined_dict = self._merge_list_of_dicts(combined_value_dicts)
         self.proteoform_df = pd.DataFrame(combined_dict)
         self.proteoform_df = aqtableutils.QualityScoreNormalizer(self.proteoform_df).results_df
-    
+
     @staticmethod
     def _merge_list_of_dicts(dict_list):
         combined_dict = {}
@@ -43,7 +43,7 @@ class ProteoFormTableAnnotator():
         self.proteoform_df = proteoform_df
         self._annotate_fcdiff_column()
         self._annotate_fdr_column()
-    
+
     def _annotate_fcdiff_column(self):
         all_rows = []
         self.proteoform_df = self.proteoform_df.sort_values(by=["proteoform_id"])
@@ -55,7 +55,7 @@ class ProteoFormTableAnnotator():
                 row["abs_fcdiff"] = abs(row["fcdiff"])
                 all_rows.append(row)
         self.proteoform_df = pd.DataFrame(all_rows)
-    
+
     def _annotate_fdr_column(self):
         mask_of_outlier_pforms = self.proteoform_df["proteoform_pval"].notna()
         pvals = self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_pval"].tolist()
@@ -72,7 +72,7 @@ class ValueDictCreator():
 
         self._phospho_scorer = phospho_scorer
         self.value_dict = self._get_value_dict_for_protein(protein)
-    
+
     def _get_value_dict_for_protein(self, protein):
         value_dict = {}
         cluster2peptides = self._get_cluster2peptides(protein)
@@ -99,25 +99,25 @@ class ValueDictCreator():
         for peptide in protein.children:
             cluster2peptides[peptide.cluster] = cluster2peptides.get(peptide.cluster, []) + [peptide]
         return cluster2peptides
-    
+
     @staticmethod
     def _get_proetoform_peptides(peptides):
         return ";".join([peptide.name for peptide in peptides])
-    
+
     def _get_proteoform_quality_score(self, peptides):
         return sum([self._get_peptide_quality_score(peptide) for peptide in peptides])
-    
+
     @staticmethod
     def _get_peptide_quality_score(peptide):
         if hasattr(peptide, "ml_score"):
             return peptide.ml_score
         else:
             return peptide.fraction_consistent * len(peptide.leaves)
-    
+
     @staticmethod
     def _get_proteoform_log2fc(peptides):
         return np.mean([peptide.fc for peptide in peptides])
-    
+
     @staticmethod
     def _get_fraction_of_peptides(peptides, protein):
         fraction = len(peptides) / len(protein.children)
@@ -138,11 +138,11 @@ class PhosphoScorer():
     def _check_if_scoring_available(self):
         if self._organism in self._supported_organisms:
             self.phospho_scoring_available = True
-    
+
     def _initialize_phospho_peptide_database(self):
         if self.phospho_scoring_available:
-            self.phospo_peptide_database = aq_phospho_inference.load_dl_predicted_phosphoprone_sequences(organism=self._organism)
-        
+            self.phospo_peptide_database = aq_resource_dbloader.load_dl_predicted_phosphoprone_sequences(organism=self._organism)
+
     def check_if_cluster_likely_phospho(self, peptides):
         number_of_likely_phospho = len(self.phospo_peptide_database.intersection({x.name for x in peptides}))
         fraction_of_likely_phospho = number_of_likely_phospho / len(peptides)
