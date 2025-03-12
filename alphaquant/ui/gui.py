@@ -106,26 +106,7 @@ class GUI(object):
         self.run_in_background = run_in_background
         self.automatic_close = automatic_close
 
-    def start_server(self, run_in_background=False):
-        if self.automatic_close:
-            bokeh_ws_handler = bokeh.server.views.ws.WSHandler
-            self.bokeh_server_open = bokeh_ws_handler.open
-            bokeh_ws_handler.open = self.__open_browser_tab(
-                self.bokeh_server_open
-            )
-            self.bokeh_server_on_close = bokeh_ws_handler.on_close
-            bokeh_ws_handler.on_close = self.__close_browser_tab(
-                self.bokeh_server_on_close
-            )
 
-        port = os.environ.get("PORT", None)
-        port_arg = {"port":int(port)} if port is not None else {}
-        self.server = self.layout.show(threaded=True, title=self.name, **port_arg)
-
-        if not run_in_background:
-            self.server.join()
-        elif not self.run_in_background:
-            self.server.join()
 
     def __open_browser_tab(self, func):
         def wrapper(*args, **kwargs):
@@ -242,7 +223,7 @@ class AlphaQuantGUI(GUI):
             # Start server with proper cleanup handling
             self._server = pn.serve(
                 self.layout,
-                port=0,  # Dynamic port allocation
+                port=int(os.environ.get("PORT", 0)),
                 show=True,
                 websocket_origin="*",
                 threaded=True
