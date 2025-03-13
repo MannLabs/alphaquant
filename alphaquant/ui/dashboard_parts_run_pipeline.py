@@ -886,11 +886,29 @@ class RunPipeline(BaseWidget):
 
 				input_file = self.path_analysis_file.value
 				_, config_dict, sep = config_dict_loader.get_input_type_and_config_dict(input_file)
-				sample_column = config_dict["sample_ID"]
-				sample_names = set()
-				for chunk in pd.read_csv(input_file, sep=sep, usecols=[sample_column], chunksize=400000):
-					sample_names.update(chunk[sample_column].unique())
-				self.sample_names = sample_names
+				if config_dict["format"] == "longtable":
+					sample_column = config_dict["sample_ID"]
+					sample_names = set()
+					for chunk in pd.read_csv(input_file, sep=sep, usecols=[sample_column], chunksize=400000):
+						sample_names.update(chunk[sample_column].unique())
+					self.sample_names = sample_names
+				elif config_dict["format"] == "widetable":
+					# Read the headers first to identify sample columns
+					headers = pd.read_csv(input_file, sep=sep, nrows=0).columns.tolist()
+
+					quant_pre_or_suffix = config_dict.get("quant_pre_or_suffix")
+					# Filter headers to find those with the prefix or suffix
+					sample_columns = [
+						col for col in headers if (
+							col.startswith(quant_pre_or_suffix) or
+							col.endswith(quant_pre_or_suffix)
+						)
+					]
+					self.sample_names = set([col.replace(quant_pre_or_suffix, '') for col in sample_columns])
+				else:
+					print("ERROR: Could not idenfity sample names in the input file.")
+					self.run_pipeline_error.object = "Could not idenfity sample names . Please check your input file."
+					self.run_pipeline_error.visible = True
 
 			except Exception as e:
 				self.run_pipeline_error.object = f"Error importing data: {e}"
