@@ -28,4 +28,6 @@ COPY LICENSE LICENSE
 COPY README.md README.md
 COPY pyproject.toml pyproject.toml
 
+COPY nbs nbs
+
 RUN pip install ".[stable,gui-stable]"
