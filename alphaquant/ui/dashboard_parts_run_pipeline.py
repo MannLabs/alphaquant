@@ -20,7 +20,7 @@ import alphaquant.ui.gui as gui
 import alphaquant.ui.gui_textfields as gui_textfields
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
-config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config_lightweight.yaml")
+config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
 # If using Plotly in Panel
 pn.extension('plotly')
 
@@ -1127,6 +1127,7 @@ class RunPipeline(BaseWidget):
 				self.state.notify_subscribers('samplemap_df')
 
 			except Exception as e:
+				print(f"Error reading sample map: {str(e)}")
 				self.run_pipeline_error.object = f"Error reading sample map: {str(e)}"
 				self.run_pipeline_error.visible = True
 
@@ -1156,6 +1157,10 @@ class RunPipeline(BaseWidget):
 				self.template_success_message.object = f"""Template has been generated. Please fill out the condition column in the table below.\nThe template has also been saved to
 				<code>{template_path}</code>\nif you prefer to edit it with Excel or other applications."""
 				self.template_success_message.visible = True
+		except Exception as e:
+			print(f"Error generating sample map: {str(e)}")
+			self.run_pipeline_error.object = f"Error generating sample map: {str(e)}"
+			self.run_pipeline_error.visible = True
 		finally:
 			# Hide loading indicators when done
 			self.loading_samples_indicator.visible = False
