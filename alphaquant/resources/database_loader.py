@@ -72,7 +72,7 @@ def _get_path_to_database( database_name, organism):
     if not os.path.exists(database_folder):
         LOGGER.info(f"Downloading reference databases to {database_folder}")
         try:
-            dsd = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg", output_dir=f"{database_folder}/..")
+            dsd = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg", output_dir=f"{database_folder}/..") #the url points to the shared AlphaX database, subfolder alphaquant/reference_databases
             dsd.download()
         except Exception as e:
             LOGGER.error(f"Failed to download reference databases: {str(e)}")
@@ -91,7 +91,7 @@ def load_dl_predicted_phosphoprone_sequences(organism = "human"):
     if not os.path.exists(database_folder):
         LOGGER.info(f"Downloading phosphopred databases to {database_folder}")
         try:
-            dsd = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/stH9pmNe6O9CRHG", output_dir=f"{database_folder}/..")
+            dsd = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/stH9pmNe6O9CRHG", output_dir=f"{database_folder}/..") #the url points to the shared AlphaX database, subfolder alphaquant/phosphopred_databases
             dsd.download()
         except Exception as e:
             LOGGER.error(f"Failed to download phosphopred databases: {str(e)}")
