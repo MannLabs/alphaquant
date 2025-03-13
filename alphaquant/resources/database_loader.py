@@ -66,7 +66,22 @@ def get_uniprot_path( organism= "human"):
 def get_swissprot_path( organism = "human"):
     return _get_path_to_database("swissprot_mapping.tsv",organism)
 
-def _get_path_to_database( database_name, organism):
+def _get_path_to_database(database_name, organism):
+    """Get the path to a reference database file, which contains mapping to reference protein identifiers, downloading it if necessary.
+
+    Args:
+        database_name (str): Name of the database file to locate (e.g., 'uniprot_mapping.tsv', 'swissprot_mapping.tsv')
+        organism (str): Organism name (e.g., 'human') - used to locate the correct subfolder
+
+    Raises:
+        Exception: If downloading the reference databases from the datashare URL fails, typically due to
+                  network issues or invalid datashare access
+        Exception: If the requested database file is not found in the expected folder structure after
+                  download attempt (/<database_folder>/<organism>/<database_name>)
+
+    Returns:
+        str: Full path to the requested database file
+    """
     database_folder = os.path.join(pathlib.Path(__file__).parent.absolute(), "reference_databases")
     LOGGER.info(f"Checking for reference databases in {database_folder}")
     if not os.path.exists(database_folder):
@@ -84,6 +99,23 @@ def _get_path_to_database( database_name, organism):
 
 
 def load_dl_predicted_phosphoprone_sequences(organism = "human"):
+    """
+    Load the database of peptide sequences, each of which has a "phospho-prone" probability as described
+    in the AlphaQuant manuscript. Then filter for those with a phosphorylation probability > 0.5.
+    and adapt the sequence to the format required by the AlphaQuant pipeline.
+
+    Args:
+        organism (str, optional): The organism to load phospho-prone sequences for. Defaults to "human".
+
+    Raises:
+        Exception: If the required database folder structure is not found in the datashare or if
+                  downloading the phosphopred databases from the datashare URL fails. This can happen
+                  if the datashare is not accessible or if the folder structure doesn't match the expected path.
+
+    Returns:
+        set: A set of peptide sequences that have a phosphorylation probability greater than 0.5,
+             formatted with "SEQ_" prefix and "_" suffix for AlphaQuant pipeline compatibility.
+    """
     organism_map = {"human": "human_uniprot_reviewed_phos_prob.tsv"}
     database_folder = os.path.join(pathlib.Path(__file__).parent.absolute(), "..","resources","phosphopred_databases")
 
