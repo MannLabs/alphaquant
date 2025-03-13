@@ -1,7 +1,7 @@
 ![GitHub Release](https://img.shields.io/github/v/release/mannlabs/alphaquant?logoColor=green&color=brightgreen)
 ![Versions](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12-brightgreen)
 ![License](https://img.shields.io/badge/License-Apache-brightgreen)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick.yml?branch=main&label=E2E%20Tests)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick_multiple_platforms.yml?branch=main&label=E2E%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/install_and_unit_tests.yml?branch=main&label=Unit%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb)
