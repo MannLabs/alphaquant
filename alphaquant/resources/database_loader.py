@@ -89,7 +89,7 @@ def _get_path_to_database(database_name, organism):
     if not os.path.exists(database_folder):
         LOGGER.info(f"Downloading reference databases to {database_folder}")
         try:
-            datashare_downloader = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg", output_dir=f"{database_folder}/..") #the url points to the shared AlphaX database, subfolder alphaquant/reference_databases
+            datashare_downloader = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg", output_dir=f"{database_folder}/..") # Downloads from AlphaX database to parent directory since DataShareDownloader creates the 'reference_databases' subdirectory automatically
             datashare_downloader.download()
         except Exception as e:
             error_msg = f"Failed to download reference databases: {str(e)}"
