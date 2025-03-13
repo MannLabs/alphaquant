@@ -5,8 +5,8 @@ RUN pip install --no-cache --upgrade pip && \
     pip install --no-cache notebook jupyterlab
 
 # create user with a home directory
-ARG NB_USER=x
-ARG NB_UID=1000
+ARG NB_USER
+ARG NB_UID
 ENV USER ${NB_USER}
 ENV HOME /home/${NB_USER}
 
@@ -15,8 +15,11 @@ RUN adduser --disabled-password \
     --uid ${NB_UID} \
     ${NB_USER}
 WORKDIR ${HOME}
-USER ${USER}
 
+COPY example_nbs example_nbs
+RUN chown -R ${NB_USER}:${NB_USER} example_nbs
+
+USER ${USER}
 
 COPY requirements requirements
 RUN pip install -r requirements/requirements.txt
@@ -30,6 +33,5 @@ COPY pyproject.toml pyproject.toml
 
 RUN pip install ".[stable,gui-stable]"
 
-COPY example_nbs example_nbs
-RUN chown -R ${NB_USER}:${NB_USER} example_nbs
+
 
