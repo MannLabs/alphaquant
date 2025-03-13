@@ -4,11 +4,11 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick.yml?branch=main&label=E2E%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/install_and_unit_tests.yml?branch=main&label=Unit%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
-![Binder](https://mybinder.org/badge_logo.svg)(https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MannLabs/alphaquant/add-docker-container?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb)
 
 <img src="release/images/alphaquant_gui.jpg" alt="preview" width="800"/>
 
-==> [Try it out right now in your browser!](https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb) No login or installation required.
+==> [Run it on a Jupyter Notebook right now in your browser!](https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb) No login or installation required.
 <== 
 
 # AlphaQuant
@@ -35,6 +35,7 @@ AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experimen
   * [**One-click GUI**](#one-click-gui-installation)
   * [**Pip**](#pip)
   * [**Developer installation**](#developer-installation)
+  * [**Docker**](#docker)
 * [**Usage**](#usage)
   * [**GUI**](#gui)
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
@@ -57,6 +58,8 @@ There are currently two different types of installation possible:
 
 * [**Developer installation:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
 
+* [**Docker**](#docker) Choose this installation if you want to use AlphaQuant without any installation to your system.
+ 
 ### One-click GUI installation
 Currently available for **MacOS**, **Windows**.
 You can download the latest release of alphaquant [here](https://github.com/Mannlabs/alphaquant/releases/latest).
@@ -130,17 +133,17 @@ By using the editable flag `-e`, you can make modifications to the [alphaquant s
 
 Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
-## Docker
+### Docker
 The containerized version can be used to run AlphaQuant without any installation to your system.
 
-### 1. Setting up Docker
+#### 1. Setting up Docker
 Install the latest version of docker (https://docs.docker.com/engine/install/).
 
-### 2. Prepare folder structure
+#### 2. Prepare folder structure
 Set up your data to match the expected folder structure:Create a folder and store its name in a variable, 
 e.g. `DATA_FOLDER=/home/username/data; mkdir -p $DATA_FOLDER`
 
-### 3. Start the container
+#### 3. Start the container
 ```bash
 docker run -v $DATA_FOLDER:/app/data -p 41215:41215 mannlabs/alphaquant:latest
 ```
@@ -149,7 +152,7 @@ and can be accessed under [localhost:41215](localhost:41215).
 
 Note: in the app, the local `$DATA_FOLDER` needs to be referred to as "`/app/data`".
 
-### Alternatively: Build the image yourself
+#### Alternatively: Build the image yourself
 If you want to build the image yourself, you can do so by
 ```bash
 docker build -t alphaquant .
