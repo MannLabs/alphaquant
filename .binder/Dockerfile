@@ -16,14 +16,9 @@ RUN adduser --disabled-password \
     ${NB_USER}
 WORKDIR ${HOME}
 
-COPY example_nbs example_nbs
-RUN chown -R ${NB_USER}:${NB_USER} example_nbs
-
-USER ${USER}
-
+# copying requirements first to leverage caching
 COPY requirements requirements
 RUN pip install -r requirements/requirements.txt
-RUN pip install -r requirements/requirements_gui.txt
 
 COPY alphaquant alphaquant
 COPY MANIFEST.in MANIFEST.in
@@ -31,7 +26,11 @@ COPY LICENSE LICENSE
 COPY README.md README.md
 COPY pyproject.toml pyproject.toml
 
-RUN pip install ".[stable,gui-stable]"
+RUN pip install ".[stable]"
 
+# change owner to be able to write to that folder
+COPY --chown=${USER}:${USER} example_nbs example_nbs
 
-
+# build & debug:
+# docker build --progress=plain --build-arg="NB_USER=user" --build-arg="NB_UID=1000" -f .binder/Dockerfile -t alphaquant-binder .
+# docker run -it alphaquant-binder bash
