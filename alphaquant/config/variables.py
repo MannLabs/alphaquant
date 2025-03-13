@@ -6,6 +6,13 @@ PROGRESS_FOLDER = "progress"
 PREFER_PRECURSORS_FOR_CLUSTERING = True
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
+#prefixes for the different ion types
+SEQ = "SEQ"
+MOD = "MOD"
+CHARGE = "CHARGE"
+FRG = "FRG"
+ION = "ION"
+
 def determine_variables(input_file, input_type):
     _determine_quant_id(input_file)
     _determine_prefer_precursors_for_clustering(input_type)

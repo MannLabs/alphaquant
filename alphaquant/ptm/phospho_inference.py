@@ -2,20 +2,16 @@ import os
 import pathlib
 import pandas as pd
 import alphaquant.cluster.outlier_scoring as aqoutlier
+import alphaquant.resources.database_loader as aq_resource_dbloader
 
 def get_inferred_phospho_peptides(results_dir, cond1, cond2):
     outlier_handler = aqoutlier.OutlierHandler(results_dir = results_dir, cond1 = cond1, cond2 = cond2)
     clusterdiff_list = outlier_handler.get_diffclust_overview_list()
-    predicted_phosphoprone_sequences = load_dl_predicted_phosphoprone_sequences()
+    predicted_phosphoprone_sequences = aq_resource_dbloader.load_dl_predicted_phosphoprone_sequences()
     inferred_phospho_peptides = get_regulation_inferred_phosphoprone_peptides(predicted_phosphoprone_sequences, clusterdiff_list)
     return inferred_phospho_peptides
 
-def load_dl_predicted_phosphoprone_sequences(organism = "human"):
-    organism_map = {"human": "human_uniprot_reviewed_phos_prob.tsv"}
-    database_path = os.path.join(pathlib.Path(__file__).parent.absolute(), "..","resources","phosphopred_databases", organism_map[organism])
-    df_phospho_predlib = pd.read_csv(database_path, sep='\t')
-    df_phospho_predlib["sequence"] = [f"SEQ_{x}_" for x in df_phospho_predlib["sequence"]]
-    return set(df_phospho_predlib[df_phospho_predlib['ptm_prob'] > 0.5]["sequence"])
+
 
 
 def get_regulation_inferred_phosphoprone_peptides(phosphoprone_seqs, clusterdiff_list):

@@ -226,3 +226,6 @@ alphaquant-*-arm64.pkg
 alphaquant.pkg
 build_mac_release.sh
 paper_analyses
+
+alphaquant/resources/reference_databases
+alphaquant/resources/phosphopred_databases

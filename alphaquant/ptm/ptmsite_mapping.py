@@ -573,15 +573,6 @@ def get_ptmprob_header(input_type, modification_type):
 import pathlib
 import os
 
-def get_uniprot_path( organism= "human"):
-    return get_path_to_database("uniprot_mapping.tsv",organism)
-
-def get_swissprot_path( organism = "human"):
-    return get_path_to_database("swissprot_mapping.tsv",organism)
-
-def get_path_to_database( database_name, organism):
-    database_path =  os.path.join(pathlib.Path(__file__).parent.absolute(), "..","resources","reference_databases", organism, database_name)
-    return database_path
 
 # Workflow
 ## Assign all ions for a given protein
