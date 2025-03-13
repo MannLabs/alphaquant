@@ -4,11 +4,11 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick.yml?branch=main&label=E2E%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/install_and_unit_tests.yml?branch=main&label=Unit%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
-![Binder](https://mybinder.org/badge_logo.svg)(https://mybinder.org/v2/gh/MannLabs/alphaquant/add-docker-container?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb)
+![Binder](https://mybinder.org/badge_logo.svg)(https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb)
 
 <img src="release/images/alphaquant_gui.jpg" alt="preview" width="800"/>
 
-==> [Try it out right now in your browser!](https://mybinder.org/v2/gh/MannLabs/alphaquant/add-docker-container?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb) No login or installation required.
+==> [Try it out right now in your browser!](https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb) No login or installation required.
 <== 
 
 # AlphaQuant
