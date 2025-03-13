@@ -5,6 +5,8 @@ import shutil
 import tempfile
 import alphabase.tools.data_downloader as ab_downloader
 import alphaquant.config.config as aqconfig
+import alphaquant.config.variables as aq_variables
+
 import logging
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
@@ -131,5 +133,5 @@ def load_dl_predicted_phosphoprone_sequences(organism = "human"):
     database_path = os.path.join(database_folder, organism_map[organism])
 
     df_phospho_predlib = pd.read_csv(database_path, sep='\t')
-    df_phospho_predlib["sequence"] = [f"SEQ_{x}_" for x in df_phospho_predlib["sequence"]]
+    df_phospho_predlib["sequence"] = [f"{aq_variables.SEQ}_{x}_" for x in df_phospho_predlib["sequence"]]
     return set(df_phospho_predlib[df_phospho_predlib['ptm_prob'] > 0.5]["sequence"])
