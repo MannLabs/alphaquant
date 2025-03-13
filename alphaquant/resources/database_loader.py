@@ -75,8 +75,8 @@ def _get_path_to_database( database_name, organism):
             datashare_downloader = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg", output_dir=f"{database_folder}/..") #the url points to the shared AlphaX database, subfolder alphaquant/reference_databases
             datashare_downloader.download()
         except Exception as e:
-            LOGGER.error(f"Failed to download reference databases: {str(e)}")
-            raise Exception(f"Failed to download reference databases: {str(e)}") from e
+            error_msg = f"Failed to download reference databases: {str(e)}"
+            raise Exception(error_msg) from e
     database_path =  os.path.join(database_folder, organism, database_name)
     if not os.path.exists(database_path):
         raise Exception(f"Reference database {database_name} for organism {organism} not found at {database_path}")
@@ -94,8 +94,8 @@ def load_dl_predicted_phosphoprone_sequences(organism = "human"):
             datashare_downloader = ab_downloader.DataShareDownloader("https://datashare.biochem.mpg.de/s/stH9pmNe6O9CRHG", output_dir=f"{database_folder}/..") #the url points to the shared AlphaX database, subfolder alphaquant/phosphopred_databases
             datashare_downloader.download()
         except Exception as e:
-            LOGGER.error(f"Failed to download phosphopred databases: {str(e)}")
-            raise Exception(f"Failed to download phosphopred databases: {str(e)}") from e
+            error_msg = f"Failed to download phosphopred databases: {str(e)}"
+            raise Exception(error_msg) from e
     database_path = os.path.join(database_folder, organism_map[organism])
 
     df_phospho_predlib = pd.read_csv(database_path, sep='\t')
