@@ -18,6 +18,7 @@ import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
 import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_proteoforms
 import alphaquant.ui.gui as gui
 import alphaquant.ui.gui_textfields as gui_textfields
+import alphaquant.utils.reader_utils as aq_reader_utils
 
 import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
@@ -889,12 +890,13 @@ class RunPipeline(BaseWidget):
 				if config_dict["format"] == "longtable":
 					sample_column = config_dict["sample_ID"]
 					sample_names = set()
-					for chunk in pd.read_csv(input_file, sep=sep, usecols=[sample_column], chunksize=400000):
+
+					for chunk in aq_reader_utils.read_file(input_file, sep=sep, usecols=[sample_column], chunksize=400000):
 						sample_names.update(chunk[sample_column].unique())
 					self.sample_names = sample_names
 				elif config_dict["format"] == "widetable":
 					# Read the headers first to identify sample columns
-					headers = pd.read_csv(input_file, sep=sep, nrows=0).columns.tolist()
+					headers = aq_reader_utils.read_file(input_file, sep=sep, nrows=0).columns.tolist()
 
 					quant_pre_or_suffix = config_dict.get("quant_pre_or_suffix")
 					# Filter headers to find those with the prefix or suffix
@@ -911,6 +913,7 @@ class RunPipeline(BaseWidget):
 					self.run_pipeline_error.visible = True
 
 			except Exception as e:
+				print(f"Error importing data: {e}")
 				self.run_pipeline_error.object = f"Error importing data: {e}"
 				self.run_pipeline_error.visible = True
 			finally:
