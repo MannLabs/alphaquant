@@ -253,7 +253,10 @@ In case of issues, check out the following:
 ---
 ## Citations
 
-Manuscript in preparation.
+A manuscript has been submitted to bioRxiv:
+> **Tree-based quantification infers proteoform regulation in bottom-up proteomics data**
+> Constantin Ammar, Marvin Thielert, Caroline A M Weiss, Edwin H Rodriguez, Maximilian T Strauss, Florian A Rosenberger, Wen-Feng Zeng, Matthias Mann
+> bioRxiv 2025.03.06.641844; doi: https://doi.org/10.1101/2025.03.06.641844 
 
 ---
 ## How to contribute
