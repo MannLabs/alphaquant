@@ -28,6 +28,8 @@ COPY LICENSE LICENSE
 COPY README.md README.md
 COPY pyproject.toml pyproject.toml
 
-COPY example_nbs example_nbs
-
 RUN pip install ".[stable,gui-stable]"
+
+COPY example_nbs example_nbs
+RUN chown -R ${NB_USER}:${NB_USER} example_nbs
+
