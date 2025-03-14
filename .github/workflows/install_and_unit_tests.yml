@@ -7,6 +7,9 @@
 # from the tests that ran on develop.
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 name: Pip install + unit tests
