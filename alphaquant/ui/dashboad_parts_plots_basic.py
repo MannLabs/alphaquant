@@ -135,7 +135,7 @@ class PlottingTab(param.Parameterized):
             self.results_dir = event.new
             self.param.trigger('results_dir')
             self._extract_condpairs()
-            self.samplemap_file = os.path.join(event.new, "samplemap.tsv")
+            self._determine_samplemap_file()
 
     def panel(self):
         """Return the main panel layout."""
@@ -158,7 +158,7 @@ class PlottingTab(param.Parameterized):
             if self.results_dir_input.value != value:
                 self.results_dir_input.value = value
             self._extract_condpairs()
-            self.samplemap_file = os.path.join(value, "samplemap.tsv")
+            self._determine_samplemap_file()
 
     def _on_state_results_dir_changed(self, event):
         """Handle changes to results directory from state."""
@@ -166,7 +166,7 @@ class PlottingTab(param.Parameterized):
             self.results_dir = event.new
             self.results_dir_input.value = event.new
             self._extract_condpairs()
-            self.samplemap_file = os.path.join(self.results_dir_input.value, "samplemap.tsv")
+            self._determine_samplemap_file()
 
     def _extract_condpairs(self):
         """Look for '*_VS_*.results.tsv' in the results_dir and update the condition pairs."""
@@ -209,9 +209,17 @@ class PlottingTab(param.Parameterized):
 
         self.cond1, self.cond2 = selected_str.split("_VS_")
         if not self.samplemap_file:
-            self.samplemap_file = os.path.join(self.results_dir_input.value, "samplemap.tsv")
+            self._determine_samplemap_file()
         self._update_data_for_condpair()
         self.show_plots_button.disabled = False
+
+
+    def _determine_samplemap_file(self):
+        """Determine the samplemap file based on the results directory."""
+        if os.path.exists(os.path.join(self.results_dir_input.value, 'samplemap_w_median.tsv')):
+            self.samplemap_file = os.path.join(self.results_dir_input.value, 'samplemap_w_median.tsv')
+        else:
+            self.samplemap_file = os.path.join(self.results_dir_input.value, 'samplemap.tsv')
 
     def _update_data_for_condpair(self):
         """Load the results data and initialize FoldChangeVisualizer."""

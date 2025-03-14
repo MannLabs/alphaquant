@@ -198,9 +198,16 @@ class ProteoformPlottingTab(param.Parameterized):
             print(f"Event has 'new' attribute: {event.new}")
         if event.new:
             self.results_dir = event.new
+            self._determine_samplemap_file()
             self._extract_cond_pairs()
-            self.samplemap_file = os.path.join(self.results_dir, 'samplemap.tsv')
         print("=== Finished Handling Results Dir Change ===\n")
+
+    def _determine_samplemap_file(self):
+        """Determine the samplemap file based on the results directory."""
+        if os.path.exists(os.path.join(self.results_dir, 'samplemap_w_median.tsv')):
+            self.samplemap_file = os.path.join(self.results_dir, 'samplemap_w_median.tsv')
+        else:
+            self.samplemap_file = os.path.join(self.results_dir, 'samplemap.tsv')
 
     def _extract_cond_pairs(self):
         """Look for '*_VS_*.proteoforms.tsv' in the results_dir and update the condition pairs."""
