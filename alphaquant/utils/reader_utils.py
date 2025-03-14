@@ -4,9 +4,11 @@ import logging
 LOGGER = logging.getLogger(__name__)
 
 
-def read_file(file_path, decimal=".", usecols=None, chunksize=None, sep=None):
+def read_file(file_path, decimal=".", usecols=None, chunksize=None, sep=None, nrows=None):
     file_path = str(file_path)
     if ".parquet" in file_path:
+        if nrows is not None:
+            LOGGER.warning(f"nrows parameter is set, but not supported for parquet files. Ignoring nrows parameter.")
         return _read_parquet_file(file_path, usecols=usecols, chunksize=chunksize)
     else:
         if sep is None:
@@ -26,6 +28,7 @@ def read_file(file_path, decimal=".", usecols=None, chunksize=None, sep=None):
             usecols=usecols,
             encoding="latin1",
             chunksize=chunksize,
+            nrows=nrows,
         )
 
 
