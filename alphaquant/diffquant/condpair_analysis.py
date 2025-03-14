@@ -101,6 +101,8 @@ def analyze_condpair(*,runconfig, condpair):
                 continue
             ions = prot2missingval_diffions.get(prot)
             protnode_missingval = aq_clust_missingval.create_protnode_from_missingval_ions(gene_name=prot,diffions=ions, normed_c1=normed_c1, normed_c2=normed_c2)
+            if (protnode_missingval.c1_has_values) and (protnode_missingval.c2_has_values): #one of the conditions has to be missing, otherwise it means that there was e.g. one fragment ion with values in c1 and other fragment ions with values in c2
+                continue
             protnodes_missingval.append(protnode_missingval)
         
         LOGGER.info(f"finished missing value analysis")
