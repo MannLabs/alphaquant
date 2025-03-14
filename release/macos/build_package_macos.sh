@@ -67,6 +67,42 @@ if [ $file_count -eq 0 ]; then
     exit 1
 fi
 ####
+#### Download AlphaQuant sequence database and phosphopred sequence database
+
+# Create the resources directory where the files will be stored
+echo "Creating resources directory..."
+mkdir -p ${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources/
+
+# Download and extract the first zip file
+echo "Downloading and extracting first resource from datashare..."
+TEMP_ZIP1=$(mktemp)
+if ! curl -L -f "https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg/download" -o "$TEMP_ZIP1"; then
+    echo "Error: Failed to download first resource from datashare"
+    exit 1
+fi
+echo "Successfully downloaded first resource, now extracting..."
+unzip -o "$TEMP_ZIP1" -d "${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources/"
+rm "$TEMP_ZIP1"
+
+# Download and extract the second zip file
+echo "Downloading and extracting second resource from datashare..."
+TEMP_ZIP2=$(mktemp)
+if ! curl -L -f "https://datashare.biochem.mpg.de/s/stH9pmNe6O9CRHG/download" -o "$TEMP_ZIP2"; then
+    echo "Error: Failed to download second resource from datashare"
+    exit 1
+fi
+echo "Successfully downloaded second resource, now extracting..."
+unzip -o "$TEMP_ZIP2" -d "${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources/"
+rm "$TEMP_ZIP2"
+
+# Verify the downloads and extraction
+echo "Verifying extracted resources..."
+if [ ! -d "${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources/" ]; then
+    echo "Error: Resources directory not found after extraction"
+    exit 1
+fi
+echo "Resources successfully downloaded and extracted"
+
 ###Download section complete
 
 
