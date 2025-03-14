@@ -908,8 +908,8 @@ class RunPipeline(BaseWidget):
 					]
 					self.sample_names = set([col.replace(quant_pre_or_suffix, '') for col in sample_columns])
 				else:
-					print("ERROR: Could not idenfity sample names in the input file.")
-					self.run_pipeline_error.object = "Could not idenfity sample names . Please check your input file."
+					print(f"ERROR: Unknown format in input file: {config_dict['format']}")
+					self.run_pipeline_error.object = f"ERROR: Unknown format in input file: {config_dict['format']}"
 					self.run_pipeline_error.visible = True
 
 			except Exception as e:
