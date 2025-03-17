@@ -45,10 +45,10 @@ def run_pipeline(input_file: str,
                 multicond_median_analysis: bool = False,
                 condpairs_list: Optional[List[Tuple[str, str]]] = None,
                 file_has_alphaquant_format: bool = False,
-                minrep_both: int = 2,
-                minrep_either: Optional[int] = None,
-                minrep_c1: Optional[int] = None,
-                minrep_c2: Optional[int] = None,
+                min_valid_values: int = 2,
+                valid_values_filter_mode: str = "either",
+                min_valid_values_c1: int = 0,
+                min_valid_values_c2: int = 0,
                 min_num_ions: int = 1,
                 minpep: int = 1,
                 organism: Optional[str] = None,
@@ -86,10 +86,12 @@ def run_pipeline(input_file: str,
     multicond_median_analysis (bool): Whether to compare all conditions to a median condition. Defaults to False.
     condpairs_list (list): Specific condition pairs to compare. If None, performs all pairwise comparisons.
     file_has_alphaquant_format (bool): Whether the input file is already in AlphaQuant matrix format. Defaults to False.
-    minrep_both (int): Minimum replicate count required in both conditions. Defaults to 2.
-    minrep_either (int): Minimum replicate count required in either condition.
-    minrep_c1 (int): Minimum replicate count required in condition 1.
-    minrep_c2 (int): Minimum replicate count required in condition 2.
+    min_valid_values (int): Minimum number of valid values required across conditions. Defaults to 2.
+    valid_values_filter_mode (str): Strategy for filtering based on valid values. Options:
+        - "either": Include features that have at least 'min_valid_values' valid values in at least one condition.
+        - "both": Include only features that have at least 'min_valid_values' valid values in all conditions.
+    min_valid_values_c1 (int): Minimum number of valid values required specifically in condition 1.
+    min_valid_values_c2 (int): Minimum number of valid values required specifically in condition 2.
     min_num_ions (int): Minimum number of ions required per peptide. Defaults to 1.
     minpep (int): Minimum number of peptides required per protein. Defaults to 1.
     organism (str): Organism name for PTM mapping (e.g., 'human', 'mouse'). Required if perform_ptm_mapping is True.
