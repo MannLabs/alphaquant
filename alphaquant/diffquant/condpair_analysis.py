@@ -49,7 +49,7 @@ def analyze_condpair(*,runconfig, condpair):
         write_out_normed_df(df_c1_normed, df_c2_normed, pep2prot, runconfig.results_dir, condpair)
     normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
     normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
-    
+
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
     ions_to_check = sorted(ions_to_check)
 
@@ -82,16 +82,16 @@ def analyze_condpair(*,runconfig, condpair):
         ions = prot2diffions.get(prot)
         if len(ions)<runconfig.min_num_ions:
             continue
-        
-        clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist, 
-                                                                        pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc, 
+
+        clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
+                                                                        pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
                                                                         take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge)
         protnodes.append(clustered_prot_node)
 
         if count_prots%100==0:
             LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
         count_prots+=1
-    
+
     if len(prot2missingval_diffions.keys())>0:
         LOGGER.info(f"start analysis of proteins w. completely missing values")
 
@@ -102,13 +102,13 @@ def analyze_condpair(*,runconfig, condpair):
             ions = prot2missingval_diffions.get(prot)
             protnode_missingval = aq_clust_missingval.create_protnode_from_missingval_ions(gene_name=prot,diffions=ions, normed_c1=normed_c1, normed_c2=normed_c2)
             protnodes_missingval.append(protnode_missingval)
-        
+
         LOGGER.info(f"finished missing value analysis")
 
     if runconfig.use_ml:
         ml_performance_dict = {}
 
-        #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions", 
+        #aq_class_stacked_frag.assign_predictability_scores_stacked(protein_nodes= protnodes, acquisition_info_df=None,results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair)+"_fragions",
          #                           min_num_fragions=5, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=True)
         ml_successfull =aq_class_precursors.assign_predictability_scores(protein_nodes= protnodes, results_dir=runconfig.results_dir, name = aqutils.get_condpairname(condpair), ml_info_file=runconfig.ml_input_file,
                                         samples_used =c1_samples + c2_samples, min_num_precursors=3, prot_fc_cutoff=0, replace_nans=True, performance_metrics=ml_performance_dict, plot_predictor_performance=runconfig.runtime_plots)
@@ -159,10 +159,10 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_bot
 
     if min_samples<2:
         raise Exception(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
-    
+
     if (minrep_either is not None) or ((minrep_c1 is not None) and (minrep_c2 is not None)): #minrep_both was set as default and should be overruled by minrep_either or minrep_c1 and minrep_c2
         minrep_both = None
-            
+
     if minrep_either is not None:
         minrep_either = np.min([get_minrep_for_cond(samples_c1, minrep_either), get_minrep_for_cond(samples_c2, minrep_either)])
         passes_minrep_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= minrep_either
@@ -184,7 +184,7 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_bot
         df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
         if (len(df_c1.index)<5) | (len(df_c2.index)<5):
             raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
-        
+
     if (minrep_both is None) and (minrep_either is None) and (minrep_c1 is None) and (minrep_c2 is None):
         raise Exception("no minrep set, please specify!")
 
@@ -200,13 +200,13 @@ def get_minrep_for_cond(c_samples, minrep):
         return num_samples
     else:
         return minrep
-    
 
-    
+
+
 
 def write_out_tables(condpair_node, runconfig):
     condpair = condpair_node.name
-    
+
     res_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "gene", min_num_peptides = runconfig.minpep, annotation_file= getattr(runconfig, "annotation_file", None)).results_df
     has_sequence_nodes = check_if_has_sequence_nodes(condpair_node)
     if has_sequence_nodes:
@@ -235,14 +235,17 @@ def write_out_tables(condpair_node, runconfig):
         res_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.tsv", sep = "\t", index=None)
         if has_sequence_nodes:
             pep_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.seq.tsv", sep = "\t", index=None)
-        
+
         if has_precursor_nodes:
             prec_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.prec.tsv", sep = "\t", index=None)
-        
+
     return res_df, pep_df
 
 def check_if_has_sequence_nodes(condpair_node):
     return condpair_node.children[0].children[0].type == "seq"
 
 def check_if_has_precursor_nodes(condpair_node):
-    return condpair_node.children[0].children[0].children[0].children[0].type == "mod_seq_charge"
+    try:
+        return condpair_node.children[0].children[0].children[0].children[0].type == "mod_seq_charge"
+    except:
+        return False

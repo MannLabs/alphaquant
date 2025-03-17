@@ -122,22 +122,26 @@ def run_pipeline(input_file: str,
     if samplemap_df is None:
         samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
 
-    input_type, _, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
+    input_type, config_dict, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
     annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
+    use_ml = check_if_table_supports_ml(config_dict)
 
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
         input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
-        ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
+        if use_ml:
+            ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
 
     elif "fragment_precursorfiltered.matrix" in input_file_original:
         alphadia_tableprocessor = aq_table_alphadiareader.AlphaDIAFragTableProcessor(input_file_original)
         input_file_reformat = alphadia_tableprocessor.input_file_reformat
-        ml_input_file = alphadia_tableprocessor.ml_info_file
+        if use_ml:
+            ml_input_file = alphadia_tableprocessor.ml_info_file
     else:
         input_file_reformat = load_input_file(input_file_original, input_type)
-        ml_input_file = load_ml_info_file(input_file_original, input_type)
+        if use_ml:
+            ml_input_file = load_ml_info_file(input_file_original, input_type)
 
     if peptides_to_exclude_file is not None:
         remove_peptides_to_exclude_from_input_file(input_file_reformat, peptides_to_exclude_file)
@@ -232,6 +236,9 @@ def load_annotation_file(input_file, input_type, annotation_columns):
         return annotation_filename
     else:
         return aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type, annotation_columns).annotation_filename
+
+def check_if_table_supports_ml(config_dict):
+    return config_dict["format"] == "longtable"
 
 def load_ml_info_file(input_file, input_type, modification_type = None):
     ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")

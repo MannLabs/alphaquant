@@ -144,36 +144,63 @@ maxquant_peptides_leading_razor_protein:
 
 maxquant_evidence:
   format: longtable
-  sample_ID: Experiment #Raw file
-  quant_ID: Intensity
+  sample_ID: Experiment
+  quant_ID:
+    precursor: Intensity
   protein_cols:
    - Gene names
-  ion_cols:
-   - Modified sequence
-   - Charge
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE]
+      mapping:
+        SEQ:
+          - Sequence
+        MOD:
+          - Mass
+        CHARGE:
+          - Charge
+  filters:
+    reverse:
+      param: Reverse
+      comparator: "!="
+      value: "+"
+    contaminant:
+      param: Potential contaminant
+      comparator: "!="
+      value: "+"
+  ml_level: SEQ
+  use_iontree: False
+
 
 maxquant_evidence_protein:
   format: longtable
-  sample_ID: Experiment #Raw file
-  quant_ID: Intensity
+  sample_ID: Experiment
+  quant_ID:
+    precursor: Intensity
   protein_cols:
    - Protein group IDs
-  ion_cols:
-   - Modified sequence
-   - Charge
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD, CHARGE]
+      mapping:
+        SEQ:
+          - Sequence
+        MOD:
+          - Mass
+        CHARGE:
+          - Charge
+  filters:
+    reverse:
+      param: Reverse
+      comparator: "!="
+      value: "+"
+    contaminant:
+      param: Potential contaminant
+      comparator: "!="
+      value: "+"
+  ml_level: SEQ
+  use_iontree: False
 
-
-
-maxquant_evidence_proteins_column:
-  format: longtable
-  sample_ID: Experiment #Raw file
-  quant_ID: Intensity
-  protein_cols:
-   - Proteins
-  ion_cols:
-   - Sequence
-   - Modifications
-   - Charge
 
 diann_precursor_fragion_ms1:
   format: longtable
@@ -1260,27 +1287,6 @@ diaumpire_precursor_ms1:
   ion_cols:
    - Peptide Key
 
-
-diann_wideformat:
-  format: widetable
-  protein_cols:
-   - Protein.Group
-  ion_cols:
-   - Stripped.Sequence
-   - Modified.Sequence
-   - Precursor.Charge
-  ion_hierarchy:
-    sequence_int:
-      order: [SEQ, MOD]
-      mapping:
-        SEQ:
-          - Stripped.Sequence
-        MOD:
-          - Modified.Sequence
-        CH:
-          - Precursor.Charge
-  ml_level: SEQ
-  use_iontree: False
 
 fragpipe_precursors:
   format: widetable
