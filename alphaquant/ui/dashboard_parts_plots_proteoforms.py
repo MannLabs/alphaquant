@@ -10,6 +10,7 @@ import alphaquant.plotting.fcviz as aq_plot_fcviz
 import alphaquant.plotting.alphamapviz as aq_plot_proteoform
 import alphaquant.utils.proteoform_utils as aq_proteoform_utils
 import alphaquant.config.variables as aq_variables
+import alphaquant.ui.dashboad_parts_utils as aq_dashboard_utils
 
 class ProteoformPlottingTab(param.Parameterized):
     """
@@ -198,8 +199,8 @@ class ProteoformPlottingTab(param.Parameterized):
             print(f"Event has 'new' attribute: {event.new}")
         if event.new:
             self.results_dir = event.new
+            self.samplemap_file = aq_dashboard_utils.get_samplemap_file_path(self.results_dir)
             self._extract_cond_pairs()
-            self.samplemap_file = os.path.join(self.results_dir, 'samplemap.tsv')
         print("=== Finished Handling Results Dir Change ===\n")
 
     def _extract_cond_pairs(self):

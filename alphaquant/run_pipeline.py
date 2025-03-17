@@ -156,7 +156,7 @@ def run_pipeline(input_file: str,
     aqvariables.determine_variables(input_file_reformat, input_type)
 
     #use runconfig object to store the parameters
-    runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object!
+    runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object! The runconfig is then used as the input for the run_analysis functions
 
     #store method parameters for reproducibility
     aq_diffquant_utils.remove_old_method_parameters_file_if_exists(results_dir)
