@@ -37,7 +37,7 @@ def analyze_condpair(*,runconfig, condpair):
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
     try:
-        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local,runconfig.minrep_both, runconfig.minrep_either, runconfig.minrep_c1, runconfig.minrep_c2)
+        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, min_valid_values=runconfig.min_valid_values, valid_values_filter_mode=runconfig.valid_values_filter_mode, min_valid_values_c1=runconfig.min_valid_values_c1, min_valid_values_c2=runconfig.min_valid_values_c2)
     except Exception as e:
         LOGGER.info(e)
         return
