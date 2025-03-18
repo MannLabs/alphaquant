@@ -71,7 +71,12 @@ def run_pipeline(input_file: str,
                 protein_subset_for_normalization_file: Optional[str] = None,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
-                reset_progress_folder: bool = False) -> None:
+                reset_progress_folder: bool = False,
+                minrep_both: int = 2, #deprecated
+                minrep_either: Optional[int] = None, #deprecated
+                minrep_c1: Optional[int] = None, #deprecated
+                minrep_c2: Optional[int] = None, #deprecated
+                ) -> None:
     """Run differential analyses following the AlphaQuant pipeline. This function processes proteomics data through multiple steps including
         preprocessing, if applicable PTM site mapping, if applicable median condition creation, normalization, statistical testing, visualizations
         and writing of results tables.
@@ -117,6 +122,26 @@ def run_pipeline(input_file: str,
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
     """
     LOGGER.info("Starting AlphaQuant")
+
+    #########################################################
+    # to ensure backwards compatibility: in case the minrep paramters are set, we need to convert them to the min_valid_values and valid_values_filter_mode parameters
+    if minrep_both is not None:
+        min_valid_values = minrep_both
+        valid_values_filter_mode = "both"
+        LOGGER.warning("you set the parameter 'minrep_both', which will be deprecated in future versions. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
+    if minrep_either is not None:
+        min_valid_values = minrep_either
+        valid_values_filter_mode = "either"
+        LOGGER.warning("you set the parameter 'minrep_either', which will be deprecated in future versions. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
+    if minrep_c1 is not None and minrep_c2 is not None:
+        min_valid_values_c1 = minrep_c1
+        min_valid_values_c2 = minrep_c2
+        valid_values_filter_mode = "per_condition"
+        LOGGER.warning("you set the parameter 'minrep_c1' and 'minrep_c2', which will be deprecated in future versions. Please use 'min_valid_values_c1' and 'min_valid_values_c2' instead.")
+    #########################################################
+
+
+
     input_file_original = input_file
     check_input_consistency(input_file_original, samplemap_file, samplemap_df)
     create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
