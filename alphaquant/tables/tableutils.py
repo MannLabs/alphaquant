@@ -1,38 +1,34 @@
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 
+class QualityScoreNormalizer:
+    def __init__(self, results_df: pd.DataFrame):
+        """
+        The QualityScoreNormalizer converts the arbitrary-scaled quality scores to a normalized scale between 0 and 1, where 1
+        is the best score and 0 is the worst score. 
+        This normalizer assumes that higher input scores are better.
+        The original scores are converted to ranks, which are then normalized to the 0-1 range.
 
+        Args:
+        results_df (pd.DataFrame): DataFrame containing the quality scores, either 'ml_score' or 'consistency_score'.
+        Raises:
+        ValueError: If neither 'ml_score' nor 'consistency_score' is present in the DataFrame.
+        """
 
-class QualityScoreNormalizer():
-    def __init__(self,  results_df, example_node):
         self.results_df = results_df
-        self._example_node = example_node
-        self._score_is_ml_derived = hasattr(self._example_node, "predscore")
+        if "ml_score" in self.results_df.columns:
+            self._normalize_quality_score('ml_score')
+        elif "consistency_score" in self.results_df.columns:
+            self._normalize_quality_score('consistency_score')
+        else:
+            raise ValueError("Quality score not recognized. Please provide a valid quality score.")
 
-        self._normalize_quality_score()
+    def _normalize_quality_score(self, score_column):
+        ranks = self._perform_rank_normalization(self.results_df[score_column], higher_is_better=True)
+        self.results_df['quality_score'] = ranks
+        self.results_df = self.results_df.drop(columns=[score_column])
     
-
-    def _normalize_quality_score(self):
-        scores = self.results_df['quality_score'].values
-
-        if self._score_is_ml_derived:
-            scores = abs(scores) #the machine learning score is symmetric around 0, so we first take the absolute value
-
-
-        scores_min_max_scaled = self._perform_min_max_scaling(scores) # Min Max scaling to have the scores between 0 and 1
-
-        if self._score_is_ml_derived:
-            scores_min_max_scaled = 1 - scores_min_max_scaled # The machine learning score is a "badness" score, so we want to reverse the order of the scores
-        
-        # Assigning the normalized scores back to the DataFrame
-        self.results_df['quality_score'] = scores_min_max_scaled
-
-        return self.results_df
-
-
-    def _perform_min_max_scaling(self, scores_standardized):
-        min_val = np.min(scores_standardized)
-        max_val = np.max(scores_standardized)
-        scores_min_max_scaled = (scores_standardized - min_val) / (max_val - min_val)
-        return scores_min_max_scaled
+    @staticmethod
+    def _perform_rank_normalization(scores_series : pd.Series, higher_is_better: bool):
+        ranks = scores_series.rank(method='average', ascending=higher_is_better).values #'average' method to handle ties
+        normalized_ranks = ranks / len(ranks) # Normalize ranks to be between 0 and 1
+        return normalized_ranks

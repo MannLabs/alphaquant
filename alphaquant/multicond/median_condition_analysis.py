@@ -4,6 +4,19 @@ import pandas as pd
 
 
 def analyze_and_write_median_condition_results(results_dir):
+    """
+    Analyzes differential analysis results relative to median reference condition results and writes output files.
+
+    Parameters:
+    - results_dir (str): The directory containing the result files.
+
+    Outputs:
+    - Writes several TSV files to the results directory:
+        - medianref_peptides.tsv,  all peptides and their respective fold changes relative to the median reference condition.
+        - medianref_proteoforms.tsv, all proteoform groups and their respective fold changes relative to the median reference condition.
+        - medianref_protein_avg.tsv, all protein groups and their average fold changes relative to the median reference condition.
+        - medianref_protein_alphaquant.tsv, all protein groups and the fold changes of the reference proteoform in each group relative to the median reference condition.
+    """
     condpair2tree = MedianRefResultLoader(results_dir).condpair2tree
     peptide_resolved_proteoform_df = MedianRefConditionCombiner(condpair2tree).peptide_resolved_proteoform_df
     combined_proteoform_df_formatter = CombinedProteoformDfFormatter(peptide_resolved_proteoform_df)
@@ -13,7 +26,17 @@ def analyze_and_write_median_condition_results(results_dir):
     combined_proteoform_df_formatter.protein_df_pform0.to_csv(f"{results_dir}/medianref_protein_alphaquant.tsv", sep = "\t", index = None)
 
 class MedianRefResultLoader():
+    """
+    Loads and filters result trees from the specified results directory, keeping only those related to median reference conditions.
+
+    Attributes:
+    - condpair2tree (Dict[Any, Any]): A dictionary mapping condition pairs to their corresponding result trees.
+    """
     def __init__(self, results_dir):
+        """
+        Parameters:
+        - results_dir (str): The directory containing the results files.
+        """
         self._results_dir = results_dir
         self.condpair2tree = {}
 
@@ -31,16 +54,25 @@ class MedianRefResultLoader():
     
 
 class MedianRefConditionCombiner():
+    """
+    Combines result trees from different median reference conditions into a single peptide-resolved proteoform dataframe.
+
+    Attributes:
+    - peptide_resolved_proteoform_df (pd.DataFrame): The combined dataframe with peptide-resolved proteoforms.
+    """
     def __init__(self, condpair2tree):
         self._condpair2tree = condpair2tree
 
         self.protein2nodes = {}
-        self.peptide_resolved_proteoform_df = None
+        self.peptide_resolved_proteoform_df: pd.DataFrame = None
 
         self._define_protein2nodes()      
         self._define_combined_dataframe()
 
     def _define_protein2nodes(self):
+        """
+        Organizes protein nodes from all conditions into a dictionary grouped by protein names.
+        """
         for tree in self._condpair2tree.values():
             cond = tree.name[0]
             for protnode in tree.children:
@@ -70,6 +102,12 @@ class MedianRefConditionCombiner():
 
 
 class ProteoformConditionAligner():
+    """
+    Aligns proteoforms across different conditions for a single protein.
+
+    Attributes:
+    - proteoform_df (pd.DataFrame): The aligned proteoform dataframe for the protein.
+    """
     def __init__(self, nodes_same_protein_different_conditions):
         self._nodes_same_protein_different_conditions = nodes_same_protein_different_conditions
 
@@ -85,24 +123,20 @@ class ProteoformConditionAligner():
         self.proteoform_df = proteoform_df_creator.proteoform_df
 
     def _define_groups_of_peptide_clusters(self, peptide_cluster_df):
-        reordered_df = peptide_cluster_df.apply(self.reorder_clusternames, axis=1)
-        groups = reordered_df.groupby(list(reordered_df.columns)).groups
+        peptide_cluster_df = peptide_cluster_df.fillna(0) #assigning peptides that are not present in a condition to the main cluster 0, meaning they will not open up a new proteoform group unless they are in a different cluster than 0 in another condition.
+        groups = peptide_cluster_df.groupby(list(peptide_cluster_df.columns)).groups #every peptide that has the identical cluster assignments over conditions is grouped together (e.g. all peptides with cluster idxs [1, 0, 2, 0] will be grouped together) 
         groups_of_peptide_clusters = [list(values) for key, values in groups.items()]
         return sorted(groups_of_peptide_clusters, key=lambda x: len(x), reverse=True)
 
-    @staticmethod
-    def reorder_clusternames(row):
-        """We want to make sure that if peptides have the same pattern of cluster idxs, they 
-        should be grouped together. In particualr, if a peptides has clusters for example
-        [0, 0, 1, 0] and another one has [1, 1, 0, 1], they should still be grouped together.
-        This functions aligns the cluster idxs of the peptides according to the order of the
-        appearance.
-        """
-        unique_entries = pd.unique(row)
-        mapping_dict = {val: idx for idx, val in enumerate(unique_entries)}
-        return row.map(mapping_dict)
 
 class ProteoformPeptideDfCreator():
+    """
+    Reformats the nodes from the same protein into dataframes that can be further processed. The dataframes contain the peptide names and their fold changes or cluster assignments.
+
+    Attributes:
+    - peptide_cluster_df (pd.DataFrame): DataFrame with peptide cluster assignments.
+    - peptide_fc_df (pd.DataFrame): DataFrame with peptide fold changes.
+    """
     def __init__(self, nodes_same_protein_different_conditions):
         self._nodes_same_protein_different_conditions = nodes_same_protein_different_conditions
 
@@ -120,7 +154,7 @@ class ProteoformPeptideDfCreator():
         self.peptide_fc_df = self._get_peptide_df("fc")
 
     
-    def _get_peptide_df(self, attribute): #attribute is fc or cluster
+    def _get_peptide_df(self, attribute): #attribute is fc or cluster.
         list_of_pepfc_series = []
         for cond_idx in range(len(self._nodes_same_protein_different_conditions)):
             protein_node = self._nodes_same_protein_different_conditions[cond_idx]
@@ -128,10 +162,16 @@ class ProteoformPeptideDfCreator():
             pepfc_series = pd.Series(index=[x.name for x in peptides_for_cond], data=[getattr(x, attribute) for x in peptides_for_cond])
             pepfc_series.name = protein_node.parent.name[0]
             list_of_pepfc_series.append(pepfc_series)
-        return pd.DataFrame(list_of_pepfc_series).T
+        return pd.DataFrame(list_of_pepfc_series).T #The resulting dataframe will return NaN values for peptides that are not present in a condition.
     
 
 class ProteoformDfCreator():
+    """
+    Creates a proteoform DataFrame from groups of peptides and their fold changes.
+
+    Attributes:
+    - proteoform_df (pd.DataFrame): DataFrame containing proteoform information.
+    """
     def __init__(self, groups_of_peptide_clusters, peptide_fc_df, protein_name):
         self._groups_of_peptide_clusters = groups_of_peptide_clusters
         self._peptide_fc_df = peptide_fc_df

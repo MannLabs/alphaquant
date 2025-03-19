@@ -1,0 +1,5 @@
+bump-my-version
+matplotlib-venn
+ipykernel
+nbformat
+progressbar

@@ -46,10 +46,10 @@ class TableFromNodeCreator():
         node_dict["log2fc"] = node.fc
         node_dict["number_of_ions"] = len(node.leaves)
         node_dict["counting_based"] = node.missingval
-        if hasattr(node, "predscore"):
-            node_dict["quality_score"] = node.predscore
+        if hasattr(node, "ml_score"):
+            node_dict["ml_score"] = node.ml_score
         else:
-            node_dict["quality_score"] = node.fraction_consistent * len(node.leaves)
+            node_dict["consistency_score"] = node.fraction_consistent * len(node.leaves)
 
         if hasattr(node, "total_intensity"):
             node_dict["total_intensity"] = node.total_intensity
@@ -61,7 +61,7 @@ class TableFromNodeCreator():
     
     def _filter_annotate_results_df(self):
         self.results_df = TableAnnotatorFilterer(self.results_df, self._list_of_nodetype_nodes, self._min_num_peptides, self._annotation_file, self._condpair_tree.fraction_missingval).results_df
-        self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df, self._list_of_nodetype_nodes[0]).results_df
+        self.results_df = aqtableutils.QualityScoreNormalizer(self.results_df).results_df
     
 
 class TableAnnotatorFilterer():

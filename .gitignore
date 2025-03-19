@@ -42,6 +42,8 @@ wheels/
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 #*.spec
+build_pyinstaller
+dist_pyinstaller
 
 # Installer logs
 pip-log.txt
@@ -217,3 +219,13 @@ example_nbs/data/phospho/samplemap_proteome_w_median.tsv
 example_nbs/data/phospho/phospho_subset_ptmsite_mapped.annotation.tsv
 example_nbs/data/phospho/proteome_subset.annotation.tsv
 tests/ratio_tests/compare_multiple_configs_spectronaut_largefc.ipynb
+
+#sandbox
+sandbox
+alphaquant-*-arm64.pkg
+alphaquant.pkg
+build_mac_release.sh
+paper_analyses
+
+alphaquant/resources/reference_databases
+alphaquant/resources/phosphopred_databases

@@ -27,5 +27,5 @@ def run(ctx, **kwargs):
 
 @run.command("gui", help="Start graphical user interface.")
 def gui():
-    import alphaquant.gui
-    alphaquant.gui.run()
+    import alphaquant.ui.gui
+    alphaquant.ui.gui.run()

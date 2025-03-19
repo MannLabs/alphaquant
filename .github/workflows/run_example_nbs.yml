@@ -1,0 +1,32 @@
+# Perform pip installation (stable, loose) and run tests on all three OS
+
+# For feature branches, we don't test the full matrix (os x [stable, loose]) in order to save time & resources.
+# On each push to develop, the whole test matrix runs, additionally, its success is mandatory for merging to main.
+# In the (assumed to be rare case) that these full matrix tests fail but the reduced matrix tests passed,
+# we will learn about it latest before pushing to main. The merge that caused the issue can then be identified
+# from the tests that ran on develop.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+name: Run example notebooks
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+
+  run-unit-tests-loose:
+    name: Test 'loose' on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        python-version: ["3.11"]
+    uses: ./.github/workflows/_run_tests.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      os: ${{ matrix.os }}
+      install-script: ./pip_install.sh tests,gui
+      test-script: ./run_example_notebooks.sh

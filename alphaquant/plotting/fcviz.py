@@ -15,8 +15,7 @@ LOGGER = logging.getLogger(__name__)
 class FoldChangeVisualizer():
 
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
-                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq',
-                                                        protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
+                                                        order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
                                                         narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
                                                         figsize = None, showfliers = True):
                                                         
@@ -58,7 +57,7 @@ class FoldChangeVisualizer():
         results_figures = []
         for protein_of_interest in list_of_proteins:
             if protein_of_interest not in self.protein2node.keys():
-                LOGGER.warn(f"Protein {protein_of_interest} not found in the tree.")
+                LOGGER.warning(f"Protein {protein_of_interest} not found in the tree.")
                 continue
             protein_fig = self.plot_protein(protein_of_interest)
             results_figures.append(protein_fig)
@@ -194,10 +193,10 @@ import anytree
 
 
 class ProteinPlot():
-    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig, selected_peptides = None):
+    def __init__(self, protein_node, quantification_info: CondpairQuantificationInfo, plotconfig : PlotConfig, selected_peptides = None, fig=None, axes=None):
 
-        self.fig = None
-        self.axes = None
+        self.fig = fig
+        self.axes = axes
 
         self._protein_node = protein_node
         self._quantification_info = quantification_info
@@ -225,7 +224,7 @@ class ProteinPlot():
         self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
     
     def _plot_fcs(self):
-        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig)
+        pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig, fig=self.fig, axes=self.axes)
         self.fig =  pcplotter._fig
         self.axes = pcplotter._axes
     
@@ -357,9 +356,9 @@ class ProteinClusterPlotter():
             return f"{fc_string}\n{quality_string}"
 
     def _get_quality_score(self, peptide_node):
-        has_predscore = hasattr(peptide_node, 'predscore')
-        if has_predscore:
-            return abs(peptide_node.predscore)
+        has_ml_score = hasattr(peptide_node, 'ml_score')
+        if has_ml_score:
+            return abs(peptide_node.ml_score)
         else:
             return 1/peptide_node.fraction_consistent
 
@@ -433,7 +432,7 @@ class ProteinQuantDfAnnotator():
         self._specified_level = specified_level
 
         self._ion2is_included = {}
-        self._ion2predscore = {}
+        self._ion2ml_score = {}
         self._ion2level = {}
         self._ion2parent = {}
         self._ion2cluster = {}
@@ -477,34 +476,34 @@ class ProteinQuantDfAnnotator():
             for child in level_node.children:
                 for leaf in child.leaves:
                     self._ion2is_included[leaf.name] = aqclustutils.check_if_node_is_included(child)
-                    self._ion2predscore[leaf.name] = self._get_predscore_if_possible(child)
+                    self._ion2ml_score[leaf.name] = self._get_ml_score_if_possible(child)
                     self._ion2level[leaf.name] = child.name
                     self._ion2parent[leaf.name] = level_node.name
                     self._ion2cluster[leaf.name] = child.cluster
 
     def _annotate_properties_to_melted_df(self, melted_df):
         melted_df["is_included"] = [self._ion2is_included.get(x, np.nan) for x in melted_df["leafname"]]
-        melted_df["predscore"] = [self._ion2predscore.get(x, np.nan) for x in melted_df["leafname"]]
+        melted_df["ml_score"] = [self._ion2ml_score.get(x, np.nan) for x in melted_df["leafname"]]
         melted_df["specified_level"] = [self._ion2level.get(x,np.nan) for x in melted_df["leafname"]]
         melted_df["parent_level"] = [self._ion2parent.get(x,np.nan) for x in melted_df["leafname"]]
         melted_df["cluster"] = [self._ion2cluster.get(x,np.nan) for x in melted_df["leafname"]]
 
-        columns_to_check = ["is_included", "predscore", "specified_level", "cluster"]
+        columns_to_check = ["is_included", "ml_score", "specified_level", "cluster"]
 
         rows_with_na = melted_df[melted_df[columns_to_check].isna().any(axis=1)]
 
         if not rows_with_na.empty:
             print("Rows with NA values in the specified columns:")
-            LOGGER.warn("NA values detected in the specified columns.")
+            LOGGER.warning("NA values detected in the specified columns.")
             LOGGER.info(rows_with_na)
             melted_df = melted_df.dropna(subset=columns_to_check)
         
         return melted_df
 
     @staticmethod
-    def _get_predscore_if_possible(node):
+    def _get_ml_score_if_possible(node):
         try:
-            return node.predscore
+            return node.ml_score
         except:
             return 1.0
     
@@ -548,7 +547,7 @@ import matplotlib.pyplot as plt
 
 
 class IonFoldChangePlotter():
-    def __init__(self, melted_df, condpair, property_column = "predscore", is_included_column="is_included", plotconfig = PlotConfig()):
+    def __init__(self, melted_df, condpair, property_column = "ml_score", is_included_column="is_included", plotconfig = PlotConfig()):
 
         ionfc_calculated = IonFoldChangeCalculator(melted_df, condpair)
         self._property_column = property_column
@@ -562,31 +561,31 @@ class IonFoldChangePlotter():
         fig, axs = plt.subplots(2, 2,figsize = self._get_fig_width())
         colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
 
-        colormap_relative_strength_all = colorgetter.get_predscore_relative_strength_colormap(set_nonmainclust_elems_whiter=False)
+        colormap_relative_strength_all = colorgetter.get_ml_score_relative_strength_colormap(set_nonmainclust_elems_whiter=False)
         self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, axs[0][0])
 
-        colormap_relative_strength_mainclust = colorgetter.get_predscore_relative_strength_colormap(set_nonmainclust_elems_whiter=True)
+        colormap_relative_strength_mainclust = colorgetter.get_ml_score_relative_strength_colormap(set_nonmainclust_elems_whiter=True)
         self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_mainclust, axs[1][0])
 
-        colormap_quantiles_all = colorgetter.get_predscore_quantile_colormap(set_nonmainclust_elems_whiter=False)
+        colormap_quantiles_all = colorgetter.get_ml_score_quantile_colormap(set_nonmainclust_elems_whiter=False)
         self.plot_fcs_with_specified_color_scheme(colormap_quantiles_all, axs[0][1])
 
-        colormap_quantiles_mainclust = colorgetter.get_predscore_quantile_colormap(set_nonmainclust_elems_whiter=True)
+        colormap_quantiles_mainclust = colorgetter.get_ml_score_quantile_colormap(set_nonmainclust_elems_whiter=True)
         self.plot_fcs_with_specified_color_scheme(colormap_quantiles_mainclust, axs[1][1])
 
         axs[0][0].set_xticks([], [])
         axs[0][1].set_xticks([], [])
         return fig
 
-    def plot_fcs_predscore_relative_strength(self, set_nonmainclust_elems_white = True, ax = None):
+    def plot_fcs_ml_score_relative_strength(self, set_nonmainclust_elems_white = True, ax = None):
         if ax is None:
             ax = plt.subplot()
         colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
-        colormap_relative_strength_all = colorgetter.get_predscore_relative_strength_colormap(set_nonmainclust_elems_whiter=set_nonmainclust_elems_white)
+        colormap_relative_strength_all = colorgetter.get_ml_score_relative_strength_colormap(set_nonmainclust_elems_whiter=set_nonmainclust_elems_white)
         self.plot_fcs_with_specified_color_scheme(colormap_relative_strength_all, ax)
         return ax
 
-    def plot_fcs_predscore_unicolor(self, color, ax = None):
+    def plot_fcs_ml_score_unicolor(self, color, ax = None):
         if ax is None:
             ax = plt.subplot()
         colorgetter = IonPlotColorGetter(melted_df = self._melted_df, property_column=self._property_column, ion_name_column="specified_level", is_included_column=self._is_included_column)
@@ -662,9 +661,9 @@ class IonPlotColorGetter():
         self._color_palette = aq_plot_base.AlphaPeptColorMap().colormap_discrete
         self._sorted_map_df = self.__init_sorted_mapping_df()
 
-    def get_predscore_relative_strength_colormap(self, set_nonmainclust_elems_whiter = True):
+    def get_ml_score_relative_strength_colormap(self, set_nonmainclust_elems_whiter = True):
         max_val = list(self._sorted_map_df[self._property_column])[-1]
-        relative_proportions = [x/max_val for x in self._sorted_map_df[self._property_column]] #the lower the predscore the lower the proportion (low values in rgb tuple means darker color)
+        relative_proportions = [x/max_val for x in self._sorted_map_df[self._property_column]] #the lower the ml_score the lower the proportion (low values in rgb tuple means darker color)
         colors_derived = [(0.8*x, 0.8*x, 0.8*x) for x in relative_proportions] #rgb_base_level = (0.6, 0.6, 0.6)
         ion_names = [x for x in self._sorted_map_df[self._ion_name_column]]
         name2color = dict(zip(ion_names, colors_derived))
@@ -674,7 +673,7 @@ class IonPlotColorGetter():
 
         return name2color
 
-    def get_predscore_quantile_colormap(self, set_nonmainclust_elems_whiter = True):
+    def get_ml_score_quantile_colormap(self, set_nonmainclust_elems_whiter = True):
         sorted_scores = self._sorted_map_df[self._property_column]
         idx_fifty_percent = self.__get_percentile_idx(sorted_scores, 0.5)
         idx_seventy_percent = self.__get_percentile_idx(sorted_scores, 0.7)

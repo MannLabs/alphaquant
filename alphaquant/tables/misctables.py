@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
 import alphaquant.utils.utils as aq_utils_utils
+import alphaquant.utils.reader_utils as aq_reader_utils
 
 class RunConfigTableCreator():
     def __init__(self, runconfig):
@@ -43,10 +44,10 @@ class AnnotationFileCreator():
         self._id_columns = None
         self._annotation_columns = None
         self._annotation_df = None
-        
+
         self._define_id_and_annotation_columns()
         self._define_and_write_annotation_file_if_applicable()
-    
+
     def _define_id_and_annotation_columns(self):
         config_dict = abconfigloader.get_input_type_and_config_dict(input_file = self._input_file, input_type_to_use = self._input_type_to_use)[1] #load the config dict which contains the relevant columns
         self._id_columns = config_dict.get("protein_cols")
@@ -60,16 +61,15 @@ class AnnotationFileCreator():
             self._define_annotation_df()
             self._define_annotation_filename()
             self._write_annotation_file()
-    
+
     def _define_annotation_df(self):
-        self._annotation_df = pd.read_csv(self._input_file, usecols = self._id_columns + self._annotation_columns, sep = "\t",encoding ='latin1').drop_duplicates()
+        self._annotation_df = aq_reader_utils.read_file(self._input_file, usecols = self._id_columns + self._annotation_columns, sep = "\t").drop_duplicates()
         self._annotation_df["protein"] = self._annotation_df[self._id_columns].astype(str).apply(lambda x : "_".join(x), axis = 1)
         self._annotation_df = self._annotation_df.drop(columns = self._id_columns)
-    
+
     def _define_annotation_filename(self):
         self.annotation_filename = aq_utils_utils.get_progress_folder_filename(input_file=self._input_file, file_ending=".annotation.tsv")
 
     def _write_annotation_file(self):
         self._annotation_df.to_csv(self.annotation_filename, sep = "\t", index = None)
-    
-        
+

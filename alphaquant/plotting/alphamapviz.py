@@ -12,6 +12,11 @@ import alphamap.uniprot_integration
 import alphaquant.plotting.fcviz as aq_plot_fc
 import alphaquant.plotting.colors as aq_plot_colors
 
+import alphaquant.config.config as aqconfig
+import logging
+aqconfig.setup_logging()
+LOGGER = logging.getLogger(__name__)
+
 
 class AlphaMapVisualizer:
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
@@ -50,7 +55,7 @@ class AlphaMapVisualizer:
             rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y)
         
         self._colorlist = self._get_colorlist(self._fc_visualizer)
-        self._gene2protein_mapper = Gene2ProteinMapper(self._fc_visualizer.plotconfig._organism)
+        self._gene2protein_mapper = Gene2ProteinMapper(self._fc_visualizer.plotconfig._organism, protein_identifier)
         self._df_generator = AlphaMapDfGenerator(self._fc_visualizer.condpair_tree, self._gene2protein_mapper, 
                                                  self._fc_visualizer.plotconfig._organism, self._colorlist)
     
@@ -100,13 +105,20 @@ class AlphaMapDfGenerator:
         unique_clusters = sorted(df_allclust['cluster'].astype('int').unique())
         for cluster in unique_clusters:
             df_cluster = df_allclust[df_allclust['cluster'] == cluster].drop(columns=['cluster'])
-            df_cluster_formatted = alphamap.preprocessing.format_input_data(df=df_cluster, fasta = self.seq_fasta, modification_exp = r'\[.*?\]')
+            try:
+                df_cluster_formatted = alphamap.preprocessing.format_input_data(df=df_cluster, fasta = self.seq_fasta, modification_exp = r'\[.*?\]')
+            except:
+                LOGGER.warning(f"Could not format the input data for cluster {cluster}, skipping")
+                continue
             self.cluster_dfs.append(df_cluster_formatted)
         
     def _generate_alphamap_input_df_from_proteome_condpair_node(self, condpair_node):
         rows = []
         for protein in condpair_node.children:
             protein_name = self._gene2protein_mapper.get_swissprot_id_if_gene(protein.name)
+            if protein_name is None:
+                LOGGER.warning(f"Could not find a swissprot id for protein {protein.name}, skipping")
+                continue
             peptides = anytree.findall(protein, filter_=lambda node: node.type == 'seq')
             for peptide in peptides:
                 naked_sequence = aqutils.cut_trailing_parts_seqstring(peptide.name) # Replace this with aqutils if needed
@@ -123,17 +135,21 @@ class AlphaMapDfGenerator:
 
 
 class Gene2ProteinMapper:
-    def __init__(self, organism = 'Human'):
+    def __init__(self, organism = 'Human', protein_identifier = 'gene_symbol'):
         """
         Often the 'protein' id encodes the gene symbol, so in this case, we need to map the gene symbol to a respective protein id and we use the swissprot database for this.
         """
         self._gene2protein_dict = self._generate_gene2protein_dict(organism)
+        self._protein_identifier = protein_identifier
     
     def get_swissprot_id_if_gene(self, protein):
+        if self._protein_identifier == 'uniprot_id':
+            return protein
+        protein = protein.split(";")[0] # in case there are multiple proteins just pick the first one
         if protein in self._gene2protein_dict:
             return self._gene2protein_dict[protein]
         else:
-            return protein
+            return None
     
     def _generate_gene2protein_dict(self, organism):
         organism_smallcaps = organism.lower()

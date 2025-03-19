@@ -146,3 +146,27 @@ progress.light::-moz-progress-bar {
 .tabulator-row.tabulator-selected {
     background-color: #fff;
 }
+
+.bk-tab {
+    font-size: 16px !important;
+    font-weight: bold !important;
+    padding: 12px 30px !important;
+    background-color: #eaeaea !important;
+    color: #333 !important;
+    border: none !important;
+    margin: 0 2px !important;
+    border-radius: 5px 5px 0 0 !important;
+}
+
+.bk-tab:hover {
+    background-color: #f5f5f5 !important;
+}
+
+.bk-tab.bk-active {
+    background-color: #045082 !important;
+    color: white !important;
+}
+
+.bk-header.bk-tab-header {
+    border-bottom: 2px solid #045082 !important;
+}

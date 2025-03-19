@@ -1,9 +1,9 @@
 if __name__ == "__main__":
     try:
-        import alphaquant.gui
+        import alphaquant.ui.gui
         import multiprocessing
         multiprocessing.freeze_support()
-        alphaquant.gui.run()
+        alphaquant.ui.gui.run()
     except e:
         import traceback
         import sys
