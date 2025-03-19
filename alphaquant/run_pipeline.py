@@ -128,16 +128,16 @@ def run_pipeline(input_file: str,
     if minrep_both is not None:
         min_valid_values = minrep_both
         valid_values_filter_mode = "both"
-        LOGGER.warning("you set the parameter 'minrep_both', which will be deprecated in future versions. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
+        LOGGER.warning("you set the parameter 'minrep_both', which is deprecated. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
     if minrep_either is not None:
         min_valid_values = minrep_either
         valid_values_filter_mode = "either"
-        LOGGER.warning("you set the parameter 'minrep_either', which will be deprecated in future versions. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
+        LOGGER.warning("you set the parameter 'minrep_either', which is deprecated. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
     if minrep_c1 is not None and minrep_c2 is not None:
         min_valid_values_c1 = minrep_c1
         min_valid_values_c2 = minrep_c2
         valid_values_filter_mode = "per_condition"
-        LOGGER.warning("you set the parameter 'minrep_c1' and 'minrep_c2', which will be deprecated in future versions. Please use 'min_valid_values_c1' and 'min_valid_values_c2' instead.")
+        LOGGER.warning("you set the parameter 'minrep_c1' and 'minrep_c2', which is deprecated. Please use 'min_valid_values_c1' and 'min_valid_values_c2' instead.")
     #########################################################
 
 
