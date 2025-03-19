@@ -161,7 +161,7 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, min_valid_
         raise Exception(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
 
     if valid_values_filter_mode == "either":
-        min_valid_values = np.min([get_minrep_for_cond(samples_c1, min_valid_values), get_minrep_for_cond(samples_c2, min_valid_values)])
+        min_valid_values = np.min([get_min_valid_values_for_cond(samples_c1, min_valid_values), get_min_valid_values_for_cond(samples_c2, min_valid_values)])
         passes_min_valid_values_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= min_valid_values
         passes_min_valid_values_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= min_valid_values
         passes_min_valid_values = passes_min_valid_values_c1 | passes_min_valid_values_c2
@@ -170,14 +170,14 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, min_valid_
         df_c2 = unnormed_df.loc[:, samples_c2]
 
     elif valid_values_filter_mode == "both":
-        min_valid_values_c1 = get_minrep_for_cond(samples_c1, min_valid_values)
-        min_valid_values_c2 = get_minrep_for_cond(samples_c2, min_valid_values)
+        min_valid_values_c1 = get_min_valid_values_for_cond(samples_c1, min_valid_values)
+        min_valid_values_c2 = get_min_valid_values_for_cond(samples_c2, min_valid_values)
         df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=min_valid_values_c1, axis=0)
         df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=min_valid_values_c2, axis=0)
 
     elif valid_values_filter_mode == "per_condition":
-        min_valid_values_c1 = get_minrep_for_cond(samples_c1, min_valid_values_c1)
-        min_valid_values_c2 = get_minrep_for_cond(samples_c2, min_valid_values_c2)
+        min_valid_values_c1 = get_min_valid_values_for_cond(samples_c1, min_valid_values_c1)
+        min_valid_values_c2 = get_min_valid_values_for_cond(samples_c2, min_valid_values_c2)
         df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=min_valid_values_c1, axis=0)
         df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=min_valid_values_c2, axis=0)
     else:
@@ -188,14 +188,14 @@ def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, min_valid_
 
     return df_c1, df_c2
 
-def get_minrep_for_cond(c_samples, minrep):
-    if minrep is None: #in the case of None, no nans will be allowed
+def get_min_valid_values_for_cond(c_samples, min_valid_values):
+    if min_valid_values is None: #in the case of None, no nans will be allowed
         return None
     num_samples = len(c_samples)
-    if num_samples<minrep:
+    if num_samples<min_valid_values:
         return num_samples
     else:
-        return minrep
+        return min_valid_values
 
 
 
