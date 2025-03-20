@@ -283,7 +283,7 @@ class RunPipeline(BaseWidget):
 			width=300,
 			description='Select the organism your samples come from'
 		)
-		self.min_valid_values_filtermode = pn.widgets.Select(
+		self.valid_values_filter_mode = pn.widgets.Select(
 			name='Filtering options for min. valid values:',
 			options=[
 				'min. valid values in condition1 OR condition2',
@@ -499,7 +499,7 @@ class RunPipeline(BaseWidget):
 		self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
 		self.analysis_type.param.watch(self._update_analysis_type_visibility, 'value')
-		self.min_valid_values_filtermode.param.watch(self._toggle_filtering_options, 'value')
+		self.valid_values_filter_mode.param.watch(self._toggle_filtering_options, 'value')
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
 		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
@@ -520,7 +520,7 @@ class RunPipeline(BaseWidget):
 
 		filtering_section = pn.Row(
 			pn.Column(
-				self.min_valid_values_filtermode,
+				self.valid_values_filter_mode,
 				self.min_valid_values_OR,
 				self.min_valid_values_AND,
 				self.min_valid_values_c1,
@@ -757,10 +757,10 @@ class RunPipeline(BaseWidget):
 				'volcano_fdr': self.volcano_fdr.value,
 				'volcano_fcthresh': self.volcano_fcthresh.value,
 				'multicond_median_analysis': is_median_analysis,
-				"min_valid_values_filtermode": self.min_valid_values_filtermode.value,
+				"valid_values_filter_mode": self.valid_values_filter_mode.value,
 				"min_valid_values": self._get_min_valid_values(),
-				"min_valid_values_c1": self.min_valid_values_c1.value if self.min_valid_values_filtermode.value == 'set min. valid values per condition' else None,
-				"min_valid_values_c2": self.min_valid_values_c2.value if self.min_valid_values_filtermode.value == 'set min. valid values per condition' else None,
+				"min_valid_values_c1": self.min_valid_values_c1.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
+				"min_valid_values_c2": self.min_valid_values_c2.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
 			}
 
 			# Log key parameters
@@ -1306,7 +1306,7 @@ class RunPipeline(BaseWidget):
 		"""
 		Return the appropriate min_valid_values based on the selected filter mode.
 		"""
-		filter_mode = self.min_valid_values_filtermode.value
+		filter_mode = self.valid_values_filter_mode.value
 
 		if filter_mode == 'min. valid values in condition1 OR condition2':
 			return self.min_valid_values_OR.value
