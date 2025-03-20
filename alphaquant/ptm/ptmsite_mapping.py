@@ -48,7 +48,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
 
 
 
-def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.7, excl_thresh =0 ,swissprot_file = None,
+def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.7, excl_thresh =0.1 ,swissprot_file = None,
 sequence_file=None, input_type = "Spectronaut", organism = "human"):
     if input_type == "Spectronaut":
         input_df = read_df_spectronaut_reduce_cols(input_file, modification_type)
