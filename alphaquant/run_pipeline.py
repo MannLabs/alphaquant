@@ -46,7 +46,7 @@ def run_pipeline(input_file: str,
                 condpairs_list: Optional[List[Tuple[str, str]]] = None,
                 file_has_alphaquant_format: bool = False,
                 min_valid_values: int = 2,
-                valid_values_filter_mode: str = "either",
+                valid_values_filter_mode: str = "either", #options: "either", "and", "per_condition"
                 min_valid_values_c1: int = 0,
                 min_valid_values_c2: int = 0,
                 min_num_ions: int = 1,
@@ -95,6 +95,7 @@ def run_pipeline(input_file: str,
     valid_values_filter_mode (str): Strategy for filtering based on valid values. Options:
         - "either": Include features that have at least 'min_valid_values' valid values in at least one condition.
         - "both": Include only features that have at least 'min_valid_values' valid values in all conditions.
+        - "per_condition": Include only features that have at least 'min_valid_values_c1' valid values in condition 1 and 'min_valid_values_c2' valid values in condition 2.
     min_valid_values_c1 (int): Minimum number of valid values required specifically in condition 1.
     min_valid_values_c2 (int): Minimum number of valid values required specifically in condition 2.
     min_num_ions (int): Minimum number of ions required per peptide. Defaults to 1.
