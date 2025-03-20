@@ -303,8 +303,6 @@ class RunPipeline(BaseWidget):
 			description='Minimum number of valid values required in at least one of the conditions'
 		)
 
-
-
 		self.min_valid_values_AND = pn.widgets.IntInput(
 			name='Min valid values (both conditions):',
 			value=2,
@@ -757,7 +755,7 @@ class RunPipeline(BaseWidget):
 				'volcano_fdr': self.volcano_fdr.value,
 				'volcano_fcthresh': self.volcano_fcthresh.value,
 				'multicond_median_analysis': is_median_analysis,
-				"valid_values_filter_mode": self.valid_values_filter_mode.value,
+				"valid_values_filter_mode": self._translate_filter_mode_for_backend(),
 				"min_valid_values": self._get_min_valid_values(),
 				"min_valid_values_c1": self.min_valid_values_c1.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
 				"min_valid_values_c2": self.min_valid_values_c2.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
@@ -1308,13 +1306,37 @@ class RunPipeline(BaseWidget):
 		"""
 		filter_mode = self.valid_values_filter_mode.value
 
+		print(f"Getting min_valid_values with UI filter_mode: {filter_mode}")
+
 		if filter_mode == 'min. valid values in condition1 OR condition2':
-			return self.min_valid_values_OR.value
+			min_val = self.min_valid_values_OR.value
+			print(f"Using OR mode with value: {min_val}")
+			return min_val
 		elif filter_mode == 'min. valid values in condition1 AND condition2':
-			return self.min_valid_values_AND.value
+			min_val = self.min_valid_values_AND.value
+			print(f"Using AND mode with value: {min_val}")
+			return min_val
 		else:  # 'set min. valid values per condition'
 			# When using per-condition values, return None for the general min_valid_values
+			print("Using per-condition mode, returning None")
 			return None
+
+	def _translate_filter_mode_for_backend(self):
+		"""
+		Translate the UI filter mode option to the corresponding backend parameter value.
+		"""
+		ui_mode = self.valid_values_filter_mode.value
+
+		# Map UI options to backend values
+		mode_mapping = {
+			'min. valid values in condition1 OR condition2': 'either',
+			'min. valid values in condition1 AND condition2': 'both',
+			'set min. valid values per condition': 'per_condition'
+		}
+
+		backend_mode = mode_mapping.get(ui_mode, 'either')  # Default to 'either' if not found
+		print(f"Translating UI filter mode '{ui_mode}' to backend mode '{backend_mode}'")
+		return backend_mode
 
 class Tabs(param.Parameterized):
 	"""
