@@ -6,6 +6,7 @@ import scipy.stats
 import numpy as np
 import statistics
 
+PVALUE_THRESHOLD_FOR_INTENSITY_BASED_COUNTING = 0.1
 
 def create_protnode_from_missingval_ions(gene_name,diffions, normed_c1, normed_c2):
     return MissingValProtNodeCreator(gene_name, diffions, normed_c1, normed_c2).prot_node
@@ -32,7 +33,7 @@ class MissingValProtNodeCreator:
         self._all_intensities_c1 = self._normed_c1.all_intensities
         self._all_intensities_c2 = self._normed_c2.all_intensities
         self._total_intensity = (np.mean(self._all_intensities_c1) +np.mean(self._all_intensities_c2))/2
-    
+
 
     def _create_protnode_from_missingval_ions(self):
         #nrep_c1 and nrep_c2 are the number of replicates in the conditions in general, not the minimum required
@@ -62,7 +63,7 @@ class MissingValProtNodeCreator:
             leaf.c2_has_values = leaf.numvals_c2 > 0
 
             leaf.fc = np.nan
-            
+
             leaf.missingval = True
             leaf.total_intensity = self._total_intensity
             leaf.fraction_consistent = np.nan
@@ -158,9 +159,9 @@ class MissingValNodeTester:
         self._define_pvalue_by_iterative_testing()
         self._define_matching_fc(node_to_test)
 
-    
+
     def _define_higher_and_lower_condition(self, node_to_test, nrep_c1, nrep_c2, all_intensities_c1, all_intensities_c2):
-        
+
         if node_to_test.numvals_c1 > node_to_test.numvals_c2:
             self._numvals_higher_condition = node_to_test.numvals_c1
             self._numvals_lower_condition = node_to_test.numvals_c2
@@ -169,7 +170,7 @@ class MissingValNodeTester:
             self._nrep_higher_condition = nrep_c1
             self._nrep_lower_condition = nrep_c2
             self._all_intensities_higher_condition = all_intensities_c1
-        
+
         elif node_to_test.numvals_c1 < node_to_test.numvals_c2:
             self._numvals_higher_condition = node_to_test.numvals_c2
             self._numvals_lower_condition = node_to_test.numvals_c1
@@ -178,24 +179,24 @@ class MissingValNodeTester:
             self._nrep_higher_condition = nrep_c2
             self._nrep_lower_condition = nrep_c1
             self._all_intensities_higher_condition = all_intensities_c2
-        
 
 
 
 
 
-    
+
+
     def _define_pvalue_by_iterative_testing(self):
-        if self._perform_binomal_test_on_higher_condition() > 0.2: #the function returns a p-value
+        if self._perform_binomal_test_on_higher_condition() > PVALUE_THRESHOLD_FOR_INTENSITY_BASED_COUNTING: #the function returns a p-value
             self.pval = self._perform_binomal_test_on_lower_condition()
-        
+
         else:
             self.pval = self._perform_fishers_exact_test()
 
-    def _perform_binomal_test_on_higher_condition(self): # we first test the null hypothesis that the values observed in the higher condition (e.g. 5 values are there and we have 6 measurements in total) are missing at random. If this is not the case, we can't apply the binomial test to the lower condition. 
+    def _perform_binomal_test_on_higher_condition(self): # we first test the null hypothesis that the values observed in the higher condition (e.g. 5 values are there and we have 6 measurements in total) are missing at random. If this is not the case, we can't apply the binomial test to the lower condition.
             pval_higher_condition = scipy.stats.binomtest(int(self._numvals_higher_condition), self._nrep_higher_condition, 1-self._fraction_missingval_higher_condition).pvalue
             return pval_higher_condition
-    
+
     def _perform_binomal_test_on_lower_condition(self):
         pval_lower_condition = scipy.stats.binomtest(int(self._numvals_lower_condition), self._nrep_lower_condition, 1-self._fraction_missingval_higher_condition).pvalue
         return pval_lower_condition
@@ -207,7 +208,7 @@ class MissingValNodeTester:
 
         contingency_table = np.array([[self._numvals_higher_condition, num_missing_higher_condition],
                                     [self._numvals_lower_condition, num_missing_lower_condition]])
-        
+
         odds_ratio, p = scipy.stats.fisher_exact(contingency_table)
 
         return p
@@ -222,7 +223,6 @@ class MissingValNodeTester:
         elif numvals_c2 > numvals_c1:
             self.fc = intensity_lower - node_to_test.intensity_c2
         else:
-            self.fc = 0
-        
+            raise Exception("Condition 1 and condition 2 have the same number of values. This should not be handled by the binomial test.")
 
-        
+
