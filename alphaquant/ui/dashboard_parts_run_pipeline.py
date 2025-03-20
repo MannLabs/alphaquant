@@ -283,8 +283,8 @@ class RunPipeline(BaseWidget):
 			width=300,
 			description='Select the organism your samples come from'
 		)
-		self.filtering_options = pn.widgets.Select(
-			name='Filtering Options:',
+		self.min_valid_values_filtermode = pn.widgets.Select(
+			name='Filtering options for min. valid values:',
 			options=[
 				'min. valid values in condition1 OR condition2',
 				'min. valid values in condition1 AND condition2',
@@ -295,24 +295,27 @@ class RunPipeline(BaseWidget):
 			description=gui_textfields.Descriptions.tooltips['filtering_options']
 		)
 
-		self.minrep_either = pn.widgets.IntInput(
-			name='Min replicates (either condition):',
+		self.min_valid_values_OR = pn.widgets.IntInput(
+			name='Min valid values (either condition):',
 			value=2,
 			start=0,
 			width=300,
 			description='Minimum number of valid values required in at least one of the conditions'
 		)
 
-		self.minrep_both = pn.widgets.IntInput(
-			name='Min replicates (both conditions):',
+
+
+		self.min_valid_values_AND = pn.widgets.IntInput(
+			name='Min valid values (both conditions):',
 			value=2,
 			start=1,
 			width=300,
-			description='Minimum number of valid values required in both conditions'
+			description='Minimum number of valid values required in both conditions',
+			visible=False
 		)
 
-		self.minrep_c1 = pn.widgets.IntInput(
-			name='Min replicates (condition 1):',
+		self.min_valid_values_c1 = pn.widgets.IntInput(
+			name='Min valid values (condition 1):',
 			value=2,
 			start=0,
 			width=300,
@@ -320,8 +323,8 @@ class RunPipeline(BaseWidget):
 			visible=False
 		)
 
-		self.minrep_c2 = pn.widgets.IntInput(
-			name='Min replicates (condition 2):',
+		self.min_valid_values_c2 = pn.widgets.IntInput(
+			name='Min valid values (condition 2):',
 			value=2,
 			start=0,
 			width=300,
@@ -494,10 +497,9 @@ class RunPipeline(BaseWidget):
 		)
 		self.samplemap_fileupload.param.watch(self._update_samplemap_table, 'value')
 		self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
-		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
 		self.analysis_type.param.watch(self._update_analysis_type_visibility, 'value')
-		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
+		self.min_valid_values_filtermode.param.watch(self._toggle_filtering_options, 'value')
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
 		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
@@ -517,7 +519,13 @@ class RunPipeline(BaseWidget):
 		)
 
 		filtering_section = pn.Row(
-			pn.Column(self.filtering_options, self.minrep_either)
+			pn.Column(
+				self.min_valid_values_filtermode,
+				self.min_valid_values_OR,
+				self.min_valid_values_AND,
+				self.min_valid_values_c1,
+				self.min_valid_values_c2
+			)
 		)
 
 		advanced_settings_card = pn.Card(
@@ -732,6 +740,7 @@ class RunPipeline(BaseWidget):
 			# Log samplemap status right before passing to pipeline
 			print(f"Samplemap right before pipeline run: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
 
+
 			# Collect all configuration parameters
 			pipeline_params = {
 				'input_file': self.path_analysis_file.value,
@@ -748,6 +757,10 @@ class RunPipeline(BaseWidget):
 				'volcano_fdr': self.volcano_fdr.value,
 				'volcano_fcthresh': self.volcano_fcthresh.value,
 				'multicond_median_analysis': is_median_analysis,
+				"min_valid_values_filtermode": self.min_valid_values_filtermode.value,
+				"min_valid_values": self._get_min_valid_values(),
+				"min_valid_values_c1": self.min_valid_values_c1.value if self.min_valid_values_filtermode.value == 'set min. valid values per condition' else None,
+				"min_valid_values_c2": self.min_valid_values_c2.value if self.min_valid_values_filtermode.value == 'set min. valid values per condition' else None,
 			}
 
 			# Log key parameters
@@ -1108,9 +1121,6 @@ class RunPipeline(BaseWidget):
 			import traceback
 			traceback.print_exc()
 
-	def _update_minrep_both(self, *events):
-		"""Set minrep_both to 0 when minrep_either is changed."""
-		self.minrep_both.value = 0
 
 	def _update_results_dir(self, event):
 		"""Update central state with new results directory."""
@@ -1236,19 +1246,19 @@ class RunPipeline(BaseWidget):
 	def _toggle_filtering_options(self, event):
 		"""Toggle visibility of replicate input fields based on filtering option."""
 		# Hide all first
-		self.minrep_either.visible = False
-		self.minrep_both.visible = False
-		self.minrep_c1.visible = False
-		self.minrep_c2.visible = False
+		self.min_valid_values_OR.visible = False
+		self.min_valid_values_AND.visible = False
+		self.min_valid_values_c1.visible = False
+		self.min_valid_values_c2.visible = False
 
 		# Show relevant widgets based on selection
 		if event.new == 'min. valid values in condition1 OR condition2':
-			self.minrep_either.visible = True
+			self.min_valid_values_OR.visible = True
 		elif event.new == 'min. valid values in condition1 AND condition2':
-			self.minrep_both.visible = True
+			self.min_valid_values_AND.visible = True
 		else:  # set min. valid values per condition
-			self.minrep_c1.visible = True
-			self.minrep_c2.visible = True
+			self.min_valid_values_c1.visible = True
+			self.min_valid_values_c2.visible = True
 
 	def _update_console(self):
 		"""Update the console output widget with new log messages."""
@@ -1291,6 +1301,20 @@ class RunPipeline(BaseWidget):
 		else:
 			self.run_pipeline_button.disabled = True
 			self.run_pipeline_button.description = 'Please select an analysis type'
+
+	def _get_min_valid_values(self):
+		"""
+		Return the appropriate min_valid_values based on the selected filter mode.
+		"""
+		filter_mode = self.min_valid_values_filtermode.value
+
+		if filter_mode == 'min. valid values in condition1 OR condition2':
+			return self.min_valid_values_OR.value
+		elif filter_mode == 'min. valid values in condition1 AND condition2':
+			return self.min_valid_values_AND.value
+		else:  # 'set min. valid values per condition'
+			# When using per-condition values, return None for the general min_valid_values
+			return None
 
 class Tabs(param.Parameterized):
 	"""
