@@ -210,7 +210,7 @@ Note: Missing values are handled by AlphaQuant counting statistics.
 
         'ptm_settings': """For Spectronaut PTM analysis:
 1. Modification Type: Specify exactly as it appears in Spectronaut modified sequence
-   Example: '[Phospho(STY)]' for phosphorylation
+   Example: '[Phospho (STY)]' for phosphorylation
 2. Organism: Select proteome for site mapping (human/mouse available at the moment)
 
 Note: Requires Spectronaut table with correct PTM columns (see table instructions)."""

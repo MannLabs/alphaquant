@@ -69,13 +69,13 @@ def get_samplenames_from_input_df(data):
 
 # Cell
 import numpy as np
-def filter_df_to_minrep(quant_df_wideformat, samples_c1, samples_c2, minrep):
+def filter_df_to_min_valid_values(quant_df_wideformat, samples_c1, samples_c2, min_valid_values):
     """filters dataframe in alphaquant format such that each column has a minimum number of replicates
     """
     quant_df_wideformat = quant_df_wideformat.replace(0, np.nan)
-    df_c1_minrep = quant_df_wideformat[samples_c1].dropna(thresh = minrep, axis = 0)
-    df_c2_minrep = quant_df_wideformat[samples_c2].dropna(thresh = minrep, axis = 0)
-    idxs_both = df_c1_minrep.index.intersection(df_c2_minrep.index)
+    df_c1_min_valid_values = quant_df_wideformat[samples_c1].dropna(thresh = min_valid_values, axis = 0)
+    df_c2_min_valid_values = quant_df_wideformat[samples_c2].dropna(thresh = min_valid_values, axis = 0)
+    idxs_both = df_c1_min_valid_values.index.intersection(df_c2_min_valid_values.index)
     quant_df_reduced = quant_df_wideformat.iloc[idxs_both].reset_index()
     return quant_df_reduced
 

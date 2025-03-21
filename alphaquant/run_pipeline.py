@@ -45,10 +45,10 @@ def run_pipeline(input_file: str,
                 multicond_median_analysis: bool = False,
                 condpairs_list: Optional[List[Tuple[str, str]]] = None,
                 file_has_alphaquant_format: bool = False,
-                minrep_both: int = 2,
-                minrep_either: Optional[int] = None,
-                minrep_c1: Optional[int] = None,
-                minrep_c2: Optional[int] = None,
+                min_valid_values: int = 2,
+                valid_values_filter_mode: str = "either", #options: "either", "and", "per_condition"
+                min_valid_values_c1: int = 0,
+                min_valid_values_c2: int = 0,
                 min_num_ions: int = 1,
                 minpep: int = 1,
                 organism: Optional[str] = None,
@@ -71,7 +71,12 @@ def run_pipeline(input_file: str,
                 protein_subset_for_normalization_file: Optional[str] = None,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
-                reset_progress_folder: bool = False) -> None:
+                reset_progress_folder: bool = False,
+                minrep_both: Optional[int] = None, #deprecated
+                minrep_either: Optional[int] = None, #deprecated
+                minrep_c1: Optional[int] = None, #deprecated
+                minrep_c2: Optional[int] = None, #deprecated
+                ) -> None:
     """Run differential analyses following the AlphaQuant pipeline. This function processes proteomics data through multiple steps including
         preprocessing, if applicable PTM site mapping, if applicable median condition creation, normalization, statistical testing, visualizations
         and writing of results tables.
@@ -86,10 +91,13 @@ def run_pipeline(input_file: str,
     multicond_median_analysis (bool): Whether to compare all conditions to a median condition. Defaults to False.
     condpairs_list (list): Specific condition pairs to compare. If None, performs all pairwise comparisons.
     file_has_alphaquant_format (bool): Whether the input file is already in AlphaQuant matrix format. Defaults to False.
-    minrep_both (int): Minimum replicate count required in both conditions. Defaults to 2.
-    minrep_either (int): Minimum replicate count required in either condition.
-    minrep_c1 (int): Minimum replicate count required in condition 1.
-    minrep_c2 (int): Minimum replicate count required in condition 2.
+    min_valid_values (int): Minimum number of valid values required across conditions. Defaults to 2.
+    valid_values_filter_mode (str): Strategy for filtering based on valid values. Options:
+        - "either": Include features that have at least 'min_valid_values' valid values in at least one condition.
+        - "both": Include only features that have at least 'min_valid_values' valid values in all conditions.
+        - "per_condition": Include only features that have at least 'min_valid_values_c1' valid values in condition 1 and 'min_valid_values_c2' valid values in condition 2.
+    min_valid_values_c1 (int): Minimum number of valid values required specifically in condition 1.
+    min_valid_values_c2 (int): Minimum number of valid values required specifically in condition 2.
     min_num_ions (int): Minimum number of ions required per peptide. Defaults to 1.
     minpep (int): Minimum number of peptides required per protein. Defaults to 1.
     organism (str): Organism name for PTM mapping (e.g., 'human', 'mouse'). Required if perform_ptm_mapping is True.
@@ -115,6 +123,27 @@ def run_pipeline(input_file: str,
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
     """
     LOGGER.info("Starting AlphaQuant")
+
+    #########################################################
+    # TODO: this backwards compatibility can be removed beginning of 2026
+    # to ensure backwards compatibility: in case the minrep paramters are set, we need to convert them to the min_valid_values and valid_values_filter_mode parameters
+    if minrep_both is not None:
+        min_valid_values = minrep_both
+        valid_values_filter_mode = "both"
+        LOGGER.warning("you set the parameter 'minrep_both', which is deprecated. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
+    if minrep_either is not None:
+        min_valid_values = minrep_either
+        valid_values_filter_mode = "either"
+        LOGGER.warning("you set the parameter 'minrep_either', which is deprecated. Please use 'min_valid_values' and 'valid_values_filter_mode' instead.")
+    if minrep_c1 is not None and minrep_c2 is not None:
+        min_valid_values_c1 = minrep_c1
+        min_valid_values_c2 = minrep_c2
+        valid_values_filter_mode = "per_condition"
+        LOGGER.warning("you set the parameter 'minrep_c1' and 'minrep_c2', which is deprecated. Please use 'min_valid_values_c1' and 'min_valid_values_c2' instead.")
+    #########################################################
+
+
+
     input_file_original = input_file
     check_input_consistency(input_file_original, samplemap_file, samplemap_df)
     create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
