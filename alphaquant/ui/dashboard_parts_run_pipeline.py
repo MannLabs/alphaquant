@@ -398,43 +398,53 @@ class RunPipeline(BaseWidget):
 		self.switches = {
 			'use_ml': pn.widgets.Checkbox(
 				name='Enable machine learning',
-				value=True
+				value=True,
+				width=300
 			),
 			'take_median_ion': pn.widgets.Checkbox(
 				name='Use median-centered ions',
-				value=True
+				value=True,
+				width=300
 			),
 			'perform_ptm_mapping': pn.widgets.Checkbox(
 				name='Enable PTM mapping',
-				value=False
+				value=False,
+				width=300
 			),
 			'perform_phospho_inference': pn.widgets.Checkbox(
 				name='Enable phospho inference',
-				value=False
+				value=False,
+				width=300
 			),
 			'outlier_correction': pn.widgets.Checkbox(
 				name='Enable outlier correction',
-				value=True
+				value=True,
+				width=300
 			),
 			'normalize': pn.widgets.Checkbox(
 				name='Enable normalization',
-				value=True
+				value=True,
+				width=300
 			),
 			'use_iontree_if_possible': pn.widgets.Checkbox(
 				name='Use ion tree when possible',
-				value=True
+				value=True,
+				width=300
 			),
 			'write_out_results_tree': pn.widgets.Checkbox(
 				name='Write results tree',
-				value=True
+				value=True,
+				width=300
 			),
 			'use_multiprocessing': pn.widgets.Checkbox(
 				name='Enable multiprocessing',
-				value=False
+				value=False,
+				width=300
 			),
 			'runtime_plots': pn.widgets.Checkbox(
 				name='Generate runtime plots',
-				value=True
+				value=True,
+				width=300
 			),
 		}
 
@@ -526,6 +536,21 @@ class RunPipeline(BaseWidget):
 			)
 		)
 
+		# Create a function to build the checkbox items
+		def create_checkbox_with_description(key, checkbox):
+			return pn.Column(
+				checkbox,
+				pn.pane.Markdown(
+					"<small><i>" + self.switch_descriptions[key].object + "</i></small>",
+					margin=(0, 0, 10, 20)
+				),
+				margin=(0, 0, 15, 0),
+				width=350
+			)
+
+		# Create the checkbox items
+		checkbox_items = [create_checkbox_with_description(key, switch) for key, switch in self.switches.items()]
+
 		advanced_settings_card = pn.Card(
 			pn.Column(
 				"### Threshold Settings",
@@ -534,13 +559,7 @@ class RunPipeline(BaseWidget):
 				self.cluster_threshold_pval,
 				pn.layout.Divider(),
 				"### Analysis Options",
-				pn.Column(*[
-					pn.Row(
-						switch,
-						self.switch_descriptions[key],
-						align='center'
-					) for key, switch in self.switches.items()
-				]),
+				*checkbox_items,
 			),
 			title='Advanced Configuration',
 			collapsed=True,
