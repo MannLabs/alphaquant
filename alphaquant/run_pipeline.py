@@ -72,7 +72,7 @@ def run_pipeline(input_file: str,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
-                minrep_both: int = 2, #deprecated
+                minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
                 minrep_c1: Optional[int] = None, #deprecated
                 minrep_c2: Optional[int] = None, #deprecated
