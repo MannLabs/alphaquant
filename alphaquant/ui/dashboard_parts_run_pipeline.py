@@ -735,8 +735,6 @@ class RunPipeline(BaseWidget):
 					for pair in self.assign_cond_pairs.value
 				]
 
-			# Log samplemap status right before passing to pipeline
-			print(f"Samplemap right before pipeline run: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
 
 
 			# Collect all configuration parameters
