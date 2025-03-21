@@ -269,7 +269,8 @@ class RunPipeline(BaseWidget):
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
 			width=300,
-			description=gui_textfields.Descriptions.tooltips['ptm_settings']
+			description=gui_textfields.Descriptions.tooltips['ptm_settings'],
+			visible=False  # Hidden by default
 		)
 		self.input_type = pn.widgets.TextInput(
 			name='Input type:',
@@ -281,7 +282,8 @@ class RunPipeline(BaseWidget):
 			options=['human', 'mouse'],
 			value='human',
 			width=300,
-			description='Select the organism your samples come from'
+			description='Select the organism your samples come from',
+			visible=False  # Hidden by default
 		)
 		self.valid_values_filter_mode = pn.widgets.Select(
 			name='Filtering options for min. valid values:',
@@ -407,7 +409,7 @@ class RunPipeline(BaseWidget):
 				width=300
 			),
 			'perform_ptm_mapping': pn.widgets.Checkbox(
-				name='Enable PTM mapping',
+				name='Perform PTM site mapping',
 				value=False,
 				width=300
 			),
@@ -423,11 +425,6 @@ class RunPipeline(BaseWidget):
 			),
 			'normalize': pn.widgets.Checkbox(
 				name='Enable normalization',
-				value=True,
-				width=300
-			),
-			'use_iontree_if_possible': pn.widgets.Checkbox(
-				name='Use ion tree when possible',
 				value=True,
 				width=300
 			),
@@ -455,7 +452,6 @@ class RunPipeline(BaseWidget):
 			'perform_phospho_inference': pn.pane.Markdown('Infer phosphorylation sites from the data'),
 			'outlier_correction': pn.pane.Markdown('Automatically detect and correct outliers in the data'),
 			'normalize': pn.pane.Markdown('Normalize data to account for technical variations'),
-			'use_iontree_if_possible': pn.pane.Markdown('Use hierarchical ion structure when available'),
 			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
 			'use_multiprocessing': pn.pane.Markdown('Use multiple CPU cores to speed up processing (may use more memory)'),
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
@@ -516,14 +512,24 @@ class RunPipeline(BaseWidget):
 		self.assign_cond_pairs.param.watch(self._update_run_button_state, 'value')
 		self.analysis_type.param.watch(self._update_run_button_state, 'value')
 
+		# Add a watcher for the PTM mapping checkbox to show/hide other fields
+		self.switches['perform_ptm_mapping'].param.watch(self._toggle_ptm_fields, 'value')
 
 	def create(self):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
 
-		ptm_section = pn.Row(
-			pn.Column(self.modification_type, self.organism)
+		# Create the PTM section with the checkbox at the top
+		ptm_section = pn.Column(
+			self.switches['perform_ptm_mapping'],
+			pn.pane.Markdown(
+				"<small><i>" + self.switch_descriptions['perform_ptm_mapping'].object + "</i></small>",
+				margin=(0, 0, 10, 20)
+			),
+			self.modification_type,
+			self.organism,
+			margin=(5, 5, 5, 5)
 		)
 
 		filtering_section = pn.Row(
@@ -538,6 +544,10 @@ class RunPipeline(BaseWidget):
 
 		# Create a function to build the checkbox items
 		def create_checkbox_with_description(key, checkbox):
+			# Skip the PTM mapping checkbox since it's now in the PTM settings card
+			if key == 'perform_ptm_mapping':
+				return None
+
 			return pn.Column(
 				checkbox,
 				pn.pane.Markdown(
@@ -548,8 +558,10 @@ class RunPipeline(BaseWidget):
 				width=350
 			)
 
-		# Create the checkbox items
-		checkbox_items = [create_checkbox_with_description(key, switch) for key, switch in self.switches.items()]
+		# Create the checkbox items, filtering out None values
+		checkbox_items = [create_checkbox_with_description(key, switch)
+						  for key, switch in self.switches.items()]
+		checkbox_items = [item for item in checkbox_items if item is not None]
 
 		advanced_settings_card = pn.Card(
 			pn.Column(
@@ -562,6 +574,16 @@ class RunPipeline(BaseWidget):
 				*checkbox_items,
 			),
 			title='Advanced Configuration',
+			collapsed=True,
+			margin=(5, 5, 5, 5),
+			sizing_mode='fixed',
+			width=400
+		)
+
+		# Create PTM settings card with fixed width
+		ptm_settings_card = pn.Card(
+			ptm_section,
+			title='PTM Settings',
 			collapsed=True,
 			margin=(5, 5, 5, 5),
 			sizing_mode='fixed',
@@ -585,16 +607,6 @@ class RunPipeline(BaseWidget):
 			self.condition_comparison_instructions,
 			self.assign_cond_pairs,
 			self.medianref_message,
-		)
-
-		# Create PTM settings card with fixed width
-		ptm_settings_card = pn.Card(
-			ptm_section,
-			title='PTM Settings',
-			collapsed=True,
-			margin=(5, 5, 5, 5),
-			sizing_mode='fixed',
-			width=400
 		)
 
 		main_col = pn.Column(
@@ -783,7 +795,6 @@ class RunPipeline(BaseWidget):
 				'perform_phospho_inference': self.switches['perform_phospho_inference'].value,
 				'outlier_correction': self.switches['outlier_correction'].value,
 				'normalize': self.switches['normalize'].value,
-				'use_iontree_if_possible': self.switches['use_iontree_if_possible'].value,
 				'write_out_results_tree': self.switches['write_out_results_tree'].value,
 				'use_multiprocessing': self.switches['use_multiprocessing'].value,
 				'runtime_plots': self.switches['runtime_plots'].value,
@@ -1365,6 +1376,15 @@ class RunPipeline(BaseWidget):
 		backend_mode = mode_mapping.get(ui_mode, 'either')  # Default to 'either' if not found
 		print(f"Translating UI filter mode '{ui_mode}' to backend mode '{backend_mode}'")
 		return backend_mode
+
+	def _toggle_ptm_fields(self, event):
+		"""Toggle visibility of PTM-related fields based on the PTM mapping checkbox."""
+		if event.new:
+			self.modification_type.visible = True
+			self.organism.visible = True
+		else:
+			self.modification_type.visible = False
+			self.organism.visible = False
 
 class Tabs(param.Parameterized):
 	"""
