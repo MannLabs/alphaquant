@@ -59,6 +59,7 @@ def run_pipeline(input_file: str,
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
                 perform_phospho_inference: bool = False,
+                enable_experimental_ptm_counting_statistics: bool = False,
                 outlier_correction: bool = True,
                 normalize: bool = True,
                 use_iontree_if_possible: bool = True,
@@ -108,6 +109,7 @@ def run_pipeline(input_file: str,
     take_median_ion (bool): Use median-centered fragment ions for peptide comparisons. Defaults to True.
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
     perform_phospho_inference (bool): Enable phosphorylation-prone region annotation. Defaults to False.
+    enable_experimental_ptm_counting_statistics (bool): Allow experimental PTM counting statistics with "either" mode or zero min_valid_values. Defaults to False.
     outlier_correction (bool): Enable outlier correction in differential testing. Defaults to True.
     normalize (bool): Enable sample and condition normalization. Defaults to True.
     use_iontree_if_possible (bool): Use ion tree structure when available. Defaults to True.
@@ -158,6 +160,16 @@ def run_pipeline(input_file: str,
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
+        if (valid_values_filter_mode == "either") and not enable_experimental_ptm_counting_statistics:
+            LOGGER.warning("For PTM mapping analysis, using valid_values_filter_mode='either' with counting statistics is currently experimental and may produce unreliable results. Setting to 'both' instead for stability. If you'd like to use 'either' mode anyway, set enable_experimental_ptm_counting_statistics=True.")
+            valid_values_filter_mode = "both"
+        if (min_valid_values_c1 == 0 or min_valid_values_c2 == 0) and not enable_experimental_ptm_counting_statistics:
+            LOGGER.warning("For PTM mapping analysis, using min_valid_values_c1=0 or min_valid_values_c2=0 with counting statistics is currently experimental and may produce unreliable results. Setting minimum value to 2 instead for stability. If you'd like to keep the original values, set enable_experimental_ptm_counting_statistics=True.")
+            if min_valid_values_c1 == 0:
+                min_valid_values_c1 = 2
+            if min_valid_values_c2 == 0:
+                min_valid_values_c2 = 2
+
         input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
         if use_ml:
             ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)

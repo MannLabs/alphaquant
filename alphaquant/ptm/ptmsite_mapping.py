@@ -48,7 +48,7 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
 
 
 
-def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
+def assign_dataset_inmemory(input_file, results_dir, samplemap_df, modification_type = "[Phospho (STY)]", id_thresh = 0.7, excl_thresh =0.1 ,swissprot_file = None,
 sequence_file=None, input_type = "Spectronaut", organism = "human"):
     if input_type == "Spectronaut":
         input_df = read_df_spectronaut_reduce_cols(input_file, modification_type)
@@ -74,6 +74,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     "FG.Charge"
 
     """""
+    print("id_thresh", id_thresh, "excl_thresh", excl_thresh)
     if(id_thresh < 0.5):
         LOGGER.info("id threshold was set below 0.5, which can lead to ambigous ID sites. Setting to 0.51")
         id_thresh = 0.51
@@ -83,7 +84,8 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     headers_dict = headers_dicts.get(input_type)
     label_column = headers_dict.get("label_column")
     fg_id_column = headers_dict.get("fg_id_column")
-    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
+   # sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
+    sample2cond = {x : "cond" for x in samplemap_df["sample"]} #we now compare over all conditions.
     len_before = len(input_df.index)
     input_df = filter_input_table(input_type, modification_type, input_df)
     LOGGER.info(f"filtered PTM peptides from {len_before} to {len(input_df.index)}")
@@ -542,8 +544,6 @@ def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
 # Cell
 def filter_input_table(input_type, modification_type,input_df):
     if input_type == "Spectronaut":
-        non_fragion_columns = [x for x in input_df.columns if not x.startswith("F.")]
-
         return input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
     if input_type == "DIANN":
         return input_df[[(modification_type in x) for x in input_df["Modified.Sequence"]]]

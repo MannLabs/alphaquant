@@ -418,6 +418,11 @@ class RunPipeline(BaseWidget):
 				value=False,
 				width=300
 			),
+			'enable_experimental_ptm_counting_statistics': pn.widgets.Checkbox(
+				name='Enable counting statistics for PTM sites (experimental feature!)',
+				value=False,
+				width=300
+			),
 			'outlier_correction': pn.widgets.Checkbox(
 				name='Enable outlier correction',
 				value=True,
@@ -450,6 +455,7 @@ class RunPipeline(BaseWidget):
 			'take_median_ion': pn.pane.Markdown('Center ion intensities around their median values'),
 			'perform_ptm_mapping': pn.pane.Markdown('Map post-translational modifications to proteins'),
 			'perform_phospho_inference': pn.pane.Markdown('Infer phosphorylation sites from the data'),
+			'enable_experimental_ptm_counting_statistics': pn.pane.Markdown('Enable experimental support for PTM counting statistics with minimum valid values "either" mode. This may produce unreliable results.'),
 			'outlier_correction': pn.pane.Markdown('Automatically detect and correct outliers in the data'),
 			'normalize': pn.pane.Markdown('Normalize data to account for technical variations'),
 			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
@@ -494,6 +500,9 @@ class RunPipeline(BaseWidget):
 			sizing_mode='stretch_width'
 		)
 
+		# Initially hide the experimental PTM counting statistics checkbox since PTM mapping is off by default
+		self.switches['enable_experimental_ptm_counting_statistics'].visible = False
+
 		# Watchers
 		self.sample_mapping_select.param.watch(self._toggle_sample_mapping_mode, 'value')
 		self.path_analysis_file.param.watch(
@@ -529,6 +538,7 @@ class RunPipeline(BaseWidget):
 			),
 			self.modification_type,
 			self.organism,
+			self.switches['enable_experimental_ptm_counting_statistics'],
 			margin=(5, 5, 5, 5)
 		)
 
@@ -793,6 +803,7 @@ class RunPipeline(BaseWidget):
 				'take_median_ion': self.switches['take_median_ion'].value,
 				'perform_ptm_mapping': self.switches['perform_ptm_mapping'].value,
 				'perform_phospho_inference': self.switches['perform_phospho_inference'].value,
+				'enable_experimental_ptm_counting_statistics': self.switches['enable_experimental_ptm_counting_statistics'].value,
 				'outlier_correction': self.switches['outlier_correction'].value,
 				'normalize': self.switches['normalize'].value,
 				'write_out_results_tree': self.switches['write_out_results_tree'].value,
@@ -1382,9 +1393,11 @@ class RunPipeline(BaseWidget):
 		if event.new:
 			self.modification_type.visible = True
 			self.organism.visible = True
+			self.switches['enable_experimental_ptm_counting_statistics'].visible = True
 		else:
 			self.modification_type.visible = False
 			self.organism.visible = False
+			self.switches['enable_experimental_ptm_counting_statistics'].visible = False
 
 class Tabs(param.Parameterized):
 	"""
