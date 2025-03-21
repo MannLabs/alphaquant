@@ -125,6 +125,7 @@ def run_pipeline(input_file: str,
     LOGGER.info("Starting AlphaQuant")
 
     #########################################################
+    # TODO: this backwards compatibility can be removed beginning of 2026
     # to ensure backwards compatibility: in case the minrep paramters are set, we need to convert them to the min_valid_values and valid_values_filter_mode parameters
     if minrep_both is not None:
         min_valid_values = minrep_both
