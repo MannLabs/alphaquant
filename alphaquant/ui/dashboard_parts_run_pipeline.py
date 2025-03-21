@@ -396,43 +396,43 @@ class RunPipeline(BaseWidget):
 		)
 
 		self.switches = {
-			'use_ml': pn.widgets.Switch(
+			'use_ml': pn.widgets.Checkbox(
 				name='Enable machine learning',
 				value=True
 			),
-			'take_median_ion': pn.widgets.Switch(
+			'take_median_ion': pn.widgets.Checkbox(
 				name='Use median-centered ions',
 				value=True
 			),
-			'perform_ptm_mapping': pn.widgets.Switch(
+			'perform_ptm_mapping': pn.widgets.Checkbox(
 				name='Enable PTM mapping',
 				value=False
 			),
-			'perform_phospho_inference': pn.widgets.Switch(
+			'perform_phospho_inference': pn.widgets.Checkbox(
 				name='Enable phospho inference',
 				value=False
 			),
-			'outlier_correction': pn.widgets.Switch(
+			'outlier_correction': pn.widgets.Checkbox(
 				name='Enable outlier correction',
 				value=True
 			),
-			'normalize': pn.widgets.Switch(
+			'normalize': pn.widgets.Checkbox(
 				name='Enable normalization',
 				value=True
 			),
-			'use_iontree_if_possible': pn.widgets.Switch(
+			'use_iontree_if_possible': pn.widgets.Checkbox(
 				name='Use ion tree when possible',
 				value=True
 			),
-			'write_out_results_tree': pn.widgets.Switch(
+			'write_out_results_tree': pn.widgets.Checkbox(
 				name='Write results tree',
 				value=True
 			),
-			'use_multiprocessing': pn.widgets.Switch(
+			'use_multiprocessing': pn.widgets.Checkbox(
 				name='Enable multiprocessing',
 				value=False
 			),
-			'runtime_plots': pn.widgets.Switch(
+			'runtime_plots': pn.widgets.Checkbox(
 				name='Generate runtime plots',
 				value=True
 			),
@@ -757,6 +757,17 @@ class RunPipeline(BaseWidget):
 				"min_valid_values": self._get_min_valid_values(),
 				"min_valid_values_c1": self.min_valid_values_c1.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
 				"min_valid_values_c2": self.min_valid_values_c2.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
+				# Add the switch values to the pipeline parameters
+				'use_ml': self.switches['use_ml'].value,
+				'take_median_ion': self.switches['take_median_ion'].value,
+				'perform_ptm_mapping': self.switches['perform_ptm_mapping'].value,
+				'perform_phospho_inference': self.switches['perform_phospho_inference'].value,
+				'outlier_correction': self.switches['outlier_correction'].value,
+				'normalize': self.switches['normalize'].value,
+				'use_iontree_if_possible': self.switches['use_iontree_if_possible'].value,
+				'write_out_results_tree': self.switches['write_out_results_tree'].value,
+				'use_multiprocessing': self.switches['use_multiprocessing'].value,
+				'runtime_plots': self.switches['runtime_plots'].value,
 			}
 
 			# Log key parameters
