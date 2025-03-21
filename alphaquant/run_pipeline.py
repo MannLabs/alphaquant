@@ -158,6 +158,16 @@ def run_pipeline(input_file: str,
     if perform_ptm_mapping:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
+        if (valid_values_filter_mode == "either") and not enable_experimental_ptm_counting_statistics:
+            LOGGER.warning("You have set to perform PTM mapping together with counting statistics, by setting valid_values_filter_mode to 'either', this approach has not been benchmarked and might lead to wrong results. The valid_values_filter_mode will be set to 'both'. In case you want to override this, set the switch 'enable_experimental_ptm_counting_statistics' to True.")
+            valid_values_filter_mode = "both"
+        if (min_valid_values_c1 == 0) or (min_valid_values_c2 == 0) and not enable_experimental_ptm_counting_statistics:
+            LOGGER.warning("You have set to perform PTM mapping together with counting statistics, by setting min_valid_values_c1 or min_valid_values_c2 to 0, this approach has not been benchmarked and might lead to wrong results. The zero value will be corrected to 2 In case you want to override this, set the switch 'enable_experimental_ptm_counting_statistics' to True.")
+            if min_valid_values_c1 == 0:
+                min_valid_values_c1 = 2
+            if min_valid_values_c2 == 0:
+                min_valid_values_c2 = 2
+
         input_file_reformat = load_ptm_input_file(input_file = input_file_original, input_type_to_use = "spectronaut_ptm_fragion", results_dir = results_dir, samplemap_df = samplemap_df, modification_type = modification_type, organism = organism)
         if use_ml:
             ml_input_file = load_ml_info_file(input_file_original, input_type, modification_type)
