@@ -673,7 +673,7 @@ def initialize_ptmsite_df(ptmsite_file, samplemap_file):
     ptmsite_df = pd.read_csv(ptmsite_file, sep = "\t")
     return ptmsite_df, samplemap_df
 
-def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, minrep = 2, threshold_prob = 0.05):
+def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, min_valid_values = 2, threshold_prob = 0.05):
     """
     uses a PTMsite df with headers "REFPROT", "gene","site", and headers for sample1, sample2, etc and determines
     whether a site appears/dissappears between conditions based on some probability threshold
@@ -708,7 +708,7 @@ def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, minrep 
         numrep_c1 = len(cond1_vals)
         numrep_c2 = len(cond2_vals)
 
-        if(numrep_c1<minrep) | (numrep_c2 < minrep):
+        if(numrep_c1<min_valid_values) | (numrep_c2 < min_valid_values):
             continue
 
         cond1_prob = np.mean(cond1_vals)
@@ -741,7 +741,7 @@ import pandas as pd
 import numpy as np
 import re
 
-def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join(".","results"), siteprobs_filename = "siteprobs.tsv",samplemap_file = "samples.map",condpairs_to_compare = [], threshold_prob = 0.05, minrep = 2):
+def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join(".","results"), siteprobs_filename = "siteprobs.tsv",samplemap_file = "samples.map",condpairs_to_compare = [], threshold_prob = 0.05, min_valid_values = 2):
 
     samplemap_df, _ = get_sample2cond_dataframe(samplemap_file)
     ptmsite_map = os.path.join(results_folder, siteprobs_filename)
@@ -765,7 +765,7 @@ def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join("
         ptmsite_df_cpair = ptmsite_df_cpair.sort_index()
 
         condpairname = utils.get_condpairname(condpair)
-        df_occupancy = detect_site_occupancy_change(cond1, cond2, ptmsite_df_cpair, samplemap_df, minrep = minrep, threshold_prob = threshold_prob)
+        df_occupancy = detect_site_occupancy_change(cond1, cond2, ptmsite_df_cpair, samplemap_df, min_valid_values = min_valid_values, threshold_prob = threshold_prob)
         df_occupancy.to_csv(os.path.join(results_folder, f"{condpairname}.ptm_occupancy_changes.tsv"), sep = "\t", index = None)
 
 

@@ -37,7 +37,7 @@ def analyze_condpair(*,runconfig, condpair):
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
     try:
-        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local,runconfig.minrep_both, runconfig.minrep_either, runconfig.minrep_c1, runconfig.minrep_c2)
+        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, min_valid_values=runconfig.min_valid_values, valid_values_filter_mode=runconfig.valid_values_filter_mode, min_valid_values_c1=runconfig.min_valid_values_c1, min_valid_values_c2=runconfig.min_valid_values_c2)
     except Exception as e:
         LOGGER.info(e)
         return
@@ -155,53 +155,49 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpai
     merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 
-def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both =None,  minrep_either = None, minrep_c1 = None, minrep_c2 = None):
+def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, min_valid_values, valid_values_filter_mode, min_valid_values_c1, min_valid_values_c2):
 
     min_samples = min(len(samples_c1), len(samples_c2))
 
     if min_samples<2:
         raise Exception(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
 
-    if (minrep_either is not None) or ((minrep_c1 is not None) and (minrep_c2 is not None)): #minrep_both was set as default and should be overruled by minrep_either or minrep_c1 and minrep_c2
-        minrep_both = None
-
-    if minrep_either is not None:
-        minrep_either = np.min([get_minrep_for_cond(samples_c1, minrep_either), get_minrep_for_cond(samples_c2, minrep_either)])
-        passes_minrep_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= minrep_either
-        passes_minrep_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= minrep_either
-        passes_minrep_either = passes_minrep_c1 | passes_minrep_c2
-        unnormed_df = unnormed_df[passes_minrep_either]
+    if valid_values_filter_mode == "either":
+        min_valid_values = np.min([get_min_valid_values_for_cond(samples_c1, min_valid_values), get_min_valid_values_for_cond(samples_c2, min_valid_values)])
+        passes_min_valid_values_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= min_valid_values
+        passes_min_valid_values_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= min_valid_values
+        passes_min_valid_values = passes_min_valid_values_c1 | passes_min_valid_values_c2
+        unnormed_df = unnormed_df[passes_min_valid_values]
         df_c1 = unnormed_df.loc[:, samples_c1]
         df_c2 = unnormed_df.loc[:, samples_c2]
 
+    elif valid_values_filter_mode == "both":
+        min_valid_values_c1 = get_min_valid_values_for_cond(samples_c1, min_valid_values)
+        min_valid_values_c2 = get_min_valid_values_for_cond(samples_c2, min_valid_values)
+        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=min_valid_values_c1, axis=0)
+        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=min_valid_values_c2, axis=0)
 
-    elif minrep_both is not None:
-        minrep_c1 = minrep_both
-        minrep_c2 = minrep_both
+    elif valid_values_filter_mode == "per_condition":
+        min_valid_values_c1 = get_min_valid_values_for_cond(samples_c1, min_valid_values_c1)
+        min_valid_values_c2 = get_min_valid_values_for_cond(samples_c2, min_valid_values_c2)
+        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=min_valid_values_c1, axis=0)
+        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=min_valid_values_c2, axis=0)
+    else:
+        raise Exception(f"invalid value set for the variable valid_values_filter_mode: {valid_values_filter_mode}, please ensure that is set to: 'either', 'both' or 'per_condition'")
 
-    if (minrep_c1 is not None) and (minrep_c2 is not None):
-        minrep_c1 = get_minrep_for_cond(samples_c1, minrep_c1)
-        minrep_c2 = get_minrep_for_cond(samples_c2, minrep_c2)
-        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=minrep_c1, axis=0)
-        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
-        if (len(df_c1.index)<5) | (len(df_c2.index)<5):
-            raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
-
-    if (minrep_both is None) and (minrep_either is None) and (minrep_c1 is None) and (minrep_c2 is None):
-        raise Exception("no minrep set, please specify!")
-
-
+    if (len(df_c1.index)<5) | (len(df_c2.index)<5):
+        raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
 
     return df_c1, df_c2
 
-def get_minrep_for_cond(c_samples, minrep):
-    if minrep is None: #in the case of None, no nans will be allowed
+def get_min_valid_values_for_cond(c_samples, min_valid_values):
+    if min_valid_values is None: #in the case of None, no nans will be allowed
         return None
     num_samples = len(c_samples)
-    if num_samples<minrep:
+    if num_samples<min_valid_values:
         return num_samples
     else:
-        return minrep
+        return min_valid_values
 
 
 

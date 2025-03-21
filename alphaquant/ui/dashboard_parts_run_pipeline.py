@@ -269,7 +269,8 @@ class RunPipeline(BaseWidget):
 			name='Modification type:',
 			placeholder='e.g., [Phospho (STY)] for Spectronaut',
 			width=300,
-			description=gui_textfields.Descriptions.tooltips['ptm_settings']
+			description=gui_textfields.Descriptions.tooltips['ptm_settings'],
+			visible=False  # Hidden by default
 		)
 		self.input_type = pn.widgets.TextInput(
 			name='Input type:',
@@ -281,10 +282,11 @@ class RunPipeline(BaseWidget):
 			options=['human', 'mouse'],
 			value='human',
 			width=300,
-			description='Select the organism your samples come from'
+			description='Select the organism your samples come from',
+			visible=False  # Hidden by default
 		)
-		self.filtering_options = pn.widgets.Select(
-			name='Filtering Options:',
+		self.valid_values_filter_mode = pn.widgets.Select(
+			name='Filtering options for min. valid values:',
 			options=[
 				'min. valid values in condition1 OR condition2',
 				'min. valid values in condition1 AND condition2',
@@ -295,24 +297,25 @@ class RunPipeline(BaseWidget):
 			description=gui_textfields.Descriptions.tooltips['filtering_options']
 		)
 
-		self.minrep_either = pn.widgets.IntInput(
-			name='Min replicates (either condition):',
+		self.min_valid_values_OR = pn.widgets.IntInput(
+			name='Min valid values (either condition):',
 			value=2,
 			start=0,
 			width=300,
 			description='Minimum number of valid values required in at least one of the conditions'
 		)
 
-		self.minrep_both = pn.widgets.IntInput(
-			name='Min replicates (both conditions):',
+		self.min_valid_values_AND = pn.widgets.IntInput(
+			name='Min valid values (both conditions):',
 			value=2,
 			start=1,
 			width=300,
-			description='Minimum number of valid values required in both conditions'
+			description='Minimum number of valid values required in both conditions',
+			visible=False
 		)
 
-		self.minrep_c1 = pn.widgets.IntInput(
-			name='Min replicates (condition 1):',
+		self.min_valid_values_c1 = pn.widgets.IntInput(
+			name='Min valid values (condition 1):',
 			value=2,
 			start=0,
 			width=300,
@@ -320,8 +323,8 @@ class RunPipeline(BaseWidget):
 			visible=False
 		)
 
-		self.minrep_c2 = pn.widgets.IntInput(
-			name='Min replicates (condition 2):',
+		self.min_valid_values_c2 = pn.widgets.IntInput(
+			name='Min valid values (condition 2):',
 			value=2,
 			start=0,
 			width=300,
@@ -395,45 +398,50 @@ class RunPipeline(BaseWidget):
 		)
 
 		self.switches = {
-			'use_ml': pn.widgets.Switch(
+			'use_ml': pn.widgets.Checkbox(
 				name='Enable machine learning',
-				value=True
+				value=True,
+				width=300
 			),
-			'take_median_ion': pn.widgets.Switch(
+			'take_median_ion': pn.widgets.Checkbox(
 				name='Use median-centered ions',
-				value=True
+				value=True,
+				width=300
 			),
-			'perform_ptm_mapping': pn.widgets.Switch(
-				name='Enable PTM mapping',
-				value=False
+			'perform_ptm_mapping': pn.widgets.Checkbox(
+				name='Perform PTM site mapping',
+				value=False,
+				width=300
 			),
-			'perform_phospho_inference': pn.widgets.Switch(
+			'perform_phospho_inference': pn.widgets.Checkbox(
 				name='Enable phospho inference',
-				value=False
+				value=False,
+				width=300
 			),
-			'outlier_correction': pn.widgets.Switch(
+			'outlier_correction': pn.widgets.Checkbox(
 				name='Enable outlier correction',
-				value=True
+				value=True,
+				width=300
 			),
-			'normalize': pn.widgets.Switch(
+			'normalize': pn.widgets.Checkbox(
 				name='Enable normalization',
-				value=True
+				value=True,
+				width=300
 			),
-			'use_iontree_if_possible': pn.widgets.Switch(
-				name='Use ion tree when possible',
-				value=True
-			),
-			'write_out_results_tree': pn.widgets.Switch(
+			'write_out_results_tree': pn.widgets.Checkbox(
 				name='Write results tree',
-				value=True
+				value=True,
+				width=300
 			),
-			'use_multiprocessing': pn.widgets.Switch(
+			'use_multiprocessing': pn.widgets.Checkbox(
 				name='Enable multiprocessing',
-				value=False
+				value=False,
+				width=300
 			),
-			'runtime_plots': pn.widgets.Switch(
+			'runtime_plots': pn.widgets.Checkbox(
 				name='Generate runtime plots',
-				value=True
+				value=True,
+				width=300
 			),
 		}
 
@@ -444,7 +452,6 @@ class RunPipeline(BaseWidget):
 			'perform_phospho_inference': pn.pane.Markdown('Infer phosphorylation sites from the data'),
 			'outlier_correction': pn.pane.Markdown('Automatically detect and correct outliers in the data'),
 			'normalize': pn.pane.Markdown('Normalize data to account for technical variations'),
-			'use_iontree_if_possible': pn.pane.Markdown('Use hierarchical ion structure when available'),
 			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
 			'use_multiprocessing': pn.pane.Markdown('Use multiple CPU cores to speed up processing (may use more memory)'),
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
@@ -494,10 +501,9 @@ class RunPipeline(BaseWidget):
 		)
 		self.samplemap_fileupload.param.watch(self._update_samplemap_table, 'value')
 		self.samplemap_table.param.watch(self._add_conditions_for_assignment, 'value')
-		self.minrep_either.param.watch(self._update_minrep_both, 'value')
 		self.run_pipeline_button.param.watch(self._run_pipeline, 'clicks')
 		self.analysis_type.param.watch(self._update_analysis_type_visibility, 'value')
-		self.filtering_options.param.watch(self._toggle_filtering_options, 'value')
+		self.valid_values_filter_mode.param.watch(self._toggle_filtering_options, 'value')
 		self.path_output_folder.param.watch(self._update_results_dir, 'value')
 		self.path_analysis_file.param.watch(self._update_analysis_file, 'value')
 		self.samplemap_fileupload.param.watch(self._update_samplemap, 'value')
@@ -506,19 +512,56 @@ class RunPipeline(BaseWidget):
 		self.assign_cond_pairs.param.watch(self._update_run_button_state, 'value')
 		self.analysis_type.param.watch(self._update_run_button_state, 'value')
 
+		# Add a watcher for the PTM mapping checkbox to show/hide other fields
+		self.switches['perform_ptm_mapping'].param.watch(self._toggle_ptm_fields, 'value')
 
 	def create(self):
 		"""
 		Build and return the main layout for the pipeline widget.
 		"""
 
-		ptm_section = pn.Row(
-			pn.Column(self.modification_type, self.organism)
+		# Create the PTM section with the checkbox at the top
+		ptm_section = pn.Column(
+			self.switches['perform_ptm_mapping'],
+			pn.pane.Markdown(
+				"<small><i>" + self.switch_descriptions['perform_ptm_mapping'].object + "</i></small>",
+				margin=(0, 0, 10, 20)
+			),
+			self.modification_type,
+			self.organism,
+			margin=(5, 5, 5, 5)
 		)
 
 		filtering_section = pn.Row(
-			pn.Column(self.filtering_options, self.minrep_either)
+			pn.Column(
+				self.valid_values_filter_mode,
+				self.min_valid_values_OR,
+				self.min_valid_values_AND,
+				self.min_valid_values_c1,
+				self.min_valid_values_c2
+			)
 		)
+
+		# Create a function to build the checkbox items
+		def create_checkbox_with_description(key, checkbox):
+			# Skip the PTM mapping checkbox since it's now in the PTM settings card
+			if key == 'perform_ptm_mapping':
+				return None
+
+			return pn.Column(
+				checkbox,
+				pn.pane.Markdown(
+					"<small><i>" + self.switch_descriptions[key].object + "</i></small>",
+					margin=(0, 0, 10, 20)
+				),
+				margin=(0, 0, 15, 0),
+				width=350
+			)
+
+		# Create the checkbox items, filtering out None values
+		checkbox_items = [create_checkbox_with_description(key, switch)
+						  for key, switch in self.switches.items()]
+		checkbox_items = [item for item in checkbox_items if item is not None]
 
 		advanced_settings_card = pn.Card(
 			pn.Column(
@@ -528,15 +571,19 @@ class RunPipeline(BaseWidget):
 				self.cluster_threshold_pval,
 				pn.layout.Divider(),
 				"### Analysis Options",
-				pn.Column(*[
-					pn.Row(
-						switch,
-						self.switch_descriptions[key],
-						align='center'
-					) for key, switch in self.switches.items()
-				]),
+				*checkbox_items,
 			),
 			title='Advanced Configuration',
+			collapsed=True,
+			margin=(5, 5, 5, 5),
+			sizing_mode='fixed',
+			width=400
+		)
+
+		# Create PTM settings card with fixed width
+		ptm_settings_card = pn.Card(
+			ptm_section,
+			title='PTM Settings',
 			collapsed=True,
 			margin=(5, 5, 5, 5),
 			sizing_mode='fixed',
@@ -560,16 +607,6 @@ class RunPipeline(BaseWidget):
 			self.condition_comparison_instructions,
 			self.assign_cond_pairs,
 			self.medianref_message,
-		)
-
-		# Create PTM settings card with fixed width
-		ptm_settings_card = pn.Card(
-			ptm_section,
-			title='PTM Settings',
-			collapsed=True,
-			margin=(5, 5, 5, 5),
-			sizing_mode='fixed',
-			width=400
 		)
 
 		main_col = pn.Column(
@@ -729,8 +766,7 @@ class RunPipeline(BaseWidget):
 					for pair in self.assign_cond_pairs.value
 				]
 
-			# Log samplemap status right before passing to pipeline
-			print(f"Samplemap right before pipeline run: {'Present with ' + str(len(self.samplemap_table.value)) + ' rows' if self.samplemap_table.value is not None else 'None'}")
+
 
 			# Collect all configuration parameters
 			pipeline_params = {
@@ -748,6 +784,20 @@ class RunPipeline(BaseWidget):
 				'volcano_fdr': self.volcano_fdr.value,
 				'volcano_fcthresh': self.volcano_fcthresh.value,
 				'multicond_median_analysis': is_median_analysis,
+				"valid_values_filter_mode": self._translate_filter_mode_for_backend(),
+				"min_valid_values": self._get_min_valid_values(),
+				"min_valid_values_c1": self.min_valid_values_c1.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
+				"min_valid_values_c2": self.min_valid_values_c2.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
+				# Add the switch values to the pipeline parameters
+				'use_ml': self.switches['use_ml'].value,
+				'take_median_ion': self.switches['take_median_ion'].value,
+				'perform_ptm_mapping': self.switches['perform_ptm_mapping'].value,
+				'perform_phospho_inference': self.switches['perform_phospho_inference'].value,
+				'outlier_correction': self.switches['outlier_correction'].value,
+				'normalize': self.switches['normalize'].value,
+				'write_out_results_tree': self.switches['write_out_results_tree'].value,
+				'use_multiprocessing': self.switches['use_multiprocessing'].value,
+				'runtime_plots': self.switches['runtime_plots'].value,
 			}
 
 			# Log key parameters
@@ -1108,9 +1158,6 @@ class RunPipeline(BaseWidget):
 			import traceback
 			traceback.print_exc()
 
-	def _update_minrep_both(self, *events):
-		"""Set minrep_both to 0 when minrep_either is changed."""
-		self.minrep_both.value = 0
 
 	def _update_results_dir(self, event):
 		"""Update central state with new results directory."""
@@ -1236,19 +1283,19 @@ class RunPipeline(BaseWidget):
 	def _toggle_filtering_options(self, event):
 		"""Toggle visibility of replicate input fields based on filtering option."""
 		# Hide all first
-		self.minrep_either.visible = False
-		self.minrep_both.visible = False
-		self.minrep_c1.visible = False
-		self.minrep_c2.visible = False
+		self.min_valid_values_OR.visible = False
+		self.min_valid_values_AND.visible = False
+		self.min_valid_values_c1.visible = False
+		self.min_valid_values_c2.visible = False
 
 		# Show relevant widgets based on selection
 		if event.new == 'min. valid values in condition1 OR condition2':
-			self.minrep_either.visible = True
+			self.min_valid_values_OR.visible = True
 		elif event.new == 'min. valid values in condition1 AND condition2':
-			self.minrep_both.visible = True
+			self.min_valid_values_AND.visible = True
 		else:  # set min. valid values per condition
-			self.minrep_c1.visible = True
-			self.minrep_c2.visible = True
+			self.min_valid_values_c1.visible = True
+			self.min_valid_values_c2.visible = True
 
 	def _update_console(self):
 		"""Update the console output widget with new log messages."""
@@ -1291,6 +1338,53 @@ class RunPipeline(BaseWidget):
 		else:
 			self.run_pipeline_button.disabled = True
 			self.run_pipeline_button.description = 'Please select an analysis type'
+
+	def _get_min_valid_values(self):
+		"""
+		Return the appropriate min_valid_values based on the selected filter mode.
+		"""
+		filter_mode = self.valid_values_filter_mode.value
+
+		print(f"Getting min_valid_values with UI filter_mode: {filter_mode}")
+
+		if filter_mode == 'min. valid values in condition1 OR condition2':
+			min_val = self.min_valid_values_OR.value
+			print(f"Using OR mode with value: {min_val}")
+			return min_val
+		elif filter_mode == 'min. valid values in condition1 AND condition2':
+			min_val = self.min_valid_values_AND.value
+			print(f"Using AND mode with value: {min_val}")
+			return min_val
+		else:  # 'set min. valid values per condition'
+			# When using per-condition values, return None for the general min_valid_values
+			print("Using per-condition mode, returning None")
+			return None
+
+	def _translate_filter_mode_for_backend(self):
+		"""
+		Translate the UI filter mode option to the corresponding backend parameter value.
+		"""
+		ui_mode = self.valid_values_filter_mode.value
+
+		# Map UI options to backend values
+		mode_mapping = {
+			'min. valid values in condition1 OR condition2': 'either',
+			'min. valid values in condition1 AND condition2': 'both',
+			'set min. valid values per condition': 'per_condition'
+		}
+
+		backend_mode = mode_mapping.get(ui_mode, 'either')  # Default to 'either' if not found
+		print(f"Translating UI filter mode '{ui_mode}' to backend mode '{backend_mode}'")
+		return backend_mode
+
+	def _toggle_ptm_fields(self, event):
+		"""Toggle visibility of PTM-related fields based on the PTM mapping checkbox."""
+		if event.new:
+			self.modification_type.visible = True
+			self.organism.visible = True
+		else:
+			self.modification_type.visible = False
+			self.organism.visible = False
 
 class Tabs(param.Parameterized):
 	"""

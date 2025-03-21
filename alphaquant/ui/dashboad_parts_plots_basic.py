@@ -176,7 +176,12 @@ class PlottingTab(param.Parameterized):
             self.condpairname_select.options = ["No conditions"]
             return
 
-        pattern = os.path.join(self.results_dir, "*_VS_*.results.tsv")
+        # Ensure directory path ends with separator for Windows compatibility
+        dir_path = self.results_dir
+        if not dir_path.endswith(os.sep):
+            dir_path += os.sep
+
+        pattern = os.path.join(dir_path, "*_VS_*.results.tsv")
         files = glob.glob(pattern)
 
         for f in files:
