@@ -58,8 +58,9 @@ def run_pipeline(input_file: str,
                 use_ml: bool = True,
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
-                perform_phospho_inference: bool = False,
-                enable_experimental_ptm_counting_statistics: bool = False,
+                 perform_phospho_inference: bool = False,
+                 enable_experimental_ptm_counting_statistics: bool = False,
+                 ptm_fragment_selection: bool = False,
                 outlier_correction: bool = True,
                 normalize: bool = True,
                 use_iontree_if_possible: bool = True,
@@ -73,6 +74,7 @@ def run_pipeline(input_file: str,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
+                peptide_outlier_filtering: bool = True,
                 minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
                 minrep_c1: Optional[int] = None, #deprecated
@@ -110,6 +112,7 @@ def run_pipeline(input_file: str,
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
     perform_phospho_inference (bool): Enable phosphorylation-prone region annotation. Defaults to False.
     enable_experimental_ptm_counting_statistics (bool): Allow experimental PTM counting statistics with "either" mode or zero min_valid_values. Defaults to False.
+    ptm_fragment_selection (bool): If True, enable PTM-oriented fragment selection in clustering.
     outlier_correction (bool): Enable outlier correction in differential testing. Defaults to True.
     normalize (bool): Enable sample and condition normalization. Defaults to True.
     use_iontree_if_possible (bool): Use ion tree structure when available. Defaults to True.
@@ -123,6 +126,7 @@ def run_pipeline(input_file: str,
     protnorm_peptides (bool): Enable protein-level peptide normalization. Defaults to True.
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
+        peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
     """
     LOGGER.info("Starting AlphaQuant")
 
@@ -155,7 +159,7 @@ def run_pipeline(input_file: str,
 
     input_type, config_dict, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
     annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
-    use_ml = check_if_table_supports_ml(config_dict)
+    use_ml = check_if_table_supports_ml(config_dict) & use_ml
 
     if perform_ptm_mapping:
         if modification_type is None:
@@ -195,6 +199,9 @@ def run_pipeline(input_file: str,
         del median_manager #delete the object as it needs not be in the runconfig
 
     aqvariables.determine_variables(input_file_reformat, input_type)
+    aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set
+    aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
 
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object! The runconfig is then used as the input for the run_analysis functions
@@ -279,7 +286,9 @@ def load_annotation_file(input_file, input_type, annotation_columns):
         return aq_tablewriter_misc.AnnotationFileCreator(input_file, input_type, annotation_columns).annotation_filename
 
 def check_if_table_supports_ml(config_dict):
-    return config_dict["format"] == "longtable"
+    is_longtable = config_dict["format"] == "longtable"
+    ml_level_charge = config_dict["ml_level"] == "CHARGE"
+    return is_longtable and ml_level_charge
 
 def load_ml_info_file(input_file, input_type, modification_type = None):
     ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
@@ -293,7 +302,7 @@ def load_ml_info_file(input_file, input_type, modification_type = None):
 def remove_peptides_to_exclude_from_input_file(input_file, peptides_to_exclude_file):
     df_input = pd.read_csv(input_file, sep = "\t")
     peptides_to_exclude = set(pd.read_csv(peptides_to_exclude_file, sep = "\t")["peptide"].tolist())
-    pattern = r"SEQ_([A-Za-z0-9]+)_"
+    pattern = r"SEQ_([A-Za-z0-9]+)_?"
     try:
         df_input["peptide"] = [re.search(pattern, peptide).group(1) for peptide in df_input[aqvariables.QUANT_ID]]
     except:
