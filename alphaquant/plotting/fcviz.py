@@ -17,8 +17,9 @@ class FoldChangeVisualizer():
     def __init__(self, condition1, condition2, results_directory, samplemap_file,
                                                         order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
                                                         narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
-                                                        figsize = None, showfliers = True):
-                                                        
+                                                        figsize = None, showfliers = True,
+                                                        show_node_annotations = False, node_annotation_attributes = None, node_annotation_formats = None):
+
         """
         Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
 
@@ -36,10 +37,14 @@ class FoldChangeVisualizer():
             tree_level (str): Specify which level of the tree to visualize, options are 'seq', 'mod_seq', 'mod_seq_charge', 'ion_type'.
             colorlist (list): List of colors for plotting.
             protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+            show_node_annotations (bool): Whether to show statistical annotations on tree nodes.
+            node_annotation_attributes (list): List of node attributes to display (e.g., ['p_val', 'z_val', 'fc']).
+            node_annotation_formats (dict): Custom formatting for each attribute.
 
         """
 
-        self.plotconfig = PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence, figsize=figsize, showfliers=showfliers)
+        self.plotconfig = PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence, figsize=figsize, showfliers=showfliers,
+                                    show_node_annotations=show_node_annotations, node_annotation_attributes=node_annotation_attributes, node_annotation_formats=node_annotation_formats)
 
         self.quantification_info = CondpairQuantificationInfo((condition1, condition2), results_directory, samplemap_file)
 
@@ -61,9 +66,9 @@ class FoldChangeVisualizer():
                 continue
             protein_fig = self.plot_protein(protein_of_interest)
             results_figures.append(protein_fig)
-        
+
         return results_figures
-    
+
     def plot_protein(self, protein_of_interest, selected_peptides = None):
         """
         Returns:
@@ -77,9 +82,10 @@ class FoldChangeVisualizer():
 
 
 class PlotConfig():
-    def __init__(self, label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2, 
-                 colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human', 
-                 order_peptides_along_protein_sequence = False, figsize = None, showfliers = True):
+    def __init__(self, label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
+                 colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human',
+                 order_peptides_along_protein_sequence = False, figsize = None, showfliers = True,
+                 show_node_annotations = False, node_annotation_attributes = None, node_annotation_formats = None, node_fontsize = 12):
         """
         Configuration class for plotting.
 
@@ -93,6 +99,10 @@ class PlotConfig():
             tree_level (str): Specify which level of the tree to visualize, options are 'seq', 'mod_seq', 'mod_seq_charge', 'ion_type'.
             colorlist (list): List of colors for plotting.
             protein_identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
+            show_node_annotations (bool): Whether to show statistical annotations on tree nodes.
+            node_annotation_attributes (list): List of node attributes to display (e.g., ['p_val', 'z_val', 'fc']).
+            node_annotation_formats (dict): Custom formatting for each attribute.
+            node_fontsize (int): Font size for tree node labels.
         """
         self.label_rotation = label_rotation
         self.add_stripplot = add_stripplot
@@ -104,6 +114,33 @@ class PlotConfig():
         self.tree_level = tree_level
         self.figsize = figsize
         self.showfliers = showfliers
+        self.node_fontsize = node_fontsize
+
+        # Node annotation configuration
+        self.show_node_annotations = show_node_annotations
+        if node_annotation_attributes is None:
+            self.node_annotation_attributes = ['p_val', 'z_val', 'fc']
+        else:
+            self.node_annotation_attributes = node_annotation_attributes
+
+        # Default formatting for common JSON attributes
+        if node_annotation_formats is None:
+            self.node_annotation_formats = {
+                'p_val': 'p={:.2e}',
+                'z_val': 'z={:.2f}',
+                'fc': 'fc={:.2f}',
+                'ml_score': 'ml={:.2f}',
+                'cluster': 'c={}',
+                'cv': 'cv={:.2f}',
+                'min_intensity': 'int={:.1e}',
+                'total_intensity': 'tot={:.1e}',
+                'min_reps': 'reps={}',
+                'fraction_consistent': 'cons={:.2f}',
+                'is_included': 'incl={}',
+                'missingval': 'miss={}'
+            }
+        else:
+            self.node_annotation_formats = node_annotation_formats
 
         self.parent_level = aqclustutils.LEVELS_UNIQUE[aqclustutils.LEVELS_UNIQUE.index(self.tree_level)+1]
         self.order_peptides_along_protein_sequence = order_peptides_along_protein_sequence
@@ -113,7 +150,7 @@ class PlotConfig():
 
         if self.order_peptides_along_protein_sequence:
             self._load_sequences()
-    
+
     def _load_sequences(self):
         organism = self._organism.lower()
         if self.protein_identifier == 'gene_symbol':
@@ -150,7 +187,7 @@ class CondpairQuantificationInfo():
                 relevant_samples.append(sample)
         return relevant_samples
 
-    
+
     def _get_diffresults_df(self, cond1, cond2, results_dir):
         return aq_plot_base.get_diffresult_dataframe(cond1, cond2, results_folder= results_dir).set_index("protein")
 
@@ -207,7 +244,7 @@ class ProteinPlot():
         self._subset_protein_node_to_selected_peptides_if_applicable()
         self._sort_tree_according_to_plotconfig()
         self._plot_fcs()
-    
+
     def _shorten_protein_node_according_to_plotconfig(self):
         self._protein_node = aqclustutils.clone_tree(self._protein_node)
         self._protein_node = aqclustutils.shorten_root_to_level(self._protein_node,parent_level=self._plotconfig.parent_level)
@@ -219,22 +256,22 @@ class ProteinPlot():
             for peptide_node in peptide_nodes_to_exclude:
                 peptide_node.parent = None
 
-    
+
     def _sort_tree_according_to_plotconfig(self):
         self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
-    
+
     def _plot_fcs(self):
         pcplotter = ProteinClusterPlotter(self._protein_node, self._quantification_info, self._plotconfig, fig=self.fig, axes=self.axes)
         self.fig =  pcplotter._fig
         self.axes = pcplotter._axes
-    
+
 
 
 
 class ProteinClusterPlotter():
     def __init__(self, protein_node, quantification_info : CondpairQuantificationInfo, plotconfig : PlotConfig,
                  parent2elements = None, fig = None, axes = None):
-        
+
         self._protein_node = protein_node
         self._plotconfig = plotconfig
         self._quantification_info = quantification_info
@@ -244,7 +281,7 @@ class ProteinClusterPlotter():
         self._axes = axes
         self._figsize = self._plotconfig.figsize
         self._melted_df = None
-        
+
         self._init_melted_df()
         self._define_parent2elements()
         self._define_fig_and_axes()
@@ -259,8 +296,8 @@ class ProteinClusterPlotter():
     def _define_parent2elements(self):# for example you have precursor as a parent and ms1 and ms2 as the leafs
         if self._parent2elements is None:
             self._parent2elements =  aqclustutils.get_parent2leaves_dict(self._protein_node)
-    
-        
+
+
     def _define_fig_and_axes(self):
         if self._fig is None or self._axes is None:
             self._prepare_axes()
@@ -269,15 +306,15 @@ class ProteinClusterPlotter():
     def _plot_all_child_elements(self):
 
         for idx, (_, elements) in enumerate(self._parent2elements.items()): #each parent is a separate subplot
-            
-            melted_df_subset = self._subset_to_elements(self._melted_df, elements) 
+
+            melted_df_subset = self._subset_to_elements(self._melted_df, elements)
             colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
             ProteinPlot = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._quantification_info.condpair, plotconfig=self._plotconfig)
             ProteinPlot.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
             #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         self._set_yaxes_to_same_scale()
         self._set_title()
-        
+
 
     @staticmethod
     def _subset_to_elements(df_melted, elements):
@@ -294,23 +331,23 @@ class ProteinClusterPlotter():
             figsize = self._figsize
         self._fig, self._axes = plt.subplots(1, num_independent_plots,figsize = figsize,sharey=True, sharex=False, gridspec_kw={'width_ratios' : width_list}, squeeze=False)
         self._axes = self._axes[0] #the squeeze=False option always returns a 2D array, even if there is only one subplot
-    
+
 
 
     def _set_yaxes_to_same_scale(self):
         min_ylim = min(ax.get_ylim()[0] for ax in self._axes)
         max_ylim = max(ax.get_ylim()[1] for ax in self._axes)
-        
+
         for ax in self._axes:
             ax.set_ylim(min_ylim, max_ylim)
-    
+
 
 
     def _sort_parent2elements(self, parent2elements):
         sorted_parent2elements = {}
-        
+
         for parent_name, elements in parent2elements.items():
-            
+
             parent_node = anytree.search.find(self._protein_node, lambda node: node.name == parent_name)
             ordered_children_names = [child.name for child in parent_node.children]
             sorted_elements = sorted(elements, key=lambda x: ordered_children_names.index(x))
@@ -318,7 +355,7 @@ class ProteinClusterPlotter():
 
         return sorted_parent2elements
 
-    
+
     def _load_level_nodes(self):
         all_child_nodes = []
         nodes_at_level =  anytree.findall(self._protein_node, filter_= lambda x : (x.type == self._parent_level))
@@ -373,7 +410,7 @@ class ProteinIntensityDataFrameGetter():
         self._ion_header = ion_header
 
     def get_melted_df_all(self, specified_level):
-        melted_df = ProteinIntensityDfFormatter( self._protein_node, self._quantification_info, self._ion_header).get_melted_protein_ion_intensity_table()                                                
+        melted_df = ProteinIntensityDfFormatter( self._protein_node, self._quantification_info, self._ion_header).get_melted_protein_ion_intensity_table()
         melted_df = ProteinQuantDfAnnotator(self._protein_node, specified_level).get_annotated_melted_df(melted_df)
         return melted_df
 
@@ -381,7 +418,7 @@ class ProteinIntensityDataFrameGetter():
         melted_df = self.get_melted_df_all(protein_id, specified_level)
         melted_df = melted_df[[x in selected_peptides for x in melted_df["specified_level"]]]
         return melted_df
-    
+
     def get_melted_df_clusterdiffinfo(self, clusterdiffinfo, specified_level):
         melted_df = self.get_melted_df_all(specified_level)
         melted_df =  ProteinQuantDfProteoformSubsetter(melted_df, self._protein_node, clusterdiffinfo).subset_melted_df_to_clusterdiffinfo()
@@ -389,12 +426,12 @@ class ProteinIntensityDataFrameGetter():
 
     def get_protein_diffresults(self, protein_id):
         return self._quantification_info.diffresults_df.loc[protein_id]
-    
+
     def _get_protein_node(self, protein_id):
         return anytree.findall_by_attr(self._quantification_info.condpair_root_node, protein_id, maxlevel=2)[0]
 
 
-    
+
 class ProteinIntensityDfFormatter():
     def __init__(self, protein_node, quantification_info, ion_header):
         self._protein_node = protein_node
@@ -402,22 +439,22 @@ class ProteinIntensityDfFormatter():
         self._normed_intensity_df = quantification_info.normed_intensity_df
         self._relevant_samples = quantification_info.relevant_samples
         self._sample2cond = quantification_info.sample2cond
-        
-    
+
+
     def get_melted_protein_ion_intensity_table(self):
         protein_df = self._subset_dataframe_to_protein()
         return self._melt_protein_dataframe(protein_df)
-        
+
 
     def _subset_dataframe_to_protein(self):
         return self._normed_intensity_df.xs(self._protein_node.name, level = 0)
-    
-    
+
+
     def _melt_protein_dataframe(self, protein_df):
         df_melted = pd.melt(protein_df.reset_index(), value_vars = self._relevant_samples, id_vars=[self._ion_header], value_name="intensity", var_name="sample")
         df_melted["condition"] = [self._sample2cond.get(x) for x in df_melted["sample"]]
         return df_melted
-    
+
 
 
 
@@ -437,15 +474,15 @@ class ProteinQuantDfAnnotator():
         self._ion2parent = {}
         self._ion2cluster = {}
 
-    
+
     def get_annotated_melted_df(self, melted_df):
         IonConsistencyTester.ensure_that_diffresult_ions_are_in_tree_ions(melted_df, self._protein_node)
         self._add_leafname_column(melted_df)
         self._fill_ion_mapping_dicts()
-        
+
         return self._annotate_properties_to_melted_df(melted_df)
-    
-    def _add_leafname_column(self, melted_df):#in case the tree has been shortened, the names of the leaves 
+
+    def _add_leafname_column(self, melted_df):#in case the tree has been shortened, the names of the leaves
         #in the tree are not the same as the ones in the melted df and need to be adapted
         parentlevel2regex = {
             "gene": r"(SEQ_[^_]+_)",
@@ -456,7 +493,7 @@ class ProteinQuantDfAnnotator():
         }
         if self._specified_level not in parentlevel2regex.keys():
             melted_df["leafname"] = melted_df[aqvars.QUANT_ID]
-        
+
         else:
             pattern = parentlevel2regex[self._specified_level]
             melted_df["leafname"] = [self._get_new_leafname(pattern, x) for x in melted_df[aqvars.QUANT_ID]]
@@ -466,7 +503,7 @@ class ProteinQuantDfAnnotator():
         match = re.search(pattern, base_ion_name)
         if match:
             return match.group(1)
-        else: 
+        else:
             raise Exception(f"Could not parse {base_ion_name} at level {self._specified_level}")
 
 
@@ -497,7 +534,7 @@ class ProteinQuantDfAnnotator():
             LOGGER.warning("NA values detected in the specified columns.")
             LOGGER.info(rows_with_na)
             melted_df = melted_df.dropna(subset=columns_to_check)
-        
+
         return melted_df
 
     @staticmethod
@@ -506,7 +543,7 @@ class ProteinQuantDfAnnotator():
             return node.ml_score
         except:
             return 1.0
-    
+
 
 class IonConsistencyTester():
     @staticmethod
@@ -520,19 +557,19 @@ class IonConsistencyTester():
 class ClusterColorMapper():
     def __init__(self, colorlist = aq_plot_base.AlphaPeptColorMap().colorlist):
         self._colorlist = colorlist
-    
+
     def get_element2color(self, melted_df):
         unique_clusters = melted_df['cluster'].unique()
 
         cluster2color = {}
-        
+
         num_colors = len(self._colorlist)
-        
+
         for idx, cluster in enumerate(unique_clusters):
             cluster2color[cluster] = self._colorlist[idx % num_colors]
-        
+
         element2color = melted_df.set_index('specified_level')['cluster'].map(cluster2color).to_dict()
-        
+
         return element2color
 
 
@@ -596,7 +633,7 @@ class IonFoldChangePlotter():
     def plot_fcs_with_specified_color_scheme(self, colormap, ax):
         if type(colormap) == type(dict()):
             colormap = {idx: colormap.get(self.precursors[idx]) for idx in range(len(self.precursors))}
-        
+
         if self._plotconfig.add_stripplot:
             self._plot_fcs_with_swarmplot(colormap, ax)
         else:
@@ -604,7 +641,7 @@ class IonFoldChangePlotter():
 
         idxs = list(range(len(self.precursors)))
         ax.set_xticks(idxs, labels = self.precursors, rotation = 'vertical')
-    
+
     def _plot_fcs_with_swarmplot(self, colormap, ax):
         sns.stripplot(data = self.fcs, ax=ax, palette=colormap)
         sns.boxplot(data = self.fcs, ax=ax, showfliers=self._plotconfig.showfliers,
@@ -616,16 +653,16 @@ class IonFoldChangePlotter():
     def _get_fig_width(self):
         num_ions = len(self.precursors)
         return (int(0.7*num_ions), 10)
-    
+
 class IonFoldChangeCalculator():
     def __init__(self, melted_df, condpair):
-        
+
         self.melted_df = melted_df
         self.precursors = None
         self.fcs = None
 
         self._condpair = condpair
-        
+
         self._calculate_precursors_and_fcs_from_melted_df()
 
     def _calculate_precursors_and_fcs_from_melted_df(self):

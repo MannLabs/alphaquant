@@ -11,15 +11,40 @@ LOGGER = logging.getLogger(__name__)
 import alphaquant.config.variables as aq_variables
 #helper classes
 
+headers_dicts = {'Spectronaut' : {"label_column" : "R.Label", "fg_id_column" : "FG.Id", 'sequence' : "PEP.StrippedSequence", 'proteins' : "PG.UniProtIds", 'precursor_mz' : "FG.PrecMz", "precursor_charge" : "FG.Charge",
+                                  "precursor_quantity": "FG.Quantity", "excluded_from_quantification": "F.ExcludedFromQuantification"},
+'DIANN' : {"label_column" : "Run", "fg_id_column" : "Precursor.Id", 'sequence' : "Stripped.Sequence",'proteins' :"Protein.Ids", 'precursor_mz' : "Precursor.Mz", "precursor_charge" : "Precursor.Charge"}}
 
 # Cell
 
 import pandas as pd
 import dask.dataframe as dd
 
+
+
 def assign_dataset_chunkwise(input_file, results_dir, samplemap_df , modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
 sequence_file=None, input_type = "Spectronaut", organism = "human"):
-    """go through the dataset chunkwise. The crucial step here is, that the dataset needs to be sorted by protein (realized via set_index) such that the chunks are independent (different proteins are independent)
+    """
+    Go through the dataset chunkwise for PTM site mapping.
+
+    The crucial step here is that the dataset needs to be sorted by protein (realized via set_index)
+    such that the chunks are independent (different proteins are independent).
+
+    Note: This function performs basic deduplication during preprocessing. The main sophisticated
+    deduplication (by peak area for ambiguous PTM localizations) happens later in the pipeline
+    after PTM mapping is complete.
+
+    Args:
+        input_file (str): Path to input file
+        results_dir (str): Directory for results
+        samplemap_df (pd.DataFrame): Sample mapping dataframe
+        modification_type (str): Type of modification to analyze
+        id_thresh (float): Identification threshold for PTM sites
+        excl_thresh (float): Exclusion threshold for PTM sites
+        swissprot_file (str): Path to SwissProt file (optional)
+        sequence_file (str): Path to sequence file (optional)
+        input_type (str): Type of input data ("Spectronaut" or "DIANN")
+        organism (str): Organism name
     """
     clean_up_previous_processings(results_dir)
 
@@ -114,6 +139,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     fg_charge = []
     ptm_id = []
     ion_id = []
+    precursor_quantities = []
 
 
 
@@ -154,6 +180,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
         stripped_seqs.extend(protein_df[headers_dict.get("sequence")])
         prec_mz.extend(protein_df[headers_dict.get("precursor_mz")])
         fg_charge.extend(protein_df[headers_dict.get("precursor_charge")])
+        precursor_quantities.extend(protein_df[headers_dict.get("precursor_quantity")])
         ptm_id.extend([f"{gene}_{prot}_{ionid2ptmid.get(x)}" for x in protein_df["IonID"]])
 
     LOGGER.info(f"{num_mapped} of {num_proteins} could be mapped")
@@ -163,7 +190,7 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
     conditions = [sample2cond.get(x) for x in run_ids]
 
     mapped_df = pd.DataFrame({label_column : run_ids, "conditions" : conditions, fg_id_column : fg_ids, "REFPROT" : prot_ids, "gene" : gene_ids,"site" : site_ids, "ptmlocs":ptmlocs ,
-    "locprob" : locprobs, "PEP.StrippedSequence" : stripped_seqs, "FG.PrecMz" : prec_mz, "FG.Charge": fg_charge, "FG.Id.ptm" : ion_id, "ptm_id" : ptm_id})
+    "locprob" : locprobs, "PEP.StrippedSequence" : stripped_seqs, "FG.PrecMz" : prec_mz, "FG.Charge": fg_charge, "FG.Quantity": precursor_quantities, "FG.Id.ptm" : ion_id, "ptm_id" : ptm_id})
 
 
     siteprob_df = pd.DataFrame(siteprobs)
@@ -173,8 +200,9 @@ sequence_file=None, modification_type = "[Phospho (STY)]", input_type = "Spectro
 
     if results_folder != None:
         os.makedirs(results_folder, exist_ok=True)
-        mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None, header = header, mode = 'a')
-        siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None, header = header, mode = 'a')
+        LOGGER.info(f"Writing ptm_ids.tsv and siteprobs.tsv to {results_folder}")
+        mapped_df.to_csv(os.path.join(results_folder, "ptm_ids.tsv"), sep = "\t", index = None)
+        siteprob_df.to_csv(os.path.join(results_folder, "siteprobs.tsv"), sep = "\t", index = None)
 
     return mapped_df, siteprob_df
 
@@ -550,8 +578,6 @@ def filter_input_table(input_type, modification_type,input_df):
 
 # Cell
 
-headers_dicts = {'Spectronaut' : {"label_column" : "R.Label", "fg_id_column" : "FG.Id", 'sequence' : "PEP.StrippedSequence", 'proteins' : "PG.UniProtIds", 'precursor_mz' : "FG.PrecMz", "precursor_charge" : "FG.Charge"},
-'DIANN' : {"label_column" : "Run", "fg_id_column" : "Precursor.Id", 'sequence' : "Stripped.Sequence",'proteins' :"Protein.Ids", 'precursor_mz' : "Precursor.Mz", "precursor_charge" : "Precursor.Charge"}}
 
 # Cell
 
@@ -603,11 +629,28 @@ import alphaquant.diffquant.diffutils as aqutils
 import os
 
 def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification_type, input_type_to_use = "spectronaut_ptm_fragion", chunksize = 100_000):
+    """
+    Merge PTM site mappings with the original spectronaut file and write the result.
+
+    For Spectronaut data, applies sophisticated deduplication by keeping the row with
+    maximum F.PeakArea per group defined by key columns. This resolves ambiguous PTM
+    site localizations by selecting the most reliable measurement.
+
+    Args:
+        spectronaut_file (str): Path to the original spectronaut file
+        mapped_df (pd.DataFrame): DataFrame with PTM site mappings
+        modification_type (str): Type of modification (e.g., "[Phospho (STY)]")
+        input_type_to_use (str): Input type configuration to use
+        chunksize (int): Size of chunks for processing large files
+
+    Returns:
+        str: Path to the created PTM-mapped file
+    """
     config_dict = abconfigdictloader.import_config_dict()
     config_dict_ptm = config_dict.get(input_type_to_use)
     relevant_columns = abconfigdictloader.get_relevant_columns_config_dict(config_dict_ptm)#the columns that will be relevant in the ptm table
     relevant_columns_spectronaut = list(set(relevant_columns).intersection(set(pd.read_csv(spectronaut_file, sep = "\t", nrows=2).columns)))# the relevant columsn in the spectronaut table ()
-    relevant_columns_spectronaut = relevant_columns_spectronaut+["EG.ModifiedSequence"]
+    relevant_columns_spectronaut = relevant_columns_spectronaut+["EG.ModifiedSequence"] + ["FG.Quantity"]
     ptmmapped_table_filename = get_ptmmapped_filename(spectronaut_file)
     lines_read = 0
 
@@ -619,14 +662,91 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
     if os.path.exists(ptmmapped_table_filename):
         os.remove(ptmmapped_table_filename)
 
-    header = True
-    for specnaut_df in specnaut_df_it:
-        specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
-        aqutils.write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
-        lines_read +=chunksize
-        LOGGER.info(f"{lines_read} lines read")
-        header = False
+    # Determine if we should apply deduplication (only for Spectronaut)
+    is_spectronaut = "spectronaut" in input_type_to_use.lower()
+
+    if is_spectronaut:
+        # Collect all chunks for batch deduplication
+        LOGGER.info("Collecting chunks for PTM deduplication (Spectronaut data)")
+        all_chunks = []
+
+        for specnaut_df in specnaut_df_it:
+            specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
+            all_chunks.append(specnaut_df_annot)
+            lines_read += chunksize
+            LOGGER.info(f"{lines_read} lines read")
+
+        # Combine all chunks and apply sophisticated deduplication
+        LOGGER.info("Combining chunks for PTM deduplication...")
+        combined_df = pd.concat(all_chunks, ignore_index=True)
+
+        # Apply sophisticated deduplication for Spectronaut
+        deduplicated_df = deduplicate_spectronaut_ptm_by_peak_area(combined_df)
+
+        # Write deduplicated result
+        LOGGER.info(f"Writing deduplicated PTM table with {len(deduplicated_df)} rows to {ptmmapped_table_filename}")
+        deduplicated_df.to_csv(ptmmapped_table_filename, sep='\t', index=False)
+
+    else:
+        # Write chunks directly for non-Spectronaut data (DIANN, etc.)
+        LOGGER.info("Processing non-Spectronaut data - no deduplication applied")
+        header = True
+
+        for specnaut_df in specnaut_df_it:
+            specnaut_df_annot = add_ptmsite_info_to_subtable(specnaut_df, labelid2ptmid, labelid2site, modification_type, relevant_columns)
+            aqutils.write_chunk_to_file(specnaut_df_annot, ptmmapped_table_filename, header)
+            header = False
+            lines_read += chunksize
+            LOGGER.info(f"{lines_read} lines read")
+
     return ptmmapped_table_filename
+
+def deduplicate_spectronaut_ptm_by_peak_area(df):
+    """
+    Deduplicate Spectronaut PTM data by keeping the row with maximum peak area per group.
+
+    This addresses ambiguous PTM site localizations where the same fragment ion
+    can be assigned to different phosphorylation sites. We keep the measurement
+    with the highest signal intensity (F.PeakArea) as the most reliable.
+
+    Args:
+        df (pd.DataFrame): PTM-mapped Spectronaut dataframe
+
+    Returns:
+        pd.DataFrame: Deduplicated dataframe
+    """
+    if len(df) == 0:
+        return df
+
+    # Key columns that define duplicate groups for Spectronaut data
+    key_columns = [
+        'PEP.StrippedSequence',   # Peptide sequence
+        'FG.Charge',              # Precursor charge
+        'F.FrgIon',               # Fragment ion type
+        'F.FrgLossType',          # Fragment loss type
+        'F.Charge',               # Fragment charge
+        'ptm_mapped_modseq',      # PTM-mapped modified sequence
+        'R.Label'                 # Sample/run label
+    ]
+    intensity_column = 'F.PeakArea'
+
+    # Convert intensity column to numeric and remove NaN values
+    df = df.copy()
+    df[intensity_column] = pd.to_numeric(df[intensity_column], errors='coerce')
+    df = df.dropna(subset=[intensity_column])
+
+    if len(df) == 0:
+        return df
+
+    # Group by key columns and keep row with maximum peak area per group
+    max_intensity_indices = df.groupby(key_columns)[intensity_column].idxmax()
+    deduplicated_df = df.loc[max_intensity_indices].reset_index(drop=True)
+
+    rows_removed = len(df) - len(deduplicated_df)
+    if rows_removed > 0:
+        LOGGER.info(f"PTM deduplication: Removed {rows_removed} duplicate rows, kept {len(deduplicated_df)} rows")
+
+    return deduplicated_df
 
 def get_ptmmapped_filename(spectronaut_file):
     spectronaut_file_abspath = os.path.abspath(spectronaut_file)
@@ -736,37 +856,7 @@ def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, min_val
     df_occupancy_change = pd.DataFrame(regulated_sites, columns=["REFPROT", "gene", "site", "direction", "c1_meanprob", "c2_meanprob", "c1_nrep", "c2_nrep"])
     return df_occupancy_change
 
-# Cell
-import pandas as pd
-import numpy as np
-import re
 
-def check_site_occupancy_changes_all_diffresults(results_folder = os.path.join(".","results"), siteprobs_filename = "siteprobs.tsv",samplemap_file = "samples.map",condpairs_to_compare = [], threshold_prob = 0.05, min_valid_values = 2):
-
-    samplemap_df, _ = get_sample2cond_dataframe(samplemap_file)
-    ptmsite_map = os.path.join(results_folder, siteprobs_filename)
-    ptmsite_df = pd.read_csv(ptmsite_map, sep = "\t")
-    ptmsite_df["site_id"] = ptmsite_df["REFPROT"] + ptmsite_df["site"].astype("str")
-    ptmsite_df = ptmsite_df.set_index("site_id")
-
-
-    if len(condpairs_to_compare) == 0:
-        condpairs_to_compare = [f.replace(".results.tsv", "").split(aq_variables.CONDITION_PAIR_SEPARATOR) for f in os.listdir(results_folder) if re.match(r'.*results.tsv', f)]
-    for condpair in condpairs_to_compare:
-        LOGGER.info(f"check condpair {condpair}")
-        cond1 = condpair[0]
-        cond2 = condpair[1]
-        cond1_samples = list(set(samplemap_df[(samplemap_df["condition"]==cond1)]["sample"]).intersection(set(ptmsite_df.columns)))
-        cond2_samples = list(set(samplemap_df[(samplemap_df["condition"]==cond2)]["sample"]).intersection(set(ptmsite_df.columns)))
-
-        ptmsite_df_cpair = ptmsite_df[cond1_samples + cond2_samples + ["REFPROT", "gene", "site"]]
-        filtvec = [(sum(~np.isnan(x))>0) for _, x in ptmsite_df[cond1_samples + cond2_samples].iterrows()]
-        ptmsite_df_cpair = ptmsite_df_cpair[filtvec]
-        ptmsite_df_cpair = ptmsite_df_cpair.sort_index()
-
-        condpairname = utils.get_condpairname(condpair)
-        df_occupancy = detect_site_occupancy_change(cond1, cond2, ptmsite_df_cpair, samplemap_df, min_valid_values = min_valid_values, threshold_prob = threshold_prob)
-        df_occupancy.to_csv(os.path.join(results_folder, f"{condpairname}.ptm_occupancy_changes.tsv"), sep = "\t", index = None)
 
 
 

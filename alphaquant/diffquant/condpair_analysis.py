@@ -11,6 +11,7 @@ import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import alphaquant.cluster.cluster_missingval as aq_clust_missingval
+import alphaquant.cluster.outlier_filtering as aq_clust_outlier
 
 import pandas as pd
 import numpy as np
@@ -56,6 +57,7 @@ def analyze_condpair(*,runconfig, condpair):
     bgpair2diffDist = {}
     deedpair2doublediffdist = {}
     count_ions=0
+    all_diffions = []
     for ion in ions_to_check:
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
@@ -66,6 +68,7 @@ def analyze_condpair(*,runconfig, condpair):
         protein = pep2prot.get(ion)
         if diffIon.usable:
             prot2diffions[protein].append(diffIon)
+            all_diffions.append(diffIon)
         else:
             prot2missingval_diffions[protein].append(diffIon)
 
@@ -76,12 +79,13 @@ def analyze_condpair(*,runconfig, condpair):
 
         count_ions+=1
 
-
     count_prots = 0
     for prot in prot2diffions.keys():
         ions = prot2diffions.get(prot)
         if len(ions)<runconfig.min_num_ions:
             continue
+
+
 
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
@@ -90,6 +94,7 @@ def analyze_condpair(*,runconfig, condpair):
 
         if count_prots%100==0:
             LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
+
         count_prots+=1
 
     if len(prot2missingval_diffions.keys())>0:
@@ -123,6 +128,9 @@ def analyze_condpair(*,runconfig, condpair):
         else:
             LOGGER.info(f"ML based quality score below quality threshold and not added to the nodes.")
             runconfig.ml_based_quality_score = False
+
+    if runconfig.peptide_outlier_filtering:
+        aq_clust_outlier.apply_peptide_outlier_filtering(protnodes)
 
     protnodes_combined = protnodes + protnodes_missingval
     condpair_node = aqclust_utils.get_condpair_node(protnodes_combined, condpair)
@@ -224,8 +232,17 @@ def write_out_tables(condpair_node, runconfig):
     if runconfig.results_dir!=None:
         if runconfig.write_out_results_tree:
             aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
-        proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism).proteoform_df
-        proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
+        # Write proteoform table defensively; skip if errors occur
+        try:
+            proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(
+                condpair_tree=condpair_node, organism=runconfig.organism
+            ).proteoform_df
+            proteoform_df.to_csv(
+                f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv",
+                sep='\t', index=False
+            )
+        except Exception as e:
+            LOGGER.warning(f"Skipping proteoform table write due to error: {e}")
 
         runconfig_df = aq_tablewriter_runconfig.RunConfigTableCreator(runconfig).runconfig_df
 
