@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import pandas as pd
 import alphaquant.diffquant.condpair_analysis as aq_diffquant_condpair
 
@@ -15,9 +15,9 @@ def test_get_per_condition_dataframes():
         samples_c2 = ['C', 'D']
         minrep_both = 2
         minrep_either = None
-        minrep_c1 = 2 
+        minrep_c1 = 2
         minrep_c2 = 0 #minrep c1 and c2 should override minrep both which is set per default
-        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both, minrep_either, minrep_c1, minrep_c2)
+        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both, "per_condition", minrep_c1, minrep_c2)
 
         assert not df_c1.empty and not df_c2.empty, "DataFrames should not be empty"
         assert len(df_c1.index) >= 5 and len(df_c2.index) >= 5, "DataFrames should have enough data"
@@ -32,7 +32,7 @@ def test_get_per_condition_dataframes():
         minrep_c1 = None
         minrep_c2 = None
 
-        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both, minrep_either, minrep_c1, minrep_c2)
+        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both, "both", minrep_c1, minrep_c2)
 
         assert not df_c1.empty and not df_c2.empty, "DataFrames should not be empty"
         assert len(df_c1.index) >= 5 and len(df_c2.index) >= 5, "DataFrames should have enough data"
@@ -46,7 +46,7 @@ def test_get_per_condition_dataframes():
         minrep_c1 = None
         minrep_c2 = None
 
-        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both, minrep_either, minrep_c1, minrep_c2)
+        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_either, "either", minrep_c1, minrep_c2)
 
         assert not df_c1.empty and not df_c2.empty, "DataFrames should not be empty"
         assert len(df_c1.index) >= 5 and len(df_c2.index) >= 5, "DataFrames should have enough data"
@@ -61,7 +61,7 @@ def test_get_per_condition_dataframes():
         minrep_c1 = None
         minrep_c2 = None
 
-        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both, minrep_either, minrep_c1, minrep_c2)
+        df_c1, df_c2 = aq_diffquant_condpair.get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_either, "either", minrep_c1, minrep_c2)
 
         assert not df_c1.empty and not df_c2.empty, "DataFrames should not be empty"
         assert len(df_c1.index) >= 5 and len(df_c2.index) >= 5, "DataFrames should have enough data"
