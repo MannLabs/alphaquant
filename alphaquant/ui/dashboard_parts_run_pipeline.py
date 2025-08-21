@@ -448,6 +448,11 @@ class RunPipeline(BaseWidget):
 				value=True,
 				width=300
 			),
+			            'peptide_outlier_filtering': pn.widgets.Checkbox(
+				name='Use few peptides per protein',
+				value=True,
+				width=300
+			),
 		}
 
 		self.switch_descriptions = {
@@ -461,6 +466,7 @@ class RunPipeline(BaseWidget):
 			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
 			'use_multiprocessing': pn.pane.Markdown('Use multiple CPU cores to speed up processing (may use more memory)'),
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
+			            'peptide_outlier_filtering': pn.pane.Markdown('Filter outlier peptides based on significance for proteins with gene-level nodes'),
 		}
 
 		self.run_pipeline_button = pn.widgets.Button(
@@ -809,6 +815,7 @@ class RunPipeline(BaseWidget):
 				'write_out_results_tree': self.switches['write_out_results_tree'].value,
 				'use_multiprocessing': self.switches['use_multiprocessing'].value,
 				'runtime_plots': self.switches['runtime_plots'].value,
+				            'peptide_outlier_filtering': self.switches['peptide_outlier_filtering'].value,
 			}
 
 			# Log key parameters
