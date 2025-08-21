@@ -1,4 +1,3 @@
-
 # Cell
 import anytree
 from statistics import NormalDist
@@ -20,20 +19,19 @@ LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
 
-def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein):
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False):
     """Goes through the children and summarizes their properties to the node
 
     Args:
         node ([type]): [description]
         only_use_mainclust (bool, optional): [description]. Defaults to True.
     """
-
     if only_use_mainclust:
         childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
     else:
         childs = [x for x in node.children if x.is_included]
 
-    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node)
+    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node)
 
 
     zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
@@ -41,7 +39,7 @@ def aggregate_node_properties(node, only_use_mainclust, use_fewpeps_per_protein)
     cvs = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="cv")
     min_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_intensity")
     total_intensities = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "total_intensity")
-    
+
     min_intensity = np.median(min_intensities)
     total_intensity = np.sum(total_intensities)
     min_reps_childs = get_feature_numpy_array_from_nodes(nodes = childs, feature_name = "min_reps")
@@ -82,10 +80,10 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
-def get_selected_nodes_for_zvalcalc(childs, use_fewpeps_per_protein, node):
-    if use_fewpeps_per_protein and node.type == "gene":
-        return filter_fewpeps_per_protein(childs)
-    
+def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node):
+    if peptide_outlier_filtering and node.type == "gene":
+        return [x for x in childs if not x.is_outlier_peptide]
+
     elif node.type == "frgion":
         return remove_outlier_fragion_childs(childs)
     else:
@@ -103,7 +101,66 @@ def filter_fewpeps_per_protein(peptide_nodes):
 
     return get_median_peptides(pepnode2zval2numleaves)
 
+def filter_outlier_peptides_old(peptide_nodes, fraction_highly_significant):
+    """
+    Filters outlier peptides based on p-value significance.
 
+    Checks if there's a minority of peptides (<40%) that has substantially more
+    significant p-values (at least a factor of 5) compared to the median.
+    Only starts checking if the median p-value is 0.05 or higher.
+    If this minority case exists, returns only the less significant half of peptides.
+
+    Args:
+        peptide_nodes: List of peptide nodes with p_val attributes
+
+    Returns:
+        Filtered list of peptide nodes
+    """
+    if len(peptide_nodes) < 4:
+        return peptide_nodes
+
+    # Get p-values from peptide nodes
+    p_values = [node.p_val for node in peptide_nodes]
+    median_p_val = np.median(p_values)
+
+    # Only check for outliers if median p-value is 0.05 or higher
+    if median_p_val < 0.05:
+        return peptide_nodes
+
+        # Check for minority with substantially more significant p-values
+    threshold_p_val = median_p_val / 5.0  # at least 5x more significant (lower p-value)
+    highly_significant_nodes = [node for node in peptide_nodes if node.p_val <= threshold_p_val]
+    remaining_nodes = [node for node in peptide_nodes if node.p_val > threshold_p_val]
+
+                # Check if this is a minority (<40%)
+    if len(highly_significant_nodes) / len(peptide_nodes) < 0.3:
+        return _filter_minority_highly_significant(highly_significant_nodes, remaining_nodes, fraction_highly_significant)
+
+    return peptide_nodes
+
+def _filter_minority_highly_significant_old(highly_significant_nodes, remaining_nodes, fraction_highly_significant):
+    """
+    Handle filtering when highly significant nodes are a minority (<40%).
+
+    Args:
+        highly_significant_nodes: Nodes with p-value <= threshold_p_val
+        remaining_nodes: All peptide nodes
+        threshold_p_val: The p-value threshold used to identify highly significant nodes
+        fraction_highly_significant: Global fraction of highly significant ions
+
+    Returns:
+        Filtered list of peptide nodes to exclude for analysis
+    """
+    # if len(highly_significant_nodes) == 1:
+    #     return highly_significant_nodes+remaining_nodes
+    # Calculate how many highly significant nodes to exclude
+    num_to_exclude = int(len(highly_significant_nodes) * (fraction_highly_significant / 0.08))
+    num_to_exclude_bounded = max(1, min(len(highly_significant_nodes)-1, num_to_exclude))
+
+    # Sort by p-value (most significant first) and exclude the best ones
+    highly_significant_nodes_sorted = sorted(highly_significant_nodes, key=lambda x: x.p_val)
+    nodes_to_keep = highly_significant_nodes_sorted[num_to_exclude_bounded:] #keep the least significant ones
+    return nodes_to_keep + remaining_nodes
 
 import math
 def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are sorted first
@@ -112,10 +169,19 @@ def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are
         return [x[0] for x in pepnode2zval2numleaves]
     else:
         return [x[0] for x in pepnode2zval2numleaves[:median_idx+1]]
-    
+
 def remove_outlier_fragion_childs(childs):
     zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
-    
+    if aqvariables.PTM_FRAGMENT_SELECTION:
+        sorted_idxs_zvals = np.argsort(np.abs(zvals))
+        median_idx = math.floor(len(zvals)/2)
+        median_idx = 7 if median_idx > 7 else median_idx
+        if median_idx < len(sorted_idxs_zvals):
+            idxs_to_use = sorted_idxs_zvals[:median_idx+1]
+        else:
+            idxs_to_use = sorted_idxs_zvals
+        return [childs[idx] for idx in idxs_to_use]
+
     if len(zvals) > 4:
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
@@ -123,12 +189,15 @@ def remove_outlier_fragion_childs(childs):
         idx_end = median_idx + 2
         idxs_to_use = sorted_idxs_zvals[idx_start:idx_end]
     else:
-        idxs_to_use = aq_utils_diffquant.find_non_outlier_indices_ipr(zvals, threshold=1.1, percentile_lower = 30, percentile_upper = 70)
-    
+        idxs_to_use = aq_utils_diffquant.find_non_outlier_indices_ipr(zvals, threshold=1.1, percentile_lower = 40, percentile_upper = 70)
+
     return [childs[idx] for idx in idxs_to_use]
 
 
 def sum_and_re_scale_zvalues(zvals):
+    if len(zvals) == 1:
+        return zvals[0]  # No aggregation needed for single values - avoids floating-point precision errors
+
     z_sum = sum(zvals)
     p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
     p_z = set_bounds_for_p_if_too_extreme(p_z)
@@ -146,7 +215,7 @@ def set_bounds_for_p_if_too_extreme(p_val):
         return 1- (aqvariables.MIN_PVAL)
     else:
         return p_val
-    
+
 def calc_fold_change_from_included_leaves_fcs(node):
     included_leaves = obtain_all_included_leaves(node)
     list_of_fcs = [x.fcs for x in included_leaves]
@@ -198,7 +267,7 @@ def traverse_and_add_included_leaves(node, list_of_included_leaves, is_root=True
         if is_root or (node.is_included and node.cluster == 0):
             list_of_included_leaves.append(node)
         return
-    
+
     # If it's the root node or if the current node is included, then proceed to its children
     if is_root or (node.is_included and node.cluster == 0):
         for child in node.children:
@@ -304,10 +373,11 @@ def assign_properties_to_base_ions(root_node, name2diffion, normed_c1, normed_c2
         log2intensities_c2 = normed_c2.ion2nonNanvals.get(leaf.name)
         diffion = name2diffion.get(leaf.name)
         leaf.fc = diffion.fc
-        if abs(leaf.fc) < 0.2:
-            leaf.z_val = 0
-        else:
-            leaf.z_val = diffion.z_val
+        # if abs(leaf.fc) < 0.2:
+        #     leaf.z_val = 0
+        # else:
+        leaf.z_val = diffion.z_val
+        leaf.p_val = diffion.p_val  # Add missing p-value assignment
         #leaf.fcs = get_fcs_of_leaf(log2intensities_c1, log2intensities_c2)
         leaf.fraction_consistent = 1
         original_intensities_c1 = 2**(log2intensities_c1)
@@ -334,7 +404,7 @@ def get_fcs_of_leaf(log2intensities_c1, log2intensity_c2):
     log2intensities_c1_reshaped = log2intensities_c1.reshape(-1, 1)
     fold_changes = (log2intensities_c1_reshaped - log2intensity_c2).flatten()
     return fold_changes
-    
+
 
 def downsample_intensities_if_necessary(intensities, max_num):
     if len(intensities) > max_num:
@@ -343,7 +413,7 @@ def downsample_intensities_if_necessary(intensities, max_num):
     else:
         return intensities
 
-    
+
 
 
 def exchange_cluster_idxs(fclust_output_array):
@@ -462,7 +532,7 @@ def get_parent2leaves_dict(protein):
     parent2children = collections.defaultdict(list)
     for leave in protein.leaves:
         parent2children[leave.parent.name].append(leave.name)
-    
+
     return dict(parent2children)
 
 def find_max_depth( node, depth=0):
@@ -481,13 +551,13 @@ def add_level_name_to_root(anynode):
 
 def clone_tree(node):
     attrs = {k: v for k, v in node.__dict__.items() if not k.startswith("_")}
-    
+
     cloned_node = anytree.Node(**attrs)
-    
+
     for child in node.children:
         cloned_child = clone_tree(child)
         cloned_child.parent = cloned_node
-    
+
     return cloned_node
 
 

@@ -32,9 +32,9 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, acqui
     #prepare the input table with all the relevant features for machine learning
 
     protein_nodes = list(sorted(protein_nodes, key  = lambda x : x.name))
-    
+
     fragion_selector = FragionForTrainingSelector(protein_nodes, min_num_fragions = min_num_fragions)
-    
+
     LOGGER.info(f"{fragion_selector.num_fragions_suitable_for_training} of {fragion_selector.num_fragions_total} selected for training")
 
     if fragion_selector.num_fragions_suitable_for_training<100:
@@ -51,7 +51,7 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, acqui
 
     featurenames_str = ', '.join(ml_input_for_training.featurenames)
     LOGGER.info(f"starting RF prediction using features {featurenames_str}")
-    
+
     models = train_random_forest_ensemble(ml_input_for_training.X, ml_input_for_training.y, num_splits = 5, shorten_features_for_speed=shorten_features_for_speed)
 
     y_pred = predict_on_models(models,ml_input_for_training.X)
@@ -73,10 +73,10 @@ def assign_predictability_scores_stacked(protein_nodes, results_dir, name, acqui
         aq_plot_classify.plot_value_histogram(y_pred_total, results_dir_plots)
 
 
-    
+
     ionnames_total = ml_input_for_training.ionnames + ml_input_remaining.ionnames
     all_fragion_basenodes = fragion_selector.fragions_suitable_for_training + fragion_selector.fragions_not_suitable_for_training
-    
+
     #annotate the fragion nodes
     annotate_fragion_basenodes(all_fragion_basenodes, ionnames_total, y_pred_total) #two new variables added to each node:
     #update_fold_change_of_the_fragion_iontype_node(fragion_selector.fragment_iontype_nodes)
@@ -107,7 +107,7 @@ class FragionForTrainingSelector:
         self.num_fragions_not_suitable_for_training = len(self.fragions_not_suitable_for_training)
         self.num_fragions_total = self.num_fragions_suitable_for_training + self.num_fragions_not_suitable_for_training
 
-    
+
     def _define_iontype_nodes(self):
         for protein_node in self._protein_nodes:
             iontype_nodes = anytree.search.findall(protein_node, filter_=lambda node: node.level == "ion_type")
@@ -134,7 +134,7 @@ class MLInputTableCreatorFragions:
         self._numeric_threshold = numeric_threshold #fraction of non-nan values in a column, if less, the column is removed
 
         self._merged_df = None
-        
+
         self.X = None # the input for the ML model which has corresponding y values, so it is possible to train with this table
         self.y = None
         self.featurenames = None
@@ -165,18 +165,18 @@ class MLInputTableCreatorFragions:
 
     def _define_ionnames(self):
         self.ionnames = list(self._merged_df[aq_conf_vars.QUANT_ID])
-        
+
 
     def _remove_non_numeric_columns_from_merged_df(self):
         columns_to_drop = []
         self._merged_df = self._merged_df.drop(columns=[aq_conf_vars.QUANT_ID])
         self._merged_df = self._merged_df.apply(lambda col: pd.to_numeric(col, errors='coerce')) #'coerce' will turn non-numeric values into NaN
-        
+
         for column in self._merged_df.columns:
             proportion_non_nans = self._merged_df[column].notna().mean()
             if proportion_non_nans < self._numeric_threshold:
                 columns_to_drop.append(column)
-        
+
         self._merged_df = self._merged_df.drop(columns=columns_to_drop)
 
     def _define_featurenames(self):
@@ -190,12 +190,12 @@ class MLInputTableCreatorFragions:
             self.X =  X_imputed
         else:
             self.X = X_df.to_numpy()
-    
+
 
     def _define_y(self):
         ion2fc = {x.name: self._get_fragnormed_fc(x) for x in self._fragions}
         self.y = np.array([ion2fc.get(ion) for ion in self.ionnames])
-    
+
     @staticmethod
     def _get_fragnormed_fc(base_node):
         base_fc = base_node.fc
@@ -239,7 +239,7 @@ def train_random_forest_ensemble(X, y, shorten_features_for_speed, num_splits=5)
                                                        max_features=max_features)  # Reduce the number of features
         model.fit(X_train, y_train)
         models.append(model)
-    
+
     return models
 
 
@@ -255,7 +255,7 @@ def annotate_fragion_basenodes(all_fragions_basenodes, ionnames_total, y_pred_to
     for fragion in all_fragions_basenodes:
         y_pred = ion2pred.get(fragion.name)
         fragion.ml_score_fragion = abs(y_pred)
-    
+
 
 
 def update_fold_change_of_the_fragion_iontype_node(all_fragions_iontype_nodes): #the iontype nodes are the parents of the basenodes
@@ -263,7 +263,7 @@ def update_fold_change_of_the_fragion_iontype_node(all_fragions_iontype_nodes): 
         weigths = [2**-abs(fragion.ml_score_fragion) for fragion in fragion_iontype.children]
         fcs = [fragion.fc for fragion in fragion_iontype.children]
         fragion_iontype.fc = np.average(fcs, weights=weigths)
-        
+
 
 def update_fold_change_of_the_mod_seq_ch_node(all_fragions_iontype_nodes):
     for fragion in all_fragions_iontype_nodes:
@@ -279,7 +279,7 @@ def propagate_new_fcs_along_the_tree(protein_nodes):
             if nodelevel == "ion_type":
                 continue
             for level_node in level_nodes:
-                aq_cluster_utils.aggregate_node_properties(level_node, only_use_mainclust=True, use_fewpeps_per_protein=True)
+                aq_cluster_utils.aggregate_node_properties(level_node, only_use_mainclust=True, peptide_outlier_filtering=False)
 
 
 # def update_nodes_w_ml_score(protnodes):
@@ -298,7 +298,7 @@ def propagate_new_fcs_along_the_tree(protein_nodes):
 #             had_ml_score = hasattr(child_nodes[0], 'ml_score')
 #             if had_ml_score:
 #                 re_order_clusters_by_ml_score(child_nodes)
-#                 aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
+#                 aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=True)
 import copy
 
 def re_order_fragion_iontype_nodes_by_score(fragion_iontype_nodes):
@@ -342,6 +342,6 @@ def propagate_new_clusters_along_the_tree(protein_nodes):
             if nodelevel == "base":
                 continue
             for level_node in level_nodes:
-                aq_cluster_utils.aggregate_node_properties(level_node, only_use_mainclust=True, use_fewpeps_per_protein=True)
+                aq_cluster_utils.aggregate_node_properties(level_node, only_use_mainclust=True, peptide_outlier_filtering=True, fraction_highly_significant=0.08)
 
 
