@@ -776,6 +776,41 @@ spectronaut_ptm_fragion_ms1:
   annotation_columns:
     - PEP.StrippedSequence
 
+spectronaut_ptm_precursor:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    modseq: FG.Quantity
+  protein_cols:
+   - ptm_id
+  ion_hierarchy:
+    modseq:
+      order: [SEQ, MOD]
+      mapping:
+        SEQ:
+         - PEP.StrippedSequence
+        MOD:
+         - FG.Id
+  use_iontree: True
+  ml_level: SEQ
+
+spectronaut_ptm_sequence:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    seq: FG.Quantity
+  protein_cols:
+   - ptm_id
+  ion_hierarchy:
+    seq:
+      order: [SEQ]
+      mapping:
+        SEQ:
+         - PEP.StrippedSequence
+  use_iontree: True
+  ml_level: SEQ
+
+
 
 spectronaut_fragion_ms1_gene:
   format: longtable
@@ -1203,6 +1238,26 @@ spectronaut_precursor_protein:
          - FG.Charge
   use_iontree: True
   ml_level: CHARGE
+  annotation_columns:
+    - PG.Genes
+
+spectronaut_sequence_protein:
+  format: longtable
+  sample_ID: R.Label
+  quant_ID:
+    precursor: PEP.Quantity
+  protein_cols:
+   - PG.ProteinGroups
+  ion_hierarchy:
+    precursor:
+      order: [SEQ, MOD]
+      mapping:
+        SEQ:
+         - PEP.StrippedSequence
+        MOD:
+         - EG.ModifiedSequence
+  use_iontree: True
+  ml_level: SEQ
   annotation_columns:
     - PG.Genes
 
