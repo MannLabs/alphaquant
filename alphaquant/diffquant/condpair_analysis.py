@@ -64,7 +64,10 @@ def analyze_condpair(*,runconfig, condpair):
         bg1 = normed_c1.ion2background.get(ion)
         bg2 = normed_c2.ion2background.get(ion)
         diffDist = aqbg.get_subtracted_bg(bgpair2diffDist, bg1, bg2, p2z)
-        diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
+        if runconfig.ion_test_method == 'ttest':
+            diffIon = aqdiff.DifferentialIonTTest(vals1, vals2, ion, p2z, runconfig.outlier_correction)
+        else:
+            diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
         protein = pep2prot.get(ion)
         if diffIon.usable:
             prot2diffions[protein].append(diffIon)

@@ -75,6 +75,7 @@ def run_pipeline(input_file: str,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
+                ion_test_method: str = 'diffdist',
                 minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
                 minrep_c1: Optional[int] = None, #deprecated
@@ -127,6 +128,9 @@ def run_pipeline(input_file: str,
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
         peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
+    ion_test_method (str): Ion-level test to compute ion statistics. Options:
+        - "diffdist" (default): Use empirical background distributions (DifferentialIon).
+        - "ttest": Use Welch two-sample t-test (DifferentialIonTTest), p→z via cached fast inversion.
     """
     LOGGER.info("Starting AlphaQuant")
 
