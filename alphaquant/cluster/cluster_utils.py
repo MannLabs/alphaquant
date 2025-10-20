@@ -19,19 +19,21 @@ LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
 
-def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False):
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True):
     """Goes through the children and summarizes their properties to the node
 
     Args:
         node ([type]): [description]
         only_use_mainclust (bool, optional): [description]. Defaults to True.
+        peptide_outlier_filtering (bool, optional): Whether to filter outlier peptides. Defaults to False.
+        fragment_outlier_filtering (bool, optional): Whether to filter outlier fragments. Defaults to True.
     """
     if only_use_mainclust:
         childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
     else:
         childs = [x for x in node.children if x.is_included]
 
-    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node)
+    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering)
 
 
     zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
@@ -80,11 +82,11 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
-def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node):
+def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering=True):
     if peptide_outlier_filtering and node.type == "gene":
         return [x for x in childs if not x.is_outlier_peptide]
 
-    elif node.type == "frgion":
+    elif fragment_outlier_filtering and node.type == "frgion":
         return remove_outlier_fragion_childs(childs)
     else:
         return childs
@@ -186,10 +188,11 @@ def remove_outlier_fragion_childs(childs):
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
         idx_start = median_idx - 2
-        idx_end = median_idx + 2
+        idx_end = median_idx + 3
         idxs_to_use = sorted_idxs_zvals[idx_start:idx_end]
     else:
-        idxs_to_use = aq_utils_diffquant.find_non_outlier_indices_ipr(zvals, threshold=1.1, percentile_lower = 40, percentile_upper = 70)
+        # When there are 4 or fewer children, use all of them
+        idxs_to_use = list(range(len(childs)))
 
     return [childs[idx] for idx in idxs_to_use]
 

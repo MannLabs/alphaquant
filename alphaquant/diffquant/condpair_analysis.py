@@ -92,7 +92,8 @@ def analyze_condpair(*,runconfig, condpair):
 
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
-                                                                        take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge)
+                                                                        take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge,
+                                                                        fragment_outlier_filtering=runconfig.fragment_outlier_filtering)
         protnodes.append(clustered_prot_node)
 
         if count_prots%100==0:
@@ -225,6 +226,14 @@ def write_out_tables(condpair_node, runconfig):
     has_precursor_nodes = check_if_has_precursor_nodes(condpair_node)
     if has_precursor_nodes:
         prec_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "mod_seq_charge").results_df
+    else:
+        prec_df = None
+
+    has_base_nodes = check_if_has_base_nodes(condpair_node)
+    if has_base_nodes:
+        base_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "base").results_df
+    else:
+        base_df = None
 
 
     if runconfig.runtime_plots:
@@ -257,6 +266,9 @@ def write_out_tables(condpair_node, runconfig):
         if has_precursor_nodes:
             prec_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.prec.tsv", sep = "\t", index=None)
 
+        if has_base_nodes:
+            base_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.base.tsv", sep = "\t", index=None)
+
     return res_df, pep_df
 
 def check_if_has_sequence_nodes(condpair_node):
@@ -265,5 +277,12 @@ def check_if_has_sequence_nodes(condpair_node):
 def check_if_has_precursor_nodes(condpair_node):
     try:
         return condpair_node.children[0].children[0].children[0].children[0].type == "mod_seq_charge"
+    except:
+        return False
+
+def check_if_has_base_nodes(condpair_node):
+    try:
+        # Check if we have base nodes (fragments/MS1) at the leaf level
+        return condpair_node.children[0].leaves[0].type == "base"
     except:
         return False

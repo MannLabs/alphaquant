@@ -28,7 +28,7 @@ LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'se
 
 
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge):
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge, fragment_outlier_filtering=True):
     #typefilter = TypeFilter('successive')
 
     global FCDIFF_CUTOFF_CLUSTERMERGE
@@ -40,7 +40,7 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     root_node = create_hierarchical_ion_grouping(gene_name, diffions)
     add_reduced_names_to_root(root_node)
     #LOGGER.info(anytree.RenderTree(root_node))
-    root_node_clust = cluster_along_specified_levels(root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
+    root_node_clust = cluster_along_specified_levels(root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering)
 
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
@@ -91,7 +91,7 @@ def add_reduced_names_to_root(node):
 
 
 import pandas as pd
-def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
+def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering=True):#~60% of overall runtime
     #typefilter object specifies filtering and clustering of the nodes
     aqcluster_utils.assign_properties_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
@@ -125,7 +125,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                 aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
                 aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
                 aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
-                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False)
+                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False, fragment_outlier_filtering=fragment_outlier_filtering)
 
     return root_node
 
