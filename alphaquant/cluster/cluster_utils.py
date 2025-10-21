@@ -188,7 +188,7 @@ def remove_outlier_fragion_childs(childs):
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
         idx_start = median_idx - 2
-        idx_end = median_idx + 3
+        idx_end = median_idx + 2
         idxs_to_use = sorted_idxs_zvals[idx_start:idx_end]
     else:
         # When there are 4 or fewer children, use all of them
