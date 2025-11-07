@@ -2,6 +2,11 @@
 
 AlphaQuant is designed with modularity in mind to allow practitioners to introduce alternative numerical methods for each module. The codebase follows clear interfaces that make it straightforward to extend or replace statistical methods at different levels of the analysis pipeline.
 
+## ⚠️ Important: Benchmarking and Validation
+
+**Any changes to statistical methods should be thoroughly benchmarked and fine-tuned before use in production analyses.** The default methods in AlphaQuant have been extensively tested and validated on diverse proteomics datasets. When implementing alternative approaches, ensure you carry out appropriate benchmarking using ground truth datasets (e.g., spike-in experiments, mixed-species samples) and evaluate key performance metrics (sensitivity, specificity, false discovery rates, reproducibility).
+
+
 ## 1. Ion-Level Statistical Testing
 
 **Where to modify:** `alphaquant/diffquant/diff_analysis.py`
@@ -11,7 +16,7 @@ AlphaQuant is designed with modularity in mind to allow practitioners to introdu
 **Main class:**
 - **`DifferentialIon`** - The default method that uses intensity-dependent empirical background distributions to compute p-values and z-scores. It accounts for technical variation by comparing observed fold changes against distributions derived from similarly abundant ions in the dataset. The core statistical logic is in the `_calc_diffreg_peptide()` method.
 
-**How to extend:** We've included `DifferentialIonTTest` in the same file as example code demonstrating how to implement alternative tests. This variant uses Welch's t-test with robust variance estimation (similar to MS-EmpiRe). **To create your own method:**
+**How to extend:** We've included `DifferentialIonTTest` in the same file as example code demonstrating how to implement alternative tests. This variant uses Welch's t-test with robust variance estimation. Note that this example has not been extensively benchmarked and is included for educational purposes to demonstrate the interface.
 
 1. Create a new class (e.g., `DifferentialIonMyMethod`) with the same interface:
    - `__init__()` should accept `(noNanvals_from, noNanvals_to, ...)` and any method-specific parameters
