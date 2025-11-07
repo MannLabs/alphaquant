@@ -82,9 +82,46 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
+def _select_peptides_around_median_z(peptide_nodes, max_peptides=31):
+    """
+    Selects peptides closest to the median z-value.
+
+    When a protein has more than max_peptides peptides, this function selects
+    the max_peptides peptides that have z-values closest to the median z-value.
+    This helps to avoid biasing the protein-level statistics with extreme peptides.
+
+    Args:
+        peptide_nodes: List of peptide nodes with z_val attributes
+        max_peptides: Maximum number of peptides to keep (default: 31)
+
+    Returns:
+        List of peptide nodes closest to median z-value (up to max_peptides)
+    """
+    if len(peptide_nodes) <= max_peptides:
+        return peptide_nodes
+
+    # Get z-values and calculate median
+    z_values = [node.z_val for node in peptide_nodes]
+    median_z = np.median(z_values)
+
+    # Calculate distance from median for each peptide
+    peptide_distances = [(node, abs(node.z_val - median_z)) for node in peptide_nodes]
+
+    # Sort by distance from median (closest first)
+    peptide_distances.sort(key=lambda x: x[1])
+
+    # Select the max_peptides closest to median
+    selected_peptides = [node for node, _ in peptide_distances[:max_peptides]]
+
+    return selected_peptides
+
 def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering=True):
     if peptide_outlier_filtering and node.type == "gene":
-        return [x for x in childs if not x.is_outlier_peptide]
+        filtered_childs = [x for x in childs if not x.is_outlier_peptide]
+        # Additional restriction: if more than 31 peptides, keep only 31 closest to median z-value
+        if len(filtered_childs) > 31:
+            filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=31)
+        return filtered_childs
 
     elif fragment_outlier_filtering and node.type == "frgion":
         return remove_outlier_fragion_childs(childs)

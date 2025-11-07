@@ -230,7 +230,7 @@ def write_out_tables(condpair_node, runconfig):
         prec_df = None
 
     has_base_nodes = check_if_has_base_nodes(condpair_node)
-    if has_base_nodes:
+    if has_base_nodes and runconfig.write_base_ions:
         base_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "base").results_df
     else:
         base_df = None
@@ -266,7 +266,7 @@ def write_out_tables(condpair_node, runconfig):
         if has_precursor_nodes:
             prec_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.prec.tsv", sep = "\t", index=None)
 
-        if has_base_nodes:
+        if base_df is not None:
             base_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.base.tsv", sep = "\t", index=None)
 
     return res_df, pep_df

@@ -65,6 +65,7 @@ def run_pipeline(input_file: str,
                 normalize: bool = True,
                 use_iontree_if_possible: bool = True,
                 write_out_results_tree: bool = True,
+                write_base_ions: bool = False,
                 use_multiprocessing: bool = False,
                 runtime_plots: bool = True,
                 volcano_fdr: float = 0.05,
@@ -119,6 +120,7 @@ def run_pipeline(input_file: str,
     normalize (bool): Enable sample and condition normalization. Defaults to True.
     use_iontree_if_possible (bool): Use ion tree structure when available. Defaults to True.
     write_out_results_tree (bool): Write results in hierarchical tree format. Defaults to True.
+    write_base_ions (bool): Write base ion level results table. Defaults to False.
     use_multiprocessing (bool): Enable parallel processing. Defaults to False.
     runtime_plots (bool): Generate diagnostic plots including volcanos. Defaults to True.
     volcano_fdr (float): FDR cutoff for volcano plot significance. Defaults to 0.05.

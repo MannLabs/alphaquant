@@ -23,7 +23,7 @@ def calculate_regulation_score(protnodes: list[anytree.Node]):
     fraction_sig = num_sig / (num_sig + num_insig)
 
     log2fc_ratio_sig_vs_insig = np.median(abs_log2fc[sig_mask_005]) / (np.median(abs_log2fc[nonsig_mask]) + 1e-6)
-    regulation_score = min(1, log2fc_ratio_sig_vs_insig * fraction_sig/100) #merges the regulation strength and the fraction of significant proteins into one score divided by to normalize it, the normalization factor corresponds to a very stongly regulated dataset
+    regulation_score = min(1, log2fc_ratio_sig_vs_insig * fraction_sig/10) #merges the regulation strength and the fraction of significant proteins into one score divided by to normalize it, the normalization factor corresponds to a very stongly regulated dataset
     return regulation_score
 
 
