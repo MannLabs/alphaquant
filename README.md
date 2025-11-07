@@ -294,6 +294,20 @@ A manuscript has been submitted to bioRxiv:
 > bioRxiv 2025.03.06.641844; doi: https://doi.org/10.1101/2025.03.06.641844
 
 ---
+## For Developers: Modifying AlphaQuant
+
+AlphaQuant is designed with modularity in mind. If you want to implement alternative statistical methods, modify the tree-based propagation, or adjust multiple testing correction approaches, we provide clear interfaces at each level of the analysis pipeline.
+
+For detailed documentation on how to extend or replace:
+- Ion-level statistical testing methods
+- Tree-based aggregation and z-value propagation
+- Multiple testing correction procedures
+- Outlier robustness filtering
+- Main workflow orchestration
+
+Please see **[DEVELOPERS.md](DEVELOPERS.md)** for comprehensive guidance with code examples.
+
+---
 ## How to contribute
 
 If you like this software, you can give us a [star](https://github.com/MannLabs/alphaquant/stargazers) to boost our visibility! All direct contributions are also welcome. Feel free to post a new [issue](https://github.com/MannLabs/alphaquant/issues) or clone the repository and create a [pull request](https://github.com/MannLabs/alphaquant/pulls) with a new branch. For an even more interactive participation, check out the [discussions](https://github.com/MannLabs/alphaquant/discussions) and the [the Contributors License Agreement](misc/CLA.md).

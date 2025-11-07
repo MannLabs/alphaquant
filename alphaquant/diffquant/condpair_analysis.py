@@ -25,6 +25,26 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 def analyze_condpair(*,runconfig, condpair):
+    """Main workflow orchestration for differential analysis of a condition pair.
+
+    This function coordinates the complete analysis pipeline for comparing two conditions:
+    1. Loads and filters data for the two conditions
+    2. Performs normalization (within and between conditions)
+    3. Creates empirical background distributions
+    4. Computes ion-level differential statistics
+    5. Builds hierarchical trees and performs clustering to identify proteoforms
+    6. Applies machine learning quality scoring (if enabled)
+    7. Filters outlier peptides (if enabled)
+    8. Generates output tables with FDR correction
+    9. Creates visualization plots
+
+    Args:
+        runconfig: Configuration object containing all analysis parameters (see run_pipeline docstring)
+        condpair: Tuple of (condition1_name, condition2_name) to compare
+
+    Returns:
+        tuple: (results_df, peptide_df) - DataFrames with protein and peptide-level results
+    """
     LOGGER.info(f"start processeing condpair {condpair}")
     prot2diffions = defaultdict(list) #per default maps any key to empty list
     prot2missingval_diffions = defaultdict(list)

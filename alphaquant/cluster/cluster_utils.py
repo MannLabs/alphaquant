@@ -20,13 +20,26 @@ TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
 
 def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True):
-    """Goes through the children and summarizes their properties to the node
+    """Aggregates statistical properties from child nodes to a parent node in the tree.
+
+    This is the core function for propagating statistics up the hierarchical tree structure.
+    It combines z-values, fold changes, and quality metrics from child nodes (e.g., peptides)
+    into parent node (e.g., protein) statistics. The aggregation can optionally exclude
+    proteoforms (non-main clusters) and filter outlier children.
 
     Args:
-        node ([type]): [description]
-        only_use_mainclust (bool, optional): [description]. Defaults to True.
-        peptide_outlier_filtering (bool, optional): Whether to filter outlier peptides. Defaults to False.
-        fragment_outlier_filtering (bool, optional): Whether to filter outlier fragments. Defaults to True.
+        node: The parent node whose properties will be computed from its children
+        only_use_mainclust: If True, only use children in the main cluster (cluster==0),
+                          excluding proteoform variants
+        peptide_outlier_filtering: If True and node is a protein, exclude peptides
+                                  identified as statistical outliers (default: False)
+        fragment_outlier_filtering: If True and node is a peptide, exclude extreme
+                                   fragment ions before aggregation (default: True)
+
+    Side effects:
+        Sets node.z_val, node.p_val, node.fc, node.cv, node.min_intensity,
+        node.total_intensity, node.min_reps, node.fraction_consistent, and
+        optionally node.ml_score based on aggregated child values.
     """
     if only_use_mainclust:
         childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
@@ -61,11 +74,8 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
     node.z_val = z_normed
     node.p_val = p_val
 
-    # if node.type == "frgion":
-    #     node.fc = calc_weighted_fold_change_from_included_leaves_fcs(node)
-    # else:
+
     node.fc = np.median(fcs)
-    #calc_fold_change_from_included_leaves_fcs(node) ##  #np.median(fcs)#
     node.fraction_consistent = fraction_consistent
     node.cv = min(cvs)
     node.min_intensity = min_intensity
@@ -210,6 +220,18 @@ def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are
         return [x[0] for x in pepnode2zval2numleaves[:median_idx+1]]
 
 def remove_outlier_fragion_childs(childs):
+    """Filters extreme fragment ions before aggregating to peptide level.
+
+    When a peptide has many fragment ions, this function selects a subset to avoid
+    bias from extreme outliers. For >4 fragments, it keeps the 5 most central fragments
+    (ranked by z-value). For ≤4 fragments, all are retained.
+
+    Args:
+        childs: List of fragment ion nodes (children of a peptide node)
+
+    Returns:
+        list: Filtered subset of fragment ion nodes to use for aggregation
+    """
     zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
     if aqvariables.PTM_FRAGMENT_SELECTION:
         sorted_idxs_zvals = np.argsort(np.abs(zvals))
@@ -235,6 +257,19 @@ def remove_outlier_fragion_childs(childs):
 
 
 def sum_and_re_scale_zvalues(zvals):
+    """Combines multiple z-values into a single aggregated z-value using Stouffer's method.
+
+    This implements Stouffer's Z-score method for meta-analysis: z-values are summed
+    and divided by sqrt(n) to account for the number of tests. The result is then
+    rescaled back to a standard normal distribution. This allows combining evidence
+    from multiple ions/peptides while maintaining proper statistical interpretation.
+
+    Args:
+        zvals: Array or list of z-values to combine
+
+    Returns:
+        float: Combined z-value following a standard normal distribution under the null
+    """
     if len(zvals) == 1:
         return zvals[0]  # No aggregation needed for single values - avoids floating-point precision errors
 
@@ -245,6 +280,14 @@ def sum_and_re_scale_zvalues(zvals):
     return z_normed
 
 def transform_znormed_to_pval(z_normed):
+    """Converts a z-score to a two-sided p-value.
+
+    Args:
+        z_normed: Z-score from a standard normal distribution
+
+    Returns:
+        float: Two-sided p-value. For z=0 returns 1.0, for large |z| returns small p-value.
+    """
     return 2.0 * (1.0 - NormalDist().cdf(abs(z_normed))) #we take the abs of the z_normed (normed means it belongs to a ND(0,1)), which means the cdf will return values between 0.5 and 1, and closer to 1 with increasing z_normed.
 
 
