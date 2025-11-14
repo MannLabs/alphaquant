@@ -41,6 +41,7 @@ AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experimen
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
 * [**Troubleshooting**](#troubleshooting)
 * [**Citations**](#citations)
+* [**For Developers: Modifying AlphaQuant**](#for-developers-modifying-alphaquant)
 * [**How to contribute**](#how-to-contribute)
 * [**License**](#license)
 * [**Changelog**](#changelog)
