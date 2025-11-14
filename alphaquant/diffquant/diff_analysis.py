@@ -3,6 +3,9 @@ from statistics import NormalDist
 import numpy as np
 import math
 import statistics
+from scipy.stats import ttest_ind
+from scipy.stats import t as student_t
+import alphaquant.diffquant.diffutils as aqdiffutils
 
 class DifferentialIon():
 
@@ -15,10 +18,10 @@ class DifferentialIon():
         self.z_val = None
         self.usable = False
 
-        self._calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, name, outlier_correction)
+        self._calc_diffreg_peptide(noNanvals_from, noNanvals_to, diffDist, outlier_correction)
 
 
-    def _calc_diffreg_peptide(self, noNanvals_from, noNanvals_to, diffDist, name, outlier_correction):
+    def _calc_diffreg_peptide(self, noNanvals_from, noNanvals_to, diffDist, outlier_correction):
 
         nrep_from = len(noNanvals_from)
         nrep_to = len(noNanvals_to)
@@ -54,8 +57,75 @@ class DifferentialIon():
 
 
 
+
   #self.var_from = from_dist.var
    #     self.var_to
+
+class DifferentialIonTTest():
+
+    def __init__(self, noNanvals_from, noNanvals_to, name, p2z = None, outlier_correction: bool = True):
+
+
+        self.name = name
+        self.p_val = None
+        self.fc = None
+        self.z_val = None
+        self.usable = False
+
+        self._calc_ttest_peptide(noNanvals_from, noNanvals_to, p2z, outlier_correction)
+
+
+    def _calc_ttest_peptide(self, noNanvals_from, noNanvals_to, p2z, outlier_correction):
+
+        nrep_from = len(noNanvals_from)
+        nrep_to = len(noNanvals_to)
+
+        if ((nrep_from==0) or (nrep_to ==0)):
+            return
+
+        mean_from = float(np.mean(noNanvals_from))
+        mean_to = float(np.mean(noNanvals_to))
+        self.fc = mean_from - mean_to
+
+        # Compute Welch's t-statistic and degrees of freedom
+        n1 = nrep_from
+        n2 = nrep_to
+        try:
+            res = ttest_ind(noNanvals_from, noNanvals_to, equal_var=False, nan_policy='omit')
+            t_stat = float(res.statistic) if res.statistic is not None else 0.0
+            p_val = float(res.pvalue) if res.pvalue is not None else 1.0
+        except Exception:
+            t_stat = 0.0
+            p_val = 1.0
+
+        s1 = float(np.std(noNanvals_from, ddof=1)) if n1 > 1 else 0.0
+        s2 = float(np.std(noNanvals_to, ddof=1)) if n2 > 1 else 0.0
+        se_standard_sq = (s1*s1)/max(1, n1) + (s2*s2)/max(1, n2)
+        se_standard = math.sqrt(se_standard_sq) if se_standard_sq > 0 else 0.0
+
+        # Welch-Satterthwaite degrees of freedom
+        num_df = se_standard_sq * se_standard_sq
+        den_df = 0.0
+        if n1 > 1:
+            den_df += ((s1*s1)/n1) * ((s1*s1)/n1) / (n1 - 1)
+        if n2 > 1:
+            den_df += ((s2*s2)/n2) * ((s2*s2)/n2) / (n2 - 1)
+        df = (num_df/den_df) if den_df > 0 else max(n1 + n2 - 2, 1)
+
+        # Robust SE inflation analogous to diffdist outlier scaling
+        if outlier_correction and se_standard > 0 and n1 > 1 and n2 > 1:
+            se_robust = _calc_robust_se_ttest(noNanvals_from, noNanvals_to)
+            if se_robust > 0:
+                scaling_factor = max(1.0, min(5.0, se_robust / se_standard))
+                t_adj = t_stat / scaling_factor
+                p_val = 2.0 * float(student_t.sf(abs(t_adj), df))
+
+        abs_z = aqdiffutils.two_sided_p_to_abs_z(p_val, p2z if p2z is not None else {})
+        sign = 1.0 if self.fc >= 0 else -1.0
+        self.z_val = sign * abs_z
+        self.p_val = p_val
+        self.usable = True
+
 
 def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
     sd_from = math.sqrt(diffDist.var_from)
@@ -72,6 +142,39 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
 
     scaling_factor = max(1.0, highest_SD_combined/diffDist.SD)
     return scaling_factor
+
+def _robust_sd(x):
+    x = np.asarray(x)
+    n = x.size
+    if n == 0:
+        return 0.0
+    if n == 1:
+        return 0.0
+    med = float(np.median(x))
+    mad = float(np.median(np.abs(x - med)))
+    if mad > 0:
+        return 1.4826 * mad
+    # Fallback to IQR if MAD is zero
+    q75, q25 = np.percentile(x, [75, 25])
+    iqr = float(q75 - q25)
+    if iqr > 0:
+        return iqr / 1.349
+    # Final fallback to sample SD
+    return float(np.std(x, ddof=1))
+
+def _calc_robust_se_ttest(noNanvals_from, noNanvals_to):
+    n1 = len(noNanvals_from)
+    n2 = len(noNanvals_to)
+    if n1 < 2 or n2 < 2:
+        return 0.0
+    s1 = float(np.std(noNanvals_from, ddof=1))
+    s2 = float(np.std(noNanvals_to, ddof=1))
+    s1_rob = _robust_sd(noNanvals_from)
+    s2_rob = _robust_sd(noNanvals_to)
+    s1_infl = max(s1, s1_rob)
+    s2_infl = max(s2, s2_rob)
+    se_sq = (s1_infl*s1_infl)/n1 + (s2_infl*s2_infl)/n2
+    return math.sqrt(se_sq) if se_sq > 0 else 0.0
 
 # Cell
 import math

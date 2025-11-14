@@ -19,19 +19,21 @@ LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
 
-def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False):
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True):
     """Goes through the children and summarizes their properties to the node
 
     Args:
         node ([type]): [description]
         only_use_mainclust (bool, optional): [description]. Defaults to True.
+        peptide_outlier_filtering (bool, optional): Whether to filter outlier peptides. Defaults to False.
+        fragment_outlier_filtering (bool, optional): Whether to filter outlier fragments. Defaults to True.
     """
     if only_use_mainclust:
         childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
     else:
         childs = [x for x in node.children if x.is_included]
 
-    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node)
+    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering)
 
 
     zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
@@ -80,11 +82,48 @@ def get_feature_numpy_array_from_nodes(nodes, feature_name ,dtype = 'float'):
     generator = (x.__dict__.get(feature_name) for x in nodes)
     return np.fromiter(generator, dtype=dtype)
 
-def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node):
-    if peptide_outlier_filtering and node.type == "gene":
-        return [x for x in childs if not x.is_outlier_peptide]
+def _select_peptides_around_median_z(peptide_nodes, max_peptides=31):
+    """
+    Selects peptides closest to the median z-value.
 
-    elif node.type == "frgion":
+    When a protein has more than max_peptides peptides, this function selects
+    the max_peptides peptides that have z-values closest to the median z-value.
+    This helps to avoid biasing the protein-level statistics with extreme peptides.
+
+    Args:
+        peptide_nodes: List of peptide nodes with z_val attributes
+        max_peptides: Maximum number of peptides to keep (default: 31)
+
+    Returns:
+        List of peptide nodes closest to median z-value (up to max_peptides)
+    """
+    if len(peptide_nodes) <= max_peptides:
+        return peptide_nodes
+
+    # Get z-values and calculate median
+    z_values = [node.z_val for node in peptide_nodes]
+    median_z = np.median(z_values)
+
+    # Calculate distance from median for each peptide
+    peptide_distances = [(node, abs(node.z_val - median_z)) for node in peptide_nodes]
+
+    # Sort by distance from median (closest first)
+    peptide_distances.sort(key=lambda x: x[1])
+
+    # Select the max_peptides closest to median
+    selected_peptides = [node for node, _ in peptide_distances[:max_peptides]]
+
+    return selected_peptides
+
+def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering=True):
+    if peptide_outlier_filtering and node.type == "gene":
+        filtered_childs = [x for x in childs if not x.is_outlier_peptide]
+        # Additional restriction: if more than 31 peptides, keep only 31 closest to median z-value
+        if len(filtered_childs) > 31:
+            filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=31)
+        return filtered_childs
+
+    elif fragment_outlier_filtering and node.type == "frgion":
         return remove_outlier_fragion_childs(childs)
     else:
         return childs
@@ -189,7 +228,8 @@ def remove_outlier_fragion_childs(childs):
         idx_end = median_idx + 2
         idxs_to_use = sorted_idxs_zvals[idx_start:idx_end]
     else:
-        idxs_to_use = aq_utils_diffquant.find_non_outlier_indices_ipr(zvals, threshold=1.1, percentile_lower = 40, percentile_upper = 70)
+        # When there are 4 or fewer children, use all of them
+        idxs_to_use = list(range(len(childs)))
 
     return [childs[idx] for idx in idxs_to_use]
 

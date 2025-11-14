@@ -65,6 +65,7 @@ def run_pipeline(input_file: str,
                 normalize: bool = True,
                 use_iontree_if_possible: bool = True,
                 write_out_results_tree: bool = True,
+                write_base_ions: bool = False,
                 use_multiprocessing: bool = False,
                 runtime_plots: bool = True,
                 volcano_fdr: float = 0.05,
@@ -75,6 +76,8 @@ def run_pipeline(input_file: str,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
+                fragment_outlier_filtering: bool = True,
+                ion_test_method: str = 'diffdist',
                 minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
                 minrep_c1: Optional[int] = None, #deprecated
@@ -117,6 +120,7 @@ def run_pipeline(input_file: str,
     normalize (bool): Enable sample and condition normalization. Defaults to True.
     use_iontree_if_possible (bool): Use ion tree structure when available. Defaults to True.
     write_out_results_tree (bool): Write results in hierarchical tree format. Defaults to True.
+    write_base_ions (bool): Write base ion level results table. Defaults to False.
     use_multiprocessing (bool): Enable parallel processing. Defaults to False.
     runtime_plots (bool): Generate diagnostic plots including volcanos. Defaults to True.
     volcano_fdr (float): FDR cutoff for volcano plot significance. Defaults to 0.05.
@@ -127,6 +131,10 @@ def run_pipeline(input_file: str,
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
         peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
+        fragment_outlier_filtering (bool): Enable fragment outlier filtering when aggregating fragments to peptides. When True, removes extreme fragments before statistical aggregation. Defaults to True.
+    ion_test_method (str): Ion-level test to compute ion statistics. Options:
+        - "diffdist" (default): Use empirical background distributions (DifferentialIon).
+        - "ttest": Use Welch two-sample t-test (DifferentialIonTTest), p→z via cached fast inversion.
     """
     LOGGER.info("Starting AlphaQuant")
 
@@ -152,16 +160,26 @@ def run_pipeline(input_file: str,
 
     input_file_original = input_file
     check_input_consistency(input_file_original, samplemap_file, samplemap_df)
-    create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
 
     if samplemap_df is None:
         samplemap_df = aq_diffquant_utils.load_samplemap(samplemap_file)
 
-    input_type, config_dict, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
-    annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
-    use_ml = check_if_table_supports_ml(config_dict) & use_ml
+    # Handle pre-formatted files
+    if file_has_alphaquant_format:
+        LOGGER.info("Input file is already in AlphaQuant format. Skipping reformatting.")
+        input_file_reformat = input_file_original
+        # For pre-formatted files, use a generic input type that doesn't require specific columns
+        input_type = input_type_to_use if input_type_to_use is not None else "generic_preformatted"
+        annotation_file = None
+        use_ml = False  # Disable ML for pre-formatted files
+        # Skip to the main analysis
+    else:
+        create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
+        input_type, config_dict, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
+        annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
+        use_ml = check_if_table_supports_ml(config_dict) & use_ml
 
-    if perform_ptm_mapping:
+    if perform_ptm_mapping and not file_has_alphaquant_format:
         if modification_type is None:
             raise Exception("modification_type is None, but perform_ptm_mapping is True. Please set perform_ptm_mapping to False or specify modification_type.")
         if (valid_values_filter_mode == "either") and not enable_experimental_ptm_counting_statistics:
@@ -183,7 +201,7 @@ def run_pipeline(input_file: str,
         input_file_reformat = alphadia_tableprocessor.input_file_reformat
         if use_ml:
             ml_input_file = alphadia_tableprocessor.ml_info_file
-    else:
+    elif not file_has_alphaquant_format:
         input_file_reformat = load_input_file(input_file_original, input_type)
         if use_ml:
             ml_input_file = load_ml_info_file(input_file_original, input_type)

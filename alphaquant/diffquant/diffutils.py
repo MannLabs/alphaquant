@@ -13,6 +13,8 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 # Cell
+from numba import njit
+import math
 
 def get_samples_used_from_samplemap_file(samplemap_file, cond1, cond2):
     samplemap_df = load_samplemap(samplemap_file)
@@ -167,18 +169,115 @@ def invert_tuple_list_w_nonunique_values(tuple_list):
 # Cell
 import statistics
 
+def clamp_two_sided_p(p: float) -> float:
+    """Clamp two-sided p-value to a numerically safe range."""
+    if p is None or np.isnan(p):
+        return 1.0
+    # Lower bound aligned with background distributions usage (1e-9) and avoid 0/1
+    return float(min(1.0 - 1e-16, max(1e-9, p)))
+
+def two_sided_p_to_abs_z(p: float, p2z: dict) -> float:
+    """Convert a two-sided p-value to an absolute z-score using cached empirical inversion.
+
+    Uses symmetry: z = |Phi^{-1}(1 - p/2)|.
+    Reuses get_z_from_p_empirical for caching to avoid repeated inv_cdf calls.
+    """
+    p = clamp_two_sided_p(p)
+    p_one_sided = 1.0 - 0.5*p
+    return abs(get_z_from_p_empirical(p_one_sided, p2z))
+
+# Numba-accelerated helpers shared with background distributions
+@njit
+def zscores_from_cumulative(cumulative, min_fc: int, total: int):
+    """Compute z-scores for binned cumulative distribution (shared implementation)."""
+    zscores = np.zeros(len(cumulative))
+    zero_pos = -min_fc
+    normfact_posvals = 1.0/(total - cumulative[zero_pos] + 1)
+    normfact_negvals = 1.0/(cumulative[zero_pos-1] + 1)
+
+    for i in range(len(cumulative)):
+        if i == zero_pos or i == len(cumulative) - 1:
+            zscores[i] = 0.0
+            continue
+
+        if i < zero_pos:
+            num_more_extreme = cumulative[i]
+            normfact = normfact_negvals
+            sign = -1.0
+        else:
+            num_more_extreme = total - cumulative[i + 1]
+            normfact = normfact_posvals
+            sign = 1.0
+
+        p_val = 0.5 * max(1e-9, (num_more_extreme + 1) * normfact)
+        z = inv_norm_ppf_fast(p_val)
+        zscores[i] = sign * abs(z)
+
+    return zscores
+
+@njit
+def inv_norm_ppf_fast(p: float) -> float:
+    """Fast approximation of the standard normal inverse CDF (Beasley-Springer-Moro).
+
+    Valid for p in (0, 1). Caller should clamp p.
+    """
+    # Use symmetry around 0.5
+    if p <= 0.0:
+        return -1e9
+    if p >= 1.0:
+        return 1e9
+    if p <= 0.5:
+        t = math.sqrt(-2.0 * math.log(p))
+        z = -(((2.515517 + 0.802853*t + 0.010328*t*t) /
+              (1.0 + 1.432788*t + 0.189269*t*t + 0.001308*t*t*t)) - t)
+        return z
+    else:
+        t = math.sqrt(-2.0 * math.log(1.0 - p))
+        z = (((2.515517 + 0.802853*t + 0.010328*t*t) /
+             (1.0 + 1.432788*t + 0.189269*t*t + 0.001308*t*t*t)) - t)
+        return z
+
+@njit
+def sd_from_cumulative(cumulative, min_fc: int, mean: float, fc_conversion_factor: float) -> float:
+    """Compute SD from cumulative distribution using precomputed mean and conversion factor."""
+    sq_err = 0.0
+    previous = 0
+
+    for i in range(len(cumulative)):
+        fc = (i + min_fc) * fc_conversion_factor
+        freq = cumulative[i] - previous
+        sq_err += freq * (fc - mean) ** 2
+        previous = cumulative[i]
+
+    total = cumulative[-1]
+    var = sq_err / total
+    return math.sqrt(var)
+
+@njit
+def z_from_fc_lookup(fc: float, fc_conversion_factor: float, fc_resolution_factor: int, min_fc: int, cumulative, max_z: float, zscores) -> float:
+    """Lookup z-score for a given fold change in a binned background distribution."""
+    if abs(fc) < fc_conversion_factor:
+        return 0.0
+    k = int(fc * fc_resolution_factor)
+    rank = k - min_fc
+    if rank < 0:
+        return -max_z
+    if rank >= len(cumulative):
+        return max_z
+    return zscores[rank]
+
+
+# Cell
 def get_z_from_p_empirical(p_emp,p2z):
-    p_rounded = np.format_float_scientific(p_emp, 1)
+    # Clamp to safe numeric range and round for coarse caching
+    p_safe = float(min(1.0 - 1e-16, max(1e-9, p_emp)))
+    p_rounded = np.format_float_scientific(p_safe, 1)
     if p_rounded in p2z:
         return p2z.get(p_rounded)
-    z = statistics.NormalDist().inv_cdf(float(p_rounded))
+    # Use fast approximate inverse normal for cache misses
+    z = inv_norm_ppf_fast(float(p_safe))
     p2z[p_rounded] = z
     return z
-
-# Cell
-
-
-# Cell
 def count_fraction_outliers_from_expected_fc(result_df, threshold, expected_log2fc):
     num_outliers = sum([abs(x-expected_log2fc)> threshold for x in result_df["log2fc"]])
     fraction_outliers = num_outliers/len(result_df["log2fc"])
