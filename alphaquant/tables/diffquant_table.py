@@ -105,6 +105,15 @@ class TableAnnotatorFilterer():
         self.results_df.loc[row_has_cut_pval, 'p_value'] += random_scatter
 
     def _add_fdr_fc_based_set(self):
+        """Applies Benjamini-Hochberg FDR correction to intensity-based protein p-values.
+
+        This method calculates false discovery rates for proteins where differential expression
+        was determined from measured intensities (not from missing value patterns). The
+        Benjamini-Hochberg procedure controls the expected proportion of false discoveries.
+
+        Side effects:
+            Adds 'fdr' column to self.results_df with corrected q-values for intensity-based proteins
+        """
         mask_of_not_counting_based = ~self.results_df["counting_based"]
         pvals_not_counting_based = self.results_df.loc[mask_of_not_counting_based, "p_value"].tolist()
         fdrs_not_counting_based = mt.multipletests(pvals_not_counting_based, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
@@ -113,6 +122,16 @@ class TableAnnotatorFilterer():
         self.results_df.loc[mask_of_not_counting_based, "fdr"] = fdrs_not_counting_based
 
     def _add_fdr_counting_based_set(self):
+        """Applies adjusted Benjamini-Hochberg FDR correction to missing-value based protein p-values.
+
+        This method handles proteins where differential expression was determined from missing value
+        patterns (completely absent in one condition). P-values are first adjusted by the fraction
+        of proteins with missing values (to account for the effective number of tests), then
+        Benjamini-Hochberg FDR correction is applied.
+
+        Side effects:
+            Adds 'fdr' column to self.results_df with corrected q-values for counting-based proteins
+        """
         mask_of_counting_based = self.results_df["counting_based"]
         if sum(mask_of_counting_based) == 0:
             return

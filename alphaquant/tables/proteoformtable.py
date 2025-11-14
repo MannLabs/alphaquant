@@ -57,6 +57,15 @@ class ProteoFormTableAnnotator():
         self.proteoform_df = pd.DataFrame(all_rows)
 
     def _annotate_fdr_column(self):
+        """Applies Benjamini-Hochberg FDR correction to proteoform p-values.
+
+        Proteoforms (alternative clusters within a protein) are tested for whether their
+        fold-change profile differs significantly from the reference proteoform. This
+        method applies FDR correction to those p-values across all proteoforms.
+
+        Side effects:
+            Adds 'proteoform_fdr' column to self.proteoform_df with corrected q-values
+        """
         mask_of_outlier_pforms = self.proteoform_df["proteoform_pval"].notna()
         pvals = self.proteoform_df.loc[mask_of_outlier_pforms, "proteoform_pval"].tolist()
         if len(pvals)>0:
