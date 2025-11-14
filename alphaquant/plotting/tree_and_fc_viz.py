@@ -19,6 +19,7 @@ class CombinedTreeAndFCPlotter():
         self._plotconfig = plotconfig
         self._shorten_protein_to_level()
         self._sort_tree_according_to_plotconfig()
+        self._maybe_hide_root_in_tree_for_single_branch()
         self._define_fig_and_ax()
         self._plot_tree()
         self._plot_fcs()
@@ -30,6 +31,19 @@ class CombinedTreeAndFCPlotter():
 
     def _sort_tree_according_to_plotconfig(self):
         self._protein_node = aqtreeutils.TreeSorter(self._plotconfig, self._protein_node).get_sorted_tree()
+
+    def _maybe_hide_root_in_tree_for_single_branch(self):
+        try:
+            already_set = getattr(self._plotconfig, 'hide_root_in_tree', False)
+        except Exception:
+            already_set = False
+
+        if not already_set:
+            try:
+                if hasattr(self._protein_node, 'children') and len(self._protein_node.children) <= 1:
+                    self._plotconfig.hide_root_in_tree = True
+            except Exception:
+                pass
 
     def _define_fig_and_ax(self):
         axis_creator = aqtreeviz.TreePlotAxisCreator(self._protein_node, self._plotconfig)

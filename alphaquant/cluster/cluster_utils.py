@@ -223,8 +223,12 @@ def remove_outlier_fragion_childs(childs):
     """Filters extreme fragment ions before aggregating to peptide level.
 
     When a peptide has many fragment ions, this function selects a subset to avoid
-    bias from extreme outliers. For >4 fragments, it keeps the 5 most central fragments
+    bias from extreme outliers. For >4 fragments, it keeps the 4 most central fragments
     (ranked by z-value). For ≤4 fragments, all are retained.
+
+    This function also sets the is_outlier_fragment attribute on all child nodes to
+    mark which fragments are excluded from aggregation (similar to is_outlier_peptide
+    for peptides).
 
     Args:
         childs: List of fragment ion nodes (children of a peptide node)
@@ -241,9 +245,7 @@ def remove_outlier_fragion_childs(childs):
             idxs_to_use = sorted_idxs_zvals[:median_idx+1]
         else:
             idxs_to_use = sorted_idxs_zvals
-        return [childs[idx] for idx in idxs_to_use]
-
-    if len(zvals) > 4:
+    elif len(zvals) > 4:
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
         idx_start = median_idx - 2
@@ -252,6 +254,11 @@ def remove_outlier_fragion_childs(childs):
     else:
         # When there are 4 or fewer children, use all of them
         idxs_to_use = list(range(len(childs)))
+
+    # Mark which fragments are outliers (excluded from aggregation)
+    idxs_to_use_set = set(idxs_to_use)
+    for i, child in enumerate(childs):
+        child.is_outlier_fragment = i not in idxs_to_use_set
 
     return [childs[idx] for idx in idxs_to_use]
 
