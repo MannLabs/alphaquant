@@ -11,6 +11,7 @@ import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
 import alphaquant.tables.misctables as aq_tablewriter_runconfig
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import alphaquant.cluster.cluster_missingval as aq_clust_missingval
+import alphaquant.cluster.outlier_filtering as aq_clust_outlier
 
 import pandas as pd
 import numpy as np
@@ -37,7 +38,7 @@ def analyze_condpair(*,runconfig, condpair):
     c1_samples, c2_samples = aqutils.get_samples_used_from_samplemap_df(runconfig.samplemap_df, condpair[0], condpair[1])
 
     try:
-        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local,runconfig.minrep_both, runconfig.minrep_either, runconfig.minrep_c1, runconfig.minrep_c2)
+        df_c1, df_c2 = get_per_condition_dataframes(c1_samples, c2_samples, input_df_local, min_valid_values=runconfig.min_valid_values, valid_values_filter_mode=runconfig.valid_values_filter_mode, min_valid_values_c1=runconfig.min_valid_values_c1, min_valid_values_c2=runconfig.min_valid_values_c2)
     except Exception as e:
         LOGGER.info(e)
         return
@@ -56,6 +57,7 @@ def analyze_condpair(*,runconfig, condpair):
     bgpair2diffDist = {}
     deedpair2doublediffdist = {}
     count_ions=0
+    all_diffions = []
     for ion in ions_to_check:
         vals1 = normed_c1.ion2nonNanvals.get(ion)
         vals2 = normed_c2.ion2nonNanvals.get(ion)
@@ -66,6 +68,7 @@ def analyze_condpair(*,runconfig, condpair):
         protein = pep2prot.get(ion)
         if diffIon.usable:
             prot2diffions[protein].append(diffIon)
+            all_diffions.append(diffIon)
         else:
             prot2missingval_diffions[protein].append(diffIon)
 
@@ -76,12 +79,13 @@ def analyze_condpair(*,runconfig, condpair):
 
         count_ions+=1
 
-
     count_prots = 0
     for prot in prot2diffions.keys():
         ions = prot2diffions.get(prot)
         if len(ions)<runconfig.min_num_ions:
             continue
+
+
 
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
@@ -90,6 +94,7 @@ def analyze_condpair(*,runconfig, condpair):
 
         if count_prots%100==0:
             LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
+
         count_prots+=1
 
     if len(prot2missingval_diffions.keys())>0:
@@ -101,6 +106,8 @@ def analyze_condpair(*,runconfig, condpair):
                 continue
             ions = prot2missingval_diffions.get(prot)
             protnode_missingval = aq_clust_missingval.create_protnode_from_missingval_ions(gene_name=prot,diffions=ions, normed_c1=normed_c1, normed_c2=normed_c2)
+            if (protnode_missingval.c1_has_values) and (protnode_missingval.c2_has_values): #one of the conditions has to be missing, otherwise it means that there was e.g. one fragment ion with values in c1 and other fragment ions with values in c2
+                continue
             protnodes_missingval.append(protnode_missingval)
 
         LOGGER.info(f"finished missing value analysis")
@@ -121,6 +128,9 @@ def analyze_condpair(*,runconfig, condpair):
         else:
             LOGGER.info(f"ML based quality score below quality threshold and not added to the nodes.")
             runconfig.ml_based_quality_score = False
+
+    if runconfig.peptide_outlier_filtering:
+        aq_clust_outlier.apply_peptide_outlier_filtering(protnodes)
 
     protnodes_combined = protnodes + protnodes_missingval
     condpair_node = aqclust_utils.get_condpair_node(protnodes_combined, condpair)
@@ -153,53 +163,49 @@ def write_out_normed_df(normed_df_1, normed_df_2, pep2prot, results_dir, condpai
     merged_df.to_csv(f"{results_dir}/{aqutils.get_condpairname(condpair)}.normed.tsv", sep = "\t")
 
 
-def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, minrep_both =None,  minrep_either = None, minrep_c1 = None, minrep_c2 = None):
+def get_per_condition_dataframes(samples_c1, samples_c2, unnormed_df, min_valid_values, valid_values_filter_mode, min_valid_values_c1, min_valid_values_c2):
 
     min_samples = min(len(samples_c1), len(samples_c2))
 
     if min_samples<2:
         raise Exception(f"condpair has not enough samples: c1:{len(samples_c1)} c2: {len(samples_c2)}, skipping")
 
-    if (minrep_either is not None) or ((minrep_c1 is not None) and (minrep_c2 is not None)): #minrep_both was set as default and should be overruled by minrep_either or minrep_c1 and minrep_c2
-        minrep_both = None
-
-    if minrep_either is not None:
-        minrep_either = np.min([get_minrep_for_cond(samples_c1, minrep_either), get_minrep_for_cond(samples_c2, minrep_either)])
-        passes_minrep_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= minrep_either
-        passes_minrep_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= minrep_either
-        passes_minrep_either = passes_minrep_c1 | passes_minrep_c2
-        unnormed_df = unnormed_df[passes_minrep_either]
+    if valid_values_filter_mode == "either":
+        min_valid_values = np.min([get_min_valid_values_for_cond(samples_c1, min_valid_values), get_min_valid_values_for_cond(samples_c2, min_valid_values)])
+        passes_min_valid_values_c1 = unnormed_df.loc[:, samples_c1].notna().sum(axis=1) >= min_valid_values
+        passes_min_valid_values_c2 = unnormed_df.loc[:, samples_c2].notna().sum(axis=1) >= min_valid_values
+        passes_min_valid_values = passes_min_valid_values_c1 | passes_min_valid_values_c2
+        unnormed_df = unnormed_df[passes_min_valid_values]
         df_c1 = unnormed_df.loc[:, samples_c1]
         df_c2 = unnormed_df.loc[:, samples_c2]
 
+    elif valid_values_filter_mode == "both":
+        min_valid_values_c1 = get_min_valid_values_for_cond(samples_c1, min_valid_values)
+        min_valid_values_c2 = get_min_valid_values_for_cond(samples_c2, min_valid_values)
+        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=min_valid_values_c1, axis=0)
+        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=min_valid_values_c2, axis=0)
 
-    elif minrep_both is not None:
-        minrep_c1 = minrep_both
-        minrep_c2 = minrep_both
+    elif valid_values_filter_mode == "per_condition":
+        min_valid_values_c1 = get_min_valid_values_for_cond(samples_c1, min_valid_values_c1)
+        min_valid_values_c2 = get_min_valid_values_for_cond(samples_c2, min_valid_values_c2)
+        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=min_valid_values_c1, axis=0)
+        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=min_valid_values_c2, axis=0)
+    else:
+        raise Exception(f"invalid value set for the variable valid_values_filter_mode: {valid_values_filter_mode}, please ensure that is set to: 'either', 'both' or 'per_condition'")
 
-    if (minrep_c1 is not None) and (minrep_c2 is not None):
-        minrep_c1 = get_minrep_for_cond(samples_c1, minrep_c1)
-        minrep_c2 = get_minrep_for_cond(samples_c2, minrep_c2)
-        df_c1 = unnormed_df.loc[:, samples_c1].dropna(thresh=minrep_c1, axis=0)
-        df_c2 = unnormed_df.loc[:, samples_c2].dropna(thresh=minrep_c2, axis=0)
-        if (len(df_c1.index)<5) | (len(df_c2.index)<5):
-            raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
-
-    if (minrep_both is None) and (minrep_either is None) and (minrep_c1 is None) and (minrep_c2 is None):
-        raise Exception("no minrep set, please specify!")
-
-
+    if (len(df_c1.index)<5) | (len(df_c2.index)<5):
+        raise Exception(f"condpair has not enough data for processing c1: {len(df_c1.index)} c2: {len(df_c2.index)}, skipping")
 
     return df_c1, df_c2
 
-def get_minrep_for_cond(c_samples, minrep):
-    if minrep is None: #in the case of None, no nans will be allowed
+def get_min_valid_values_for_cond(c_samples, min_valid_values):
+    if min_valid_values is None: #in the case of None, no nans will be allowed
         return None
     num_samples = len(c_samples)
-    if num_samples<minrep:
+    if num_samples<min_valid_values:
         return num_samples
     else:
-        return minrep
+        return min_valid_values
 
 
 
@@ -226,8 +232,17 @@ def write_out_tables(condpair_node, runconfig):
     if runconfig.results_dir!=None:
         if runconfig.write_out_results_tree:
             aqclust_utils.export_condpairtree_to_json(condpair_node, results_dir = runconfig.results_dir)
-        proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(condpair_tree= condpair_node, organism=runconfig.organism).proteoform_df
-        proteoform_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv", sep='\t', index=False)
+        # Write proteoform table defensively; skip if errors occur
+        try:
+            proteoform_df = aq_tablewriter_proteoform.ProteoFormTableCreator(
+                condpair_tree=condpair_node, organism=runconfig.organism
+            ).proteoform_df
+            proteoform_df.to_csv(
+                f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.proteoforms.tsv",
+                sep='\t', index=False
+            )
+        except Exception as e:
+            LOGGER.warning(f"Skipping proteoform table write due to error: {e}")
 
         runconfig_df = aq_tablewriter_runconfig.RunConfigTableCreator(runconfig).runconfig_df
 

@@ -57,19 +57,19 @@ def _re_order_depending_on_ml_score(protnode : anytree.Node):
                     clust2newclust = _get_clust2newclust(child_nodes)
                     _re_assign_proteoform_stats(child_nodes, clust2newclust)
                     _re_order_clusters_by_ml_score(child_nodes, clust2newclust)
-                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
+                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False)
 
 
 def _get_clust2newclust(nodes: list[anytree.Node]) -> dict[int, int]:
     """
     Creates a mapping from current cluster IDs to new cluster IDs based on ML scores.
 
-    This function takes a list of nodes at the same level in a tree, each with a 
-    cluster ID and an ML score. It reorders the clusters based on their ML scores 
+    This function takes a list of nodes at the same level in a tree, each with a
+    cluster ID and an ML score. It reorders the clusters based on their ML scores
     and size, assigning new cluster IDs.
 
     Args:
-        nodes (list[anytree.Node]): A list of tree nodes, each representing a data point. 
+        nodes (list[anytree.Node]): A list of tree nodes, each representing a data point.
                                     Each node should have 'cluster' and 'ml_score' attributes.
 
     Returns:
@@ -86,7 +86,7 @@ def _get_clust2newclust(nodes: list[anytree.Node]) -> dict[int, int]:
         cluster2scores[node.cluster] = cluster2scores.get(node.cluster, [])
         cluster2scores[node.cluster].append(abs(node.ml_score))
     clusters = list(cluster2scores.keys())
-    clusters.sort(key = lambda x : len(cluster2scores.get(x)), reverse=True) 
+    clusters.sort(key = lambda x : len(cluster2scores.get(x)), reverse=True)
     clusters.sort(key = lambda x : np.nansum(cluster2scores.get(x)), reverse=True) #second sort preserves the order of the first sort (see test_ml_reorder.py)
     clust2newclust = { clusters[x] :x for x in range(len(clusters))}
     return clust2newclust
@@ -95,8 +95,8 @@ def _re_assign_proteoform_stats(nodes: list[anytree.Node], clust2newclust: dict[
     """
     Reassign proteoform statistics when the main cluster changes.
 
-    The proteoform statistics (FDR and FCFC) of a whole cluster are always assigned 
-    relative to the main cluster. This function reassigns these stats when the main 
+    The proteoform statistics (FDR and FCFC) of a whole cluster are always assigned
+    relative to the main cluster. This function reassigns these stats when the main
     cluster changes.
 
     Args:
@@ -117,7 +117,7 @@ def _change_pformstats_from_old_to_new_cluster(nodes : list[anytree.Node], zero_
     """
     Change proteoform statistics from the old main cluster to the new main cluster.
 
-    This function swaps the proteoform statistics (FCFC and p-value) between the old 
+    This function swaps the proteoform statistics (FCFC and p-value) between the old
     main cluster (zero cluster) and the new main cluster.
 
     Args:
@@ -130,13 +130,13 @@ def _change_pformstats_from_old_to_new_cluster(nodes : list[anytree.Node], zero_
     """
     nodes_zero = [node for node in nodes if node.cluster == zero_cluster]
     nodes_new_zero = [node for node in nodes if node.cluster == new_zero_cluster]
-    
+
     proteoform_fcfc_old = nodes_zero[0].proteoform_fcfc
     proteoform_pval_old = nodes_new_zero[0].proteoform_pval
-    
+
     proteoform_fcfc_new = nodes_new_zero[0].proteoform_fcfc
     proteoform_pval_new = nodes_new_zero[0].proteoform_pval
-    
+
     for node in nodes_zero:
         node.proteoform_fcfc = proteoform_fcfc_new
         node.proteoform_pval = proteoform_pval_new
@@ -150,7 +150,7 @@ def _re_order_clusters_by_ml_score(nodes : list[anytree.Node], clust2newclust : 
     """
     Reorder clusters based on a new ordering defined by machine learning scores.
 
-    This function updates the cluster ID of each node according to the new ordering 
+    This function updates the cluster ID of each node according to the new ordering
     provided in the clust2newclust dictionary.
 
     Args:

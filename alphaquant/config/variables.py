@@ -4,6 +4,8 @@ QUANT_ID = "quant_id"
 MIN_PVAL = 1e-16
 PROGRESS_FOLDER = "progress"
 PREFER_PRECURSORS_FOR_CLUSTERING = True
+PEPTIDE_OUTLIER_FILTERING = True
+PTM_FRAGMENT_SELECTION = False
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -37,3 +39,15 @@ def _determine_prefer_precursors_for_clustering(input_type):
 def set_quant_id(quant_id):
     global QUANT_ID
     QUANT_ID = quant_id
+
+def set_peptide_outlier_filtering(peptide_outlier_filtering):
+    global PEPTIDE_OUTLIER_FILTERING
+    PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+def set_ptm_fragment_selection(is_ptm: bool):
+    global PTM_FRAGMENT_SELECTION
+    PTM_FRAGMENT_SELECTION = bool(is_ptm)
+
+# Backwards-compat alias
+def set_phospho_fragment_selection(is_phospho: bool):
+    set_ptm_fragment_selection(is_phospho)

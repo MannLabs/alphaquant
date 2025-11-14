@@ -10,6 +10,7 @@ import alphaquant.plotting.fcviz as aq_plot_fcviz
 import alphaquant.plotting.alphamapviz as aq_plot_proteoform
 import alphaquant.utils.proteoform_utils as aq_proteoform_utils
 import alphaquant.config.variables as aq_variables
+import alphaquant.ui.dashboad_parts_utils as aq_dashboard_utils
 
 class ProteoformPlottingTab(param.Parameterized):
     """
@@ -198,16 +199,9 @@ class ProteoformPlottingTab(param.Parameterized):
             print(f"Event has 'new' attribute: {event.new}")
         if event.new:
             self.results_dir = event.new
-            self._determine_samplemap_file()
+            self.samplemap_file = aq_dashboard_utils.get_samplemap_file_path(self.results_dir)
             self._extract_cond_pairs()
         print("=== Finished Handling Results Dir Change ===\n")
-
-    def _determine_samplemap_file(self):
-        """Determine the samplemap file based on the results directory."""
-        if os.path.exists(os.path.join(self.results_dir, 'samplemap_w_median.tsv')):
-            self.samplemap_file = os.path.join(self.results_dir, 'samplemap_w_median.tsv')
-        else:
-            self.samplemap_file = os.path.join(self.results_dir, 'samplemap.tsv')
 
     def _extract_cond_pairs(self):
         """Look for '*_VS_*.proteoforms.tsv' in the results_dir and update the condition pairs."""

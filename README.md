@@ -1,12 +1,15 @@
 ![GitHub Release](https://img.shields.io/github/v/release/mannlabs/alphaquant?logoColor=green&color=brightgreen)
 ![Versions](https://img.shields.io/badge/python-3.10_%7C_3.11_%7C_3.12-brightgreen)
 ![License](https://img.shields.io/badge/License-Apache-brightgreen)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick.yml?branch=main&label=E2E%20Tests)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/e2e_tests_quick_multiple_platforms.yml?branch=main&label=E2E%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/install_and_unit_tests.yml?branch=main&label=Unit%20Tests)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/mannlabs/alphaquant/publish_on_pypi.yml?branch=main&label=Deploy%20PyPi)
-
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb)
 
 <img src="release/images/alphaquant_gui.jpg" alt="preview" width="800"/>
+
+==> [Run it on a Jupyter Notebook right now in your browser!](https://mybinder.org/v2/gh/MannLabs/alphaquant/main?urlpath=%2Fdoc%2Ftree%2Fexample_nbs%2Fdifferential_expression.ipynb) No login or installation required.
+<==
 
 # AlphaQuant
 AlphaQuant is an innovative open-source Python package for proteomics data analysis. It implements tree-based quantification - a hierarchical approach to organize and analyze quantitative data across multiple levels - from fragments and MS1 isotopes through charge states, modifications, peptides, and genes.
@@ -32,6 +35,7 @@ AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experimen
   * [**One-click GUI**](#one-click-gui-installation)
   * [**Pip**](#pip)
   * [**Developer installation**](#developer-installation)
+  * [**Docker**](#docker)
 * [**Usage**](#usage)
   * [**GUI**](#gui)
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
@@ -46,13 +50,17 @@ AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experimen
 ## Installation
 
 AlphaQuant can be installed and used on all major operating systems (Windows, macOS and Linux).
-There are currently two different types of installation possible:
+There are currently four different types of installation possible:
 
-* [**One-click GUI installer**](#one-click-gui-installation) Choose this installation if you only want the GUI and/or keep things as simple as possible.
+* [**One-click GUI installer**](#one-click-gui-installation) Choose this installation if you only want the GUI and/or keep things as simple as possible. Install time should be in the order of minutes.
 
 * [**Pip installer:**](#pip) Choose this installation if you want to use AlphaQuant as a Python package in an existing python 3.11 environment (e.g. a Jupyter notebook). If needed, the GUI can be installed with pip as well.
 
 * [**Developer installation:**](#developer-installation) Choose this installation if you are familiar with CLI tools, [conda](https://docs.conda.io/en/latest/) and Python. This installation allows access to all available features of AlphaQuant and even allows to modify its source code directly. Generally, the developer version of AlphaQuant outperforms the precompiled versions which makes this the installation of choice for high-throughput experiments.
+
+* [**Docker**](#docker) Choose this installation if you want to use AlphaQuant without any installation to your system.
+
+E2E tests are run on GitHub's "-latest" runner images, which correspond to Ubuntu 22.04, macOS 14, and Windows Server 2022 at the time of public release.
 
 ### One-click GUI installation
 Currently available for **MacOS**, **Windows**.
@@ -63,8 +71,7 @@ You can download the latest release of alphaquant [here](https://github.com/Mann
 (can be looked up by clicking on the Apple Symbol > *About this Mac* > *Chip* ("M1", "M2", "M3" -> `arm64`, "Intel" -> `x64`),
 `alphaquant-X.Y.Z-macos-darwin-arm64.pkg` or `alphaquant-X.Y.Z-macos-darwin-x64.pkg`. Open the parent folder of the downloaded file in Finder,
 right-click and select *open*. If you receive a warning during installation click *Open*. If you want to use `.raw` files on Thermo instruments alphaRaw is required, which depends on Mono. A detailed guide to installing alphaRaw with mono can be found [here](https://github.com/MannLabs/alpharaw#installation).
-* **Linux:** Installers are provided, but undergo only limited testing: `alphaquant-X.Y.Z-linux-x64.deb` build and install it via `dpkg -i alphaquant-X.Y.Z-linux-x64.deb`. In case of issues, follow the steps for the
-[developer installation](docs/installation.md#developer-installation) in order to use the GUI.
+
 
 
 
@@ -127,6 +134,34 @@ By using the editable flag `-e`, you can make modifications to the [alphaquant s
 
 Some details: By default this installs loose dependancies (no explicit versioning). It is also possible to install additional [development dependencies](requirements/requirements_development.txt), which allows to make use of more features (the call is then a bit more complex and could be e.g. `pip install -e "./alphaquant[stable,development-stable]"`).
 
+### Docker
+The containerized version can be used to run AlphaQuant without any installation to your system.
+
+#### 1. Setting up Docker
+Install the latest version of docker (https://docs.docker.com/engine/install/).
+
+#### 2. Prepare folder structure
+Set up your data to match the expected folder structure:Create a folder and store its name in a variable,
+e.g. `DATA_FOLDER=/home/username/data; mkdir -p $DATA_FOLDER`
+
+#### 3. Start the container
+```bash
+docker run -v $DATA_FOLDER:/app/data -p 41215:41215 mannlabs/alphaquant:latest
+```
+After initial download of the container, alphaquant will start running immediately,
+and can be accessed under [localhost:41215](localhost:41215).
+
+Note: in the app, the local `$DATA_FOLDER` needs to be referred to as "`/app/data`".
+
+#### Alternatively: Build the image yourself
+If you want to build the image yourself, you can do so by
+```bash
+docker build -t alphaquant .
+```
+and run it with
+```bash
+docker run -p 41215:41215 -v $DATA_FOLDER:/app/data -t alphaquant
+```
 
 ---
 ## Usage
@@ -158,7 +193,7 @@ import alphaquant.run_pipeline as aq_pipeline
 aq_pipeline.run_pipeline(input_file=INPUT_FILE, samplemap_file=SAMPLEMAP_FILE, results_dir=RESULTS_DIRECTORY)
 ```
 
-For more detailed examples and advanced use cases, we provide several Jupyter notebooks with example data in the [example_nbs folder](example_nbs): There, you can use very simple calls in order to:
+For more detailed examples and advanced use cases, we provide several Jupyter notebooks with example data in the [example_nbs folder](example_nbs): There, you can use very simple calls (execution time in the order of minutes) in order to:
  * perform very sensitive differential expression analysis on a single condition, analyze and visualize proteoforms [here](example_nbs/differential_expression.ipynb)
  * analyze multiple condition together and inspect proteoform profiles [here](example_nbs/multi_condition_analysis.ipynb)
  * perform phosphosite and ptm mapping with subsequent differential expression analysis, as well as proteome normalization of phospho sites [here](example_nbs/differential_expression_PTM.ipynb)
@@ -256,7 +291,7 @@ In case of issues, check out the following:
 A manuscript has been submitted to bioRxiv:
 > **Tree-based quantification infers proteoform regulation in bottom-up proteomics data**
 > Constantin Ammar, Marvin Thielert, Caroline A M Weiss, Edwin H Rodriguez, Maximilian T Strauss, Florian A Rosenberger, Wen-Feng Zeng, Matthias Mann
-> bioRxiv 2025.03.06.641844; doi: https://doi.org/10.1101/2025.03.06.641844 
+> bioRxiv 2025.03.06.641844; doi: https://doi.org/10.1101/2025.03.06.641844
 
 ---
 ## How to contribute

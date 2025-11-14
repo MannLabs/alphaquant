@@ -21,18 +21,19 @@ REGEX_FRGIONS_ISOTOPES = [[("(SEQ.*MOD.*CHARGE.*FRG)(ION.*)", "frgion"), ("(SEQ.
 LEVEL_NAMES = ['ion_type', 'mod_seq_charge', 'mod_seq', 'seq']
 MAPPING_DICT = {'SEQ':'seq', 'MOD':'mod_seq', 'CHARGE':'mod_seq_charge', 'MS1ISOTOPES':'ms1_isotopes','FRGION':'frgion', 'PRECURSOR' : 'precursor'}
 FCDIFF_CUTOFF_CLUSTERMERGE = 0
-LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'seq':1e-20} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here. The threshold applies to the children of the node
+
+LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'seq':0.2} #the pval threshold is only set at the gene level, the rest of the levels are set as specified here. The threshold applies to the children of the node
 
 
 
 
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion,
-                                    fcdiff_cutoff_clustermerge):
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge):
     #typefilter = TypeFilter('successive')
 
     global FCDIFF_CUTOFF_CLUSTERMERGE
     FCDIFF_CUTOFF_CLUSTERMERGE = fcdiff_cutoff_clustermerge
+
 
     diffions = sorted(diffions, key = lambda x : x.name)
     name2diffion = {x.name : x for x in diffions}
@@ -87,13 +88,13 @@ def add_reduced_names_to_root(node):
         node.name_reduced = node.name.replace(node.parent.name, "")
     else:
         node.name_reduced = node.name
-    
+
 
 import pandas as pd
 def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
     #typefilter object specifies filtering and clustering of the nodes
     aqcluster_utils.assign_properties_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
-    
+
     for level_nodes in  aqcluster_utils.iterate_through_tree_levels_bottom_to_top(root_node):
         nodetypes_at_level = list(set([node.type for node in level_nodes]))
         if nodetypes_at_level == ["base"]:
@@ -105,7 +106,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
             for type_node in type_nodes: #this goes through each precursor individually and clusters the children
                 child_nodes = type_node.children
                 grouped_mainclust_leafs = aqcluster_utils.get_grouped_mainclust_leafs(child_nodes) #leafs are excluded if they are not in the main cluster
-                
+
                 if len(grouped_mainclust_leafs)==0: #this means the leafs were previously excluded
                     exclude_node(type_node)
                     continue
@@ -119,12 +120,12 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                     childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold) #the clustering is performed on the child nodes
                     childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                     childnode2clust = aq_cluster_sorting.decide_cluster_order(childnode2clust)
-                
+
                 aq_cluster_pfstats.add_proteoform_statistics_to_nodes(childnode2clust, take_median_ion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist)
                 aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
                 aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
                 aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
-                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, use_fewpeps_per_protein=True)
+                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False)
 
     return root_node
 
@@ -153,11 +154,11 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
-    condensed_similarity_matrix = scipy.spatial.distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_similarity(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z, 
+    condensed_similarity_matrix = scipy.spatial.distance.pdist(diffions_idxs, lambda idx1, idx2: evaluate_similarity(idx1[0], idx2[0], diffions, diffions_fcs, normed_c1, normed_c2, ion2diffDist,p2z,
                                                                                                    deedpair2doublediffdist, fcfc_threshold)) #gives p-values of the pairwise comparisons of the ions
     condensed_similarity_matrix_mt_corrected = get_multiple_testing_corrected_condensed_similarity_matrix(condensed_similarity_matrix)
     condensed_distance_matrix_mt_corrected = 1/condensed_similarity_matrix_mt_corrected
-    
+
     after_clust = scipy.cluster.hierarchy.ward(condensed_distance_matrix_mt_corrected)
     clustered = scipy.cluster.hierarchy.fcluster(after_clust, 1/(pval_threshold_basis), criterion='distance')
     clustered = aqcluster_utils.exchange_cluster_idxs(clustered)
@@ -173,20 +174,20 @@ def get_pval_threshold_basis(type_node, pval_threshold_basis): #the pval thresho
         return pval_threshold_basis
     else:
         return LEVEL2PVALTHRESH.get(type_node.level, 0.2)
-    
+
 def get_multiple_testing_corrected_condensed_similarity_matrix(condensed_distance_matrix: np.array):
     """
     condensed_distance_matrix contains all p-values of the pairwise comparisons of the ions. They are by definition dependent.
-    
+
     Args:
     condensed_distance_matrix (np.array): Condensed distance matrix containing p-values of pairwise comparisons.
-    
+
     Returns:
     np.array: Corrected condensed distance matrix.
     """
     # Apply Benjamini-Yekutieli correction
     _, corrected_pvalues, _, _ = multitest.multipletests(condensed_distance_matrix, method='fdr_by')
-    
+
     # Return the corrected condensed matrix
     return corrected_pvalues
 
@@ -238,25 +239,25 @@ def update_childnode2clust(childnode2clust, old_clusters, new_clusters):
         new_clust = old2new[old_clust]
         childnode2clust_new.append((childnode, new_clust))
     return childnode2clust_new
-    
 
 
 
-def evaluate_similarity(idx1: int, idx2: int, 
-                        diffions: list[aq_diff_analysis.DifferentialIon], 
+
+def evaluate_similarity(idx1: int, idx2: int,
+                        diffions: list[aq_diff_analysis.DifferentialIon],
                         fcs: list[list[int]],
-                        normed_c1: aq_diff_background.BackGroundDistribution, 
+                        normed_c1: aq_diff_background.BackGroundDistribution,
                         normed_c2: aq_diff_background.BackGroundDistribution,
                         ion2diffDist: dict[str, aq_diff_background.SubtractedBackgrounds],
-                        p2z: dict[str, str], 
+                        p2z: dict[str, str],
                         deedpair2doublediffdist: dict[tuple[aq_diff_background.SubtractedBackgrounds, aq_diff_background.SubtractedBackgrounds],aq_diff_background.SubtractedBackgrounds],
                         fcfc_threshold: float) -> float:
     """
     Evaluate the statistical similarity between two sets of ions based on their properties and fold changes.
-    
+
     This function calculates a p-value representing the statistical similarity between two sets of ions,
     testing the null hypothesis that the two sets are not significantly different.
-    
+
     Args:
         idx1 (int): Index of the first set of ions in the diffions list.
         idx2 (int): Index of the second set of ions in the diffions list.
@@ -268,7 +269,7 @@ def evaluate_similarity(idx1: int, idx2: int,
         p2z (dict[str, str]): Dictionary for converting p-values to z-scores.
         deedpair2doublediffdist (dict[tuple[aq_diff_background.SubtractedBackgrounds, aq_diff_background.SubtractedBackgrounds], aq_diff_background.SubtractedBackgrounds]): Mapping of ion pairs to their double difference distributions.
         fcfc_threshold (float): Threshold for considering fold changes as similar.
-    
+
     Returns:
         float: A p-value where higher values suggest greater similarity between ion sets.
                Returns 0.99 for fold changes below fcfc_threshold.
