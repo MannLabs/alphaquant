@@ -1,4 +1,5 @@
 import alphaquant.diffquant.background_distributions as aqbg
+import alphaquant.diffquant.diffutils as aqdiffutils
 from numba import njit
 import numpy as np
 
@@ -102,7 +103,7 @@ def calc_per_peppair_z_and_fcfc(*,overlapping_c1_idx, overlapping_c2_idx, ion1_c
             fc_ion1 = ion1_c1_ints[idx1] - ion1_c2_ints[idx2]
             fc_ion2 = ion2_c1_ints[idx1] - ion2_c2_ints[idx2]
             fcfc_idxpair = fc_ion1 - fc_ion2
-            z_idxpair = aqbg._calc_zscore_from_fc(fc = fcfc_idxpair,fc_conversion_factor=fc_conversion_factor, fc_resolution_factor=fc_resolution_factor, min_fc=min_fc, cumulative=cumulative, max_z=max_z, zscores=zscores)
+            z_idxpair = aqdiffutils.z_from_fc_lookup(fc = fcfc_idxpair,fc_conversion_factor=fc_conversion_factor, fc_resolution_factor=fc_resolution_factor, min_fc=min_fc, cumulative=cumulative, max_z=max_z, zscores=zscores)
             fcfc_res += fcfc_idxpair
             z_summed += z_idxpair
             count_fcfcs+=1

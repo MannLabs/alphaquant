@@ -10,65 +10,11 @@ LOGGER = logging.getLogger(__name__)
 
 from numba import njit
 from statistics import NormalDist
+import alphaquant.diffquant.diffutils as aqdiffutils
 
-@njit
-def _compute_zscore_fast_bg(cumulative, min_fc, total):
-    """Fast computation of z-scores using Numba JIT compilation for background distributions"""
-    zscores = np.zeros(len(cumulative))
-    zero_pos = -min_fc
 
-    # Pre-calculate normalization factors
-    normfact_posvals = 1/(total-cumulative[zero_pos]+1)
-    normfact_negvals = 1/(cumulative[zero_pos-1]+1)
 
-    # Standard normal inverse CDF approximation (Beasley-Springer-Moro algorithm)
-    # This is much faster than calling NormalDist().inv_cdf()
-    for i in range(len(cumulative)):
-        if i == zero_pos or i == len(cumulative) - 1:
-            zscores[i] = 0.0
-            continue
 
-        if i < zero_pos:
-            num_more_extreme = cumulative[i]
-            normfact = normfact_negvals
-            sign = -1.0
-        else:
-            num_more_extreme = total - cumulative[i + 1]
-            normfact = normfact_posvals
-            sign = 1.0
-
-        p_val = 0.5 * max(1e-9, (num_more_extreme + 1) * normfact)
-
-        # Fast inverse normal CDF approximation
-        if p_val <= 0.5:
-            # For p <= 0.5, use symmetry: inv_cdf(p) = -inv_cdf(1-p)
-            t = np.sqrt(-2.0 * np.log(p_val))
-            z = -(((2.515517 + 0.802853*t + 0.010328*t*t) /
-                  (1.0 + 1.432788*t + 0.189269*t*t + 0.001308*t*t*t)) - t)
-        else:
-            t = np.sqrt(-2.0 * np.log(1.0 - p_val))
-            z = (((2.515517 + 0.802853*t + 0.010328*t*t) /
-                  (1.0 + 1.432788*t + 0.189269*t*t + 0.001308*t*t*t)) - t)
-
-        zscores[i] = sign * abs(z)
-
-    return zscores
-
-@njit
-def _compute_sd_fast_bg(cumulative, min_fc, mean, fc_conversion_factor):
-    """Fast computation of standard deviation using Numba JIT compilation for background distributions"""
-    sq_err = 0.0
-    previous = 0
-
-    for i in range(len(cumulative)):
-        fc = (i + min_fc) * fc_conversion_factor
-        freq = cumulative[i] - previous
-        sq_err += freq * (fc - mean) ** 2
-        previous = cumulative[i]
-
-    total = cumulative[-1]
-    var = sq_err / total
-    return math.sqrt(var)
 
 class ConditionBackgrounds():
 
@@ -284,11 +230,11 @@ class BackGroundDistribution:
         self.max_z = abs(NormalDist().inv_cdf(max(1e-9, min_pval)))
 
         # Use the Numba-optimized function for dramatic speedup (100x+ faster)
-        return _compute_zscore_fast_bg(self.cumulative, self.min_fc, total)
+        return aqdiffutils.zscores_from_cumulative(self.cumulative, self.min_fc, total)
 
 
     def calc_zscore_from_fc(self, fc):
-        return _calc_zscore_from_fc(fc, self.fc_conversion_factor, self.fc_resolution_factor, self.min_fc, self.cumulative, self.max_z, self.zscores)
+        return aqdiffutils.z_from_fc_lookup(fc, self.fc_conversion_factor, self.fc_resolution_factor, self.min_fc, self.cumulative, self.max_z, self.zscores)
 
 
 
@@ -300,7 +246,7 @@ class BackGroundDistribution:
             cumulative (list[int]): cumulative distribution array
         """
         # Use the Numba-optimized function for dramatic speedup (100x+ faster)
-        self.SD = _compute_sd_fast_bg(np.asarray(cumulative), self.min_fc, mean, self.fc_conversion_factor)
+        self.SD = aqdiffutils.sd_from_cumulative(np.asarray(cumulative), self.min_fc, mean, self.fc_conversion_factor)
         self.var = self.SD ** 2
 
     def get_cache_key(self):
@@ -319,27 +265,7 @@ class BackGroundDistribution:
         return (self.start_idx, self.end_idx, self.min_fc, self.max_fc,
                 len(self.cumulative), round(self.SD, 6))
 
-@njit
-def _calc_zscore_from_fc(fc, fc_conversion_factor, fc_resolution_factor, min_fc, cumulative, max_z, zscores):
-    """
-    Quick conversion function that looks up the z-value corresponding to an observed new fold change.
-    The fold change is mapped to its fc-bin in the binned fold change distribution and then the z-value of the bin is looked up
 
-    Args:
-        fc (float): [description]
-
-    Returns:
-        float: z-value of the observed fold change, based on the background distribution
-    """
-    if abs(fc)<fc_conversion_factor:
-        return 0
-    k = int(fc * fc_resolution_factor)
-    rank = k-min_fc
-    if rank <0:
-        return -max_z
-    if rank >=len(cumulative):
-        return max_z
-    return zscores[rank]
 
 
 # Cell

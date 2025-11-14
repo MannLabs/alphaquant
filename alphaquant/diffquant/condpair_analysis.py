@@ -25,6 +25,26 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 def analyze_condpair(*,runconfig, condpair):
+    """Main workflow orchestration for differential analysis of a condition pair.
+
+    This function coordinates the complete analysis pipeline for comparing two conditions:
+    1. Loads and filters data for the two conditions
+    2. Performs normalization (within and between conditions)
+    3. Creates empirical background distributions
+    4. Computes ion-level differential statistics
+    5. Builds hierarchical trees and performs clustering to identify proteoforms
+    6. Applies machine learning quality scoring (if enabled)
+    7. Filters outlier peptides (if enabled)
+    8. Generates output tables with FDR correction
+    9. Creates visualization plots
+
+    Args:
+        runconfig: Configuration object containing all analysis parameters (see run_pipeline docstring)
+        condpair: Tuple of (condition1_name, condition2_name) to compare
+
+    Returns:
+        tuple: (results_df, peptide_df) - DataFrames with protein and peptide-level results
+    """
     LOGGER.info(f"start processeing condpair {condpair}")
     prot2diffions = defaultdict(list) #per default maps any key to empty list
     prot2missingval_diffions = defaultdict(list)
@@ -64,7 +84,10 @@ def analyze_condpair(*,runconfig, condpair):
         bg1 = normed_c1.ion2background.get(ion)
         bg2 = normed_c2.ion2background.get(ion)
         diffDist = aqbg.get_subtracted_bg(bgpair2diffDist, bg1, bg2, p2z)
-        diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
+        if runconfig.ion_test_method == 'ttest':
+            diffIon = aqdiff.DifferentialIonTTest(vals1, vals2, ion, p2z, runconfig.outlier_correction)
+        else:
+            diffIon = aqdiff.DifferentialIon(vals1, vals2, diffDist, ion, runconfig.outlier_correction)
         protein = pep2prot.get(ion)
         if diffIon.usable:
             prot2diffions[protein].append(diffIon)
@@ -89,7 +112,8 @@ def analyze_condpair(*,runconfig, condpair):
 
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
-                                                                        take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge)
+                                                                        take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge,
+                                                                        fragment_outlier_filtering=runconfig.fragment_outlier_filtering)
         protnodes.append(clustered_prot_node)
 
         if count_prots%100==0:
@@ -222,6 +246,14 @@ def write_out_tables(condpair_node, runconfig):
     has_precursor_nodes = check_if_has_precursor_nodes(condpair_node)
     if has_precursor_nodes:
         prec_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "mod_seq_charge").results_df
+    else:
+        prec_df = None
+
+    has_base_nodes = check_if_has_base_nodes(condpair_node)
+    if has_base_nodes and runconfig.write_base_ions:
+        base_df = aq_tablewriter_protein.TableFromNodeCreator(condpair_node, node_type = "base").results_df
+    else:
+        base_df = None
 
 
     if runconfig.runtime_plots:
@@ -254,6 +286,9 @@ def write_out_tables(condpair_node, runconfig):
         if has_precursor_nodes:
             prec_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.prec.tsv", sep = "\t", index=None)
 
+        if base_df is not None:
+            base_df.to_csv(f"{runconfig.results_dir}/{aqutils.get_condpairname(condpair)}.results.base.tsv", sep = "\t", index=None)
+
     return res_df, pep_df
 
 def check_if_has_sequence_nodes(condpair_node):
@@ -262,5 +297,12 @@ def check_if_has_sequence_nodes(condpair_node):
 def check_if_has_precursor_nodes(condpair_node):
     try:
         return condpair_node.children[0].children[0].children[0].children[0].type == "mod_seq_charge"
+    except:
+        return False
+
+def check_if_has_base_nodes(condpair_node):
+    try:
+        # Check if we have base nodes (fragments/MS1) at the leaf level
+        return condpair_node.children[0].leaves[0].type == "base"
     except:
         return False

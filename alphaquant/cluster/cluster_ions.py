@@ -28,7 +28,30 @@ LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'se
 
 
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge):
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge, fragment_outlier_filtering=True):
+    """Main entry point for hierarchical clustering and tree-based quantification of a protein.
+
+    This function creates a hierarchical tree structure from fragment ions up to the protein level
+    (fragments → peptides → modified peptides → unmodified peptides → protein), performs statistical
+    clustering at each level to identify proteoforms, and computes aggregated statistics.
+
+    Args:
+        gene_name: Protein/gene identifier
+        diffions: List of DifferentialIon objects for all ions belonging to this protein
+        normed_c1: ConditionBackgrounds object for condition 1
+        normed_c2: ConditionBackgrounds object for condition 2
+        ion2diffDist: Dictionary mapping ion pairs to differential background distributions
+        p2z: Cache dictionary for p-value to z-value conversions
+        deedpair2doublediffdist: Cache for double-differential distributions used in clustering
+        pval_threshold_basis: P-value threshold for determining if ions differ significantly
+        fcfc_threshold: Fold-change difference threshold for clustering
+        take_median_ion: If True, use median-centered ions for clustering
+        fcdiff_cutoff_clustermerge: Fold-change threshold for merging similar clusters
+        fragment_outlier_filtering: Whether to filter outlier fragments when aggregating to peptides
+
+    Returns:
+        anytree.Node: Root node of the hierarchical tree containing all statistics and clustering results
+    """
     #typefilter = TypeFilter('successive')
 
     global FCDIFF_CUTOFF_CLUSTERMERGE
@@ -40,7 +63,7 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     root_node = create_hierarchical_ion_grouping(gene_name, diffions)
     add_reduced_names_to_root(root_node)
     #LOGGER.info(anytree.RenderTree(root_node))
-    root_node_clust = cluster_along_specified_levels(root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion)
+    root_node_clust = cluster_along_specified_levels(root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering)
 
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
@@ -91,7 +114,31 @@ def add_reduced_names_to_root(node):
 
 
 import pandas as pd
-def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion):#~60% of overall runtime
+def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering=True):#~60% of overall runtime
+    """Performs hierarchical clustering at each level of the tree from bottom to top.
+
+    Starting from base ions (fragments/MS1), this function iterates through each level
+    of the tree hierarchy and performs statistical clustering to identify groups of ions
+    with similar quantitative behavior (proteoforms). At each level, ions are tested
+    pairwise for consistent fold-change differences, clustered hierarchically, and
+    statistics are aggregated to parent nodes.
+
+    Args:
+        root_node: Root of the hierarchical tree (protein level)
+        ionname2diffion: Dictionary mapping ion names to DifferentialIon objects
+        normed_c1: ConditionBackgrounds for condition 1
+        normed_c2: ConditionBackgrounds for condition 2
+        ion2diffDist: Dictionary of differential background distributions
+        p2z: Cache for p-value to z-value conversions
+        deedpair2doublediffdist: Cache for double-differential distributions
+        pval_threshold_basis: P-value threshold for clustering decisions
+        fcfc_threshold: Fold-change threshold for clustering
+        take_median_ion: Whether to use median-centered ions
+        fragment_outlier_filtering: Whether to filter fragment outliers
+
+    Returns:
+        anytree.Node: The root node with all clustering annotations and aggregated statistics
+    """
     #typefilter object specifies filtering and clustering of the nodes
     aqcluster_utils.assign_properties_to_base_ions(root_node, ionname2diffion, normed_c1, normed_c2)
 
@@ -125,7 +172,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                 aqcluster_utils.assign_clusterstats_to_type_node(type_node, childnode2clust)
                 aqcluster_utils.annotate_mainclust_leaves(childnode2clust)
                 aqcluster_utils.assign_cluster_number(type_node, childnode2clust)
-                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False)
+                aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False, fragment_outlier_filtering=fragment_outlier_filtering)
 
     return root_node
 

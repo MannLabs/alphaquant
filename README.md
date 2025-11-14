@@ -41,6 +41,7 @@ AlphaQuant is designed for proteomics researchers analyzing DDA or DIA experimen
   * [**Python and jupyter notebooks**](#python-and-jupyter-notebooks)
 * [**Troubleshooting**](#troubleshooting)
 * [**Citations**](#citations)
+* [**For Developers: Modifying AlphaQuant**](#for-developers-modifying-alphaquant)
 * [**How to contribute**](#how-to-contribute)
 * [**License**](#license)
 * [**Changelog**](#changelog)
@@ -292,6 +293,20 @@ A manuscript has been submitted to bioRxiv:
 > **Tree-based quantification infers proteoform regulation in bottom-up proteomics data**
 > Constantin Ammar, Marvin Thielert, Caroline A M Weiss, Edwin H Rodriguez, Maximilian T Strauss, Florian A Rosenberger, Wen-Feng Zeng, Matthias Mann
 > bioRxiv 2025.03.06.641844; doi: https://doi.org/10.1101/2025.03.06.641844
+
+---
+## For Developers: Modifying AlphaQuant
+
+AlphaQuant is designed with modularity in mind. If you want to implement alternative statistical methods, modify the tree-based propagation, or adjust multiple testing correction approaches, we provide clear interfaces at each level of the analysis pipeline.
+
+For detailed documentation on how to extend or replace:
+- Ion-level statistical testing methods
+- Tree-based aggregation and z-value propagation
+- Multiple testing correction procedures
+- Outlier robustness filtering
+- Main workflow orchestration
+
+Please see **[DEVELOPERS.md](DEVELOPERS.md)** for comprehensive guidance with code examples.
 
 ---
 ## How to contribute
