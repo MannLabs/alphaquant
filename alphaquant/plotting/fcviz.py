@@ -6,6 +6,24 @@ import alphaquant.config.variables as aqvars
 import alphamap.organisms_data
 import alphaquant.utils.utils as aq_utils
 import alphaquant.resources.database_loader as aq_db_loader
+import re
+
+def _format_tree_label_string(labelstring: str) -> str:
+    """Local copy of the tree label formatter to avoid circular imports.
+
+    Mirrors TreeLabelFormatter.format_label_string without importing treeviz.
+    """
+    # Cut leading type classifier like 'SEQ_' etc.
+    labelstring = re.sub(r'^[a-zA-Z0-9]+_', '', labelstring)
+    # Remove leading/trailing underscores
+    labelstring = labelstring.strip('_')
+    # Remove default ion suffix
+    labelstring = labelstring.replace('_noloss_1', '')
+    # Replace separators with line breaks
+    result = labelstring.replace('_', '\n')
+    result = result.replace('[', '\n')
+    result = result.replace(']', '\n')
+    return result
 
 import alphaquant.config.config as aqconfig
 import logging
@@ -18,7 +36,9 @@ class FoldChangeVisualizer():
                                                         order_along_protein_sequence = False, organism = 'Human',colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, tree_level = 'seq', protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
                                                         narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
                                                         figsize = None, showfliers = True,
-                                                        show_node_annotations = False, node_annotation_attributes = None, node_annotation_formats = None):
+                                                        show_node_annotations = False, node_annotation_attributes = None, node_annotation_formats = None,
+                                                        hide_root_in_tree = False,
+                                                        exclude_outlier_fragments = True):
 
         """
         Class to visualize the peptide fold changes of a protein (precursor, fragment fcs etc an also be visualized). Can be initialized once and subsequently used to visualize different proteins with the visualize_protein function.
@@ -40,11 +60,13 @@ class FoldChangeVisualizer():
             show_node_annotations (bool): Whether to show statistical annotations on tree nodes.
             node_annotation_attributes (list): List of node attributes to display (e.g., ['p_val', 'z_val', 'fc']).
             node_annotation_formats (dict): Custom formatting for each attribute.
+            exclude_outlier_fragments (bool): Whether to exclude outlier fragments from plots. Defaults to True.
 
         """
 
         self.plotconfig = PlotConfig(label_rotation = label_rotation, add_stripplot = add_stripplot, narrowing_factor_for_fcplot = narrowing_factor_for_fcplot, rescale_factor_x = rescale_factor_x, rescale_factor_y = rescale_factor_y, colorlist = colorlist, protein_identifier = protein_identifier, tree_level = tree_level, organism = organism, order_peptides_along_protein_sequence=order_along_protein_sequence, figsize=figsize, showfliers=showfliers,
-                                    show_node_annotations=show_node_annotations, node_annotation_attributes=node_annotation_attributes, node_annotation_formats=node_annotation_formats)
+                                    show_node_annotations=show_node_annotations, node_annotation_attributes=node_annotation_attributes, node_annotation_formats=node_annotation_formats,
+                                    hide_root_in_tree=hide_root_in_tree, exclude_outlier_fragments=exclude_outlier_fragments)
 
         self.quantification_info = CondpairQuantificationInfo((condition1, condition2), results_directory, samplemap_file)
 
@@ -85,7 +107,13 @@ class PlotConfig():
     def __init__(self, label_rotation = 90, add_stripplot = False, narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2,
                  colorlist = aq_plot_base.AlphaQuantColorMap().colorlist, protein_identifier = 'gene_symbol', tree_level = 'seq', organism = 'Human',
                  order_peptides_along_protein_sequence = False, figsize = None, showfliers = True,
-                 show_node_annotations = False, node_annotation_attributes = None, node_annotation_formats = None, node_fontsize = 12):
+                 show_node_annotations = False, node_annotation_attributes = None, node_annotation_formats = None, node_fontsize = 12,
+                 tree_to_fc_height_ratio = 1.0, subplot_spacing = 0.3,
+                 node_size = 600,
+                 shortened_xticklabels = False,
+                 remove_leaf_labels_in_tree = False,
+                 hide_root_in_tree = False,
+                 exclude_outlier_fragments = True):
         """
         Configuration class for plotting.
 
@@ -103,6 +131,9 @@ class PlotConfig():
             node_annotation_attributes (list): List of node attributes to display (e.g., ['p_val', 'z_val', 'fc']).
             node_annotation_formats (dict): Custom formatting for each attribute.
             node_fontsize (int): Font size for tree node labels.
+            exclude_outlier_fragments (bool): Whether to exclude fragment ions marked as outliers from plots.
+                When True (default), only fragments used in statistical aggregation are displayed.
+                Mirrors the fragment_outlier_filtering behavior from the analysis pipeline.
         """
         self.label_rotation = label_rotation
         self.add_stripplot = add_stripplot
@@ -115,6 +146,13 @@ class PlotConfig():
         self.figsize = figsize
         self.showfliers = showfliers
         self.node_fontsize = node_fontsize
+        self.tree_to_fc_height_ratio = tree_to_fc_height_ratio
+        self.subplot_spacing = subplot_spacing
+        self.node_size = node_size
+        self.shortened_xticklabels = shortened_xticklabels
+        self.remove_leaf_labels_in_tree = remove_leaf_labels_in_tree
+        self.hide_root_in_tree = hide_root_in_tree
+        self.exclude_outlier_fragments = exclude_outlier_fragments
 
         # Node annotation configuration
         self.show_node_annotations = show_node_annotations
@@ -291,7 +329,10 @@ class ProteinClusterPlotter():
 
     def _init_melted_df(self):
         protein_intensity_df_getter = ProteinIntensityDataFrameGetter(self._protein_node, self._quantification_info)
-        self._melted_df = protein_intensity_df_getter.get_melted_df_all(self._plotconfig.parent_level)
+        self._melted_df = protein_intensity_df_getter.get_melted_df_all(
+            self._plotconfig.parent_level,
+            exclude_outlier_fragments=self._plotconfig.exclude_outlier_fragments
+        )
 
     def _define_parent2elements(self):# for example you have precursor as a parent and ms1 and ms2 as the leafs
         if self._parent2elements is None:
@@ -310,7 +351,14 @@ class ProteinClusterPlotter():
             melted_df_subset = self._subset_to_elements(self._melted_df, elements)
             colormap = ClusterColorMapper(self._plotconfig.colorlist).get_element2color(melted_df_subset)
             ProteinPlot = IonFoldChangePlotter(melted_df=melted_df_subset, condpair = self._quantification_info.condpair, plotconfig=self._plotconfig)
-            ProteinPlot.plot_fcs_with_specified_color_scheme(colormap,self._axes[idx])
+
+            # Build xticklabels from the actual leaf node labels used in the tree (base part only)
+            xticklabels = None
+            if getattr(self._plotconfig, 'shortened_xticklabels', False):
+                name2label = self._map_specified_level_to_formatted_leaf_label_base()
+                xticklabels = [name2label.get(name, name) for name in ProteinPlot.precursors]
+
+            ProteinPlot.plot_fcs_with_specified_color_scheme(colormap, self._axes[idx], xticklabels=xticklabels)
             #self._set_title_of_subplot(ax = self._axes[idx], peptide_nodes = cluster_sorted_groups_of_peptide_nodes[idx], first_subplot=idx==0)
         self._set_yaxes_to_same_scale()
         self._set_title()
@@ -371,6 +419,27 @@ class ProteinClusterPlotter():
         modulo_idx = idx % (len(self._colormap)) #if idx becomes larger than the list length, start at 0 again
         return self._colormap[modulo_idx]
 
+    def _map_specified_level_to_formatted_leaf_label_base(self):
+        """Create mapping from node.name (specified level) to the formatted base label used in the tree.
+
+        For leaf nodes, the tree label is built from node.name_reduced and formatted with
+        the same rules as the tree. We return only the first line (base ion like 'y5').
+        """
+        mapping = {}
+        try:
+            level_nodes = anytree.findall(self._protein_node, filter_=lambda x: hasattr(x, 'children'))
+            for n in level_nodes:
+                try:
+                    base_source = getattr(n, 'name_reduced', n.name)
+                    formatted = _format_tree_label_string(base_source)
+                    base = formatted.split('\n')[0]
+                    mapping[n.name] = base
+                except Exception:
+                    mapping[n.name] = n.name
+        except Exception:
+            pass
+        return mapping
+
     def _label_x_and_y(self):
         self._fig.supylabel("log2(FC)")
 
@@ -409,9 +478,9 @@ class ProteinIntensityDataFrameGetter():
         self._quantification_info= quantification_info
         self._ion_header = ion_header
 
-    def get_melted_df_all(self, specified_level):
+    def get_melted_df_all(self, specified_level, exclude_outlier_fragments=True):
         melted_df = ProteinIntensityDfFormatter( self._protein_node, self._quantification_info, self._ion_header).get_melted_protein_ion_intensity_table()
-        melted_df = ProteinQuantDfAnnotator(self._protein_node, specified_level).get_annotated_melted_df(melted_df)
+        melted_df = ProteinQuantDfAnnotator(self._protein_node, specified_level, exclude_outlier_fragments=exclude_outlier_fragments).get_annotated_melted_df(melted_df)
         return melted_df
 
     def get_melted_df_selected_peptides(self, protein_id, selected_peptides, specified_level):
@@ -464,9 +533,10 @@ import re
 
 class ProteinQuantDfAnnotator():
 
-    def __init__(self, protein_node, specified_level):
+    def __init__(self, protein_node, specified_level, exclude_outlier_fragments=True):
         self._protein_node = protein_node
         self._specified_level = specified_level
+        self._exclude_outlier_fragments = exclude_outlier_fragments
 
         self._ion2is_included = {}
         self._ion2ml_score = {}
@@ -512,6 +582,10 @@ class ProteinQuantDfAnnotator():
         for level_node in level_nodes:
             for child in level_node.children:
                 for leaf in child.leaves:
+                    # Skip fragment ions that were filtered out during aggregation (if flag is enabled)
+                    if self._exclude_outlier_fragments and hasattr(leaf, 'is_outlier_fragment') and leaf.is_outlier_fragment:
+                        continue
+
                     self._ion2is_included[leaf.name] = aqclustutils.check_if_node_is_included(child)
                     self._ion2ml_score[leaf.name] = self._get_ml_score_if_possible(child)
                     self._ion2level[leaf.name] = child.name
@@ -630,7 +704,7 @@ class IonFoldChangePlotter():
         self.plot_fcs_with_specified_color_scheme(colormap_single_color, ax)
         return ax
 
-    def plot_fcs_with_specified_color_scheme(self, colormap, ax):
+    def plot_fcs_with_specified_color_scheme(self, colormap, ax, xticklabels=None):
         if type(colormap) == type(dict()):
             colormap = {idx: colormap.get(self.precursors[idx]) for idx in range(len(self.precursors))}
 
@@ -640,12 +714,18 @@ class IonFoldChangePlotter():
             self._plot_fcs_with_boxplot(colormap, ax)
 
         idxs = list(range(len(self.precursors)))
-        ax.set_xticks(idxs, labels = self.precursors, rotation = 'vertical')
+        if xticklabels is not None:
+            ax.set_xticks(idxs, labels=xticklabels, rotation='vertical')
+        elif getattr(self._plotconfig, 'shortened_xticklabels', False):
+            # Fallback: Only the base part of the label from the ion names
+            formatted = [_format_tree_label_string(x).split('\n')[0] for x in self.precursors]
+            ax.set_xticks(idxs, labels=formatted, rotation='vertical')
+        else:
+            ax.set_xticks(idxs, labels=self.precursors, rotation='vertical')
 
     def _plot_fcs_with_swarmplot(self, colormap, ax):
-        sns.stripplot(data = self.fcs, ax=ax, palette=colormap)
-        sns.boxplot(data = self.fcs, ax=ax, showfliers=self._plotconfig.showfliers,
-            boxprops=dict(facecolor="none", edgecolor="black"))
+        sns.stripplot(data = self.fcs, ax=ax, color='#404040', alpha=1.0, size=3)
+        sns.boxplot(data = self.fcs, ax=ax, palette=colormap, showfliers=self._plotconfig.showfliers)
 
     def _plot_fcs_with_boxplot(self, colormap, ax):
         sns.boxplot(data = self.fcs, ax=ax, palette=colormap, showfliers=self._plotconfig.showfliers)

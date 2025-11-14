@@ -83,13 +83,13 @@ def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed):
 
 
 
-def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.05, 
+def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.05,
                  log2fc_cutoff=0.5, xlim=None, ylim = None,
-                 organism_column=None, organism2color_dict=None, 
+                 organism_column=None, organism2color_dict=None,
                  color_only_significant=True, alpha= None,ax = None,
                  draw_vertical_lines = True, draw_horizontal_lines = True,
-                 ground_truth_ratios = None):
-                 
+                 ground_truth_ratios = None, point_size=None):
+
     results_df[fdr_header] = results_df[fdr_header].replace(0, np.min(results_df[fdr_header].replace(0, 1.0)))
     fdrs = results_df[fdr_header].to_numpy()
     fcs = results_df[fc_header].to_numpy()
@@ -113,11 +113,15 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     if alpha is None:
         alpha = max(0.1, min(0.7, 0.7 - 0.6 * (len(fdrs) / 1000)))
 
-    scatter = sns.scatterplot(data=results_df, x=fc_header, y='-log10(fdr)', 
-                    c=results_df['color'].to_list(), ax=ax, legend=None, alpha = alpha)
+    # Set default point size if not provided
+    if point_size is None:
+        point_size = 20  # Default seaborn size
+
+    scatter = sns.scatterplot(data=results_df, x=fc_header, y='-log10(fdr)',
+                    c=results_df['color'].to_list(), ax=ax, legend=None, alpha = alpha, s=point_size)
     for scatter_collection in scatter.collections:
         scatter_collection.set_rasterized(True)
-    
+
     # Drawing vertical lines for fold change thresholds and horizontal lines for p-value threshold
     if draw_vertical_lines:
         if log2fc_cutoff !=0:
@@ -126,18 +130,18 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
     if draw_horizontal_lines:
         if fdr_cutoff !=0:
             ax.axhline(y=-np.log10(fdr_cutoff), linestyle='--', color='black')
-    
+
     ax.set_xlabel("log2(FC)")
     ax.set_ylabel("-log10(FDR)")
 
 
-    
+
     if xlim is None:
         maxfc = max(abs(results_df[fc_header])) + 0.5
         ax.set_xlim(-maxfc, maxfc)
     else:
         ax.set_xlim(xlim)
-    
+
     if ylim:
         ax.set_ylim(ylim)
 
@@ -154,7 +158,7 @@ def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.
 def add_color_column(results_df ,organism2color_dict, organism_column, color_only_significant):
         # Create a color column based on organism and significance
     if organism2color_dict:
-        results_df['color'] = results_df.apply(lambda row: organism2color_dict[row[organism_column]] 
+        results_df['color'] = results_df.apply(lambda row: organism2color_dict[row[organism_column]]
                                                if row['is_significant'] or not color_only_significant else 'gray', axis=1)
     else:
         results_df['color'] = np.where(results_df['is_significant'], 'green', 'gray')
