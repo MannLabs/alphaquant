@@ -81,7 +81,36 @@ if (-not (Test-Path -Path $resourcesDir)) {
     Write-Host "Error: Resources directory not found after extraction"
     exit 1
 }
+
+# Verify that specific database subdirectories exist
+$referenceDbDir = Join-Path $resourcesDir "reference_databases"
+$phosphopredDbDir = Join-Path $resourcesDir "phosphopred_databases"
+
+Write-Host "Checking for reference_databases directory..."
+if (-not (Test-Path -Path $referenceDbDir)) {
+    Write-Host "Error: reference_databases directory not found at $referenceDbDir"
+    exit 1
+}
+
+Write-Host "Checking for phosphopred_databases directory..."
+if (-not (Test-Path -Path $phosphopredDbDir)) {
+    Write-Host "Error: phosphopred_databases directory not found at $phosphopredDbDir"
+    exit 1
+}
+
+# Verify that the phosphopred database contains the expected file
+$humanPhosphoFile = Join-Path $phosphopredDbDir "human_uniprot_reviewed_phos_prob.tsv"
+if (-not (Test-Path -Path $humanPhosphoFile)) {
+    Write-Host "Error: Expected phosphopred database file not found at $humanPhosphoFile"
+    Write-Host "Contents of phosphopred_databases directory:"
+    Get-ChildItem -Path $phosphopredDbDir -Recurse | Format-Table Name, FullName
+    exit 1
+}
+
 Write-Host "Resources successfully downloaded and extracted"
+Write-Host "  - reference_databases: OK"
+Write-Host "  - phosphopred_databases: OK"
+Write-Host "  - human_uniprot_reviewed_phos_prob.tsv: OK"
 
 # Wrapping the pyinstaller folder in a .exe package
 &  "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" .\release\windows\alphaquant_innoinstaller.iss

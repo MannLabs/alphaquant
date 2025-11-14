@@ -97,11 +97,41 @@ rm "$TEMP_ZIP2"
 
 # Verify the downloads and extraction
 echo "Verifying extracted resources..."
-if [ ! -d "${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources/" ]; then
+RESOURCES_DIR="${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources"
+if [ ! -d "$RESOURCES_DIR" ]; then
     echo "Error: Resources directory not found after extraction"
     exit 1
 fi
+
+# Verify that specific database subdirectories exist
+REFERENCE_DB_DIR="$RESOURCES_DIR/reference_databases"
+PHOSPHOPRED_DB_DIR="$RESOURCES_DIR/phosphopred_databases"
+
+echo "Checking for reference_databases directory..."
+if [ ! -d "$REFERENCE_DB_DIR" ]; then
+    echo "Error: reference_databases directory not found at $REFERENCE_DB_DIR"
+    exit 1
+fi
+
+echo "Checking for phosphopred_databases directory..."
+if [ ! -d "$PHOSPHOPRED_DB_DIR" ]; then
+    echo "Error: phosphopred_databases directory not found at $PHOSPHOPRED_DB_DIR"
+    exit 1
+fi
+
+# Verify that the phosphopred database contains the expected file
+HUMAN_PHOSPHO_FILE="$PHOSPHOPRED_DB_DIR/human_uniprot_reviewed_phos_prob.tsv"
+if [ ! -f "$HUMAN_PHOSPHO_FILE" ]; then
+    echo "Error: Expected phosphopred database file not found at $HUMAN_PHOSPHO_FILE"
+    echo "Contents of phosphopred_databases directory:"
+    ls -la "$PHOSPHOPRED_DB_DIR"
+    exit 1
+fi
+
 echo "Resources successfully downloaded and extracted"
+echo "  - reference_databases: OK"
+echo "  - phosphopred_databases: OK"
+echo "  - human_uniprot_reviewed_phos_prob.tsv: OK"
 
 ###Download section complete
 

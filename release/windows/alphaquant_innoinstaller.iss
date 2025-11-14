@@ -45,6 +45,10 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Dirs]
 ; Create the alphamap (no typo!) data directory and ensure users can modify it. This is where AlphaMap (which is imported by AlphaQuant) stores downloaded data, such as fasta files.
 Name: "{app}\_internal\alphamap\data"; Permissions: users-modify
+; Ensure alphaquant resources directories exist and are readable
+Name: "{app}\_internal\alphaquant\resources"; Permissions: users-read
+Name: "{app}\_internal\alphaquant\resources\reference_databases"; Permissions: users-read
+Name: "{app}\_internal\alphaquant\resources\phosphopred_databases"; Permissions: users-read
 
 [Files]
 Source: "..\..\dist_pyinstaller\alphaquant_gui\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
