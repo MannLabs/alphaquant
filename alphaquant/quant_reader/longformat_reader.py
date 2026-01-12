@@ -10,7 +10,7 @@ try:
     HAS_DASK = True
 except ModuleNotFoundError:
     warnings.warn(
-        "Dependency 'dask' not installed. If you want to use its functionality, install alphabase with the 'dask' extra. Falling back to non-dask based processing."
+        "Dependency 'dask' not installed. If you want to use its functionality, install alphaquant with the 'dask' extra. Falling back to non-dask based processing."
     )
     HAS_DASK = False
 

@@ -14,6 +14,7 @@ setup_logging()
 
 ############################################
 # Adapt some functions in the alphabase quant reader package
+# TODO: this was relevant only before the quant_readers were moved from alphabase, check if the methods can be overwritten
 
 def _get_seperator(input_file):
     filename = str(input_file)
