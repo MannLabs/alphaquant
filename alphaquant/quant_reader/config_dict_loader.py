@@ -9,7 +9,7 @@ import yaml
 from alphaquant.quant_reader import quantreader_utils
 
 LOGGER = logging.getLogger(__name__)
-INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.parent.absolute(), "./config/quant_reader_config.yaml")
+INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "../config/quant_reader_config.yaml")
 
 
 
