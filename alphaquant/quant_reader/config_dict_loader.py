@@ -6,13 +6,11 @@ import re
 
 import yaml
 
-from . import quantreader_utils
+from alphaquant.quant_reader import quantreader_utils
 
 LOGGER = logging.getLogger(__name__)
-INTABLE_CONFIG = os.path.join(
-    pathlib.Path(__file__).parent.absolute(),
-    "../../../alphabase/constants/const_files/quant_reader_config.yaml",
-)  # the yaml config is located one directory below the python library files
+INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.parent.absolute(), "./config/quant_reader_config.yaml")
+
 
 
 def get_input_type_and_config_dict(input_file, input_type_to_use=None):
