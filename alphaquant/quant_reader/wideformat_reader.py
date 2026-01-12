@@ -1,4 +1,4 @@
-from . import quantreader_utils, table_reformatter
+from alphaquant.quant_reader import quantreader_utils, table_reformatter
 
 
 def reformat_and_write_wideformat_table(peptides_tsv, outfile_name, config_dict):

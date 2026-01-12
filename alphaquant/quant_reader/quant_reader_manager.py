@@ -1,4 +1,4 @@
-from . import (
+from alphaquant.quant_reader import (
     config_dict_loader,
     longformat_reader,
     quantreader_utils,
