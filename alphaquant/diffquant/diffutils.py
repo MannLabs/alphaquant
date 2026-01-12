@@ -392,9 +392,9 @@ import pandas as pd
 import os
 import pathlib
 
-import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
-import alphabase.quantification.quant_reader.longformat_reader as ablongformatreader
-import alphabase.quantification.quant_reader.wideformat_reader as abwideformatreader
+import alphaquant.quant_reader.config_dict_loader as abconfigdictloader
+import alphaquant.quant_reader.longformat_reader as ablongformatreader
+import alphaquant.quant_reader.wideformat_reader as abwideformatreader
 
 
 
