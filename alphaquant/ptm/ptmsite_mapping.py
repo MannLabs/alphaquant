@@ -1,7 +1,7 @@
 
 
 from alphaquant.config.variables import *
-import alphabase.quantification.quant_reader.config_dict_loader as abconfigdictloader
+import alphaquant.quant_reader.config_dict_loader as abconfigdictloader
 import alphaquant.resources.database_loader as aq_resource_dbloader
 
 import alphaquant.config.config as aqconfig

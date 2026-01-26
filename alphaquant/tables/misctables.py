@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-import alphabase.quantification.quant_reader.config_dict_loader as abconfigloader
+import alphaquant.quant_reader.config_dict_loader as abconfigloader
 import alphaquant.utils.utils as aq_utils_utils
 import alphaquant.utils.reader_utils as aq_reader_utils
 

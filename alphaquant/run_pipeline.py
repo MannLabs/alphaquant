@@ -12,11 +12,11 @@ import alphaquant.utils.utils as aq_utils
 import alphaquant.ptm.ptmsite_mapping as aqptm
 import multiprocess
 import alphaquant.config.variables as aqvariables
-import alphabase.quantification.quant_reader.config_dict_loader as config_dict_loader
+import alphaquant.quant_reader.config_dict_loader as config_dict_loader
 config_dict_loader.INTABLE_CONFIG = os.path.join(pathlib.Path(__file__).parent.absolute(), "./config/quant_reader_config.yaml")
 
 import alphaquant.classify.ml_info_table as aq_ml_info_table
-import alphabase.quantification.quant_reader.quant_reader_manager as abquantreader
+import alphaquant.quant_reader.quant_reader_manager as abquantreader
 import alphaquant.tables.alphadia_reader as aq_table_alphadiareader
 import alphaquant.diffquant.condpair_analysis as aqcondpair
 import alphaquant.multicond.median_condition_creation as aqmediancreation

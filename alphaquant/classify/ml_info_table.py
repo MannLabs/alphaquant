@@ -1,5 +1,5 @@
-import alphabase.quantification.quant_reader.config_dict_loader as ab_config_loader
-import alphabase.quantification.quant_reader.table_reformatter as ab_table_reformatter
+import alphaquant.quant_reader.config_dict_loader as ab_config_loader
+import alphaquant.quant_reader.table_reformatter as ab_table_reformatter
 import alphaquant.utils.reader_utils as aq_reader_utils
 
 import pandas as pd
