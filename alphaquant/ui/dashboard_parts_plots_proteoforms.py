@@ -365,6 +365,12 @@ class ProteoformPlottingTab(param.Parameterized):
             self.visualization_elements.visible = True
             self.viz_warning_pane.object = ""  # Clear any previous warnings
 
+        except ImportError as import_error:
+            print("ImportError initializing visualizers:", str(import_error))
+            error_msg = f"AlphaMap is not installed. Install it with: pip install \"alphaquant[alphamap]\""
+            self.viz_warning_pane.object = f"### Note\n{error_msg}"
+            self.visualization_elements.visible = False
+
         except Exception as viz_error:
             print("Error initializing visualizers:", str(viz_error))
             print("Exception type:", type(viz_error))

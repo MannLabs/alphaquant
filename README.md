@@ -114,6 +114,16 @@ or the version with a pinned dependency (recommended)
 pip install "alphaquant[dask-stable]"
 ```
 
+For AlphaMap visualization features (sequence alignment plots), install the optional alphamap extra:
+
+```bash
+pip install "alphaquant[alphamap]"
+```
+or the version with a pinned dependency (recommended)
+```bash
+pip install "alphaquant[alphamap-stable]"
+```
+
 ### Developer installation
 
 AlphaQuant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:

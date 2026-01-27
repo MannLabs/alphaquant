@@ -55,6 +55,8 @@ optional-dependencies = { stable = { file = ["requirements/requirements.txt",
 ] }, development = { file = ["requirements/requirements_development.txt", "requirements/requirements_tests.txt",
 ] }, dask = { file = [ "requirements/requirements_dask_loose.txt",
 ] }, dask-stable = { file = [ "requirements/requirements_dask.txt",
+] }, alphamap = { file = [ "requirements/requirements_alphamap_loose.txt",
+] }, alphamap-stable = { file = [ "requirements/requirements_alphamap.txt",
 ] }}
 
 version = {attr = "alphaquant.__version__"}
