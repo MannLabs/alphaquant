@@ -10,7 +10,6 @@ graphviz
 click
 lmfit
 multiprocess
-pyfasta
 openpyxl
 scikit-learn
 alphabase
