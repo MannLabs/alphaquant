@@ -9,7 +9,6 @@ anytree
 graphviz
 click
 lmfit
-dask
 multiprocess
 pyfasta
 openpyxl

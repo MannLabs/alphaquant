@@ -18,8 +18,16 @@ headers_dicts = {'Spectronaut' : {"label_column" : "R.Label", "fg_id_column" : "
 # Cell
 
 import pandas as pd
-import dask.dataframe as dd
+import warnings
 
+try:
+    import dask.dataframe as dd
+    HAS_DASK = True
+except ModuleNotFoundError:
+    HAS_DASK = False
+    warnings.warn(
+        "Dependency 'dask' not installed. If you want to use its functionality, install alphaquant with the 'dask' extra. Falling back to non-dask based processing."
+    )
 
 
 def assign_dataset_chunkwise(input_file, results_dir, samplemap_df , modification_type = "[Phospho (STY)]", id_thresh = 0.6, excl_thresh =0.2 ,swissprot_file = None,
@@ -46,6 +54,12 @@ sequence_file=None, input_type = "Spectronaut", organism = "human"):
         input_type (str): Type of input data ("Spectronaut" or "DIANN")
         organism (str): Organism name
     """
+    if not HAS_DASK:
+        raise ImportError(
+            "Dask is required for out-of-memory PTM site mapping. "
+            "Install it with: pip install \"alphaquant[dask]\""
+        )
+
     clean_up_previous_processings(results_dir)
 
     if input_type == 'Spectronaut':

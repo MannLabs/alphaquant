@@ -102,6 +102,18 @@ For those who are really adventurous, it is also possible to directly install an
 pip install "git+https://github.com/MannLabs/alphaquant.git@development#egg=alphaquant[stable,development-stable]"
 ```
 
+#### Optional extras
+
+For processing very large PTM files that don't fit in memory, install the optional dask extra:
+
+```bash
+pip install "alphaquant[dask]"
+```
+or the version with a pinned dependency (recommended)
+```bash
+pip install "alphaquant[dask-stable]"
+```
+
 ### Developer installation
 
 AlphaQuant can also be installed in editable (i.e. developer) mode with a few `bash` commands. This allows to fully customize the software and even modify the source code to your specific needs. When an editable Python package is installed, its source code is stored in a transparent location of your choice. While optional, it is advised to first (create and) navigate to e.g. a general software folder:
