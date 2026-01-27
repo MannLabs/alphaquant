@@ -20,7 +20,7 @@ COPY LICENSE LICENSE
 COPY README.md README.md
 COPY pyproject.toml pyproject.toml
 
-RUN pip install ".[stable,gui-stable]"
+RUN pip install ".[stable,gui-stable,dask-stable]"
 
 ENV PORT=41215
 EXPOSE 41215
