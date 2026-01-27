@@ -21,7 +21,7 @@ try:
     HAS_ALPHAMAP = True
 except ModuleNotFoundError:
     warnings.warn(
-        "Dependency 'alphamap' not installed. If you want to use its functionality, install alphaquant with the 'alphamap' extra."
+        "Dependency 'alphamap' not installed. If you want to use its functionality, install it with `pip install \"alphaquant[alphamap]\"` ."
     )
     HAS_ALPHAMAP = False
 
@@ -31,13 +31,6 @@ class AlphaMapVisualizer:
             order_along_protein_sequence = True, organism = 'Human',colorlist = aq_plot_colors.AlphaQuantColorMap().colorlist, tree_level = 'seq',
             protein_identifier = 'gene_symbol', label_rotation = 90, add_stripplot = False,
             narrowing_factor_for_fcplot = 1/14, rescale_factor_x = 1.0, rescale_factor_y = 2):
-
-        if not HAS_ALPHAMAP:
-            raise ImportError(
-                "alphamap is required for AlphaMapVisualizer. "
-                "Install it with: pip install \"alphaquant[alphamap]\""
-            )
-
         """
         Initializes an object for visualizing peptide fold changes and AlphaMap sequence alignment. 
         This class allows for the visualization of different proteins by using the visualize_protein method 
@@ -61,7 +54,12 @@ class AlphaMapVisualizer:
             identifier (str): Identifier for proteins. Can be 'gene_symbol' or 'uniprot_id'.
 
         """
-        
+        if not HAS_ALPHAMAP:
+            raise ImportError(
+                "alphamap is required for AlphaMapVisualizer. "
+                "Install it with: pip install \"alphaquant[alphamap]\""
+            )
+
         self._fc_visualizer = aq_plot_fc.FoldChangeVisualizer(condition1, condition2, results_directory, samplemap_file,
             order_along_protein_sequence = order_along_protein_sequence, organism = organism, colorlist = colorlist, 
             tree_level = tree_level, protein_identifier = protein_identifier, label_rotation = label_rotation, 
