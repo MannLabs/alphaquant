@@ -26,7 +26,7 @@ try:
 except ModuleNotFoundError:
     HAS_DASK = False
     warnings.warn(
-        "Dependency 'dask' not installed. If you want to use its functionality, install alphaquant with the 'dask' extra. Falling back to non-dask based processing."
+        "Dependency 'dask' not installed. If you want to use its functionality, install it with: `pip install \"alphaquant[dask]\"` . ImportError will be raised if the data requires out-of-memory processing."
     )
 
 
