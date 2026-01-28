@@ -28,5 +28,5 @@ jobs:
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
-      install-script: ./pip_install.sh tests,gui,dask,alphamap
+      install-script: ./pip_install.sh tests,gui,dask
       test-script: ./run_example_notebooks.sh
