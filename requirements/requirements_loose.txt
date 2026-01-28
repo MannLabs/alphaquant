@@ -1,7 +1,7 @@
 numpy
 numba
 statsmodels
-pandas
+pandas<3
 scipy
 matplotlib
 seaborn
