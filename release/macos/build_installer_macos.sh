@@ -7,9 +7,8 @@ rm -rf dist_pyinstaller build_pyinstaller
 
 # Get the wheel file name from dist directory
 WHL_NAME=$(cd dist && ls ./*.whl && cd ..)
-pip install "dist/${WHL_NAME}[stable,gui-stable]"
+pip install "dist/${WHL_NAME}[stable,gui-stable,dask-stable]"
 
 # Creating the stand-alone pyinstaller folder
-pip install pyinstaller
 pyinstaller release/pyinstaller/alphaquant.spec --distpath dist_pyinstaller --workpath build_pyinstaller -y
 

@@ -27,7 +27,7 @@ COPY LICENSE LICENSE
 COPY README.md README.md
 COPY pyproject.toml pyproject.toml
 
-RUN pip install ".[stable]"
+RUN pip install ".[stable,dask-stable]"
 
 # change owner to be able to write to that folder
 COPY --chown=${USER}:${USER} example_nbs example_nbs

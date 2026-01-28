@@ -7,8 +7,7 @@ Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ./dist_pyinstaller
 
 # substitute X.Y.Z-devN with X.Y.Z.devN
 $WHL_NAME = (Get-ChildItem -Path "dist" -Filter "*.whl").Name
-pip install "dist/$WHL_NAME[stable,gui-stable]"
+pip install "dist/$WHL_NAME[stable,gui-stable,dask-stable]"
 
 # Creating the stand-alone pyinstaller folder
-pip install pyinstaller
 pyinstaller release/pyinstaller/alphaquant.spec --distpath dist_pyinstaller --workpath build_pyinstaller -y

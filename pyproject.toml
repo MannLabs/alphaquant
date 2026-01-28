@@ -53,6 +53,8 @@ optional-dependencies = { stable = { file = ["requirements/requirements.txt",
 ] }, gui-stable = { file = [ "requirements/requirements_gui.txt",
 ] }, tests = { file = [ "requirements/requirements_tests.txt",
 ] }, development = { file = ["requirements/requirements_development.txt", "requirements/requirements_tests.txt",
+] }, dask = { file = [ "requirements/requirements_dask_loose.txt",
+] }, dask-stable = { file = [ "requirements/requirements_dask.txt",
 ] }}
 
 version = {attr = "alphaquant.__version__"}

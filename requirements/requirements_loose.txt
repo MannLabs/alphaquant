@@ -9,9 +9,7 @@ anytree
 graphviz
 click
 lmfit
-dask
 multiprocess
-pyfasta
 openpyxl
 scikit-learn
 alphabase

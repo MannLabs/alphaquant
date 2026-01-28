@@ -28,5 +28,5 @@ jobs:
     with:
       python-version: ${{ matrix.python-version }}
       os: ${{ matrix.os }}
-      install-script: ./pip_install.sh tests,gui
+      install-script: ./pip_install.sh tests,gui,dask
       test-script: ./run_e2e_tests_quick.sh
