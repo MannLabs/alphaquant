@@ -3,10 +3,15 @@ import anytree
 import alphaquant.cluster.cluster_utils as aqclustutils
 import alphaquant.plotting.base_functions as aq_plot_base
 import alphaquant.config.variables as aqvars
-import alphamap.organisms_data
 import alphaquant.utils.utils as aq_utils
 import alphaquant.resources.database_loader as aq_db_loader
 import re
+
+try:
+    import alphamap.organisms_data
+    HAS_ALPHAMAP = True
+except ModuleNotFoundError:
+    HAS_ALPHAMAP = False
 
 def _format_tree_label_string(labelstring: str) -> str:
     """Local copy of the tree label formatter to avoid circular imports.
@@ -198,6 +203,11 @@ class PlotConfig():
 
 
 def get_pyteomics_fasta(organism = 'Human'):
+        if not HAS_ALPHAMAP:
+            raise ImportError(
+                "alphamap is required for get_pyteomics_fasta. "
+                "Install it with: pip install \"alphaquant[alphamap]\""
+            )
         return alphamap.organisms_data.import_fasta(organism)
 
 class CondpairQuantificationInfo():

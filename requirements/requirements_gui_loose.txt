@@ -1,3 +1,4 @@
 plotly
 bokeh
 panel
+alphamap

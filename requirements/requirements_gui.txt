@@ -1,3 +1,4 @@
 plotly==5.24.1
 bokeh==3.6.2
 panel==1.6.0
+alphamap==0.2.0
