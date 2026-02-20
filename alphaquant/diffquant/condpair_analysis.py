@@ -12,6 +12,7 @@ import alphaquant.tables.misctables as aq_tablewriter_runconfig
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import alphaquant.cluster.cluster_missingval as aq_clust_missingval
 import alphaquant.cluster.outlier_filtering as aq_clust_outlier
+import alphaquant.cluster.icc_correction as aq_clust_icc
 
 import pandas as pd
 import numpy as np
@@ -120,6 +121,9 @@ def analyze_condpair(*,runconfig, condpair):
             LOGGER.info(f"checked {count_prots} of {len(prot2diffions.keys())} prots")
 
         count_prots+=1
+
+    if runconfig.icc_correction:
+        aq_clust_icc.estimate_and_apply_icc_correction(protnodes, runtime_plots=runconfig.runtime_plots)
 
     if len(prot2missingval_diffions.keys())>0:
         LOGGER.info(f"start analysis of proteins w. completely missing values")

@@ -56,6 +56,7 @@ def run_pipeline(input_file: str,
                 cluster_threshold_fcfc: float = 0,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
+                icc_correction: bool = True,
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
                  perform_phospho_inference: bool = False,
@@ -111,6 +112,7 @@ def run_pipeline(input_file: str,
     cluster_threshold_fcfc (float): Fold change threshold for clustering. Defaults to 0.
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
+    icc_correction (bool): Estimate and apply data-driven ICC correction for fragment/MS1 isotope aggregation. Defaults to True.
     take_median_ion (bool): Use median-centered fragment ions for peptide comparisons. Defaults to True.
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
     perform_phospho_inference (bool): Enable phosphorylation-prone region annotation. Defaults to False.

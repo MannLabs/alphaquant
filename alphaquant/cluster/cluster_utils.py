@@ -18,7 +18,6 @@ LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "ge
 LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
-
 def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True):
     """Aggregates statistical properties from child nodes to a parent node in the tree.
 
@@ -66,7 +65,8 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
 
 
 
-    z_normed = sum_and_re_scale_zvalues(zvals)
+    rho = getattr(node, 'icc_correction', 0.0)
+    z_normed = sum_and_re_scale_zvalues(zvals, rho=rho)
 
     p_val = transform_znormed_to_pval(z_normed)
     p_val = set_bounds_for_p_if_too_extreme(p_val)
@@ -133,8 +133,8 @@ def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fra
             filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=31)
         return filtered_childs
 
-    elif fragment_outlier_filtering and node.type == "frgion":
-        return remove_outlier_fragion_childs(childs)
+    # elif fragment_outlier_filtering and node.type == "frgion":
+    #     return remove_outlier_fragion_childs(childs)
     else:
         return childs
 
@@ -263,16 +263,20 @@ def remove_outlier_fragion_childs(childs):
     return [childs[idx] for idx in idxs_to_use]
 
 
-def sum_and_re_scale_zvalues(zvals):
+def sum_and_re_scale_zvalues(zvals, rho=0.0):
     """Combines multiple z-values into a single aggregated z-value using Stouffer's method.
 
     This implements Stouffer's Z-score method for meta-analysis: z-values are summed
-    and divided by sqrt(n) to account for the number of tests. The result is then
-    rescaled back to a standard normal distribution. This allows combining evidence
-    from multiple ions/peptides while maintaining proper statistical interpretation.
+    and divided by sqrt(n * DEFF) to account for both the number of tests and their
+    correlation. The design effect DEFF = 1 + (n-1) * rho corrects for the fact that
+    correlated z-values carry less independent information than n truly independent ones.
+    The result is then rescaled back to a standard normal distribution.
 
     Args:
         zvals: Array or list of z-values to combine
+        rho: Intraclass correlation (ICC) among the z-values. 0.0 assumes independence
+             (classic Stouffer), higher values produce more conservative (less significant)
+             combined z-values.
 
     Returns:
         float: Combined z-value following a standard normal distribution under the null
@@ -280,8 +284,10 @@ def sum_and_re_scale_zvalues(zvals):
     if len(zvals) == 1:
         return zvals[0]  # No aggregation needed for single values - avoids floating-point precision errors
 
+    n = len(zvals)
+    deff = 1.0 + (n - 1) * rho  # design effect: inflated variance due to intra-group correlation
     z_sum = sum(zvals)
-    p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
+    p_z = NormalDist(mu = 0, sigma = np.sqrt(n * deff)).cdf(z_sum)
     p_z = set_bounds_for_p_if_too_extreme(p_z)
     z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z) #this is just a re-scaling of the z-value to a standard normal distribution
     return z_normed
