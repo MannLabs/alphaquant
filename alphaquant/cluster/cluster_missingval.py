@@ -16,11 +16,27 @@ MISSINGVAL_TEST_LEVEL = None
 def determine_missingval_test_level(root_node):
     """Determine the appropriate level for missing value statistical testing.
 
+    Inspects the tree structure rooted at *root_node* and sets the module-level
+    global ``MISSINGVAL_TEST_LEVEL`` to one of:
+
+    * ``"mod_seq_charge"`` -- fragment-level data where mod_seq_charge nodes exist.
+    * ``"base"`` -- all other hierarchies (precursor-only, peptide-only, gene-only).
+
     Scenarios:
-    1) "mod_seq_charge" exists in tree -> test at mod_seq_charge level
-    2) "mod_seq" is one level above leaves -> test at base ion level
-    3) "seq" is one level above leaves -> test at base ion level
-    4) "gene" is one level above leaves -> test at base ion level
+      1) ``mod_seq_charge`` nodes exist in the tree -> test at ``mod_seq_charge`` level.
+      2) Leaf parent type is ``mod_seq`` -> test at ``base`` ion level.
+      3) Leaf parent type is ``seq`` -> test at ``base`` ion level.
+      4) Leaf parent type is ``gene`` -> test at ``base`` ion level.
+
+    Args:
+        root_node (anytree.Node): Root of a protein tree.  Must have at least
+            one leaf with a parent.
+
+    Raises:
+        ValueError: If the leaf parent type does not match any expected pattern.
+
+    Side effects:
+        Sets the module-level global ``MISSINGVAL_TEST_LEVEL``.
     """
     global MISSINGVAL_TEST_LEVEL
 
@@ -182,8 +198,9 @@ class MissingValProtNodeCreator:
         node.c1_has_values = any(child.c1_has_values for child in childs)
         node.c2_has_values = any(child.c2_has_values for child in childs)
         if hasattr(childs[0], "z_val"):
-            rho = getattr(node, 'icc_correction', 0.0)
-            node.z_val = aq_cluster_utils.sum_and_re_scale_zvalues([child.z_val for child in childs], rho=rho)
+            node.z_val = aq_cluster_utils.sum_and_re_scale_zvalues(
+                [child.z_val for child in childs]
+            )
             node.p_val = aq_cluster_utils.transform_znormed_to_pval(node.z_val)
 
 
