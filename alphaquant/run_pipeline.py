@@ -57,6 +57,7 @@ def run_pipeline(input_file: str,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
                 icc_correction: bool = True,
+                aggregation_mode: str = "stouffer_icc",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
                  perform_phospho_inference: bool = False,
@@ -78,6 +79,7 @@ def run_pipeline(input_file: str,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
                 fragment_outlier_filtering: bool = True,
+                split_ion_backgrounds: bool = True,
                 ion_test_method: str = 'diffdist',
                 minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
@@ -113,6 +115,12 @@ def run_pipeline(input_file: str,
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     icc_correction (bool): Estimate and apply data-driven ICC correction for fragment/MS1 isotope aggregation. Defaults to True.
+    aggregation_mode (str): Strategy for combining child z-values at the fragment/MS1 level
+        (where ions show intra-group dependencies). Higher levels always use Stouffer (rho=0).
+        - "stouffer_icc" (default): Stouffer's method with ICC design-effect correction.
+        - "mean_z": Arithmetic mean of z-values (conservative, treats children as one measurement).
+        - "median_z": Median z-value (robust to outlier children).
+        - "min_median_max_z": Combine min, median, max z-values assuming independence (3-point summary).
     take_median_ion (bool): Use median-centered fragment ions for peptide comparisons. Defaults to True.
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
     perform_phospho_inference (bool): Enable phosphorylation-prone region annotation. Defaults to False.
@@ -134,6 +142,8 @@ def run_pipeline(input_file: str,
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
         peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
         fragment_outlier_filtering (bool): Enable fragment outlier filtering when aggregating fragments to peptides. When True, removes extreme fragments before statistical aggregation. Defaults to True.
+    split_ion_backgrounds (bool): Build separate empirical background distributions for fragment ions
+        and MS1 isotopes instead of pooling them together. Defaults to True.
     ion_test_method (str): Ion-level test to compute ion statistics. Options:
         - "diffdist" (default): Use empirical background distributions (DifferentialIon).
         - "ttest": Use Welch two-sample t-test (DifferentialIonTTest), p→z via cached fast inversion.
@@ -170,16 +180,17 @@ def run_pipeline(input_file: str,
     if file_has_alphaquant_format:
         LOGGER.info("Input file is already in AlphaQuant format. Skipping reformatting.")
         input_file_reformat = input_file_original
-        # For pre-formatted files, use a generic input type that doesn't require specific columns
         input_type = input_type_to_use if input_type_to_use is not None else "generic_preformatted"
         annotation_file = None
-        use_ml = False  # Disable ML for pre-formatted files
-        # Skip to the main analysis
+        use_ml = False
+        variance_predictor_cols = None
     else:
         create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
         input_type, config_dict, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
         annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
         use_ml = check_if_table_supports_ml(config_dict) & use_ml
+        variance_predictor_cols = config_dict.get("variance_predictor_cols", None)
+        aqvariables.set_input_config(input_type, config_dict)
 
     if perform_ptm_mapping and not file_has_alphaquant_format:
         if modification_type is None:
