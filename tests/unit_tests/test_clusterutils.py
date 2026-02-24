@@ -262,6 +262,86 @@ def test_remove_outlier_fragion_childs_complete():
         aqvariables.PTM_FRAGMENT_SELECTION = original_ptm_setting
 
 
+
+# ---------------------------------------------------------------------------
+# Tests for combine_zvalues / sum_and_re_scale_zvalues (new on this branch)
+# ---------------------------------------------------------------------------
+import numpy as np
+import pytest
+
+
+class TestCombineZvalues:
+    """Tests for combine_zvalues dispatch and individual modes."""
+
+    def test_single_value_returns_unchanged(self):
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="stouffer_icc") == 1.5
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="mean_z") == 1.5
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="median_z") == 1.5
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="min_median_max_z") == 1.5
+
+    def test_invalid_mode_raises(self):
+        with pytest.raises(ValueError, match="Unknown aggregation mode"):
+            aq_clust_clusterutils.combine_zvalues([1.0, 2.0], mode="bogus")
+
+    def test_mean_z(self):
+        zvals = [1.0, 2.0, 3.0]
+        result = aq_clust_clusterutils.combine_zvalues(zvals, mode="mean_z")
+        assert result == pytest.approx(2.0)
+
+    def test_median_z(self):
+        zvals = [1.0, 5.0, 2.0]
+        result = aq_clust_clusterutils.combine_zvalues(zvals, mode="median_z")
+        assert result == pytest.approx(2.0)
+
+    def test_min_median_max_z_small_input(self):
+        """n <= 3 should fall back to Stouffer on all values."""
+        zvals = np.array([1.0, 2.0])
+        result_mmm = aq_clust_clusterutils.combine_zvalues(zvals, mode="min_median_max_z")
+        result_stouffer = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        assert result_mmm == pytest.approx(result_stouffer)
+
+    def test_min_median_max_z_large_input(self):
+        """n > 3 should use the 3-point summary."""
+        zvals = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
+        result = aq_clust_clusterutils.combine_zvalues(zvals, mode="min_median_max_z")
+        expected = aq_clust_clusterutils.sum_and_re_scale_zvalues(
+            np.array([-2.0, 0.0, 2.0]), rho=0.0
+        )
+        assert result == pytest.approx(expected)
+
+    def test_stouffer_icc_mode_delegates(self):
+        zvals = np.array([1.0, 2.0, 3.0])
+        result = aq_clust_clusterutils.combine_zvalues(zvals, rho=0.0, mode="stouffer_icc")
+        expected = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        assert result == pytest.approx(expected)
+
+
+class TestSumAndReScaleZvaluesWithRho:
+    """Tests for the rho (ICC) parameter added to sum_and_re_scale_zvalues."""
+
+    def test_rho_zero_is_classic_stouffer(self):
+        zvals = np.array([1.0, 1.0, 1.0])
+        result = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        assert result > 1.0  # combining concordant evidence should amplify
+
+    def test_higher_rho_gives_more_conservative_result(self):
+        zvals = np.array([2.0, 2.0, 2.0, 2.0])
+        z_rho0 = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        z_rho05 = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.5)
+        assert abs(z_rho05) < abs(z_rho0)
+
+    def test_rho_one_returns_same_as_single_value(self):
+        """With perfect correlation (rho=1), DEFF=n so sigma=n, reducing
+        sum/sqrt(n*n) = mean, which for identical values is the value itself."""
+        zvals = np.array([1.5, 1.5, 1.5])
+        result = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=1.0)
+        assert result == pytest.approx(1.5, abs=0.05)
+
+    def test_single_value_ignores_rho(self):
+        result = aq_clust_clusterutils.sum_and_re_scale_zvalues(np.array([2.5]), rho=0.8)
+        assert result == pytest.approx(2.5)
+
+
 if __name__ == "__main__":
     test_remove_outlier_fragion_childs_complete()
     print("\n" + "="*60)
