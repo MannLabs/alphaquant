@@ -5,6 +5,7 @@ import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
 import alphaquant.cluster.cluster_ions as aqclust
 import alphaquant.classify.classify_precursors as aq_class_precursors
+import alphaquant.diffquant.variance_predictor as aq_variance_predictor
 import alphaquant.cluster.ml_reorder as aq_clust_mlreorder
 import alphaquant.tables.diffquant_table as aq_tablewriter_protein
 import alphaquant.tables.proteoformtable as aq_tablewriter_proteoform
@@ -69,8 +70,17 @@ def analyze_condpair(*,runconfig, condpair):
 
     if runconfig.results_dir != None:
         write_out_normed_df(df_c1_normed, df_c2_normed, pep2prot, runconfig.results_dir, condpair)
-    normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z)
-    normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z)
+
+    ion_index = df_c1_normed.index.union(df_c2_normed.index)
+    ion_variance = _compute_pooled_ion_variance(df_c1_normed, df_c2_normed, ion_index)
+    ion_median_intensity = _compute_pooled_median_intensity(df_c1_normed, df_c2_normed, ion_index)
+    ion2varscore = _load_variance_predictor_scores(runconfig, c1_samples, c2_samples,
+                                                    ion_index, ion_variance,
+                                                    ion_median_intensity)
+
+    split_backgrounds_if_possible = getattr(runconfig, 'split_ion_backgrounds', False)
+    normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z, ion2varscore=ion2varscore, split_by_ion_type=split_backgrounds_if_possible)
+    normed_c2 = aqbg.ConditionBackgrounds(df_c2_normed, p2z, ion2varscore=ion2varscore, split_by_ion_type=split_backgrounds_if_possible)
 
     ions_to_check = normed_c1.ion2nonNanvals.keys() & normed_c2.ion2nonNanvals.keys()
     ions_to_check = sorted(ions_to_check)
@@ -114,7 +124,8 @@ def analyze_condpair(*,runconfig, condpair):
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
                                                                         take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge,
-                                                                        fragment_outlier_filtering=runconfig.fragment_outlier_filtering)
+                                                                        fragment_outlier_filtering=runconfig.fragment_outlier_filtering,
+                                                                        aggregation_mode=runconfig.aggregation_mode)
         protnodes.append(clustered_prot_node)
 
         if count_prots%100==0:
@@ -123,7 +134,7 @@ def analyze_condpair(*,runconfig, condpair):
         count_prots+=1
 
     if runconfig.icc_correction:
-        aq_clust_icc.estimate_and_apply_icc_correction(protnodes, runtime_plots=runconfig.runtime_plots)
+        aq_clust_icc.estimate_and_apply_icc_correction(protnodes, runtime_plots=runconfig.runtime_plots, aggregation_mode=runconfig.aggregation_mode)
 
     if len(prot2missingval_diffions.keys())>0:
         LOGGER.info(f"start analysis of proteins w. completely missing values")
@@ -150,7 +161,7 @@ def analyze_condpair(*,runconfig, condpair):
 
 
         if ml_successfull and (ml_performance_dict["r2_score"] >0.05): #only use the ml score if it is meaningful
-            aq_clust_mlreorder.update_nodes_w_ml_score(protnodes)
+            aq_clust_mlreorder.update_nodes_w_ml_score(protnodes, aggregation_mode=runconfig.aggregation_mode)
             LOGGER.info(f"ML based quality score above quality threshold and added to the nodes.")
             runconfig.ml_based_quality_score = True
         else:
@@ -158,7 +169,7 @@ def analyze_condpair(*,runconfig, condpair):
             runconfig.ml_based_quality_score = False
 
     if runconfig.peptide_outlier_filtering:
-        aq_clust_outlier.apply_peptide_outlier_filtering(protnodes)
+        aq_clust_outlier.apply_peptide_outlier_filtering(protnodes, aggregation_mode=runconfig.aggregation_mode)
 
     protnodes_combined = protnodes + protnodes_missingval
     condpair_node = aqclust_utils.get_condpair_node(protnodes_combined, condpair)
@@ -168,6 +179,93 @@ def analyze_condpair(*,runconfig, condpair):
     LOGGER.info(f"condition pair {condpair} finished!")
 
     return res_df, pep_df
+
+def _compute_pooled_ion_variance(df_c1_normed, df_c2_normed, ion_index):
+    """Compute pooled within-condition variance for each ion.
+
+    For each ion, the variance is computed within each condition
+    (row-wise across replicate columns) and then averaged.  Ions that
+    appear in only one condition get that condition's variance.
+
+    Args:
+        df_c1_normed (pd.DataFrame): Normalised intensities for condition 1
+            (ions x samples).
+        df_c2_normed (pd.DataFrame): Normalised intensities for condition 2.
+        ion_index (pd.Index): Union of ions from both conditions.
+
+    Returns:
+        pd.Series: Per-ion pooled variance, indexed by ion id.
+    """
+    var_c1 = df_c1_normed.var(axis=1)
+    var_c2 = df_c2_normed.var(axis=1)
+    pooled = pd.concat([var_c1, var_c2], axis=1).mean(axis=1)
+    return pooled.reindex(ion_index)
+
+
+def _compute_pooled_median_intensity(df_c1_normed, df_c2_normed, ion_index):
+    """Compute per-ion median intensity pooled across conditions.
+
+    For each ion, the row-wise median is computed within each condition
+    and then averaged.
+
+    Args:
+        df_c1_normed (pd.DataFrame): Normalised intensities for condition 1.
+        df_c2_normed (pd.DataFrame): Normalised intensities for condition 2.
+        ion_index (pd.Index): Union of ions from both conditions.
+
+    Returns:
+        pd.Series: Per-ion pooled median intensity, indexed by ion id.
+    """
+    med_c1 = df_c1_normed.median(axis=1)
+    med_c2 = df_c2_normed.median(axis=1)
+    pooled = pd.concat([med_c1, med_c2], axis=1).mean(axis=1)
+    return pooled.reindex(ion_index)
+
+
+def _load_variance_predictor_scores(runconfig, c1_samples, c2_samples,
+                                    ion_index, ion_variance,
+                                    ion_median_intensity):
+    """Load quality metrics and fit a linear model predicting ion variance.
+
+    Uses the quality-metric columns from the ml_info_table together with
+    the per-ion median intensity as predictors, and the observed per-ion
+    variance as the regression target.  The predicted values serve as
+    scores for background-distribution ordering.
+
+    Args:
+        runconfig: Pipeline run configuration object.  Relevant attributes are
+            ``variance_predictor_cols`` (list[str] | None) and
+            ``ml_input_file`` (str | None).
+        c1_samples (list[str]): Sample names for condition 1.
+        c2_samples (list[str]): Sample names for condition 2.
+        ion_index (pd.Index): Ion identifiers to score.
+        ion_variance (pd.Series): Observed per-ion pooled variance.
+        ion_median_intensity (pd.Series): Per-ion pooled median intensity.
+
+    Returns:
+        dict[str, float] | None: Mapping from ion id to predicted variance
+            score, or None when the configuration is missing or fitting fails
+            (triggering fallback to intensity-based sorting).
+    """
+    variance_predictor_cols = getattr(runconfig, 'variance_predictor_cols', None)
+    ml_input_file = getattr(runconfig, 'ml_input_file', None)
+
+    if not variance_predictor_cols or not ml_input_file:
+        return None
+
+    try:
+        return aq_variance_predictor.load_variance_predictor_scores(
+            ml_info_file=ml_input_file,
+            samples_used=c1_samples + c2_samples,
+            variance_predictor_cols=variance_predictor_cols,
+            ion_index=ion_index,
+            ion_variance=ion_variance,
+            ion_median_intensity=ion_median_intensity,
+        )
+    except Exception as e:
+        LOGGER.warning("Failed to load variance predictor scores: %s. Falling back to intensity.", e)
+        return None
+
 
 import alphaquant.diffquant.diffutils as aqutils
 def get_unnormed_df_condpair(input_file:str, samplemap_df:pd.DataFrame, condpair:str, file_has_alphaquant_format: bool) -> pd.DataFrame:
