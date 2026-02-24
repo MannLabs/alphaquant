@@ -374,6 +374,14 @@ class RunPipeline(BaseWidget):
 			description='Fold change threshold for highlighting significant changes in the volcano plot'
 		)
 
+		self.aggregation_mode = pn.widgets.Select(
+			name='Z-value aggregation mode:',
+			options=['stouffer_icc', 'mean_z', 'median_z', 'min_median_max_z'],
+			value='stouffer_icc',
+			width=300,
+			description='Strategy for combining child z-values during tree propagation'
+		)
+
 		self.condition_comparison_header = pn.pane.Markdown(
 		"### Available Condition Comparisons",
 		visible=True
@@ -453,6 +461,11 @@ class RunPipeline(BaseWidget):
 				value=True,
 				width=300
 			),
+			'split_ion_backgrounds': pn.widgets.Checkbox(
+				name='Separate backgrounds by ion type',
+				value=True,
+				width=300
+			),
 			            'peptide_outlier_filtering': pn.widgets.Checkbox(
 				name='Use few peptides per protein',
 				value=True,
@@ -472,6 +485,7 @@ class RunPipeline(BaseWidget):
 			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
 			'use_multiprocessing': pn.pane.Markdown('Use multiple CPU cores to speed up processing (may use more memory)'),
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
+			'split_ion_backgrounds': pn.pane.Markdown('Build separate empirical backgrounds for fragment ions and MS1 isotopes to reduce conservative bias'),
 			            'peptide_outlier_filtering': pn.pane.Markdown('Filter outlier peptides based on significance for proteins with gene-level nodes'),
 		}
 
@@ -591,6 +605,9 @@ class RunPipeline(BaseWidget):
 				self.min_num_ions,
 				self.minpep,
 				self.cluster_threshold_pval,
+				pn.layout.Divider(),
+				"### Aggregation",
+				self.aggregation_mode,
 				pn.layout.Divider(),
 				"### Analysis Options",
 				*checkbox_items,
@@ -813,6 +830,7 @@ class RunPipeline(BaseWidget):
 				# Add the switch values to the pipeline parameters
 				'use_ml': self.switches['use_ml'].value,
 				'icc_correction': self.switches['icc_correction'].value,
+				'aggregation_mode': self.aggregation_mode.value,
 				'take_median_ion': self.switches['take_median_ion'].value,
 				'perform_ptm_mapping': self.switches['perform_ptm_mapping'].value,
 				'perform_phospho_inference': self.switches['perform_phospho_inference'].value,
@@ -822,6 +840,7 @@ class RunPipeline(BaseWidget):
 				'write_out_results_tree': self.switches['write_out_results_tree'].value,
 				'use_multiprocessing': self.switches['use_multiprocessing'].value,
 				'runtime_plots': self.switches['runtime_plots'].value,
+				'split_ion_backgrounds': self.switches['split_ion_backgrounds'].value,
 				            'peptide_outlier_filtering': self.switches['peptide_outlier_filtering'].value,
 			}
 
