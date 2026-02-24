@@ -43,7 +43,7 @@ _P_VAL_THRESHOLD = 0.1
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def estimate_and_apply_icc_correction(protnodes, runtime_plots=False):
+def estimate_and_apply_icc_correction(protnodes, runtime_plots=False, aggregation_mode="stouffer_icc"):
     """Estimate per-protein ICC and annotate tree nodes, then re-aggregate.
 
     For each relevant node type (``frgion``, ``ms1_isotopes``):
@@ -57,6 +57,7 @@ def estimate_and_apply_icc_correction(protnodes, runtime_plots=False):
     Args:
         protnodes: list of protein root nodes (anytree.Node)
         runtime_plots: if True, show ICC distribution histograms
+        aggregation_mode: z-value combination strategy forwarded to re-aggregation
     """
     if not protnodes:
         return
@@ -87,7 +88,7 @@ def estimate_and_apply_icc_correction(protnodes, runtime_plots=False):
         if runtime_plots and (len(null_iccs) > 0 or len(all_iccs) > 0):
             _plot_icc_distributions(null_iccs, all_iccs, icc_median, node_type)
 
-    _re_aggregate_trees(protnodes)
+    _re_aggregate_trees(protnodes, aggregation_mode=aggregation_mode)
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +96,15 @@ def estimate_and_apply_icc_correction(protnodes, runtime_plots=False):
 # ---------------------------------------------------------------------------
 
 def _has_node_type(protnodes, node_type):
-    """Return True if at least one tree contains a node with the given type."""
+    """Return True if at least one protein tree contains a node of *node_type*.
+
+    Args:
+        protnodes (list[anytree.Node]): Protein root nodes to search.
+        node_type (str): The ``type`` attribute to look for (e.g. ``"frgion"``).
+
+    Returns:
+        bool
+    """
     for prot in protnodes:
         matches = anytree.search.findall(
             prot, filter_=lambda n: n.type == node_type
@@ -238,8 +247,18 @@ def _compute_icc_from_tree(protein_node, node_type):
     return sigma2_precursor / total
 
 
-def _re_aggregate_trees(protnodes):
-    """Re-aggregate all protein trees bottom-to-top using node-level ICC."""
+def _re_aggregate_trees(protnodes, aggregation_mode="stouffer_icc"):
+    """Re-aggregate all protein trees bottom-to-top after ICC annotation.
+
+    Walks every tree from leaves upward, re-computing z-values and p-values
+    at each level so that the newly annotated ``icc_correction`` attributes
+    take effect.
+
+    Args:
+        protnodes (list[anytree.Node]): Protein root nodes.
+        aggregation_mode (str): Z-value combination strategy forwarded to
+            ``aggregate_node_properties`` (default ``"stouffer_icc"``).
+    """
     for prot in protnodes:
         for level_nodes in aqcluster_utils.iterate_through_tree_levels_bottom_to_top(prot):
             node_types = list(set(node.type for node in level_nodes))
@@ -248,7 +267,8 @@ def _re_aggregate_trees(protnodes):
             for node in level_nodes:
                 if node.children:
                     aqcluster_utils.aggregate_node_properties(
-                        node, only_use_mainclust=True, peptide_outlier_filtering=False
+                        node, only_use_mainclust=True, peptide_outlier_filtering=False,
+                        aggregation_mode=aggregation_mode
                     )
 
 
