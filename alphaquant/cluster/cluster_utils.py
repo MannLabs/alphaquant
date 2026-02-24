@@ -18,7 +18,14 @@ LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "ge
 LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
-def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True):
+AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z")
+
+# Node types where child ions show intra-group dependencies.
+# Alternative aggregation modes only apply at these levels; higher levels
+# (precursor → peptide → protein) are independent and always use Stouffer.
+_DEPENDENT_NODE_TYPES = {"frgion", "ms1_isotopes"}
+
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc"):
     """Aggregates statistical properties from child nodes to a parent node in the tree.
 
     This is the core function for propagating statistics up the hierarchical tree structure.
@@ -34,6 +41,12 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
                                   identified as statistical outliers (default: False)
         fragment_outlier_filtering: If True and node is a peptide, exclude extreme
                                    fragment ions before aggregation (default: True)
+        aggregation_mode: Strategy for combining child z-values at dependent levels
+            (frgion, ms1_isotopes). Higher levels always use Stouffer (rho=0). One of:
+            "stouffer_icc" - Stouffer's method with ICC design-effect correction (default)
+            "mean_z"       - arithmetic mean of z-values
+            "median_z"     - median z-value
+            "min_median_max_z" - combine min, median, max z-values assuming independence
 
     Side effects:
         Sets node.z_val, node.p_val, node.fc, node.cv, node.min_intensity,
@@ -63,10 +76,9 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
 
     fraction_consistent = sum([x.fraction_consistent/len(node.children) for x in childs if x.cluster ==0])
 
-
-
     rho = getattr(node, 'icc_correction', 0.0)
-    z_normed = sum_and_re_scale_zvalues(zvals, rho=rho)
+    effective_mode = aggregation_mode if node.type in _DEPENDENT_NODE_TYPES else "stouffer_icc"
+    z_normed = combine_zvalues(zvals, rho=rho, mode=effective_mode)
 
     p_val = transform_znormed_to_pval(z_normed)
     p_val = set_bounds_for_p_if_too_extreme(p_val)
@@ -261,6 +273,57 @@ def remove_outlier_fragion_childs(childs):
         child.is_outlier_fragment = i not in idxs_to_use_set
 
     return [childs[idx] for idx in idxs_to_use]
+
+
+def combine_zvalues(zvals, rho=0.0, mode="stouffer_icc"):
+    """Dispatch function that selects the z-value combination strategy.
+
+    Args:
+        zvals: Array or list of z-values to combine
+        rho: ICC among the z-values (only used by stouffer_icc mode)
+        mode: One of AGGREGATION_MODES
+
+    Returns:
+        float: Combined z-value on a standard normal scale
+    """
+    if len(zvals) == 1:
+        return zvals[0]
+
+    if mode == "stouffer_icc":
+        return sum_and_re_scale_zvalues(zvals, rho=rho)
+    elif mode == "mean_z":
+        return _combine_mean_z(zvals)
+    elif mode == "median_z":
+        return _combine_median_z(zvals)
+    elif mode == "min_median_max_z":
+        return _combine_min_median_max_z(zvals)
+    else:
+        raise ValueError(f"Unknown aggregation mode: {mode!r}. Choose from {AGGREGATION_MODES}")
+
+
+def _combine_mean_z(zvals):
+    """Arithmetic mean of z-values — treats children as a single effective measurement."""
+    return float(np.mean(zvals))
+
+
+def _combine_median_z(zvals):
+    """Median z-value — robust to outlier children."""
+    return float(np.median(zvals))
+
+
+def _combine_min_median_max_z(zvals):
+    """Pick min, median, max z-values and combine via Stouffer assuming independence.
+
+    Provides a 3-point summary that captures the full spread of evidence.
+    For n <= 3, falls back to Stouffer on all values (the summary would be
+    the full set anyway).
+    """
+    if len(zvals) <= 3:
+        return sum_and_re_scale_zvalues(zvals, rho=0.0)
+    z_min = float(np.min(zvals))
+    z_med = float(np.median(zvals))
+    z_max = float(np.max(zvals))
+    return sum_and_re_scale_zvalues(np.array([z_min, z_med, z_max]), rho=0.0)
 
 
 def sum_and_re_scale_zvalues(zvals, rho=0.0):
