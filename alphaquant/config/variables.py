@@ -15,6 +15,10 @@ CHARGE = "CHARGE"
 FRG = "FRG"
 ION = "ION"
 
+INPUT_TYPE = None   # e.g. "diann_precursor_fragion", set via set_input_config()
+CONFIG_DICT = None  # the full config dict for the detected input type
+
+
 def determine_variables(input_file, input_type):
     _determine_quant_id(input_file)
     _determine_prefer_precursors_for_clustering(input_type)
@@ -51,3 +55,23 @@ def set_ptm_fragment_selection(is_ptm: bool):
 # Backwards-compat alias
 def set_phospho_fragment_selection(is_phospho: bool):
     set_ptm_fragment_selection(is_phospho)
+
+
+def set_input_config(input_type, config_dict):
+    """Store the detected input type and its full config dict as module globals.
+
+    Called once during pipeline setup so that other modules (e.g.
+    ``background_distributions``) can inspect the active configuration
+    without passing it through every function signature.
+
+    Args:
+        input_type (str): Identifier of the detected input format
+            (e.g. ``"diann_precursor_fragion"``).
+        config_dict (dict): The complete YAML config dict for *input_type*.
+
+    Side effects:
+        Sets ``INPUT_TYPE`` and ``CONFIG_DICT`` at module level.
+    """
+    global INPUT_TYPE, CONFIG_DICT
+    INPUT_TYPE = input_type
+    CONFIG_DICT = config_dict
