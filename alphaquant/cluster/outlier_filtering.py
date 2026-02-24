@@ -2,12 +2,12 @@ import alphaquant.cluster.cluster_utils as aqcluster_utils
 import anytree
 import numpy as np
 
-def apply_peptide_outlier_filtering(protnodes: list[anytree.Node]):
+def apply_peptide_outlier_filtering(protnodes: list[anytree.Node], aggregation_mode="stouffer_icc"):
     regulation_score = calculate_regulation_score(protnodes)
     for protnode in protnodes:
         _determine_and_annotate_outlier_status_of_peptides(protnode, regulation_score)
 
-        aqcluster_utils.aggregate_node_properties(protnode, only_use_mainclust=True, peptide_outlier_filtering=True)
+        aqcluster_utils.aggregate_node_properties(protnode, only_use_mainclust=True, peptide_outlier_filtering=True, aggregation_mode=aggregation_mode)
 
 
 

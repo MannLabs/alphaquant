@@ -3,7 +3,7 @@ import numpy as np
 import anytree
 
 
-def update_nodes_w_ml_score(protnodes : list[anytree.Node]):
+def update_nodes_w_ml_score(protnodes : list[anytree.Node], aggregation_mode="stouffer_icc"):
     """
     Update and re-order clusters within protein nodes based on ML scores.
 
@@ -13,16 +13,17 @@ def update_nodes_w_ml_score(protnodes : list[anytree.Node]):
 
     Args:
         protnodes (list[anytree.Node]): A list of protein nodes to be processed.
+        aggregation_mode: Strategy for combining child z-values during re-aggregation.
 
     Returns:
         None
     """
 
     for prot in protnodes:
-        _re_order_depending_on_ml_score(prot)
+        _re_order_depending_on_ml_score(prot, aggregation_mode=aggregation_mode)
 
 
-def _re_order_depending_on_ml_score(protnode : anytree.Node):
+def _re_order_depending_on_ml_score(protnode : anytree.Node, aggregation_mode="stouffer_icc"):
     """
     Reorder clusters in a protein node tree based on machine learning scores.
 
@@ -38,6 +39,7 @@ def _re_order_depending_on_ml_score(protnode : anytree.Node):
 
     Args:
         protnode (anytree.Node): The protein node to be processed.
+        aggregation_mode: Strategy for combining child z-values during re-aggregation.
 
     Returns:
         None
@@ -57,7 +59,7 @@ def _re_order_depending_on_ml_score(protnode : anytree.Node):
                     clust2newclust = _get_clust2newclust(child_nodes)
                     _re_assign_proteoform_stats(child_nodes, clust2newclust)
                     _re_order_clusters_by_ml_score(child_nodes, clust2newclust)
-                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False)
+                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False, aggregation_mode=aggregation_mode)
 
 
 def _get_clust2newclust(nodes: list[anytree.Node]) -> dict[int, int]:
