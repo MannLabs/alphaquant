@@ -1,5 +1,6 @@
 import alphaquant.diffquant.background_distributions as aqbg
 import alphaquant.diffquant.diff_analysis as aqdiff
+import alphaquant.diffquant.intensity_summarization as aq_summarization
 import alphaquant.norm.normalization as aqnorm
 import alphaquant.plotting.pairwise as aq_plot_pairwise
 import alphaquant.diffquant.diffutils as aqutils
@@ -68,15 +69,24 @@ def analyze_condpair(*,runconfig, condpair):
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
     runtime_plots = runconfig.runtime_plots, protein_subset_for_normalization_file=runconfig.protein_subset_for_normalization_file, pep2prot = pep2prot)#, "./test_data/normed_intensities.tsv")
 
+    summarization_nodes = getattr(runconfig, 'summarization_nodes', [])
+    if summarization_nodes:
+        df_c1_normed, df_c2_normed, pep2prot = aq_summarization.apply_summarization(
+            df_c1_normed, df_c2_normed, pep2prot, summarization_nodes
+        )
+
     if runconfig.results_dir != None:
         write_out_normed_df(df_c1_normed, df_c2_normed, pep2prot, runconfig.results_dir, condpair)
 
     ion_index = df_c1_normed.index.union(df_c2_normed.index)
     ion_variance = _compute_pooled_ion_variance(df_c1_normed, df_c2_normed, ion_index)
     ion_median_intensity = _compute_pooled_median_intensity(df_c1_normed, df_c2_normed, ion_index)
-    ion2varscore = _load_variance_predictor_scores(runconfig, c1_samples, c2_samples,
-                                                    ion_index, ion_variance,
-                                                    ion_median_intensity)
+    if getattr(runconfig, 'use_variance_predictor', True):
+        ion2varscore = _load_variance_predictor_scores(runconfig, c1_samples, c2_samples,
+                                                        ion_index, ion_variance,
+                                                        ion_median_intensity)
+    else:
+        ion2varscore = None
 
     split_backgrounds_if_possible = getattr(runconfig, 'split_ion_backgrounds', False)
     normed_c1 = aqbg.ConditionBackgrounds(df_c1_normed, p2z, ion2varscore=ion2varscore, split_by_ion_type=split_backgrounds_if_possible)
