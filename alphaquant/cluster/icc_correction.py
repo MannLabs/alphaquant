@@ -1,16 +1,20 @@
 """Data-driven ICC (intraclass correlation) correction for Stouffer z-value aggregation.
 
-Estimates per-protein ICC from the tree's own z-values and annotates each
-frgion / ms1_isotopes node with an ``icc_correction`` attribute so that
-``aggregate_node_properties`` can apply a tailored design-effect correction.
+Estimates a global ICC from null proteins and annotates each frgion /
+ms1_isotopes node with an ``icc_correction`` attribute so that
+``aggregate_node_properties`` can apply a design-effect correction.
 
-The estimation follows a two-stage approach:
-  1. **Null distribution** -- ICC is computed for "null" proteins (gene-level
-     p > 0.1) to obtain a robust median that serves as both *cap* and
-     *fallback*.
-  2. **Per-protein ICC** -- Each protein gets its own ICC, capped at the
-     null median.  Proteins with insufficient data receive the null median
-     as a fallback.
+A protein contributes to the null distribution only when *both* its
+gene-level p-value and the p-values of its individual fragment-type nodes
+exceed the significance threshold.  This two-level filter ensures the ICC
+is estimated purely from technical noise, free of biological signal at
+any level.
+
+The resulting null-median ICC is applied uniformly to all proteins.
+Per-protein estimation is deliberately avoided: the ICC captures a
+property of the *measurement* (shared chromatographic / detector effects),
+not of the individual protein, and per-protein estimates are too noisy
+to be reliable given typical group sizes.
 
 After annotation the trees are re-aggregated bottom-to-top so that the
 corrected z-values propagate upward.
@@ -38,18 +42,21 @@ _MIN_IONS = 6     # minimum total number of base ions across those groups
 # threshold are considered part of the technical-noise background.
 _P_VAL_THRESHOLD = 0.1
 
+# Permutation null: number of shuffles per protein for the permutation baseline
+_N_PERMUTATIONS = 3
+
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
 def estimate_and_apply_icc_correction(protnodes, runtime_plots=False, aggregation_mode="stouffer_icc"):
-    """Estimate per-protein ICC and annotate tree nodes, then re-aggregate.
+    """Estimate a global ICC from null proteins, apply it uniformly, and re-aggregate.
 
     For each relevant node type (``frgion``, ``ms1_isotopes``):
-      - derive a robust median ICC from null proteins
-      - compute per-protein ICC, capped at the null median
-      - annotate each node with ``icc_correction`` and ``icc_is_fallback``
+      - derive a robust median ICC from null proteins (filtered at both the
+        gene level and the individual node level)
+      - assign this median uniformly to every node of that type
 
     Finally, re-aggregate all trees bottom-to-top so the corrected z-values
     propagate upward.
@@ -68,25 +75,20 @@ def estimate_and_apply_icc_correction(protnodes, runtime_plots=False, aggregatio
 
         LOGGER.info(f"ICC correction: estimating for node type '{node_type}'")
 
-        null_iccs, icc_median = _estimate_null_icc_distribution(
+        null_iccs, perm_iccs, icc_median = _estimate_null_icc_distribution(
             protnodes, node_type
         )
 
-        all_iccs = []
-        for prot in protnodes:
-            protein_icc = _compute_and_assign_icc_for_protein(
-                prot, node_type, icc_median
-            )
-            if protein_icc is not None:
-                all_iccs.append(protein_icc)
+        n_annotated = _assign_icc_to_all_proteins(protnodes, node_type, icc_median)
 
         LOGGER.info(
             f"ICC correction ({node_type}): null median={icc_median:.4f}, "
-            f"n_null={len(null_iccs)}, n_all={len(all_iccs)}"
+            f"n_null={len(null_iccs)}, n_perm={len(perm_iccs)}, "
+            f"n_annotated={n_annotated}"
         )
 
-        if runtime_plots and (len(null_iccs) > 0 or len(all_iccs) > 0):
-            _plot_icc_distributions(null_iccs, all_iccs, icc_median, node_type)
+        if runtime_plots and len(null_iccs) > 0:
+            _plot_icc_distributions(null_iccs, perm_iccs, icc_median, node_type)
 
     _re_aggregate_trees(protnodes, aggregation_mode=aggregation_mode)
 
@@ -115,15 +117,22 @@ def _has_node_type(protnodes, node_type):
 
 
 def _estimate_null_icc_distribution(protnodes, node_type):
-    """Compute ICC for each null protein and return the list + median.
+    """Compute observed and permutation-based ICC for each null protein.
 
-    Null proteins are those whose gene-level p_val > _P_VAL_THRESHOLD.
+    A protein qualifies as null only when *both*:
+      - its gene-level p_val > _P_VAL_THRESHOLD, *and*
+      - only fragment-type nodes whose own p_val > _P_VAL_THRESHOLD are
+        used for the ICC computation.
+
+    The permutation null shuffles z-values across groups (destroying the
+    group structure) to show what ICC looks like under true independence.
 
     Returns:
-        (null_iccs, icc_median): list of float ICC values and their median.
-            If no null proteins qualify, returns ([], 0.0).
+        (null_iccs, permutation_iccs, icc_median).
+        If no null proteins qualify, returns ([], [], 0.0).
     """
     null_iccs = []
+    null_group_zvals_list = []
 
     for prot in protnodes:
         if not hasattr(prot, "p_val"):
@@ -131,65 +140,103 @@ def _estimate_null_icc_distribution(protnodes, node_type):
         if prot.p_val <= _P_VAL_THRESHOLD:
             continue
 
-        icc = _compute_icc_from_tree(prot, node_type)
+        group_zvals = _collect_group_zvals(prot, node_type, node_p_val_threshold=_P_VAL_THRESHOLD)
+        if not group_zvals:
+            continue
+
+        icc = _compute_icc_from_groups(group_zvals)
         if icc is not None:
             null_iccs.append(icc)
+            null_group_zvals_list.append(group_zvals)
 
     if len(null_iccs) == 0:
         LOGGER.warning(
             f"ICC correction ({node_type}): no null proteins qualified; "
             "falling back to icc_median=0.0"
         )
-        return [], 0.0
+        return [], [], 0.0
+
+    permutation_iccs = _compute_permutation_null(null_group_zvals_list)
 
     icc_median = float(np.median(null_iccs))
-    return null_iccs, icc_median
+    return null_iccs, permutation_iccs, icc_median
 
 
-def _compute_and_assign_icc_for_protein(protein_node, node_type, icc_median):
-    """Compute ICC for one protein and assign it to the relevant nodes.
+def _compute_permutation_null(group_zvals_list, n_permutations=_N_PERMUTATIONS, seed=42):
+    """Compute ICC on shuffled data to establish a permutation baseline.
+
+    For each protein's grouped z-values, all values are pooled and randomly
+    reassigned to groups of the original sizes.  This destroys any real
+    intra-group correlation, so the resulting ICC distribution reflects pure
+    sampling noise.
+
+    Args:
+        group_zvals_list: list of (list of np.ndarray) — one entry per
+            qualifying null protein.
+        n_permutations: number of independent shuffles per protein.
+        seed: RNG seed for reproducibility.
 
     Returns:
-        The ICC value used (float), or None if no nodes of node_type exist.
+        list of float ICC values from the permuted data.
     """
-    target_nodes = anytree.search.findall(
-        protein_node, filter_=lambda n: n.type == node_type
-    )
-    if not target_nodes:
-        return None
+    rng = np.random.RandomState(seed)
+    perm_iccs = []
 
-    icc = _compute_icc_from_tree(protein_node, node_type)
+    for group_zvals in group_zvals_list:
+        sizes = [len(g) for g in group_zvals]
+        pooled = np.concatenate(group_zvals)
 
-    if icc is not None:
-        final_icc = min(icc, icc_median) if icc_median > 0 else icc
-        is_fallback = False
-    else:
-        final_icc = icc_median
-        is_fallback = True
+        for _ in range(n_permutations):
+            rng.shuffle(pooled)
+            shuffled_groups = []
+            offset = 0
+            for s in sizes:
+                shuffled_groups.append(pooled[offset:offset + s].copy())
+                offset += s
 
-    for node in target_nodes:
-        node.icc_correction = final_icc
-        node.icc_is_fallback = is_fallback
+            icc = _compute_icc_from_groups(shuffled_groups)
+            if icc is not None:
+                perm_iccs.append(icc)
 
-    return final_icc
+    return perm_iccs
 
 
-def _compute_icc_from_tree(protein_node, node_type):
-    """Compute ICC for a single protein using variance components.
-
-    Groups are the nodes of ``node_type`` (e.g. frgion); observations are
-    the z-values of their base-ion children.
+def _assign_icc_to_all_proteins(protnodes, node_type, icc_median):
+    """Assign the global null-median ICC uniformly to every node of *node_type*.
 
     Returns:
-        ICC (float) or None if insufficient data.
+        Number of nodes annotated.
+    """
+    n_annotated = 0
+    for prot in protnodes:
+        target_nodes = anytree.search.findall(
+            prot, filter_=lambda n: n.type == node_type
+        )
+        for node in target_nodes:
+            node.icc_correction = icc_median
+            n_annotated += 1
+    return n_annotated
+
+
+def _collect_group_zvals(protein_node, node_type, node_p_val_threshold=None):
+    """Extract grouped z-values from a protein tree.
+
+    Returns:
+        list[np.ndarray]: One array of base-ion z-values per qualifying group
+            node, or an empty list if insufficient data.
     """
     group_nodes = anytree.search.findall(
         protein_node, filter_=lambda n: n.type == node_type
     )
     if not group_nodes:
-        return None
+        return []
 
-    # Collect z-values grouped by parent node
+    if node_p_val_threshold is not None:
+        group_nodes = [
+            n for n in group_nodes
+            if hasattr(n, "p_val") and n.p_val > node_p_val_threshold
+        ]
+
     group_zvals = []
     for gnode in group_nodes:
         base_children = [
@@ -203,6 +250,26 @@ def _compute_icc_from_tree(protein_node, node_type):
 
     n_groups = len(group_zvals)
     if n_groups < _MIN_GROUPS:
+        return []
+
+    n_ions = sum(len(g) for g in group_zvals)
+    if n_ions < _MIN_IONS:
+        return []
+
+    return group_zvals
+
+
+def _compute_icc_from_groups(group_zvals):
+    """Compute one-way random-effects ICC from pre-collected grouped z-values.
+
+    Args:
+        group_zvals: list of np.ndarray, one per group.
+
+    Returns:
+        ICC (float) or None if degenerate.
+    """
+    n_groups = len(group_zvals)
+    if n_groups < _MIN_GROUPS:
         return None
 
     all_vals = np.concatenate(group_zvals)
@@ -212,7 +279,6 @@ def _compute_icc_from_tree(protein_node, node_type):
 
     grand_mean = all_vals.mean()
 
-    # Within-group variance (sigma2_residual)
     ss_within = 0.0
     group_sizes = np.empty(n_groups, dtype=int)
     group_means = np.empty(n_groups)
@@ -227,7 +293,6 @@ def _compute_icc_from_tree(protein_node, node_type):
         return None
     sigma2_residual = ss_within / df_within
 
-    # Between-group variance (sigma2_precursor)
     expanded_group_means = np.repeat(group_means, group_sizes)
     ss_between = np.sum((expanded_group_means - grand_mean) ** 2)
     df_between = n_groups - 1
@@ -245,6 +310,14 @@ def _compute_icc_from_tree(protein_node, node_type):
         return None
 
     return sigma2_precursor / total
+
+
+def _compute_icc_from_tree(protein_node, node_type, node_p_val_threshold=None):
+    """Convenience wrapper: extract groups from tree, then compute ICC."""
+    group_zvals = _collect_group_zvals(protein_node, node_type, node_p_val_threshold)
+    if not group_zvals:
+        return None
+    return _compute_icc_from_groups(group_zvals)
 
 
 def _re_aggregate_trees(protnodes, aggregation_mode="stouffer_icc"):
@@ -272,31 +345,51 @@ def _re_aggregate_trees(protnodes, aggregation_mode="stouffer_icc"):
                     )
 
 
-def _plot_icc_distributions(null_iccs, all_iccs, icc_median, node_type):
-    """Show overlaid histograms of null vs. all-protein ICC values."""
-    fig, ax = plt.subplots(figsize=(5, 3))
+def _plot_icc_distributions(null_iccs, perm_iccs, icc_median, node_type):
+    """Two-panel figure: histograms (top) and cumulative distributions (bottom).
 
+    Compares the observed null-protein ICC distribution against the
+    permutation baseline.
+    """
+    fig, (ax_hist, ax_cdf) = plt.subplots(2, 1, figsize=(5, 5), sharex=True)
     bins = np.linspace(0, 1, 40)
 
-    if len(all_iccs) > 0:
-        ax.hist(
-            all_iccs, bins=bins, alpha=0.5, color="tab:orange",
-            edgecolor="white", label="all proteins"
+    # -- Histograms --
+    if len(perm_iccs) > 0:
+        ax_hist.hist(
+            perm_iccs, bins=bins, alpha=0.45, color="tab:gray",
+            edgecolor="white", label="permutation null", density=True,
         )
-    if len(null_iccs) > 0:
-        ax.hist(
-            null_iccs, bins=bins, alpha=0.6, color="tab:blue",
-            edgecolor="white", label="null proteins"
-        )
-
-    ax.axvline(
-        icc_median, color="red", linestyle="--", linewidth=1.5,
-        label=f"median (cap) = {icc_median:.3f}"
+    ax_hist.hist(
+        null_iccs, bins=bins, alpha=0.6, color="tab:blue",
+        edgecolor="white", label="observed null", density=True,
     )
+    ax_hist.axvline(
+        icc_median, color="red", linestyle="--", linewidth=1.5,
+        label=f"applied median = {icc_median:.3f}",
+    )
+    ax_hist.set_ylabel("Density")
+    ax_hist.set_title(f"ICC distribution — {node_type}")
+    ax_hist.legend(fontsize=8)
 
-    ax.set_xlabel("ICC")
-    ax.set_ylabel("Count")
-    ax.set_title(f"ICC distribution ({node_type})")
-    ax.legend(fontsize=8)
+    # -- Cumulative distributions --
+    for vals, color, label in [
+        (perm_iccs, "tab:gray", "permutation null"),
+        (null_iccs, "tab:blue", "observed null"),
+    ]:
+        if len(vals) == 0:
+            continue
+        sorted_vals = np.sort(vals)
+        cdf = np.arange(1, len(sorted_vals) + 1) / len(sorted_vals)
+        ax_cdf.step(sorted_vals, cdf, where="post", color=color, label=label)
+
+    ax_cdf.axvline(
+        icc_median, color="red", linestyle="--", linewidth=1.5,
+        label=f"applied median = {icc_median:.3f}",
+    )
+    ax_cdf.set_xlabel("ICC")
+    ax_cdf.set_ylabel("Cumulative fraction")
+    ax_cdf.legend(fontsize=8)
+
     fig.tight_layout()
     plt.show()
