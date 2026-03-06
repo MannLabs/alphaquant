@@ -18,7 +18,7 @@ LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "ge
 LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
-AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z")
+AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z", "min_max_z", "summed_z")
 
 # Node types where child ions show intra-group dependencies.
 # Alternative aggregation modes only apply at these levels; higher levels
@@ -42,11 +42,16 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
         fragment_outlier_filtering: If True and node is a peptide, exclude extreme
                                    fragment ions before aggregation (default: True)
         aggregation_mode: Strategy for combining child z-values at dependent levels
-            (frgion, ms1_isotopes). Higher levels always use Stouffer (rho=0). One of:
+            (frgion, ms1_isotopes). Higher levels always use Stouffer (rho=0).
+            Can be a single string applied to all dependent levels, or a dict
+            mapping node types to modes (e.g. ``{"frgion": "stouffer_icc",
+            "ms1_isotopes": "median_z"}``).  Allowed mode strings:
             "stouffer_icc" - Stouffer's method with ICC design-effect correction (default)
             "mean_z"       - arithmetic mean of z-values
             "median_z"     - median z-value
             "min_median_max_z" - combine min, median, max z-values assuming independence
+            "min_max_z"    - combine min, max z-values assuming independence (2-point summary)
+            "summed_z"     - classic Stouffer assuming independence (rho=0, ignores ICC)
 
     Side effects:
         Sets node.z_val, node.p_val, node.fc, node.cv, node.min_intensity,
@@ -77,7 +82,12 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
     fraction_consistent = sum([x.fraction_consistent/len(node.children) for x in childs if x.cluster ==0])
 
     rho = getattr(node, 'icc_correction', 0.0)
-    effective_mode = aggregation_mode if node.type in _DEPENDENT_NODE_TYPES else "stouffer_icc"
+    if node.type not in _DEPENDENT_NODE_TYPES:
+        effective_mode = "stouffer_icc"
+    elif isinstance(aggregation_mode, dict):
+        effective_mode = aggregation_mode.get(node.type, "stouffer_icc")
+    else:
+        effective_mode = aggregation_mode
     z_normed = combine_zvalues(zvals, rho=rho, mode=effective_mode)
 
     p_val = transform_znormed_to_pval(z_normed)
@@ -297,6 +307,10 @@ def combine_zvalues(zvals, rho=0.0, mode="stouffer_icc"):
         return _combine_median_z(zvals)
     elif mode == "min_median_max_z":
         return _combine_min_median_max_z(zvals)
+    elif mode == "min_max_z":
+        return _combine_min_max_z(zvals)
+    elif mode == "summed_z":
+        return _combine_summed_z(zvals)
     else:
         raise ValueError(f"Unknown aggregation mode: {mode!r}. Choose from {AGGREGATION_MODES}")
 
@@ -324,6 +338,28 @@ def _combine_min_median_max_z(zvals):
     z_med = float(np.median(zvals))
     z_max = float(np.max(zvals))
     return sum_and_re_scale_zvalues(np.array([z_min, z_med, z_max]), rho=0.0)
+
+
+def _combine_min_max_z(zvals):
+    """Pick min and max z-values and combine via Stouffer assuming independence.
+
+    A 2-point summary that captures the extreme spread of evidence.
+    For n <= 2, falls back to Stouffer on all values.
+    """
+    if len(zvals) <= 2:
+        return sum_and_re_scale_zvalues(zvals, rho=0.0)
+    z_min = float(np.min(zvals))
+    z_max = float(np.max(zvals))
+    return sum_and_re_scale_zvalues(np.array([z_min, z_max]), rho=0.0)
+
+
+def _combine_summed_z(zvals):
+    """Classic Stouffer combination assuming full independence (rho=0).
+
+    Unlike ``stouffer_icc``, this ignores any estimated ICC correction
+    and always treats child z-values as independent.
+    """
+    return sum_and_re_scale_zvalues(zvals, rho=0.0)
 
 
 def sum_and_re_scale_zvalues(zvals, rho=0.0):
