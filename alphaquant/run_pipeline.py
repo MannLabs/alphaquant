@@ -57,13 +57,14 @@ def run_pipeline(input_file: str,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
                 icc_correction: bool = True,
-                aggregation_mode: str = "stouffer_icc",
+                aggregation_mode: Union[str, dict] = "stouffer_icc",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
                  perform_phospho_inference: bool = False,
                  enable_experimental_ptm_counting_statistics: bool = False,
                  ptm_fragment_selection: bool = False,
                 outlier_correction: bool = True,
+                outlier_correction_factor: float = 1.0,
                 normalize: bool = True,
                 use_iontree_if_possible: bool = True,
                 write_out_results_tree: bool = True,
@@ -80,7 +81,10 @@ def run_pipeline(input_file: str,
                 peptide_outlier_filtering: bool = True,
                 fragment_outlier_filtering: bool = True,
                 split_ion_backgrounds: bool = True,
+                use_variance_predictor: bool = True,
+                num_bg_contexts: int = 10,
                 ion_test_method: str = 'diffdist',
+                summarization_nodes: Optional[List[str]] = None,
                 minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
                 minrep_c1: Optional[int] = None, #deprecated
@@ -115,18 +119,25 @@ def run_pipeline(input_file: str,
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     icc_correction (bool): Estimate and apply data-driven ICC correction for fragment/MS1 isotope aggregation. Defaults to True.
-    aggregation_mode (str): Strategy for combining child z-values at the fragment/MS1 level
+    aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
         (where ions show intra-group dependencies). Higher levels always use Stouffer (rho=0).
+        Can be a single string (applied to all dependent levels) or a dict mapping node types
+        to modes (e.g. ``{"frgion": "min_median_max_z", "ms1_isotopes": "median_z"}``).
         - "stouffer_icc" (default): Stouffer's method with ICC design-effect correction.
         - "mean_z": Arithmetic mean of z-values (conservative, treats children as one measurement).
         - "median_z": Median z-value (robust to outlier children).
         - "min_median_max_z": Combine min, median, max z-values assuming independence (3-point summary).
+        - "min_max_z": Combine min, max z-values assuming independence (2-point summary).
+        - "summed_z": Classic Stouffer assuming independence (rho=0, ignores ICC correction).
     take_median_ion (bool): Use median-centered fragment ions for peptide comparisons. Defaults to True.
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
     perform_phospho_inference (bool): Enable phosphorylation-prone region annotation. Defaults to False.
     enable_experimental_ptm_counting_statistics (bool): Allow experimental PTM counting statistics with "either" mode or zero min_valid_values. Defaults to False.
     ptm_fragment_selection (bool): If True, enable PTM-oriented fragment selection in clustering.
     outlier_correction (bool): Enable outlier correction in differential testing. Defaults to True.
+    outlier_correction_factor (float): Multiplicative factor for the outlier correction scaling.
+        Values > 1.0 make the correction more aggressive (more conservative p-values),
+        values < 1.0 make it less aggressive. Only effective when outlier_correction is True. Defaults to 1.0.
     normalize (bool): Enable sample and condition normalization. Defaults to True.
     use_iontree_if_possible (bool): Use ion tree structure when available. Defaults to True.
     write_out_results_tree (bool): Write results in hierarchical tree format. Defaults to True.
@@ -144,11 +155,29 @@ def run_pipeline(input_file: str,
         fragment_outlier_filtering (bool): Enable fragment outlier filtering when aggregating fragments to peptides. When True, removes extreme fragments before statistical aggregation. Defaults to True.
     split_ion_backgrounds (bool): Build separate empirical background distributions for fragment ions
         and MS1 isotopes instead of pooling them together. Defaults to True.
+    use_variance_predictor (bool): Use a linear regression model to predict
+        ion variance from quality metrics (e.g. Cscore, ShapeQualityScore) for
+        sorting ions before background partitioning. When False, ions are sorted
+        by median intensity instead. Defaults to True.
+    num_bg_contexts (int): Number of overlapping windows used to partition
+        ions into empirical background distributions. Higher values create
+        more fine-grained intensity-dependent backgrounds. Defaults to 10.
     ion_test_method (str): Ion-level test to compute ion statistics. Options:
         - "diffdist" (default): Use empirical background distributions (DifferentialIon).
         - "ttest": Use Welch two-sample t-test (DifferentialIonTTest), p→z via cached fast inversion.
+    summarization_nodes (list[str]): Node types at which to sum child intensities
+        before differential analysis. For each specified node type the base-ion
+        leaves are collected and their linear intensities summed per replicate.
+        Ion types (frgion, ms1_isotopes, precursor) are never mixed.
+        Examples: ``["frgion"]`` sums fragments per precursor;
+        ``["frgion", "ms1_isotopes"]`` sums both; ``["mod_seq_charge"]`` sums
+        everything per precursor (split by ion type). Defaults to None (no
+        summarization).
     """
     LOGGER.info("Starting AlphaQuant")
+
+    if summarization_nodes is None:
+        summarization_nodes = []
 
     #########################################################
     # TODO: this backwards compatibility can be removed beginning of 2026
@@ -231,6 +260,8 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_outlier_correction_factor(outlier_correction_factor)
+    aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set
     aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
 
