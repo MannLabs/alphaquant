@@ -157,7 +157,7 @@ class _BackgroundCalculation():
                 to ``BackGroundDistribution``).
         """
         total_available_comparisons =0
-        num_contexts = 10
+        num_contexts = aqvariables.NUM_BG_CONTEXTS
         cumulative_counts = np.zeros(self._normed_condition_df.shape[0])
 
         for idx ,count in enumerate(self._normed_condition_df.count(axis=1)):

@@ -5,7 +5,9 @@ MIN_PVAL = 1e-16
 PROGRESS_FOLDER = "progress"
 PREFER_PRECURSORS_FOR_CLUSTERING = True
 PEPTIDE_OUTLIER_FILTERING = True
+OUTLIER_CORRECTION_FACTOR = 1.0
 PTM_FRAGMENT_SELECTION = False
+NUM_BG_CONTEXTS = 10
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -47,6 +49,10 @@ def set_quant_id(quant_id):
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+def set_outlier_correction_factor(outlier_correction_factor):
+    global OUTLIER_CORRECTION_FACTOR
+    OUTLIER_CORRECTION_FACTOR = float(outlier_correction_factor)
 
 def set_ptm_fragment_selection(is_ptm: bool):
     global PTM_FRAGMENT_SELECTION
