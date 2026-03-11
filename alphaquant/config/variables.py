@@ -7,6 +7,9 @@ PREFER_PRECURSORS_FOR_CLUSTERING = True
 PEPTIDE_OUTLIER_FILTERING = True
 OUTLIER_CORRECTION_FACTOR = 1.0
 PTM_FRAGMENT_SELECTION = False
+MAX_N_FRAGMENTS = None
+ION_OUTLIER_MAD_THRESHOLD = None
+CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 NUM_BG_CONTEXTS = 10
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
@@ -53,6 +56,18 @@ def set_peptide_outlier_filtering(peptide_outlier_filtering):
 def set_outlier_correction_factor(outlier_correction_factor):
     global OUTLIER_CORRECTION_FACTOR
     OUTLIER_CORRECTION_FACTOR = float(outlier_correction_factor)
+
+def set_max_n_fragments(max_n_fragments):
+    global MAX_N_FRAGMENTS
+    MAX_N_FRAGMENTS = int(max_n_fragments) if max_n_fragments is not None else None
+
+def set_ion_outlier_mad_threshold(threshold):
+    global ION_OUTLIER_MAD_THRESHOLD
+    ION_OUTLIER_MAD_THRESHOLD = float(threshold) if threshold is not None else None
+
+def set_classic_fragment_outlier_filtering(enabled):
+    global CLASSIC_FRAGMENT_OUTLIER_FILTERING
+    CLASSIC_FRAGMENT_OUTLIER_FILTERING = bool(enabled)
 
 def set_ptm_fragment_selection(is_ptm: bool):
     global PTM_FRAGMENT_SELECTION

@@ -53,6 +53,7 @@ def run_pipeline(input_file: str,
                 minpep: int = 1,
                 organism: Optional[str] = None,
                 cluster_threshold_pval: float = 0.001,
+                cluster_threshold_ion_type: float = 0.01,
                 cluster_threshold_fcfc: float = 0,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
@@ -80,6 +81,9 @@ def run_pipeline(input_file: str,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
                 fragment_outlier_filtering: bool = True,
+                max_n_fragments: Optional[int] = None,
+                ion_outlier_mad_threshold: Optional[float] = 1.5,
+                classic_fragment_outlier_filtering: bool = False,
                 split_ion_backgrounds: bool = True,
                 use_variance_predictor: bool = True,
                 num_bg_contexts: int = 10,
@@ -114,7 +118,8 @@ def run_pipeline(input_file: str,
     min_num_ions (int): Minimum number of ions required per peptide. Defaults to 1.
     minpep (int): Minimum number of peptides required per protein. Defaults to 1.
     organism (str): Organism name for PTM mapping (e.g., 'human', 'mouse'). Required if perform_ptm_mapping is True.
-    cluster_threshold_pval (float): P-value threshold for statistical clustering. Defaults to 0.001.
+    cluster_threshold_pval (float): P-value threshold for statistical clustering at the protein/gene level. Defaults to 0.001.
+    cluster_threshold_ion_type (float): P-value threshold for clustering at the fragment/MS1 isotope (ion_type) level. Defaults to 0.01.
     cluster_threshold_fcfc (float): Fold change threshold for clustering. Defaults to 0.
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
@@ -153,6 +158,16 @@ def run_pipeline(input_file: str,
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
         peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
         fragment_outlier_filtering (bool): Enable fragment outlier filtering when aggregating fragments to peptides. When True, removes extreme fragments before statistical aggregation. Defaults to True.
+    max_n_fragments (int or None): Maximum number of fragment ions to keep per peptide when aggregating.
+        When set, only the fragments with z-values closest to the median are retained; the rest are
+        discarded. None (default) means no limit.
+    ion_outlier_mad_threshold (float or None): MAD-based outlier threshold for base ion z-values.
+        When set, ions whose z-value deviates more than ``threshold * MAD`` from the sibling median
+        are removed before aggregation (requires >= 4 siblings; always keeps >= 2). None (default)
+        disables this filter. Typical values: 2.5 – 3.0.
+    classic_fragment_outlier_filtering (bool): Use the legacy fragment outlier filter that keeps only
+        the 4 most central fragment ions (by z-value) when a peptide has more than 4 fragments.
+        Applied after MAD / max_n_fragments filtering. Defaults to False.
     split_ion_backgrounds (bool): Build separate empirical background distributions for fragment ions
         and MS1 isotopes instead of pooling them together. Defaults to True.
     use_variance_predictor (bool): Use a linear regression model to predict
@@ -264,6 +279,9 @@ def run_pipeline(input_file: str,
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set
     aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
+    aqvariables.set_max_n_fragments(max_n_fragments)
+    aqvariables.set_ion_outlier_mad_threshold(ion_outlier_mad_threshold)
+    aqvariables.set_classic_fragment_outlier_filtering(classic_fragment_outlier_filtering)
 
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object! The runconfig is then used as the input for the run_analysis functions
