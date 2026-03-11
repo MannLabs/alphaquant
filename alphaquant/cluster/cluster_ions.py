@@ -28,7 +28,7 @@ LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'se
 
 
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc"):
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc", cluster_threshold_ion_type=0.01):
     """Main entry point for hierarchical clustering and tree-based quantification of a protein.
 
     This function creates a hierarchical tree structure from fragment ions up to the protein level
@@ -64,7 +64,7 @@ def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, i
     root_node = create_hierarchical_ion_grouping(gene_name, diffions)
     add_reduced_names_to_root(root_node)
     #LOGGER.info(anytree.RenderTree(root_node))
-    root_node_clust = cluster_along_specified_levels(root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering, aggregation_mode=aggregation_mode)
+    root_node_clust = cluster_along_specified_levels(root_node, name2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering, aggregation_mode=aggregation_mode, cluster_threshold_ion_type=cluster_threshold_ion_type)
 
     level_sorted_nodes = [[node for node in children] for children in anytree.ZigZagGroupIter(root_node_clust)]
     level_sorted_nodes.reverse() #the base nodes are first
@@ -115,7 +115,7 @@ def add_reduced_names_to_root(node):
 
 
 import pandas as pd
-def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc"):#~60% of overall runtime
+def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc", cluster_threshold_ion_type=0.01):#~60% of overall runtime
     """Performs hierarchical clustering at each level of the tree from bottom to top.
 
     Starting from base ions (fragments/MS1), this function iterates through each level
@@ -166,7 +166,7 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
                     if take_median_ion:
                         grouped_mainclust_leafs = aqcluster_utils.select_median_fc_leafs(grouped_mainclust_leafs)
                     diffions = aqcluster_utils.map_grouped_leafs_to_diffions(grouped_mainclust_leafs, ionname2diffion) #the diffions are the ions that are actually compared
-                    childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold) #the clustering is performed on the child nodes
+                    childnode2clust = find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, cluster_threshold_ion_type=cluster_threshold_ion_type) #the clustering is performed on the child nodes
                     childnode2clust = merge_similar_clusters_if_applicable(childnode2clust, type_node, fcdiff_cutoff_clustermerge = FCDIFF_CUTOFF_CLUSTERMERGE)
                     childnode2clust = aq_cluster_sorting.decide_cluster_order(childnode2clust)
 
@@ -185,7 +185,7 @@ def get_childnode2clust_for_single_ion(type_node):
     return {type_node.children[0]: 0}
 
 
-def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold):
+def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, cluster_threshold_ion_type=0.01):
     """Compares the fold changes of the ions corresponding to the nodes that are compared and returns the set of ions with consistent fold changes.
 
     Args:
@@ -199,7 +199,7 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
         pval_threshold_basis (float, optional): the threshold at which to merge peptides at the gene level. Defaults to 0.01
     """
 
-    pval_threshold_basis = get_pval_threshold_basis(type_node, pval_threshold_basis)
+    pval_threshold_basis = get_pval_threshold_basis(type_node, pval_threshold_basis, cluster_threshold_ion_type=cluster_threshold_ion_type)
     diffions_idxs = [[x] for x in range(len(diffions))]
     diffions_fcs = aqcluster_utils.get_fcs_ions(diffions)
     #mt_corrected_pval_thresh = pval_threshold_basis/len(diffions)
@@ -218,11 +218,12 @@ def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2dif
 
     return childnode2clust
 
-def get_pval_threshold_basis(type_node, pval_threshold_basis): #the pval threshold is only set at the gene level, the rest of the levels are set as specified in the LEVEL2PVALTHRESH dictionary
+def get_pval_threshold_basis(type_node, pval_threshold_basis, cluster_threshold_ion_type=0.01): #the pval threshold is only set at the gene level, the rest of the levels are set as specified in the LEVEL2PVALTHRESH dictionary
     if type_node.level == "gene":
         return pval_threshold_basis
-    else:
-        return LEVEL2PVALTHRESH.get(type_node.level, 0.2)
+    if type_node.level == "ion_type":
+        return cluster_threshold_ion_type
+    return LEVEL2PVALTHRESH.get(type_node.level, 0.2)
 
 def get_multiple_testing_corrected_condensed_similarity_matrix(condensed_distance_matrix: np.array):
     """
