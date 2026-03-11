@@ -155,12 +155,65 @@ def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fra
             filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=31)
         return filtered_childs
 
-    # elif fragment_outlier_filtering and node.type == "frgion":
-    #     return remove_outlier_fragion_childs(childs)
-    else:
-        return childs
+    if node.type == "frgion":
+        filtered = childs
+        if aqvariables.ION_OUTLIER_MAD_THRESHOLD is not None:
+            filtered = _filter_ions_by_mad(filtered, aqvariables.ION_OUTLIER_MAD_THRESHOLD)
+        if aqvariables.MAX_N_FRAGMENTS is not None and len(filtered) > aqvariables.MAX_N_FRAGMENTS:
+            filtered = _select_peptides_around_median_z(filtered, max_peptides=aqvariables.MAX_N_FRAGMENTS)
+        if aqvariables.CLASSIC_FRAGMENT_OUTLIER_FILTERING:
+            filtered = remove_outlier_fragion_childs(filtered)
+        return filtered
 
+    return childs
 
+def _filter_ions_by_mad(nodes, threshold):
+    """Remove ion nodes whose z-value is a MAD-outlier among siblings.
+
+    Requires at least 4 nodes to attempt filtering, and always retains
+    at least 2 nodes (the two closest to the median).
+
+    Args:
+        nodes: List of child nodes with z_val attributes.
+        threshold: Number of scaled-MAD units beyond which a node is
+            considered an outlier (e.g. 3.0).
+
+    Returns:
+        Filtered list of nodes with outliers removed.
+    """
+    if len(nodes) < 4:
+        return nodes
+
+    z_vals = np.array([n.z_val for n in nodes])
+    median_z = float(np.median(z_vals))
+
+    robust_std = _robust_std_estimate(z_vals, median_z)
+    if robust_std == 0:
+        return nodes
+
+    cutoff = threshold * robust_std
+    kept = [n for n in nodes if abs(n.z_val - median_z) <= cutoff]
+
+    if len(kept) < 2:
+        kept = sorted(nodes, key=lambda n: abs(n.z_val - median_z))[:2]
+
+    return kept
+
+def _robust_std_estimate(values, median):
+    """Estimate std via scaled MAD, falling back to IQR if MAD is zero."""
+    MAD_SCALE = 1.4826  # makes MAD consistent with std for normal data
+    IQR_SCALE = 1.349   # makes IQR consistent with std for normal data
+
+    mad = float(np.median(np.abs(values - median)))
+    if mad > 0:
+        return MAD_SCALE * mad
+
+    q75, q25 = np.percentile(values, [75, 25])
+    iqr = float(q75 - q25)
+    if iqr > 0:
+        return iqr / IQR_SCALE
+
+    return 0.0
 
 def filter_fewpeps_per_protein(peptide_nodes):
     peps_filtered = []
@@ -172,66 +225,8 @@ def filter_fewpeps_per_protein(peptide_nodes):
 
     return get_median_peptides(pepnode2zval2numleaves)
 
-def filter_outlier_peptides_old(peptide_nodes, fraction_highly_significant):
-    """
-    Filters outlier peptides based on p-value significance.
 
-    Checks if there's a minority of peptides (<40%) that has substantially more
-    significant p-values (at least a factor of 5) compared to the median.
-    Only starts checking if the median p-value is 0.05 or higher.
-    If this minority case exists, returns only the less significant half of peptides.
 
-    Args:
-        peptide_nodes: List of peptide nodes with p_val attributes
-
-    Returns:
-        Filtered list of peptide nodes
-    """
-    if len(peptide_nodes) < 4:
-        return peptide_nodes
-
-    # Get p-values from peptide nodes
-    p_values = [node.p_val for node in peptide_nodes]
-    median_p_val = np.median(p_values)
-
-    # Only check for outliers if median p-value is 0.05 or higher
-    if median_p_val < 0.05:
-        return peptide_nodes
-
-        # Check for minority with substantially more significant p-values
-    threshold_p_val = median_p_val / 5.0  # at least 5x more significant (lower p-value)
-    highly_significant_nodes = [node for node in peptide_nodes if node.p_val <= threshold_p_val]
-    remaining_nodes = [node for node in peptide_nodes if node.p_val > threshold_p_val]
-
-                # Check if this is a minority (<40%)
-    if len(highly_significant_nodes) / len(peptide_nodes) < 0.3:
-        return _filter_minority_highly_significant(highly_significant_nodes, remaining_nodes, fraction_highly_significant)
-
-    return peptide_nodes
-
-def _filter_minority_highly_significant_old(highly_significant_nodes, remaining_nodes, fraction_highly_significant):
-    """
-    Handle filtering when highly significant nodes are a minority (<40%).
-
-    Args:
-        highly_significant_nodes: Nodes with p-value <= threshold_p_val
-        remaining_nodes: All peptide nodes
-        threshold_p_val: The p-value threshold used to identify highly significant nodes
-        fraction_highly_significant: Global fraction of highly significant ions
-
-    Returns:
-        Filtered list of peptide nodes to exclude for analysis
-    """
-    # if len(highly_significant_nodes) == 1:
-    #     return highly_significant_nodes+remaining_nodes
-    # Calculate how many highly significant nodes to exclude
-    num_to_exclude = int(len(highly_significant_nodes) * (fraction_highly_significant / 0.08))
-    num_to_exclude_bounded = max(1, min(len(highly_significant_nodes)-1, num_to_exclude))
-
-    # Sort by p-value (most significant first) and exclude the best ones
-    highly_significant_nodes_sorted = sorted(highly_significant_nodes, key=lambda x: x.p_val)
-    nodes_to_keep = highly_significant_nodes_sorted[num_to_exclude_bounded:] #keep the least significant ones
-    return nodes_to_keep + remaining_nodes
 
 import math
 def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are sorted first
