@@ -15,8 +15,6 @@ matplotlib.use('agg')
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.config.variables as aq_variables
 import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
-import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_proteoforms
-import alphaquant.ui.gui as gui
 import alphaquant.ui.gui_textfields as gui_textfields
 import alphaquant.utils.reader_utils as aq_reader_utils
 
@@ -1496,63 +1494,3 @@ class Tabs(param.Parameterized):
 			self.main_tabs[1] = ('Plotting', pn.pane.Markdown(
 				f"### Visualization Error\n\n{error_msg}"
 			))
-
-
-def build_dashboard():
-	"""Build the overall dashboard layout."""
-	# Create state manager first
-	state_manager = gui.DashboardState()
-
-	header = HeaderWidget(
-		title="AlphaQuant Dashboard",
-		img_folder_path="./assets",
-		github_url="https://github.com/<my_repo>"
-	)
-	main_text = MainWidget(
-		description=(
-			"Welcome to our analysis dashboard. "
-			"Please load your data and run the pipeline."
-		),
-		manual_path="path/to/manual.pdf"
-	)
-
-	# Create pipeline instance with state manager
-	pipeline = RunPipeline(state=state_manager)
-	pipeline_layout = pipeline.create()
-
-	# Create plotting tabs with state manager
-	plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=state_manager)
-	proteoform_tab = dashboad_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
-
-	# Register subscribers
-	state_manager.register_subscriber(plotting_tab)
-	state_manager.register_subscriber(proteoform_tab)
-
-	# Create tabs
-	all_tabs = pn.Tabs(
-		('Pipeline', pipeline_layout),
-		('Single Comparison', plotting_tab.panel()),
-		('Plotting', proteoform_tab.panel()),
-		dynamic=True,
-		tabs_location='above',
-		sizing_mode='stretch_width'
-	)
-
-	# Main layout
-	main_layout = pn.Column(
-		header.create(),
-		pn.layout.Divider(),
-		main_text.create(),
-		all_tabs,
-		sizing_mode='stretch_width'
-	)
-
-	template = pn.template.FastListTemplate(
-		title="AlphaQuant Analysis",
-		sidebar=[],
-		main=[main_layout],
-		theme='dark',
-		main_max_width="1200px",
-		main_layout="width"
-	)
-	return template

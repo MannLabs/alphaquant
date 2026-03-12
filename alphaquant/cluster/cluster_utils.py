@@ -5,7 +5,6 @@ import numpy as np
 import collections
 import alphaquant.config.variables as aqvariables
 from anytree import Node, LevelOrderGroupIter
-import alphaquant.utils.diffquant_utils as aq_utils_diffquant
 import re
 
 import alphaquant.config.config as aqconfig
@@ -215,26 +214,7 @@ def _robust_std_estimate(values, median):
 
     return 0.0
 
-def filter_fewpeps_per_protein(peptide_nodes):
-    peps_filtered = []
-    pepnode2zval2numleaves = []
-    for pepnode in peptide_nodes:
-        pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
-        pepnode2zval2numleaves.append((pepnode, pepnode.z_val,len(pepleaves)))
-    pepnode2zval2numleaves = sorted(pepnode2zval2numleaves, key=lambda x : abs(x[1])) #sort with lowest absolute z-val (least significant) first
-
-    return get_median_peptides(pepnode2zval2numleaves)
-
-
-
-
 import math
-def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are sorted first
-    median_idx = math.floor(len(pepnode2zval2numleaves)/2)
-    if len(pepnode2zval2numleaves)<3:
-        return [x[0] for x in pepnode2zval2numleaves]
-    else:
-        return [x[0] for x in pepnode2zval2numleaves[:median_idx+1]]
 
 def remove_outlier_fragion_childs(childs):
     """Filters extreme fragment ions before aggregating to peptide level.
@@ -406,64 +386,6 @@ def set_bounds_for_p_if_too_extreme(p_val):
     else:
         return p_val
 
-def calc_fold_change_from_included_leaves_fcs(node):
-    included_leaves = obtain_all_included_leaves(node)
-    list_of_fcs = [x.fcs for x in included_leaves]
-    merged_fcs = np.concatenate(list_of_fcs)
-    return np.median(merged_fcs)
-
-def calc_weighted_fold_change_from_included_leaves_fcs(node):
-    included_leaves = obtain_all_included_leaves(node)
-    list_of_fcs = [x.fcs for x in included_leaves]
-    weights = [get_weight_of_leaf(x) for x in included_leaves]
-    weighted_median = calculate_weighted_median(weights, list_of_fcs)
-    return weighted_median
-
-def get_weight_of_leaf(leaf):
-    if hasattr(leaf, "ml_score_fragion"):
-        return 2**-leaf.ml_score_fragion
-    else:
-        return 1
-
-def calculate_weighted_median(weights, fcs):
-    weighted_fcs = [(fc, weight) for weight, fc_list in zip(weights, fcs) for fc in fc_list]
-    sorted_weighted_fcs = sorted(weighted_fcs, key=lambda x: x[0])
-    sorted_fcs, sorted_weights = zip(*sorted_weighted_fcs)
-    cumulative_weights = np.cumsum(sorted_weights)
-    total_weight = cumulative_weights[-1]
-    median_cutoff = total_weight / 2
-    median_idx = np.where(cumulative_weights >= median_cutoff)[0][0]
-    weighted_median = sorted_fcs[median_idx]
-    return weighted_median
-
-def obtain_all_included_leaves(node):
-    list_of_included_leaves = []
-    traverse_and_add_included_leaves(node, list_of_included_leaves)
-    return list_of_included_leaves
-
-def traverse_and_add_included_leaves(node, list_of_included_leaves, is_root=True):
-    """
-    Recursively searches for leaves from the given node, where each node in the
-    path to the leaf has the 'is_included' attribute set to True, except for the initial node.
-    Fills up the list_of_included_leaves with the included leaves.
-
-    Parameters:
-    node (anytree.Node): The node to start the search from.
-    list_of_included_leaves (list): The list to store the included leaves in.
-    is_root (bool): Indicates if the current node is the root node of the traversal.
-    """
-
-    if len(node.children) == 0:  # if the node is a leaf
-        if is_root or (node.is_included and node.cluster == 0):
-            list_of_included_leaves.append(node)
-        return
-
-    # If it's the root node or if the current node is included, then proceed to its children
-    if is_root or (node.is_included and node.cluster == 0):
-        for child in node.children:
-            # Recursive call with is_root set to False, as we are now dealing with child nodes
-            traverse_and_add_included_leaves(child, list_of_included_leaves, is_root=False)
-
 def sum_ml_scores(ml_scores):
     abs_ml_scores = [abs(x) for x in ml_scores]
     return sum(abs_ml_scores)
@@ -481,15 +403,6 @@ def get_grouped_mainclust_leafs(child_nodes):
         if len(child_leaves_mainclust)>0:
             grouped_leafs.append(child_leaves_mainclust)
     return grouped_leafs
-
-def select_highid_lowcv_leafs(grouped_leafs):
-    grouped_leafs_lowcv = []
-    for leafs in grouped_leafs:
-        top_quantile_idx = math.ceil(len(leafs) * 0.2)
-        leafs_repsorted = sorted(leafs, key = lambda x : x.min_reps)[:top_quantile_idx]
-        leafs_repsorted_cvsorted = sorted(leafs_repsorted, key = lambda x : x.cv)
-        grouped_leafs_lowcv.append([leafs_repsorted_cvsorted[0]])
-    return grouped_leafs_lowcv
 
 def select_median_fc_leafs(grouped_leafs):
     grouped_leafs_medianfc = []
@@ -666,22 +579,6 @@ def remove_unnecessary_attributes(node, attributes_to_remove):
 
 import os
 
-def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
-
-    tree_sn = aqutils.read_condpair_tree(cond1, cond2, results_folder=results_folder)
-    tree_sn.type = "asd"
-    return anytree.findall(tree_sn, filter_= lambda x : (x.type == node_type))
-
-
-
-def get_levelnodes_from_nodeslist(nodeslist, level):
-    levelnodes = []
-    for node in nodeslist:
-        precursors = anytree.findall(node, filter_= lambda x : (x.type == level))
-        levelnodes.extend(precursors)
-    return levelnodes
-
-
 def find_node_parent_at_level(node, level):
     if node.type == level:
         return node
@@ -708,13 +605,6 @@ def shorten_root_to_level(root, parent_level):
     return root
 
 
-
-def get_parent2children_dict(tree, parent_level):
-    parent2children = {}
-    parent_nodes = anytree.search.findall(tree, filter_=lambda node:  node.level == parent_level)
-    for parent_node in parent_nodes:
-        parent2children[parent_node.name] = [child.name for child in parent_node.children]
-    return parent2children
 
 def get_parent2leaves_dict(protein):
     """Returns a dict that maps the parent node name to the names of the leaves of the parent node

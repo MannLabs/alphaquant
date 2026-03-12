@@ -45,10 +45,6 @@ def _determine_prefer_precursors_for_clustering(input_type):
     else:
         PREFER_PRECURSORS_FOR_CLUSTERING = False
 
-def set_quant_id(quant_id):
-    global QUANT_ID
-    QUANT_ID = quant_id
-
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
@@ -72,11 +68,6 @@ def set_classic_fragment_outlier_filtering(enabled):
 def set_ptm_fragment_selection(is_ptm: bool):
     global PTM_FRAGMENT_SELECTION
     PTM_FRAGMENT_SELECTION = bool(is_ptm)
-
-# Backwards-compat alias
-def set_phospho_fragment_selection(is_phospho: bool):
-    set_ptm_fragment_selection(is_phospho)
-
 
 def set_input_config(input_type, config_dict):
     """Store the detected input type and its full config dict as module globals.

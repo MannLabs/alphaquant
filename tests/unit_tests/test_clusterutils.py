@@ -66,43 +66,6 @@ def test_remove_unnecessary_attributes():
 
 
 
-def test_traverse_and_add_included_leaves_anytree():
-    # Constructing the tree
-    root = anytree.Node("root",  is_included=True, cluster=0)
-    node1 = anytree.Node("node1", parent=root, is_included=True, cluster=0)
-    node2 = anytree.Node("node2", parent=root, is_included=True, cluster=0)
-    leaf1 = anytree.Node("leaf1", parent=node1, is_included=True, cluster=0)
-    leaf2 = anytree.Node("leaf2", parent=node1, is_included=False, cluster=1)
-    leaf3 = anytree.Node("leaf3", parent=node2, is_included=True, cluster=0)
-
-    list_of_included_leaves = []
-    aq_clust_clusterutils.traverse_and_add_included_leaves(root, list_of_included_leaves)
-    print(list_of_included_leaves)
-    # Assert conditions
-    assert leaf1 in list_of_included_leaves, "leaf1 is missing from the result."
-    assert leaf3 in list_of_included_leaves, "leaf3 is missing from the result."
-    assert len(list_of_included_leaves) == 2, "The number of included leaves is incorrect."
-
-
-    root = anytree.Node("root",  is_included=True, cluster=0)
-    node1 = anytree.Node("node1", parent=root, is_included=False, cluster=1)
-    node2 = anytree.Node("node2", parent=root, is_included=True, cluster=0)
-    leaf1 = anytree.Node("leaf1", parent=node1, is_included=True, cluster=0)
-    leaf2 = anytree.Node("leaf2", parent=node1, is_included=False, cluster=1)
-    leaf3 = anytree.Node("leaf3", parent=node2, is_included=True, cluster=0)
-
-    list_of_included_leaves = []
-    aq_clust_clusterutils.traverse_and_add_included_leaves(root, list_of_included_leaves)
-    print(list_of_included_leaves)
-    # Assert conditions
-    assert leaf1  not in list_of_included_leaves, "leaf1 should be excluded"
-    assert leaf3 in list_of_included_leaves, "leaf3 is missing from the result."
-    assert len(list_of_included_leaves) == 1, "The number of included leaves is incorrect."
-
-    print("All tests passed!")
-
-
-
 
 
 def test_iterate_through_tree_levels_bottom_to_top():

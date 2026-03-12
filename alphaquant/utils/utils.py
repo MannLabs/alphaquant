@@ -55,19 +55,6 @@ def cut_trailing_parts_seqstring(seqstring):
 def get_condpairname(condpair):
     return f"{condpair[0]}_VS_{condpair[1]}"
 
-def get_condpair_from_condpairname(condpairname):
-    return condpairname.split(aq_variables.CONDITION_PAIR_SEPARATOR)
-
-
-def convert_ion_string_to_node_type(ionstring, node_type): #for example I have a full quant_id that describes a fragment ion, I want to shorten it to the specified leve, e.g. sequence
-    regex = NODETYPE2REGEX[node_type]
-    match = re.match(regex, ionstring)
-    if match:
-        return match.group(1)
-    else:
-        raise ValueError(f"Could not match {ionstring} to {node_type}. This function only works for the following node types: seq, mod_seq, mod_seq_charge")
-
-
 def get_progress_folder_filename(input_file, file_ending, remove_extension = True): #file ending needs to include all dots, e.g. ".aq_reformat.tsv"
     input_file = os.path.abspath(input_file) #to make sure that the path is absolute
     dirname_input_file = os.path.dirname(input_file)

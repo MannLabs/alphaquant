@@ -552,10 +552,6 @@ def get_doublediff_bg(deed_ion1, deed_ion2, deedpair2doublediffdist, p2z):
 
     return subtr_bg
 
-def invert_deedkey(deedkey):
-    return (deedkey[1], deedkey[0])
-
-
 # Cell
 from numba import njit
 
@@ -610,12 +606,3 @@ def transform_cumulative_into_fc2count(cumulative, min_fc):
     fcs, counts = _transform_cumulative_vectorized(cumulative, min_fc)
     return dict(zip(fcs, counts))
 
-# Cell
-@njit
-def get_cumul_from_freq(freq):
-    res = np.zeros(len(freq), dtype=np.int64)
-    res[0] = freq[0]
-    for i in range(1,len(freq)):
-        res[i] = res[i-1] + freq[i]
-
-    return res

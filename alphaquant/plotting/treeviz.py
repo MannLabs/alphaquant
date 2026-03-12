@@ -135,12 +135,6 @@ class GraphCreator():
 
 
 
-    @staticmethod
-    def render_tree(root):
-        for pre, _, node in anytree.RenderTree(root):
-            print("%s%s" % (pre, node.name))
-
-
 class GraphParameters():
     def __init__(self):
         self.included_color = "skyblue"
