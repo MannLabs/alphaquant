@@ -25,12 +25,24 @@ AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z", "
 _DEPENDENT_NODE_TYPES = {"frgion", "ms1_isotopes"}
 
 def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc"):
-    """Aggregates statistical properties from child nodes to a parent node in the tree.
+    """Aggregates differential-expression statistics from child nodes to a parent node.
 
-    This is the core function for propagating statistics up the hierarchical tree structure.
-    It combines z-values, fold changes, and quality metrics from child nodes (e.g., peptides)
-    into parent node (e.g., protein) statistics. The aggregation can optionally exclude
-    proteoforms (non-main clusters) and filter outlier children.
+    This is the core function for propagating statistics up the hierarchical tree
+    structure. It combines z-values, fold changes, and quality metrics from child
+    nodes (e.g. peptides) into parent node (e.g. protein) statistics using
+    Stouffer's Z-score method (``sum_and_re_scale_zvalues``). The aggregation can
+    optionally exclude proteoform variants (non-main clusters) and filter outlier
+    children.
+
+    The z-values aggregated here originate from *per-ion differential-expression*
+    tests (null hypothesis: "no change between conditions for this ion"). They
+    are *not* the proteoform-similarity p-values computed in
+    ``find_fold_change_clusters``, which test a different null hypothesis
+    ("do two ions share the same fold change?") and are corrected separately
+    with Benjamini-Yekutieli *before* this function is called. In other words,
+    the Benjamini-Yekutieli correction applied during proteoform clustering and
+    the Stouffer aggregation performed here address independent statistical
+    questions and operate on different sets of p-values.
 
     Args:
         node: The parent node whose properties will be computed from its children

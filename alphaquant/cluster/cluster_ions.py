@@ -1,3 +1,28 @@
+"""Hierarchical proteoform clustering and differential-expression aggregation.
+
+This module builds a hierarchical tree for each protein (fragments → peptides
+→ modified peptides → unmodified peptides → protein) and performs two
+*independent* statistical procedures at each level:
+
+1. **Proteoform clustering** — pairwise double-differential tests assess
+   whether sibling ions share the same fold change (null hypothesis: "ions
+   have equal regulation"). The resulting similarity p-values are corrected
+   with Benjamini-Yekutieli (appropriate for the intrinsic dependencies among
+   pairwise comparisons) and then used for hierarchical clustering to separate
+   proteoforms.
+
+2. **Differential-expression aggregation** — the per-ion z-values from
+   individual differential-expression tests (null hypothesis: "no change
+   between conditions") are combined into parent-level z-values via Stouffer's
+   method. This aggregation propagates evidence of regulation up the tree.
+
+The two sets of p-values address fundamentally different questions and are
+corrected separately. The Benjamini-Yekutieli correction in step 1 applies
+*within* a single protein to the similarity matrix; the final protein-level
+p-values produced by step 2 are later corrected across all proteins with
+Benjamini-Hochberg (see ``diffquant_table.py``).
+"""
+
 import scipy.spatial.distance
 import scipy.cluster.hierarchy
 import alphaquant.cluster.cluster_utils as aqcluster_utils
@@ -124,6 +149,31 @@ def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed
     pairwise for consistent fold-change differences, clustered hierarchically, and
     statistics are aggregated to parent nodes.
 
+    Important: this function interleaves two *independent* statistical procedures
+    that address different questions:
+
+    1. **Proteoform clustering** (``find_fold_change_clusters``): tests whether
+       pairs of sibling ions (e.g. two peptides of the same protein) have
+       *different* fold changes, i.e. whether they belong to different
+       proteoforms. The resulting pairwise p-values form a dependent similarity
+       matrix that is corrected for multiple testing with Benjamini-Yekutieli
+       (appropriate for dependent tests) *before* hierarchical clustering.
+
+    2. **Differential-expression aggregation** (``aggregate_node_properties``):
+       combines the per-ion z-values (derived from individual differential
+       expression tests) into a single parent-level z-value via Stouffer's
+       method. These z-values quantify *how much* each ion changes between
+       conditions and are unrelated to the proteoform-similarity p-values
+       from step 1.
+
+    The Benjamini-Yekutieli correction in step 1 therefore precedes the
+    Stouffer aggregation in step 2 by design, because they operate on
+    different null hypotheses: step 1 asks "do these two peptides differ
+    from each other?" while step 2 asks "does this protein change between
+    conditions?". The final protein-level p-values produced in step 2
+    are later corrected with Benjamini-Hochberg across all proteins (see
+    ``diffquant_table.py``).
+
     Args:
         root_node: Root of the hierarchical tree (protein level)
         ionname2diffion: Dictionary mapping ion names to DifferentialIon objects
@@ -186,17 +236,42 @@ def get_childnode2clust_for_single_ion(type_node):
 
 
 def find_fold_change_clusters(type_node, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, cluster_threshold_ion_type=0.01):
-    """Compares the fold changes of the ions corresponding to the nodes that are compared and returns the set of ions with consistent fold changes.
+    """Cluster sibling ions by the similarity of their fold changes (proteoform inference).
+
+    For each pair of sibling ion groups, a *double-differential* test
+    (``evaluate_similarity``) computes a p-value for the null hypothesis that
+    their fold changes are equal (i.e. they belong to the same proteoform).
+    These pairwise p-values form a condensed similarity matrix that is
+    corrected for multiple testing with the Benjamini-Yekutieli procedure
+    (``get_multiple_testing_corrected_condensed_similarity_matrix``), which is
+    appropriate here because the pairwise comparisons are intrinsically
+    dependent. The corrected matrix is then converted to a distance matrix and
+    subjected to Ward hierarchical clustering.
+
+    Note: the p-values computed and corrected here test *inter-ion similarity*
+    for proteoform grouping. They are entirely separate from the per-ion
+    differential-expression p-values that are later aggregated via Stouffer's
+    method in ``aggregate_node_properties``.
 
     Args:
-        diffions (list[list[ionnames]]): contains the sets of ions to be tested, for example [[fragion1_precursor1, fragion2_precursor1, fragion3_precursor1],[fragion1_precursor2],[fragion1_precursor3, fragion2_precursor3]]. The ions are assumed to be similar in type (e.g. fragment, precursor)!
-        normed_c1 (ConditionBackground): [description]
-        normed_c2 (ConditionBackground): [description]
-        ion2diffDist (dict(ion : SubtractedBackground)): [description]
-        p2z ([type]): [description]
-        deedpair2doublediffdist ([type]): [description]
-        fc_threshold (float, optional): [description]. Defaults to 0.
-        pval_threshold_basis (float, optional): the threshold at which to merge peptides at the gene level. Defaults to 0.01
+        type_node: Parent node whose children are being clustered
+        diffions: List of lists of DifferentialIon objects, one sublist per
+            child node, e.g. ``[[fragion1_prec1, fragion2_prec1], [fragion1_prec2]]``
+        normed_c1: ConditionBackgrounds for condition 1
+        normed_c2: ConditionBackgrounds for condition 2
+        ion2diffDist: Mapping of ion pairs to differential background distributions
+        p2z: Cache for p-value to z-value conversions
+        deedpair2doublediffdist: Cache for double-differential distributions
+        pval_threshold_basis: P-value threshold at the gene level for cutting the
+            clustering dendrogram; thresholds for lower levels are looked up in
+            ``LEVEL2PVALTHRESH``
+        fcfc_threshold: Minimum fold-change difference below which two ion groups
+            are assumed similar without a formal test
+        cluster_threshold_ion_type: P-value threshold at the ion_type level
+
+    Returns:
+        list[tuple[Node, int]]: Pairs of (child node, cluster index) sorted by
+            node name for reproducibility
     """
 
     pval_threshold_basis = get_pval_threshold_basis(type_node, pval_threshold_basis, cluster_threshold_ion_type=cluster_threshold_ion_type)
@@ -226,19 +301,28 @@ def get_pval_threshold_basis(type_node, pval_threshold_basis, cluster_threshold_
     return LEVEL2PVALTHRESH.get(type_node.level, 0.2)
 
 def get_multiple_testing_corrected_condensed_similarity_matrix(condensed_distance_matrix: np.array):
-    """
-    condensed_distance_matrix contains all p-values of the pairwise comparisons of the ions. They are by definition dependent.
+    """Apply Benjamini-Yekutieli FDR correction to pairwise ion-similarity p-values.
+
+    The condensed matrix contains p-values from *double-differential* tests
+    between all pairs of sibling ions (see ``evaluate_similarity``). Each
+    p-value tests the null hypothesis that two ions share the same fold
+    change. Because every ion appears in multiple pairwise comparisons, the
+    tests are intrinsically dependent, which is why the Benjamini-Yekutieli
+    (``fdr_by``) procedure is used instead of Benjamini-Hochberg.
+
+    These corrected p-values are used exclusively for proteoform clustering
+    (deciding which ions belong together) and are unrelated to the per-ion
+    differential-expression p-values that are later aggregated via Stouffer's
+    method.
 
     Args:
-    condensed_distance_matrix (np.array): Condensed distance matrix containing p-values of pairwise comparisons.
+        condensed_distance_matrix: 1-D array of pairwise similarity p-values
+            in scipy condensed-matrix format.
 
     Returns:
-    np.array: Corrected condensed distance matrix.
+        np.array: Corrected p-values in the same condensed-matrix layout.
     """
-    # Apply Benjamini-Yekutieli correction
     _, corrected_pvalues, _, _ = multitest.multipletests(condensed_distance_matrix, method='fdr_by')
-
-    # Return the corrected condensed matrix
     return corrected_pvalues
 
 
