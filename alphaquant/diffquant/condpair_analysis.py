@@ -134,7 +134,6 @@ def analyze_condpair(*,runconfig, condpair):
         clustered_prot_node = aqclust.get_scored_clusterselected_ions(prot, ions, normed_c1, normed_c2, bgpair2diffDist, p2z, deedpair2doublediffdist,
                                                                         pval_threshold_basis = runconfig.cluster_threshold_pval, fcfc_threshold = runconfig.cluster_threshold_fcfc,
                                                                         take_median_ion=runconfig.take_median_ion, fcdiff_cutoff_clustermerge= runconfig.fcdiff_cutoff_clustermerge,
-                                                                        fragment_outlier_filtering=runconfig.fragment_outlier_filtering,
                                                                         aggregation_mode=runconfig.aggregation_mode,
                                                                         cluster_threshold_ion_type=getattr(runconfig, "cluster_threshold_ion_type", 0.01))
         protnodes.append(clustered_prot_node)
