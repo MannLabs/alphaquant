@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import alphaquant.cluster.cluster_utils as aqcluster_utils
 
 import alphaquant.config.config as aqconfig
+import alphaquant.config.variables as aqvariables
 import logging
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
@@ -38,9 +39,9 @@ _ICC_NODE_TYPES = ("frgion", "ms1_isotopes")
 _MIN_GROUPS = 3   # minimum number of group nodes (e.g. precursors with base ions)
 _MIN_IONS = 6     # minimum total number of base ions across those groups
 
-# Null protein selection: proteins whose gene-level p-value exceeds this
-# threshold are considered part of the technical-noise background.
-_P_VAL_THRESHOLD = 0.1
+# Null protein selection threshold is read at runtime from
+# aqvariables.ICC_NULL_PVAL_THRESHOLD (default 0.1, configurable via
+# run_pipeline icc_null_pval_threshold argument).
 
 # Permutation null: number of shuffles per protein for the permutation baseline
 _N_PERMUTATIONS = 3
@@ -120,8 +121,8 @@ def _estimate_null_icc_distribution(protnodes, node_type):
     """Compute observed and permutation-based ICC for each null protein.
 
     A protein qualifies as null only when *both*:
-      - its gene-level p_val > _P_VAL_THRESHOLD, *and*
-      - only fragment-type nodes whose own p_val > _P_VAL_THRESHOLD are
+      - its gene-level p_val > aqvariables.ICC_NULL_PVAL_THRESHOLD, *and*
+      - only fragment-type nodes whose own p_val > aqvariables.ICC_NULL_PVAL_THRESHOLD are
         used for the ICC computation.
 
     The permutation null shuffles z-values across groups (destroying the
@@ -137,10 +138,10 @@ def _estimate_null_icc_distribution(protnodes, node_type):
     for prot in protnodes:
         if not hasattr(prot, "p_val"):
             continue
-        if prot.p_val <= _P_VAL_THRESHOLD:
+        if prot.p_val <= aqvariables.ICC_NULL_PVAL_THRESHOLD:
             continue
 
-        group_zvals = _collect_group_zvals(prot, node_type, node_p_val_threshold=_P_VAL_THRESHOLD)
+        group_zvals = _collect_group_zvals(prot, node_type, node_p_val_threshold=aqvariables.ICC_NULL_PVAL_THRESHOLD)
         if not group_zvals:
             continue
 

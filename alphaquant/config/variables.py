@@ -10,6 +10,7 @@ PTM_FRAGMENT_SELECTION = False
 MAX_N_FRAGMENTS = None
 ION_OUTLIER_MAD_THRESHOLD = None
 CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
+ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
@@ -64,6 +65,10 @@ def set_ion_outlier_mad_threshold(threshold):
 def set_classic_fragment_outlier_filtering(enabled):
     global CLASSIC_FRAGMENT_OUTLIER_FILTERING
     CLASSIC_FRAGMENT_OUTLIER_FILTERING = bool(enabled)
+
+def set_icc_null_pval_threshold(threshold):
+    global ICC_NULL_PVAL_THRESHOLD
+    ICC_NULL_PVAL_THRESHOLD = float(threshold)
 
 def set_ptm_fragment_selection(is_ptm: bool):
     global PTM_FRAGMENT_SELECTION
