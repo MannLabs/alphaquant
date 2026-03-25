@@ -24,7 +24,7 @@ AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z", "
 # (precursor → peptide → protein) are independent and always use Stouffer.
 _DEPENDENT_NODE_TYPES = {"frgion", "ms1_isotopes"}
 
-def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True, aggregation_mode="stouffer_icc"):
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, aggregation_mode="stouffer_icc"):
     """Aggregates differential-expression statistics from child nodes to a parent node.
 
     This is the core function for propagating statistics up the hierarchical tree
@@ -50,8 +50,6 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
                           excluding proteoform variants
         peptide_outlier_filtering: If True and node is a protein, exclude peptides
                                   identified as statistical outliers (default: False)
-        fragment_outlier_filtering: If True and node is a peptide, exclude extreme
-                                   fragment ions before aggregation (default: True)
         aggregation_mode: Strategy for combining child z-values at dependent levels
             (frgion, ms1_isotopes). Higher levels always use Stouffer (rho=0).
             Can be a single string applied to all dependent levels, or a dict
@@ -74,7 +72,7 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
     else:
         childs = [x for x in node.children if x.is_included]
 
-    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering)
+    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node)
 
 
     zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
@@ -158,7 +156,7 @@ def _select_peptides_around_median_z(peptide_nodes, max_peptides=31):
 
     return selected_peptides
 
-def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering=True):
+def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node):
     if peptide_outlier_filtering and node.type == "gene":
         filtered_childs = [x for x in childs if not x.is_outlier_peptide]
         # Additional restriction: if more than 31 peptides, keep only 31 closest to median z-value
