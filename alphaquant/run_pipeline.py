@@ -80,9 +80,9 @@ def run_pipeline(input_file: str,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
-                fragment_outlier_filtering: bool = True,
                 max_n_fragments: Optional[int] = None,
                 ion_outlier_mad_threshold: Optional[float] = 1.5,
+                icc_null_pval_threshold: float = 0.1,
                 classic_fragment_outlier_filtering: bool = False,
                 split_ion_backgrounds: bool = True,
                 use_variance_predictor: bool = True,
@@ -157,7 +157,6 @@ def run_pipeline(input_file: str,
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
         peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
-        fragment_outlier_filtering (bool): Enable fragment outlier filtering when aggregating fragments to peptides. When True, removes extreme fragments before statistical aggregation. Defaults to True.
     max_n_fragments (int or None): Maximum number of fragment ions to keep per peptide when aggregating.
         When set, only the fragments with z-values closest to the median are retained; the rest are
         discarded. None (default) means no limit.
@@ -281,6 +280,7 @@ def run_pipeline(input_file: str,
     aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
     aqvariables.set_max_n_fragments(max_n_fragments)
     aqvariables.set_ion_outlier_mad_threshold(ion_outlier_mad_threshold)
+    aqvariables.set_icc_null_pval_threshold(icc_null_pval_threshold)
     aqvariables.set_classic_fragment_outlier_filtering(classic_fragment_outlier_filtering)
 
     #use runconfig object to store the parameters
