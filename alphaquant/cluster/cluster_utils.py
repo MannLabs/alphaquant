@@ -19,9 +19,11 @@ TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
 AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z", "min_max_z", "summed_z")
 
-# Node types where child ions show intra-group dependencies.
-# Alternative aggregation modes only apply at these levels; higher levels
-# (precursor → peptide → protein) are independent and always use Stouffer.
+# Node types where alternative aggregation modes (mean_z, median_z, …) may
+# be selected via the aggregation_mode parameter.  For all other node types,
+# Stouffer with the ICC design-effect correction is always used.
+# Note: ICC correction itself (the rho in Stouffer's DEFF) is now estimated
+# and applied at *every* tree level by icc_correction.py, not just these two.
 _DEPENDENT_NODE_TYPES = {"frgion", "ms1_isotopes"}
 
 def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, aggregation_mode="stouffer_icc"):
