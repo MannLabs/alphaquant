@@ -67,8 +67,30 @@ def set_classic_fragment_outlier_filtering(enabled):
     CLASSIC_FRAGMENT_OUTLIER_FILTERING = bool(enabled)
 
 def set_icc_null_pval_threshold(threshold):
+    """Set the ICC null p-value threshold.
+
+    Args:
+        threshold: Either a float (applied to all levels) or a dict mapping
+            node_type strings to per-level thresholds
+            (e.g. ``{"frgion": 0.01, ..., "gene": 0.0}``).
+    """
     global ICC_NULL_PVAL_THRESHOLD
-    ICC_NULL_PVAL_THRESHOLD = float(threshold)
+    if isinstance(threshold, dict):
+        ICC_NULL_PVAL_THRESHOLD = {k: float(v) for k, v in threshold.items()}
+    else:
+        ICC_NULL_PVAL_THRESHOLD = float(threshold)
+
+
+def get_icc_null_pval_threshold(node_type=None):
+    """Return the ICC null p-value threshold for *node_type*.
+
+    If ICC_NULL_PVAL_THRESHOLD is a dict, looks up the node_type (falls back
+    to the global default 0.1 if the key is missing).  If it is a float,
+    returns that value regardless of node_type.
+    """
+    if isinstance(ICC_NULL_PVAL_THRESHOLD, dict):
+        return ICC_NULL_PVAL_THRESHOLD.get(node_type, 0.1)
+    return ICC_NULL_PVAL_THRESHOLD
 
 def set_ptm_fragment_selection(is_ptm: bool):
     global PTM_FRAGMENT_SELECTION

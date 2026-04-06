@@ -104,8 +104,11 @@ def estimate_and_apply_icc_correction(protnodes, runtime_plots=False, aggregatio
 
         n_annotated = _assign_icc_to_all_proteins(protnodes, node_type, icc_median)
 
+        obs_med = float(np.median(null_iccs)) if null_iccs else 0.0
+        perm_med = float(np.median(perm_iccs)) if perm_iccs else 0.0
         LOGGER.info(
-            f"ICC correction ({node_type}): null median={icc_median:.4f}, "
+            f"ICC correction ({node_type}): applied={icc_median:.4f} "
+            f"(obs={obs_med:.4f} - perm={perm_med:.4f}), "
             f"n_null={len(null_iccs)}, n_perm={len(perm_iccs)}, "
             f"n_annotated={n_annotated}"
         )
@@ -147,13 +150,14 @@ def _estimate_null_icc_distribution(protnodes, node_type):
     null_iccs = []
     null_group_zvals_list = []
 
+    pval_threshold = aqvariables.get_icc_null_pval_threshold(node_type)
     for prot in protnodes:
         if not hasattr(prot, "p_val"):
             continue
-        if prot.p_val <= aqvariables.ICC_NULL_PVAL_THRESHOLD:
+        if prot.p_val <= pval_threshold:
             continue
 
-        group_zvals = _collect_group_zvals(prot, node_type, node_p_val_threshold=aqvariables.ICC_NULL_PVAL_THRESHOLD)
+        group_zvals = _collect_group_zvals(prot, node_type, node_p_val_threshold=pval_threshold)
         if not group_zvals:
             continue
 
@@ -171,7 +175,7 @@ def _estimate_null_icc_distribution(protnodes, node_type):
 
     permutation_iccs = _compute_permutation_null(null_group_zvals_list)
 
-    icc_median = float(np.median(null_iccs))
+    icc_median = _null_normalized_icc(null_iccs, permutation_iccs)
     return null_iccs, permutation_iccs, icc_median
 
 
@@ -189,8 +193,9 @@ def _estimate_gene_level_icc(protnodes, seed=42):
         (null_iccs, permutation_iccs, icc_median).
     """
     protein_groups = []
+    gene_threshold = aqvariables.get_icc_null_pval_threshold("gene")
     for prot in protnodes:
-        if not hasattr(prot, "p_val") or prot.p_val <= aqvariables.ICC_NULL_PVAL_THRESHOLD:
+        if not hasattr(prot, "p_val") or prot.p_val <= gene_threshold:
             continue
         children_zvals = [c.z_val for c in prot.children if hasattr(c, "z_val")]
         if len(children_zvals) >= 2:
@@ -221,7 +226,7 @@ def _estimate_gene_level_icc(protnodes, seed=42):
         LOGGER.warning("ICC correction (gene): no valid subsamples; falling back to 0.0")
         return [], [], 0.0
 
-    icc_median = float(np.median(null_iccs))
+    icc_median = _null_normalized_icc(null_iccs, perm_iccs)
     return null_iccs, perm_iccs, icc_median
 
 
@@ -272,6 +277,13 @@ def _compute_permutation_null(group_zvals_list, n_permutations=_N_PERMUTATIONS, 
                 perm_iccs.append(icc)
 
     return perm_iccs
+
+
+def _null_normalized_icc(null_iccs, perm_iccs):
+    """Return the null-normalized ICC: median(observed) - median(shuffled), clamped to ≥0."""
+    obs_med = float(np.median(null_iccs))
+    perm_med = float(np.median(perm_iccs)) if len(perm_iccs) > 0 else 0.0
+    return max(0.0, obs_med - perm_med)
 
 
 def _assign_icc_to_all_proteins(protnodes, node_type, icc_median):
