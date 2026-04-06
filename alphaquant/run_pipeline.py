@@ -83,6 +83,7 @@ def run_pipeline(input_file: str,
                 max_n_fragments: Optional[int] = None,
                 ion_outlier_mad_threshold: Optional[float] = 1.5,
                 icc_null_pval_threshold: float = 0.1,
+                icc_gene_null_pval_threshold: Optional[float] = None,
                 classic_fragment_outlier_filtering: bool = False,
                 split_ion_backgrounds: bool = True,
                 use_variance_predictor: bool = True,
@@ -280,7 +281,13 @@ def run_pipeline(input_file: str,
     aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
     aqvariables.set_max_n_fragments(max_n_fragments)
     aqvariables.set_ion_outlier_mad_threshold(ion_outlier_mad_threshold)
-    aqvariables.set_icc_null_pval_threshold(icc_null_pval_threshold)
+    if icc_gene_null_pval_threshold is not None:
+        _ICC_NODE_TYPES = ("frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene")
+        threshold_dict = {nt: icc_null_pval_threshold for nt in _ICC_NODE_TYPES}
+        threshold_dict["gene"] = icc_gene_null_pval_threshold
+        aqvariables.set_icc_null_pval_threshold(threshold_dict)
+    else:
+        aqvariables.set_icc_null_pval_threshold(icc_null_pval_threshold)
     aqvariables.set_classic_fragment_outlier_filtering(classic_fragment_outlier_filtering)
 
     #use runconfig object to store the parameters
