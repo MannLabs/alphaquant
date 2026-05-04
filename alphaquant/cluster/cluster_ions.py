@@ -53,7 +53,7 @@ LEVEL2PVALTHRESH = {'ion_type':0.01, 'mod_seq_charge':0.01, 'mod_seq':1e-20, 'se
 
 
 
-def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge, aggregation_mode="stouffer_icc", cluster_threshold_ion_type=0.01):
+def get_scored_clusterselected_ions(gene_name, diffions, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, fcdiff_cutoff_clustermerge, aggregation_mode="stouffer_decorrelation", cluster_threshold_ion_type=0.01):
     """Main entry point for hierarchical clustering and tree-based quantification of a protein.
 
     This function creates a hierarchical tree structure from fragment ions up to the protein level
@@ -139,7 +139,7 @@ def add_reduced_names_to_root(node):
 
 
 import pandas as pd
-def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, aggregation_mode="stouffer_icc", cluster_threshold_ion_type=0.01):#~60% of overall runtime
+def cluster_along_specified_levels(root_node, ionname2diffion, normed_c1, normed_c2, ion2diffDist, p2z, deedpair2doublediffdist, pval_threshold_basis, fcfc_threshold, take_median_ion, aggregation_mode="stouffer_decorrelation", cluster_threshold_ion_type=0.01):#~60% of overall runtime
     """Performs hierarchical clustering at each level of the tree from bottom to top.
 
     Starting from base ions (fragments/MS1), this function iterates through each level
@@ -426,4 +426,3 @@ def exclude_node(node):
     node.is_included = False
     for descendant in node.descendants:
         descendant.is_included = False
-

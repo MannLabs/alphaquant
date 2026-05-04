@@ -72,7 +72,7 @@ _NODE_TYPE_LABELS = {
 # Public entry point
 # ---------------------------------------------------------------------------
 
-def estimate_and_apply_icc_correction(protnodes, runtime_plots=False, aggregation_mode="stouffer_icc"):
+def estimate_and_apply_icc_correction(protnodes, runtime_plots=False, aggregation_mode="stouffer_decorrelation"):
     """Estimate a global ICC at every tree level, apply uniformly, and re-aggregate.
 
     Processes levels bottom-to-top.  After each level's ICC is estimated and
@@ -406,7 +406,7 @@ def _compute_icc_from_tree(protein_node, node_type, node_p_val_threshold=None):
     return _compute_icc_from_groups(group_zvals)
 
 
-def _re_aggregate_trees(protnodes, aggregation_mode="stouffer_icc"):
+def _re_aggregate_trees(protnodes, aggregation_mode="stouffer_decorrelation"):
     """Re-aggregate all protein trees bottom-to-top after ICC annotation.
 
     Walks every tree from leaves upward, re-computing z-values and p-values

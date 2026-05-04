@@ -14,7 +14,7 @@ import alphaquant.tables.misctables as aq_tablewriter_runconfig
 import alphaquant.cluster.cluster_utils as aqclust_utils
 import alphaquant.cluster.cluster_missingval as aq_clust_missingval
 import alphaquant.cluster.outlier_filtering as aq_clust_outlier
-import alphaquant.cluster.icc_correction as aq_clust_icc
+import alphaquant.cluster.residual_decorrelation as aq_clust_resid
 
 import pandas as pd
 import numpy as np
@@ -81,7 +81,7 @@ def analyze_condpair(*,runconfig, condpair):
     ion_index = df_c1_normed.index.union(df_c2_normed.index)
     ion_variance = _compute_pooled_ion_variance(df_c1_normed, df_c2_normed, ion_index)
     ion_median_intensity = _compute_pooled_median_intensity(df_c1_normed, df_c2_normed, ion_index)
-    if getattr(runconfig, 'use_variance_predictor', True):
+    if getattr(runconfig, 'use_variance_predictor', False):
         ion2varscore = _load_variance_predictor_scores(runconfig, c1_samples, c2_samples,
                                                         ion_index, ion_variance,
                                                         ion_median_intensity)
@@ -143,9 +143,23 @@ def analyze_condpair(*,runconfig, condpair):
 
         count_prots+=1
 
-    if runconfig.icc_correction:
-        aq_clust_icc.estimate_and_apply_icc_correction(protnodes, runtime_plots=runconfig.runtime_plots, aggregation_mode=runconfig.aggregation_mode)
-
+    aggregation_mode = getattr(runconfig, "aggregation_mode", "stouffer_decorrelation")
+    uses_stouffer_decorrelation = (
+        aggregation_mode == "stouffer_decorrelation"
+        or (
+            isinstance(aggregation_mode, dict)
+            and "stouffer_decorrelation" in aggregation_mode.values()
+        )
+    )
+    if uses_stouffer_decorrelation:
+        aq_clust_resid.apply_residual_decorrelation(
+            protnodes,
+            df_c1_normed,
+            df_c2_normed,
+            tolerance=getattr(runconfig, "residual_decorrelation_tolerance", 0.10),
+            min_keep=getattr(runconfig, "residual_decorrelation_min_keep", 1),
+            aggregation_mode=runconfig.aggregation_mode,
+        )
     if len(prot2missingval_diffions.keys())>0:
         LOGGER.info(f"start analysis of proteins w. completely missing values")
 

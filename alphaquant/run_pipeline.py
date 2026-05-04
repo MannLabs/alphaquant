@@ -57,8 +57,9 @@ def run_pipeline(input_file: str,
                 cluster_threshold_fcfc: float = 0,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
-                icc_correction: bool = True,
-                aggregation_mode: Union[str, dict] = "stouffer_icc",
+                residual_decorrelation_tolerance: float = 0.10,
+                residual_decorrelation_min_keep: int = 1,
+                aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
                  perform_phospho_inference: bool = False,
@@ -81,12 +82,10 @@ def run_pipeline(input_file: str,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
                 max_n_fragments: Optional[int] = None,
-                ion_outlier_mad_threshold: Optional[float] = 1.5,
-                icc_null_pval_threshold: float = 0.1,
-                icc_gene_null_pval_threshold: Optional[float] = None,
+                ion_outlier_mad_threshold: Optional[float] = None,
                 classic_fragment_outlier_filtering: bool = False,
                 split_ion_backgrounds: bool = True,
-                use_variance_predictor: bool = True,
+                use_variance_predictor: bool = False,
                 num_bg_contexts: int = 10,
                 ion_test_method: str = 'diffdist',
                 summarization_nodes: Optional[List[str]] = None,
@@ -124,12 +123,13 @@ def run_pipeline(input_file: str,
     cluster_threshold_fcfc (float): Fold change threshold for clustering. Defaults to 0.
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
-    icc_correction (bool): Estimate and apply data-driven ICC correction for fragment/MS1 isotope aggregation. Defaults to True.
+    residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
+    residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
     aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
-        (where ions show intra-group dependencies). Higher levels always use Stouffer (rho=0).
+        (where ions show intra-group dependencies). Higher levels always use Stouffer.
         Can be a single string (applied to all dependent levels) or a dict mapping node types
         to modes (e.g. ``{"frgion": "min_median_max_z", "ms1_isotopes": "median_z"}``).
-        - "stouffer_icc" (default): Stouffer's method with ICC design-effect correction.
+        - "stouffer_decorrelation" (default): Stouffer's method after residual-decorrelation pruning.
         - "mean_z": Arithmetic mean of z-values (conservative, treats children as one measurement).
         - "median_z": Median z-value (robust to outlier children).
         - "min_median_max_z": Combine min, median, max z-values assuming independence (3-point summary).
@@ -173,7 +173,7 @@ def run_pipeline(input_file: str,
     use_variance_predictor (bool): Use a linear regression model to predict
         ion variance from quality metrics (e.g. Cscore, ShapeQualityScore) for
         sorting ions before background partitioning. When False, ions are sorted
-        by median intensity instead. Defaults to True.
+        by median intensity instead. Defaults to False.
     num_bg_contexts (int): Number of overlapping windows used to partition
         ions into empirical background distributions. Higher values create
         more fine-grained intensity-dependent backgrounds. Defaults to 10.
@@ -281,13 +281,6 @@ def run_pipeline(input_file: str,
     aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
     aqvariables.set_max_n_fragments(max_n_fragments)
     aqvariables.set_ion_outlier_mad_threshold(ion_outlier_mad_threshold)
-    if icc_gene_null_pval_threshold is not None:
-        _ICC_NODE_TYPES = ("frgion", "ms1_isotopes", "mod_seq_charge", "mod_seq", "seq", "gene")
-        threshold_dict = {nt: icc_null_pval_threshold for nt in _ICC_NODE_TYPES}
-        threshold_dict["gene"] = icc_gene_null_pval_threshold
-        aqvariables.set_icc_null_pval_threshold(threshold_dict)
-    else:
-        aqvariables.set_icc_null_pval_threshold(icc_null_pval_threshold)
     aqvariables.set_classic_fragment_outlier_filtering(classic_fragment_outlier_filtering)
 
     #use runconfig object to store the parameters
@@ -378,10 +371,14 @@ def check_if_table_supports_ml(config_dict):
     return is_longtable and ml_level_charge
 
 def load_ml_info_file(input_file, input_type, modification_type = None):
-    ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
+    ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv.zip")
+    old_ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
     if os.path.exists(ml_info_filename):#in case there already is a reformatted file, we don't need to reformat it again
         LOGGER.info(f"ML info file already exists. Using ML info file of type {input_type}")
         return ml_info_filename
+    elif os.path.exists(old_ml_info_filename):
+        LOGGER.info(f"Uncompressed ML info file already exists. Using ML info file of type {input_type}")
+        return old_ml_info_filename
     else:
         return aq_ml_info_table.MLInfoTableCreator(input_file, input_type, modification_type).ml_info_filename
 
@@ -422,4 +419,3 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
         aqcondpair.analyze_condpair(runconfig= runconfig, condpair = condpair)
 
         ,condpair_combinations)
-

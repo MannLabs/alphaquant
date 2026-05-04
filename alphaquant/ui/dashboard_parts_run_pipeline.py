@@ -374,8 +374,8 @@ class RunPipeline(BaseWidget):
 
 		self.aggregation_mode = pn.widgets.Select(
 			name='Z-value aggregation mode:',
-			options=['stouffer_icc', 'mean_z', 'median_z', 'min_median_max_z'],
-			value='stouffer_icc',
+			options=['stouffer_decorrelation', 'mean_z', 'median_z', 'min_median_max_z'],
+			value='stouffer_decorrelation',
 			width=300,
 			description='Strategy for combining child z-values during tree propagation'
 		)
@@ -408,12 +408,7 @@ class RunPipeline(BaseWidget):
 				name='Enable machine learning',
 				value=True,
 				width=300
-			),
-			'icc_correction': pn.widgets.Checkbox(
-				name='ICC correction',
-				value=True,
-				width=300
-			),
+				),
 			'take_median_ion': pn.widgets.Checkbox(
 				name='Use median-centered ions',
 				value=True,
@@ -473,7 +468,6 @@ class RunPipeline(BaseWidget):
 
 		self.switch_descriptions = {
 			'use_ml': pn.pane.Markdown('Use machine learning for improved data analysis'),
-			'icc_correction': pn.pane.Markdown('Estimate and apply data-driven ICC correction when aggregating fragment ions and MS1 isotopes'),
 			'take_median_ion': pn.pane.Markdown('Center ion intensities around their median values'),
 			'perform_ptm_mapping': pn.pane.Markdown('Map post-translational modifications to proteins'),
 			'perform_phospho_inference': pn.pane.Markdown('Infer phosphorylation sites from the data'),
@@ -827,7 +821,6 @@ class RunPipeline(BaseWidget):
 				"min_valid_values_c2": self.min_valid_values_c2.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
 				# Add the switch values to the pipeline parameters
 				'use_ml': self.switches['use_ml'].value,
-				'icc_correction': self.switches['icc_correction'].value,
 				'aggregation_mode': self.aggregation_mode.value,
 				'take_median_ion': self.switches['take_median_ion'].value,
 				'perform_ptm_mapping': self.switches['perform_ptm_mapping'].value,

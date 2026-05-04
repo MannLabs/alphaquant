@@ -17,16 +17,31 @@ LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "ge
 LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
-AGGREGATION_MODES = ("stouffer_icc", "mean_z", "median_z", "min_median_max_z", "min_max_z", "summed_z")
+DEFAULT_AGGREGATION_MODE = "stouffer_decorrelation"
+AGGREGATION_MODES = (
+    "stouffer_decorrelation",
+    "mean_z",
+    "median_z",
+    "min_median_max_z",
+    "min_max_z",
+    "summed_z",
+)
+_LEGACY_AGGREGATION_MODES = ("stouffer_icc",)
 
 # Node types where alternative aggregation modes (mean_z, median_z, …) may
 # be selected via the aggregation_mode parameter.  For all other node types,
-# Stouffer with the ICC design-effect correction is always used.
-# Note: ICC correction itself (the rho in Stouffer's DEFF) is now estimated
-# and applied at *every* tree level by icc_correction.py, not just these two.
+# Stouffer is always used.
 _DEPENDENT_NODE_TYPES = {"frgion", "ms1_isotopes"}
 
-def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, aggregation_mode="stouffer_icc"):
+def node_is_excluded_from_aggregation(node):
+    """Return True for children removed by post-clustering correction steps."""
+    return (
+        getattr(node, "exclude_residual_decorrelation", False)
+        or getattr(node, "exclude_ptm_fragment_selection", False)
+    )
+
+
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, aggregation_mode=DEFAULT_AGGREGATION_MODE):
     """Aggregates differential-expression statistics from child nodes to a parent node.
 
     This is the core function for propagating statistics up the hierarchical tree
@@ -53,11 +68,11 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
         peptide_outlier_filtering: If True and node is a protein, exclude peptides
                                   identified as statistical outliers (default: False)
         aggregation_mode: Strategy for combining child z-values at dependent levels
-            (frgion, ms1_isotopes). Higher levels always use Stouffer (rho=0).
+            (frgion, ms1_isotopes). Higher levels always use Stouffer.
             Can be a single string applied to all dependent levels, or a dict
-            mapping node types to modes (e.g. ``{"frgion": "stouffer_icc",
+            mapping node types to modes (e.g. ``{"frgion": "stouffer_decorrelation",
             "ms1_isotopes": "median_z"}``).  Allowed mode strings:
-            "stouffer_icc" - Stouffer's method with ICC design-effect correction (default)
+            "stouffer_decorrelation" - Stouffer's method used after residual decorrelation (default)
             "mean_z"       - arithmetic mean of z-values
             "median_z"     - median z-value
             "min_median_max_z" - combine min, median, max z-values assuming independence
@@ -70,11 +85,31 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
         optionally node.ml_score based on aggregated child values.
     """
     if only_use_mainclust:
-        childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
+        childs = [
+            x for x in node.children
+            if x.is_included & (x.cluster == 0) and not node_is_excluded_from_aggregation(x)
+        ]
     else:
-        childs = [x for x in node.children if x.is_included]
+        childs = [
+            x for x in node.children
+            if x.is_included and not node_is_excluded_from_aggregation(x)
+        ]
+
+    if len(childs) == 0:
+        if any(node_is_excluded_from_aggregation(x) for x in node.children):
+            # Residual decorrelation and PTM fragment selection together exhausted
+            # all eligible children. Keep the existing z-value so this node still
+            # contributes to higher levels — cascading the exclusion upward would
+            # double-penalise PTM data where both filters operate independently.
+            return
+        raise ValueError(f"Node {node.name!r} ({node.type}) has no eligible children to aggregate.")
 
     childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node)
+
+    if len(childs_zfiltered) == 0:
+        if any(node_is_excluded_from_aggregation(x) for x in node.children):
+            return
+        raise ValueError(f"Node {node.name!r} ({node.type}) has no eligible children after filtering.")
 
 
     zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
@@ -94,9 +129,9 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
 
     rho = getattr(node, 'icc_correction', 0.0)
     if node.type not in _DEPENDENT_NODE_TYPES:
-        effective_mode = "stouffer_icc"
+        effective_mode = DEFAULT_AGGREGATION_MODE
     elif isinstance(aggregation_mode, dict):
-        effective_mode = aggregation_mode.get(node.type, "stouffer_icc")
+        effective_mode = aggregation_mode.get(node.type, DEFAULT_AGGREGATION_MODE)
     else:
         effective_mode = aggregation_mode
     z_normed = combine_zvalues(zvals, rho=rho, mode=effective_mode)
@@ -246,15 +281,7 @@ def remove_outlier_fragion_childs(childs):
         list: Filtered subset of fragment ion nodes to use for aggregation
     """
     zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
-    if aqvariables.PTM_FRAGMENT_SELECTION:
-        sorted_idxs_zvals = np.argsort(np.abs(zvals))
-        median_idx = math.floor(len(zvals)/2)
-        median_idx = 7 if median_idx > 7 else median_idx
-        if median_idx < len(sorted_idxs_zvals):
-            idxs_to_use = sorted_idxs_zvals[:median_idx+1]
-        else:
-            idxs_to_use = sorted_idxs_zvals
-    elif len(zvals) > 4:
+    if len(zvals) > 4:
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
         idx_start = median_idx - 2
@@ -272,21 +299,79 @@ def remove_outlier_fragion_childs(childs):
     return [childs[idx] for idx in idxs_to_use]
 
 
-def combine_zvalues(zvals, rho=0.0, mode="stouffer_icc"):
+def apply_ptm_fragment_selection(protnodes, max_keep=8):
+    """Apply PTM low-|Z| fragment filtering after residual decorrelation.
+
+    For every ``frgion`` parent, currently eligible base-ion children are sorted
+    by ``abs(z_val)``.  The least extreme children through the median rank are
+    retained, capped by ``max_keep``.  The default ``max_keep=8`` matches the
+    legacy PTM fragment-selection rule in ``remove_outlier_fragion_childs``.
+
+    Returns:
+        tuple[int, int]: ``(children_dropped, parents_touched)``.
+    """
+    try:
+        max_keep = int(max_keep)
+    except (TypeError, ValueError):
+        max_keep = 8
+    max_keep = max(1, max_keep)
+
+    n_dropped = 0
+    n_touched = 0
+    for protnode in protnodes:
+        for parent in anytree.PreOrderIter(protnode):
+            if getattr(parent, "type", None) != "frgion":
+                continue
+            eligible = [
+                child for child in parent.children
+                if child.is_included and not node_is_excluded_from_aggregation(child)
+            ]
+            n_live = len(eligible)
+            if n_live <= 1:
+                continue
+
+            keep_n = min((n_live // 2) + 1, max_keep, n_live)
+            if keep_n >= n_live:
+                continue
+
+            zvals = get_feature_numpy_array_from_nodes(
+                nodes=eligible, feature_name="z_val")
+            order = np.argsort(np.abs(zvals))
+            kept = {eligible[idx] for idx in order[:keep_n]}
+            dropped_here = 0
+            for child in eligible:
+                keep = child in kept
+                child.exclude_ptm_fragment_selection = not keep
+                if not keep:
+                    child.is_outlier_fragment = True
+                    dropped_here += 1
+                elif not getattr(child, "is_outlier_fragment", False):
+                    child.is_outlier_fragment = False
+            if dropped_here:
+                n_dropped += dropped_here
+                n_touched += 1
+
+    return n_dropped, n_touched
+
+
+def combine_zvalues(zvals, rho=0.0, mode=DEFAULT_AGGREGATION_MODE):
     """Dispatch function that selects the z-value combination strategy.
 
     Args:
         zvals: Array or list of z-values to combine
-        rho: ICC among the z-values (only used by stouffer_icc mode)
+        rho: Correlation design-effect parameter for Stouffer aggregation.
         mode: One of AGGREGATION_MODES
 
     Returns:
         float: Combined z-value on a standard normal scale
     """
+    if mode not in AGGREGATION_MODES and mode not in _LEGACY_AGGREGATION_MODES:
+        raise ValueError(f"Unknown aggregation mode: {mode!r}. Choose from {AGGREGATION_MODES}")
+
     if len(zvals) == 1:
         return zvals[0]
 
-    if mode == "stouffer_icc":
+    if mode in ("stouffer_decorrelation", "stouffer_icc"):
         return sum_and_re_scale_zvalues(zvals, rho=rho)
     elif mode == "mean_z":
         return _combine_mean_z(zvals)
@@ -298,8 +383,6 @@ def combine_zvalues(zvals, rho=0.0, mode="stouffer_icc"):
         return _combine_min_max_z(zvals)
     elif mode == "summed_z":
         return _combine_summed_z(zvals)
-    else:
-        raise ValueError(f"Unknown aggregation mode: {mode!r}. Choose from {AGGREGATION_MODES}")
 
 
 def _combine_mean_z(zvals):
@@ -343,7 +426,7 @@ def _combine_min_max_z(zvals):
 def _combine_summed_z(zvals):
     """Classic Stouffer combination assuming full independence (rho=0).
 
-    Unlike ``stouffer_icc``, this ignores any estimated ICC correction
+    Unlike the Stouffer modes, this ignores any estimated ICC correction
     and always treats child z-values as independent.
     """
     return sum_and_re_scale_zvalues(zvals, rho=0.0)

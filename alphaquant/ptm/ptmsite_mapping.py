@@ -9,6 +9,8 @@ import logging
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 import alphaquant.config.variables as aq_variables
+import io
+import zipfile
 #helper classes
 
 headers_dicts = {'Spectronaut' : {"label_column" : "R.Label", "fg_id_column" : "FG.Id", 'sequence' : "PEP.StrippedSequence", 'proteins' : "PG.UniProtIds", 'precursor_mz' : "FG.PrecMz", "precursor_charge" : "FG.Charge",
@@ -679,7 +681,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
 
         # Write deduplicated result
         LOGGER.info(f"Writing deduplicated PTM table with {len(deduplicated_df)} rows to {ptmmapped_table_filename}")
-        deduplicated_df.to_csv(ptmmapped_table_filename, sep='\t', index=False)
+        write_dataframe_to_single_file_zip(deduplicated_df, ptmmapped_table_filename)
 
     else:
         # Write chunks directly for non-Spectronaut data (DIANN, etc.)
@@ -747,7 +749,17 @@ def get_ptmmapped_filename(spectronaut_file):
     foldername = os.path.dirname(spectronaut_file_abspath)
     filename = os.path.basename(spectronaut_file_abspath)
     filename_reduced = filename.replace(".tsv", "")
-    return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv" #this file is not written to the progress folder
+    return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv.zip" #this file is not written to the progress folder
+
+
+def write_dataframe_to_single_file_zip(df, zip_filename, sep="\t", index=False):
+    archive_name = os.path.basename(zip_filename)
+    if archive_name.endswith(".zip"):
+        archive_name = archive_name[:-4]
+    with zipfile.ZipFile(zip_filename, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        with zf.open(archive_name, mode="w", force_zip64=True) as buffer:
+            with io.TextIOWrapper(buffer, encoding="utf-8", newline="") as text:
+                df.to_csv(text, sep=sep, index=index)
 
 
 
@@ -757,9 +769,15 @@ def add_ptmsite_info_to_subtable(spectronaut_df, labelid2ptmid, labelid2site, mo
     spectronaut_df = spectronaut_df[[x in labelid2ptmid.keys() for x in spectronaut_df["labelid"]]].copy() #drop peptides that have no ptm
 
     spectronaut_df["ptm_id"] = np.array([labelid2ptmid.get(x) for x in spectronaut_df["labelid"]]) #add the ptm_id row to the spectronaut table
-    modseq_typereplaced = np.array([str(x.replace(modification_type, "")) for x in spectronaut_df["EG.ModifiedSequence"]]) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
-    sites = np.array([str(labelid2site.get(x)) for x in spectronaut_df["labelid"]])
-    spectronaut_df["ptm_mapped_modseq"] = np.char.add(modseq_typereplaced, sites)
+    modseq_typereplaced = pd.Series(
+        [str(x).replace(modification_type, "") for x in spectronaut_df["EG.ModifiedSequence"]],
+        index=spectronaut_df.index,
+    ) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
+    sites = pd.Series(
+        [str(labelid2site.get(x)) for x in spectronaut_df["labelid"]],
+        index=spectronaut_df.index,
+    )
+    spectronaut_df["ptm_mapped_modseq"] = modseq_typereplaced + sites
 
     return spectronaut_df
 
@@ -771,7 +789,3 @@ def get_ptmid_mappings(mapped_df):
     labelid2ptmid = dict(zip(labelid, ptm_ids))
     labelid2site = dict(zip(labelid, site))
     return labelid2ptmid, labelid2site
-
-
-
-
