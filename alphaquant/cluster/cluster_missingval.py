@@ -27,6 +27,7 @@ def _determine_missingval_test_level(root_node):
     # Check if mod_seq_charge nodes exist (fragment-level data)
     mod_seq_charge_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
     if len(mod_seq_charge_nodes) > 0:
+        # Scenario 1: fragment-level data — everything below mod_seq_charge is collapsed to mod_seq_charge as the lowest identification level
         MISSINGVAL_TEST_LEVEL = "mod_seq_charge"
         return
     
