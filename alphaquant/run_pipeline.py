@@ -46,7 +46,7 @@ def run_pipeline(input_file: str,
                 condpairs_list: Optional[List[Tuple[str, str]]] = None,
                 file_has_alphaquant_format: bool = False,
                 min_valid_values: int = 2,
-                valid_values_filter_mode: str = "either", #options: "either", "and", "per_condition"
+                valid_values_filter_mode: str = "either", #options: "either", "both", "per_condition"
                 min_valid_values_c1: int = 0,
                 min_valid_values_c2: int = 0,
                 min_num_ions: int = 1,
