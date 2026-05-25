@@ -43,6 +43,7 @@ wheels/
 *.manifest
 #*.spec
 build_pyinstaller
+build_pyinstaller_data
 dist_pyinstaller
 
 # Installer logs
