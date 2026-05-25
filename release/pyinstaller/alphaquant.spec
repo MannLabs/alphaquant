@@ -45,6 +45,8 @@ hidden_imports = [h for h in hidden_imports if "__pycache__" not in h]
 datas = [d for d in datas if ("__pycache__" not in d[0]) and (d[1] not in [".", "Resources", "scripts"])]
 
 installer_data_dir = Path(os.environ.get("INSTALLER_DATA_DIR", "build_pyinstaller_data"))
+if not installer_data_dir.is_absolute():
+	installer_data_dir = Path(location) / installer_data_dir
 for source_root, destination_root in (
 	(installer_data_dir / "alphamap" / "data", Path("alphamap") / "data"),
 	(installer_data_dir / "alphaquant" / "resources", Path("alphaquant") / "resources"),

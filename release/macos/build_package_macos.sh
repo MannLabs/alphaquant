@@ -8,31 +8,29 @@ PACKAGE_NAME=alphaquant
 # BUILD_NAME is taken from environment variables, e.g. alphaquant-1.2.3-macos-darwin-arm64 or alphaquant-1.2.3-macos-darwin-x64
 rm -rf ${BUILD_NAME}.pkg
 
-curl_github() {
+curl_with_retries() {
     local args=(
         -L
         -f
         --retry 3
         --retry-delay 2
-        -H "Accept: application/vnd.github+json"
         -H "User-Agent: alphaquant-release-build"
     )
-
-    local github_token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
-    if [ -n "$github_token" ]; then
-        args+=(-H "Authorization: Bearer ${github_token}")
-    fi
 
     curl "${args[@]}" "$@"
 }
 
-extract_alphamap_data_urls() {
-    python -c 'import json, sys
-for item in json.load(sys.stdin):
-    name = item.get("name", "")
-    url = item.get("download_url")
-    if url and name.endswith((".fasta", ".csv")):
-        print(url)'
+list_alphamap_data_downloads() {
+    python -c 'from urllib.parse import quote
+from alphamap.organisms_data import all_organisms
+base_url = "https://raw.githubusercontent.com/MannLabs/alphamap/main/alphamap/data/"
+seen = set()
+for organism in all_organisms.values():
+    for key in ("fasta_name", "uniprot_name"):
+        name = organism[key]
+        if name not in seen:
+            seen.add(name)
+            print(f"{name}\t{base_url}{quote(name)}")'
 }
 
 # If needed, include additional source such as e.g.:
@@ -63,21 +61,14 @@ mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 ####
 ####Download all AlphaMap FASTA and CSV files from GitHub, which are needed for the further analyses. There is a lot of error checking to ensure that the files get actually added during the build
 echo "Starting downloads of FASTA and CSV files..."
-if ! DOWNLOAD_LIST=$(curl_github https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main); then
-    echo "Error: Failed to fetch file list from GitHub API"
-    exit 1
-fi
-
-echo "$DOWNLOAD_LIST" | \
-  extract_alphamap_data_urls | \
-  while read url; do
-    if [ -z "$url" ]; then
+list_alphamap_data_downloads | \
+  while IFS=$'\t' read -r filename url; do
+    if [ -z "$filename" ] || [ -z "$url" ]; then
         echo "Warning: Empty URL detected, skipping..."
         continue
     fi
-    filename=$(basename $url)
     echo "Downloading $filename..."
-    if ! curl_github "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"; then
+    if ! curl_with_retries "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"; then
         echo "Error: Failed to download $filename"
         exit 1
     fi
@@ -101,7 +92,7 @@ mkdir -p ${CONTENTS_FOLDER}/MacOS/_internal/alphaquant/resources/
 # Download and extract the first zip file
 echo "Downloading and extracting first resource from datashare..."
 TEMP_ZIP1=$(mktemp)
-if ! curl -L -f "https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg/download" -o "$TEMP_ZIP1"; then
+if ! curl_with_retries "https://datashare.biochem.mpg.de/s/ezPzeqStEgDD8gg/download" -o "$TEMP_ZIP1"; then
     echo "Error: Failed to download first resource from datashare"
     exit 1
 fi
@@ -112,7 +103,7 @@ rm "$TEMP_ZIP1"
 # Download and extract the second zip file
 echo "Downloading and extracting second resource from datashare..."
 TEMP_ZIP2=$(mktemp)
-if ! curl -L -f "https://datashare.biochem.mpg.de/s/stH9pmNe6O9CRHG/download" -o "$TEMP_ZIP2"; then
+if ! curl_with_retries "https://datashare.biochem.mpg.de/s/stH9pmNe6O9CRHG/download" -o "$TEMP_ZIP2"; then
     echo "Error: Failed to download second resource from datashare"
     exit 1
 fi

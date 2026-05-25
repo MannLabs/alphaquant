@@ -5,31 +5,29 @@ INSTALLER_DATA_DIR=${INSTALLER_DATA_DIR:-build_pyinstaller_data}
 ALPHAMAP_DATA_DIR="${INSTALLER_DATA_DIR}/alphamap/data"
 ALPHAQUANT_RESOURCES_DIR="${INSTALLER_DATA_DIR}/alphaquant/resources"
 
-curl_github() {
+curl_with_retries() {
     local args=(
         -L
         -f
         --retry 3
         --retry-delay 2
-        -H "Accept: application/vnd.github+json"
         -H "User-Agent: alphaquant-release-build"
     )
-
-    local github_token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
-    if [ -n "$github_token" ]; then
-        args+=(-H "Authorization: Bearer ${github_token}")
-    fi
 
     curl "${args[@]}" "$@"
 }
 
-extract_alphamap_data_urls() {
-    python -c 'import json, sys
-for item in json.load(sys.stdin):
-    name = item.get("name", "")
-    url = item.get("download_url")
-    if url and name.endswith((".fasta", ".csv")):
-        print(url)'
+list_alphamap_data_downloads() {
+    python -c 'from urllib.parse import quote
+from alphamap.organisms_data import all_organisms
+base_url = "https://raw.githubusercontent.com/MannLabs/alphamap/main/alphamap/data/"
+seen = set()
+for organism in all_organisms.values():
+    for key in ("fasta_name", "uniprot_name"):
+        name = organism[key]
+        if name not in seen:
+            seen.add(name)
+            print(f"{name}\t{base_url}{quote(name)}")'
 }
 
 download_datashare_zip() {
@@ -39,7 +37,7 @@ download_datashare_zip() {
 
     temp_zip=$(mktemp)
     echo "Downloading ${label} from datashare..."
-    if ! curl -L -f --retry 3 --retry-delay 2 "${url}" -o "${temp_zip}"; then
+    if ! curl_with_retries "${url}" -o "${temp_zip}"; then
         echo "Error: Failed to download ${label} from datashare"
         rm -f "${temp_zip}"
         exit 1
@@ -54,22 +52,15 @@ rm -rf "${INSTALLER_DATA_DIR}"
 mkdir -p "${ALPHAMAP_DATA_DIR}" "${ALPHAQUANT_RESOURCES_DIR}"
 
 echo "Downloading AlphaMap FASTA and CSV files..."
-if ! DOWNLOAD_LIST=$(curl_github https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main); then
-    echo "Error: Failed to fetch AlphaMap file list from GitHub API"
-    exit 1
-fi
-
-echo "$DOWNLOAD_LIST" | \
-  extract_alphamap_data_urls | \
-  while read url; do
-    if [ -z "$url" ]; then
+list_alphamap_data_downloads | \
+  while IFS=$'\t' read -r filename url; do
+    if [ -z "$filename" ] || [ -z "$url" ]; then
         echo "Warning: Empty URL detected, skipping..."
         continue
     fi
 
-    filename=$(basename "$url")
     echo "Downloading ${filename}..."
-    if ! curl_github "$url" -o "${ALPHAMAP_DATA_DIR}/${filename}"; then
+    if ! curl_with_retries "$url" -o "${ALPHAMAP_DATA_DIR}/${filename}"; then
         echo "Error: Failed to download ${filename}"
         exit 1
     fi
