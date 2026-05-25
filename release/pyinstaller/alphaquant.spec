@@ -2,6 +2,7 @@
 
 import os
 import sys
+from pathlib import Path
 from PyInstaller.building.build_main import Analysis, PYZ, EXE, COLLECT, BUNDLE, TOC
 import PyInstaller.utils.hooks
 
@@ -42,6 +43,18 @@ hidden_imports = [h for h in hidden_imports if "__pycache__" not in h]
 # 		[h for h in hidden_imports if "tests" not in h.split(".")]
 # 	)
 datas = [d for d in datas if ("__pycache__" not in d[0]) and (d[1] not in [".", "Resources", "scripts"])]
+
+installer_data_dir = Path(os.environ.get("INSTALLER_DATA_DIR", "build_pyinstaller_data"))
+if not installer_data_dir.is_absolute():
+	installer_data_dir = Path(location) / installer_data_dir
+for source_root, destination_root in (
+	(installer_data_dir / "alphamap" / "data", Path("alphamap") / "data"),
+	(installer_data_dir / "alphaquant" / "resources", Path("alphaquant") / "resources"),
+):
+	if source_root.exists():
+		for source_file in source_root.rglob("*"):
+			if source_file.is_file():
+				datas.append((str(source_file), str(destination_root / source_file.relative_to(source_root).parent)))
 
 # add certifi to datas, otherwise ssh connections fail when they are triggered from the installer, because the certificates are not available
 # In the case of the AlphaQuant repo, AlphaMap needs to download data from GitHub and this fails without certifi
