@@ -26,17 +26,23 @@ class AlphaDIAFragTableProcessor:
 			fragment_matrix_file (str): Path to the fragment matrix file
 		"""
 
-		self.ml_info_file = aq_utils.get_progress_folder_filename(fragment_matrix_file, ".ml_info_table.tsv")
+		self.ml_info_file = aq_utils.get_progress_folder_filename(fragment_matrix_file, ".ml_info_table.tsv.zip")
+		self.old_ml_info_file = aq_utils.get_progress_folder_filename(fragment_matrix_file, ".ml_info_table.tsv")
 		self.input_file_reformat = aq_utils.get_progress_folder_filename(fragment_matrix_file, ".alphadia_fragion.aq_reformat.tsv", remove_extension=False)
 
 		precursor_file = os.path.join(os.path.dirname(fragment_matrix_file), "precursors.tsv")
 		self._precursor_df = aq_reader_utils.read_file(precursor_file, sep="\t")
 		self._precursor2quantID = self._precursor2quantid()
 
-		if not os.path.exists(self.ml_info_file):
+		if os.path.exists(self.old_ml_info_file) and not os.path.exists(self.ml_info_file):
+			self.ml_info_file = self.old_ml_info_file
+			LOGGER.info(f"ML info file already exists at {self.ml_info_file}")
+		elif not os.path.exists(self.ml_info_file):
 			LOGGER.info(f"Creating ML info file")
 			self.ml_info_df = self._define_ml_info_table()
-			self.ml_info_df.to_csv(self.ml_info_file, sep="\t", index=False)
+			archive_name = os.path.basename(self.ml_info_file).removesuffix(".zip")
+			compression = {"method": "zip", "archive_name": archive_name}
+			self.ml_info_df.to_csv(self.ml_info_file, sep="\t", index=False, compression=compression)
 		else:
 			LOGGER.info(f"ML info file already exists at {self.ml_info_file}")
 
