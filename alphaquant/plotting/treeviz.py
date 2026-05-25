@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import anytree
 import re
+import shlex
 from matplotlib import gridspec
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
@@ -78,7 +79,7 @@ class GraphCreator():
         self._colorlist_hex = [aqviz.rgb_to_hex(x) for x in self._plotconfig.colorlist]
 
     def _format_graph(self):
-        pos = nx.drawing.nx_agraph.graphviz_layout(self.graph, **self._graph_parameters.layout_params)
+        pos = _graphviz_layout(self.graph, self._graph_parameters.layout_params)
 
         root_id = id(self._protein)
         hide_root = getattr(self._plotconfig, 'hide_root_in_tree', False)
@@ -145,9 +146,6 @@ class GraphCreator():
             node_options["alpha"] = self._graph_parameters.alpha_excluded
             node_options["edgecolors"] = self._graph_parameters.excluded_edge_color
             node_options["linewidths"] = self._graph_parameters.excluded_linewidth
-        elif self._should_highlight_exclusions() and self._has_excluded_descendants(anynode):
-            node_options["edgecolors"] = self._graph_parameters.excluded_descendant_edge_color
-            node_options["linewidths"] = self._graph_parameters.excluded_descendant_linewidth
 
         return node_options
 
@@ -168,10 +166,6 @@ class GraphCreator():
             or getattr(anynode, "is_outlier_peptide", False)
         )
 
-    @classmethod
-    def _has_excluded_descendants(cls, anynode):
-        return any(cls._is_directly_excluded(descendant) for descendant in anynode.descendants)
-
     def _add_exclusion_legend(self, nodes_to_draw):
         if not (
             self._should_highlight_exclusions()
@@ -181,11 +175,7 @@ class GraphCreator():
 
         drawn_anynodes = [self._id2anytree_node[node] for node in nodes_to_draw]
         has_direct = any(self._is_directly_excluded(node) for node in drawn_anynodes)
-        has_descendant = any(
-            self._has_excluded_descendants(node) and not self._is_directly_excluded(node)
-            for node in drawn_anynodes
-        )
-        if not has_direct and not has_descendant:
+        if not has_direct:
             return
 
         legend_handles = []
@@ -203,20 +193,6 @@ class GraphCreator():
                     label="excluded from aggregation",
                 )
             )
-        if has_descendant:
-            legend_handles.append(
-                Line2D(
-                    [0],
-                    [0],
-                    marker="o",
-                    linestyle="",
-                    markerfacecolor="white",
-                    markeredgecolor=self._graph_parameters.excluded_descendant_edge_color,
-                    markeredgewidth=self._graph_parameters.excluded_descendant_linewidth,
-                    markersize=8,
-                    label="has excluded children",
-                )
-            )
 
         self._ax.legend(
             handles=legend_handles,
@@ -230,17 +206,15 @@ class GraphCreator():
 class GraphParameters():
     def __init__(self):
         self.included_color = "skyblue"
-        self.excluded_color = "#F2F2F2"
+        self.excluded_color = "#D9D9D9"
         self.included_edge_color = "#404040"
-        self.excluded_edge_color = "#D62728"
-        self.excluded_descendant_edge_color = "#E69F00"
+        self.excluded_edge_color = "#808080"
         self.included_label_color = "#202020"
-        self.excluded_label_color = "#D62728"
+        self.excluded_label_color = "#333333"
         self.alpha_included = 0.6  # More transparent nodes
         self.alpha_excluded = 0.8
         self.included_linewidth = 1
-        self.excluded_linewidth = 2.5
-        self.excluded_descendant_linewidth = 2.0
+        self.excluded_linewidth = 2.0
 
         self.node_options = {
             "node_color": self.included_color,
@@ -264,6 +238,38 @@ class GraphParameters():
         "prog": "dot",
         "args": f"-Gnodesep={4.0/5} -Granksep={4.0/5}"
     }
+
+
+def _graphviz_layout(graph, layout_params):
+    try:
+        return nx.drawing.nx_agraph.graphviz_layout(graph, **layout_params)
+    except ImportError:
+        return _graphviz_plain_layout(graph, layout_params)
+
+
+def _graphviz_plain_layout(graph, layout_params):
+    import graphviz
+
+    prog = layout_params.get("prog", "dot")
+    graph_attr = {}
+    for token in shlex.split(layout_params.get("args", "")):
+        if token.startswith("-G") and "=" in token:
+            key, value = token[2:].split("=", 1)
+            graph_attr[key] = value
+
+    dot = graphviz.Digraph(engine=prog, graph_attr=graph_attr)
+    for node in graph.nodes:
+        dot.node(str(node))
+    for parent, child in graph.edges:
+        dot.edge(str(parent), str(child))
+
+    plain = dot.pipe(format="plain").decode("utf-8")
+    pos = {}
+    for line in plain.splitlines():
+        parts = line.split()
+        if len(parts) >= 4 and parts[0] == "node":
+            pos[int(parts[1])] = (float(parts[2]) * 72.0, float(parts[3]) * 72.0)
+    return pos
 
 
 
@@ -348,11 +354,6 @@ class AnnotatedTreeLabelFormatter(TreeLabelFormatter):
 
                 annotations.append(formatted)
 
-        if (
-            getattr(plotconfig, "highlight_excluded_nodes", True)
-            and getattr(plotconfig, "show_excluded_node_counts", True)
-        ):
-            annotations.extend(cls.get_exclusion_annotation_lines(node))
         return annotations
 
     @classmethod
@@ -360,14 +361,6 @@ class AnnotatedTreeLabelFormatter(TreeLabelFormatter):
         """Return compact annotations for aggregation-excluded nodes."""
         if GraphCreator._is_directly_excluded(node):
             return ["excluded"]
-
-        num_excluded_descendants = sum(
-            1
-            for descendant in node.descendants
-            if GraphCreator._is_directly_excluded(descendant)
-        )
-        if num_excluded_descendants > 0:
-            return [f"excl nodes={num_excluded_descendants}"]
 
         return []
 
@@ -381,7 +374,7 @@ class AnnotatedGraphCreator(GraphCreator):
 
     def _format_graph(self):
         """Override _format_graph to use the enhanced label formatter."""
-        pos = nx.drawing.nx_agraph.graphviz_layout(self.graph, **self._graph_parameters.layout_params)
+        pos = _graphviz_layout(self.graph, self._graph_parameters.layout_params)
 
         root_id = id(self._protein)
         hide_root = getattr(self._plotconfig, 'hide_root_in_tree', False)
