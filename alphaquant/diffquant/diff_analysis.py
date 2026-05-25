@@ -6,6 +6,7 @@ import statistics
 from scipy.stats import ttest_ind
 from scipy.stats import t as student_t
 import alphaquant.diffquant.diffutils as aqdiffutils
+import alphaquant.config.variables as aqvariables
 
 class DifferentialIon():
     """Computes differential statistics for an ion using empirical background distributions.
@@ -188,7 +189,7 @@ class DifferentialIonTTest():
         if outlier_correction and se_standard > 0 and n1 > 1 and n2 > 1:
             se_robust = _calc_robust_se_ttest(noNanvals_from, noNanvals_to)
             if se_robust > 0:
-                scaling_factor = max(1.0, min(5.0, se_robust / se_standard))
+                scaling_factor = max(1.0, min(5.0, se_robust / se_standard * aqvariables.OUTLIER_CORRECTION_FACTOR))
                 t_adj = t_stat / scaling_factor
                 p_val = 2.0 * float(student_t.sf(abs(t_adj), df))
 
@@ -206,6 +207,8 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
     empirical background distribution. If replicates are more variable than expected
     (e.g., due to biological variability or technical outliers), the variance estimate
     is inflated accordingly. This makes the test more conservative when data quality is poor.
+
+    The result is further scaled by ``aqvariables.OUTLIER_CORRECTION_FACTOR`` (default 1.0).
 
     Args:
         noNanvals_from: Log2 intensities from condition 1
@@ -228,7 +231,7 @@ def calc_outlier_scaling_factor(noNanvals_from, noNanvals_to, diffDist):
     highest_SD_to = max(between_rep_SD_to, sd_to)
     highest_SD_combined = math.sqrt(highest_SD_from**2 + highest_SD_to**2)
 
-    scaling_factor = max(1.0, highest_SD_combined/diffDist.SD)
+    scaling_factor = max(1.0, highest_SD_combined/diffDist.SD  * aqvariables.OUTLIER_CORRECTION_FACTOR)
     return scaling_factor
 
 def _robust_sd(x):

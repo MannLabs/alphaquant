@@ -1,13 +1,14 @@
 import alphaquant.cluster.cluster_utils as aqcluster_utils
+import alphaquant.config.variables as aqvariables
 import anytree
 import numpy as np
 
-def apply_peptide_outlier_filtering(protnodes: list[anytree.Node]):
+def apply_peptide_outlier_filtering(protnodes: list[anytree.Node], aggregation_mode="stouffer_decorrelation"):
     regulation_score = calculate_regulation_score(protnodes)
     for protnode in protnodes:
         _determine_and_annotate_outlier_status_of_peptides(protnode, regulation_score)
 
-        aqcluster_utils.aggregate_node_properties(protnode, only_use_mainclust=True, peptide_outlier_filtering=True)
+        aqcluster_utils.aggregate_node_properties(protnode, only_use_mainclust=True, peptide_outlier_filtering=True, aggregation_mode=aggregation_mode)
 
 
 
@@ -23,7 +24,12 @@ def calculate_regulation_score(protnodes: list[anytree.Node]):
     fraction_sig = num_sig / (num_sig + num_insig)
 
     log2fc_ratio_sig_vs_insig = np.median(abs_log2fc[sig_mask_005]) / (np.median(abs_log2fc[nonsig_mask]) + 1e-6)
-    regulation_score = min(1, log2fc_ratio_sig_vs_insig * fraction_sig/10) #merges the regulation strength and the fraction of significant proteins into one score divided by to normalize it, the normalization factor corresponds to a very stongly regulated dataset
+    regulation_score = min(
+        1,
+        log2fc_ratio_sig_vs_insig
+        * fraction_sig
+        / aqvariables.PEPTIDE_OUTLIER_REGULATION_NORMALIZATION_FACTOR,
+    )  # merges the regulation strength and the fraction of significant proteins into one score; the normalization factor corresponds to a strongly regulated dataset
     return regulation_score
 
 

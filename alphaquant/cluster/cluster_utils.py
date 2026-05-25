@@ -5,7 +5,6 @@ import numpy as np
 import collections
 import alphaquant.config.variables as aqvariables
 from anytree import Node, LevelOrderGroupIter
-import alphaquant.utils.diffquant_utils as aq_utils_diffquant
 import re
 
 import alphaquant.config.config as aqconfig
@@ -18,14 +17,49 @@ LEVELS = ["base","ion_type", "ion_type", "mod_seq_charge", "mod_seq", "seq", "ge
 LEVELS_UNIQUE = ["base","ion_type", "mod_seq_charge", "mod_seq", "seq", "gene"]
 TYPE2LEVEL = dict(zip(TYPES, LEVELS))
 
+DEFAULT_AGGREGATION_MODE = "stouffer_decorrelation"
+AGGREGATION_MODES = (
+    "stouffer_decorrelation",
+    "mean_z",
+    "median_z",
+    "min_median_max_z",
+    "min_max_z",
+    "summed_z",
+)
+_LEGACY_AGGREGATION_MODES = ("stouffer_icc",)
 
-def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, fragment_outlier_filtering=True):
-    """Aggregates statistical properties from child nodes to a parent node in the tree.
+# Node types where alternative aggregation modes (mean_z, median_z, …) may
+# be selected via the aggregation_mode parameter.  For all other node types,
+# Stouffer is always used.
+_DEPENDENT_NODE_TYPES = {"frgion", "ms1_isotopes"}
 
-    This is the core function for propagating statistics up the hierarchical tree structure.
-    It combines z-values, fold changes, and quality metrics from child nodes (e.g., peptides)
-    into parent node (e.g., protein) statistics. The aggregation can optionally exclude
-    proteoforms (non-main clusters) and filter outlier children.
+def node_is_excluded_from_aggregation(node):
+    """Return True for children removed by post-clustering correction steps."""
+    return (
+        getattr(node, "exclude_residual_decorrelation", False)
+        or getattr(node, "exclude_ptm_fragment_selection", False)
+    )
+
+
+def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filtering=False, aggregation_mode=DEFAULT_AGGREGATION_MODE):
+    """Aggregates differential-expression statistics from child nodes to a parent node.
+
+    This is the core function for propagating statistics up the hierarchical tree
+    structure. It combines z-values, fold changes, and quality metrics from child
+    nodes (e.g. peptides) into parent node (e.g. protein) statistics using
+    Stouffer's Z-score method (``sum_and_re_scale_zvalues``). The aggregation can
+    optionally exclude proteoform variants (non-main clusters) and filter outlier
+    children.
+
+    The z-values aggregated here originate from *per-ion differential-expression*
+    tests (null hypothesis: "no change between conditions for this ion"). They
+    are *not* the proteoform-similarity p-values computed in
+    ``find_fold_change_clusters``, which test a different null hypothesis
+    ("do two ions share the same fold change?") and are corrected separately
+    with Benjamini-Yekutieli *before* this function is called. In other words,
+    the Benjamini-Yekutieli correction applied during proteoform clustering and
+    the Stouffer aggregation performed here address independent statistical
+    questions and operate on different sets of p-values.
 
     Args:
         node: The parent node whose properties will be computed from its children
@@ -33,8 +67,17 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
                           excluding proteoform variants
         peptide_outlier_filtering: If True and node is a protein, exclude peptides
                                   identified as statistical outliers (default: False)
-        fragment_outlier_filtering: If True and node is a peptide, exclude extreme
-                                   fragment ions before aggregation (default: True)
+        aggregation_mode: Strategy for combining child z-values at dependent levels
+            (frgion, ms1_isotopes). Higher levels always use Stouffer.
+            Can be a single string applied to all dependent levels, or a dict
+            mapping node types to modes (e.g. ``{"frgion": "stouffer_decorrelation",
+            "ms1_isotopes": "median_z"}``).  Allowed mode strings:
+            "stouffer_decorrelation" - Stouffer's method used after residual decorrelation (default)
+            "mean_z"       - arithmetic mean of z-values
+            "median_z"     - median z-value
+            "min_median_max_z" - combine min, median, max z-values assuming independence
+            "min_max_z"    - combine min, max z-values assuming independence (2-point summary)
+            "summed_z"     - classic Stouffer assuming independence (rho=0, ignores ICC)
 
     Side effects:
         Sets node.z_val, node.p_val, node.fc, node.cv, node.min_intensity,
@@ -42,11 +85,31 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
         optionally node.ml_score based on aggregated child values.
     """
     if only_use_mainclust:
-        childs = [x for x in node.children if x.is_included & (x.cluster ==0)]
+        childs = [
+            x for x in node.children
+            if x.is_included & (x.cluster == 0) and not node_is_excluded_from_aggregation(x)
+        ]
     else:
-        childs = [x for x in node.children if x.is_included]
+        childs = [
+            x for x in node.children
+            if x.is_included and not node_is_excluded_from_aggregation(x)
+        ]
 
-    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering)
+    if len(childs) == 0:
+        if any(node_is_excluded_from_aggregation(x) for x in node.children):
+            # Residual decorrelation and PTM fragment selection together exhausted
+            # all eligible children. Keep the existing z-value so this node still
+            # contributes to higher levels — cascading the exclusion upward would
+            # double-penalise PTM data where both filters operate independently.
+            return
+        raise ValueError(f"Node {node.name!r} ({node.type}) has no eligible children to aggregate.")
+
+    childs_zfiltered = get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node)
+
+    if len(childs_zfiltered) == 0:
+        if any(node_is_excluded_from_aggregation(x) for x in node.children):
+            return
+        raise ValueError(f"Node {node.name!r} ({node.type}) has no eligible children after filtering.")
 
 
     zvals = get_feature_numpy_array_from_nodes(nodes=childs_zfiltered, feature_name="z_val")
@@ -64,9 +127,14 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
 
     fraction_consistent = sum([x.fraction_consistent/len(node.children) for x in childs if x.cluster ==0])
 
-
-
-    z_normed = sum_and_re_scale_zvalues(zvals)
+    rho = getattr(node, 'icc_correction', 0.0)
+    if node.type not in _DEPENDENT_NODE_TYPES:
+        effective_mode = DEFAULT_AGGREGATION_MODE
+    elif isinstance(aggregation_mode, dict):
+        effective_mode = aggregation_mode.get(node.type, DEFAULT_AGGREGATION_MODE)
+    else:
+        effective_mode = aggregation_mode
+    z_normed = combine_zvalues(zvals, rho=rho, mode=effective_mode)
 
     p_val = transform_znormed_to_pval(z_normed)
     p_val = set_bounds_for_p_if_too_extreme(p_val)
@@ -125,7 +193,7 @@ def _select_peptides_around_median_z(peptide_nodes, max_peptides=31):
 
     return selected_peptides
 
-def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fragment_outlier_filtering=True):
+def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node):
     if peptide_outlier_filtering and node.type == "gene":
         filtered_childs = [x for x in childs if not x.is_outlier_peptide]
         # Additional restriction: if more than 31 peptides, keep only 31 closest to median z-value
@@ -133,91 +201,67 @@ def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node, fra
             filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=31)
         return filtered_childs
 
-    elif fragment_outlier_filtering and node.type == "frgion":
-        return remove_outlier_fragion_childs(childs)
-    else:
-        return childs
+    if node.type == "frgion":
+        filtered = childs
+        if aqvariables.ION_OUTLIER_MAD_THRESHOLD is not None:
+            filtered = _filter_ions_by_mad(filtered, aqvariables.ION_OUTLIER_MAD_THRESHOLD)
+        if aqvariables.MAX_N_FRAGMENTS is not None and len(filtered) > aqvariables.MAX_N_FRAGMENTS:
+            filtered = _select_peptides_around_median_z(filtered, max_peptides=aqvariables.MAX_N_FRAGMENTS)
+        if aqvariables.CLASSIC_FRAGMENT_OUTLIER_FILTERING:
+            filtered = remove_outlier_fragion_childs(filtered)
+        return filtered
 
+    return childs
 
+def _filter_ions_by_mad(nodes, threshold):
+    """Remove ion nodes whose z-value is a MAD-outlier among siblings.
 
-def filter_fewpeps_per_protein(peptide_nodes):
-    peps_filtered = []
-    pepnode2zval2numleaves = []
-    for pepnode in peptide_nodes:
-        pepleaves = [x for x in pepnode.leaves if "seq" in getattr(x,"inclusion_levels", [])]
-        pepnode2zval2numleaves.append((pepnode, pepnode.z_val,len(pepleaves)))
-    pepnode2zval2numleaves = sorted(pepnode2zval2numleaves, key=lambda x : abs(x[1])) #sort with lowest absolute z-val (least significant) first
-
-    return get_median_peptides(pepnode2zval2numleaves)
-
-def filter_outlier_peptides_old(peptide_nodes, fraction_highly_significant):
-    """
-    Filters outlier peptides based on p-value significance.
-
-    Checks if there's a minority of peptides (<40%) that has substantially more
-    significant p-values (at least a factor of 5) compared to the median.
-    Only starts checking if the median p-value is 0.05 or higher.
-    If this minority case exists, returns only the less significant half of peptides.
+    Requires at least 4 nodes to attempt filtering, and always retains
+    at least 2 nodes (the two closest to the median).
 
     Args:
-        peptide_nodes: List of peptide nodes with p_val attributes
+        nodes: List of child nodes with z_val attributes.
+        threshold: Number of scaled-MAD units beyond which a node is
+            considered an outlier (e.g. 3.0).
 
     Returns:
-        Filtered list of peptide nodes
+        Filtered list of nodes with outliers removed.
     """
-    if len(peptide_nodes) < 4:
-        return peptide_nodes
+    if len(nodes) < 4:
+        return nodes
 
-    # Get p-values from peptide nodes
-    p_values = [node.p_val for node in peptide_nodes]
-    median_p_val = np.median(p_values)
+    z_vals = np.array([n.z_val for n in nodes])
+    median_z = float(np.median(z_vals))
 
-    # Only check for outliers if median p-value is 0.05 or higher
-    if median_p_val < 0.05:
-        return peptide_nodes
+    robust_std = _robust_std_estimate(z_vals, median_z)
+    if robust_std == 0:
+        return nodes
 
-        # Check for minority with substantially more significant p-values
-    threshold_p_val = median_p_val / 5.0  # at least 5x more significant (lower p-value)
-    highly_significant_nodes = [node for node in peptide_nodes if node.p_val <= threshold_p_val]
-    remaining_nodes = [node for node in peptide_nodes if node.p_val > threshold_p_val]
+    cutoff = threshold * robust_std
+    kept = [n for n in nodes if abs(n.z_val - median_z) <= cutoff]
 
-                # Check if this is a minority (<40%)
-    if len(highly_significant_nodes) / len(peptide_nodes) < 0.3:
-        return _filter_minority_highly_significant(highly_significant_nodes, remaining_nodes, fraction_highly_significant)
+    if len(kept) < 2:
+        kept = sorted(nodes, key=lambda n: abs(n.z_val - median_z))[:2]
 
-    return peptide_nodes
+    return kept
 
-def _filter_minority_highly_significant_old(highly_significant_nodes, remaining_nodes, fraction_highly_significant):
-    """
-    Handle filtering when highly significant nodes are a minority (<40%).
+def _robust_std_estimate(values, median):
+    """Estimate std via scaled MAD, falling back to IQR if MAD is zero."""
+    MAD_SCALE = 1.4826  # makes MAD consistent with std for normal data
+    IQR_SCALE = 1.349   # makes IQR consistent with std for normal data
 
-    Args:
-        highly_significant_nodes: Nodes with p-value <= threshold_p_val
-        remaining_nodes: All peptide nodes
-        threshold_p_val: The p-value threshold used to identify highly significant nodes
-        fraction_highly_significant: Global fraction of highly significant ions
+    mad = float(np.median(np.abs(values - median)))
+    if mad > 0:
+        return MAD_SCALE * mad
 
-    Returns:
-        Filtered list of peptide nodes to exclude for analysis
-    """
-    # if len(highly_significant_nodes) == 1:
-    #     return highly_significant_nodes+remaining_nodes
-    # Calculate how many highly significant nodes to exclude
-    num_to_exclude = int(len(highly_significant_nodes) * (fraction_highly_significant / 0.08))
-    num_to_exclude_bounded = max(1, min(len(highly_significant_nodes)-1, num_to_exclude))
+    q75, q25 = np.percentile(values, [75, 25])
+    iqr = float(q75 - q25)
+    if iqr > 0:
+        return iqr / IQR_SCALE
 
-    # Sort by p-value (most significant first) and exclude the best ones
-    highly_significant_nodes_sorted = sorted(highly_significant_nodes, key=lambda x: x.p_val)
-    nodes_to_keep = highly_significant_nodes_sorted[num_to_exclude_bounded:] #keep the least significant ones
-    return nodes_to_keep + remaining_nodes
+    return 0.0
 
 import math
-def get_median_peptides(pepnode2zval2numleaves): #least significant peptides are sorted first
-    median_idx = math.floor(len(pepnode2zval2numleaves)/2)
-    if len(pepnode2zval2numleaves)<3:
-        return [x[0] for x in pepnode2zval2numleaves]
-    else:
-        return [x[0] for x in pepnode2zval2numleaves[:median_idx+1]]
 
 def remove_outlier_fragion_childs(childs):
     """Filters extreme fragment ions before aggregating to peptide level.
@@ -237,15 +281,7 @@ def remove_outlier_fragion_childs(childs):
         list: Filtered subset of fragment ion nodes to use for aggregation
     """
     zvals = get_feature_numpy_array_from_nodes(nodes=childs, feature_name="z_val")
-    if aqvariables.PTM_FRAGMENT_SELECTION:
-        sorted_idxs_zvals = np.argsort(np.abs(zvals))
-        median_idx = math.floor(len(zvals)/2)
-        median_idx = 7 if median_idx > 7 else median_idx
-        if median_idx < len(sorted_idxs_zvals):
-            idxs_to_use = sorted_idxs_zvals[:median_idx+1]
-        else:
-            idxs_to_use = sorted_idxs_zvals
-    elif len(zvals) > 4:
+    if len(zvals) > 4:
         sorted_idxs_zvals = np.argsort(zvals)
         median_idx = math.floor(len(zvals)/2)
         idx_start = median_idx - 2
@@ -263,16 +299,153 @@ def remove_outlier_fragion_childs(childs):
     return [childs[idx] for idx in idxs_to_use]
 
 
-def sum_and_re_scale_zvalues(zvals):
-    """Combines multiple z-values into a single aggregated z-value using Stouffer's method.
+def apply_ptm_fragment_selection(protnodes, max_keep=8):
+    """Apply PTM low-|Z| fragment filtering after residual decorrelation.
 
-    This implements Stouffer's Z-score method for meta-analysis: z-values are summed
-    and divided by sqrt(n) to account for the number of tests. The result is then
-    rescaled back to a standard normal distribution. This allows combining evidence
-    from multiple ions/peptides while maintaining proper statistical interpretation.
+    For every ``frgion`` parent, currently eligible base-ion children are sorted
+    by ``abs(z_val)``.  The least extreme children through the median rank are
+    retained, capped by ``max_keep``.  The default ``max_keep=8`` matches the
+    legacy PTM fragment-selection rule in ``remove_outlier_fragion_childs``.
+
+    Returns:
+        tuple[int, int]: ``(children_dropped, parents_touched)``.
+    """
+    try:
+        max_keep = int(max_keep)
+    except (TypeError, ValueError):
+        max_keep = 8
+    max_keep = max(1, max_keep)
+
+    n_dropped = 0
+    n_touched = 0
+    for protnode in protnodes:
+        for parent in anytree.PreOrderIter(protnode):
+            if getattr(parent, "type", None) != "frgion":
+                continue
+            eligible = [
+                child for child in parent.children
+                if child.is_included and not node_is_excluded_from_aggregation(child)
+            ]
+            n_live = len(eligible)
+            if n_live <= 1:
+                continue
+
+            keep_n = min((n_live // 2) + 1, max_keep, n_live)
+            if keep_n >= n_live:
+                continue
+
+            zvals = get_feature_numpy_array_from_nodes(
+                nodes=eligible, feature_name="z_val")
+            order = np.argsort(np.abs(zvals))
+            kept = {eligible[idx] for idx in order[:keep_n]}
+            dropped_here = 0
+            for child in eligible:
+                keep = child in kept
+                child.exclude_ptm_fragment_selection = not keep
+                if not keep:
+                    child.is_outlier_fragment = True
+                    dropped_here += 1
+                elif not getattr(child, "is_outlier_fragment", False):
+                    child.is_outlier_fragment = False
+            if dropped_here:
+                n_dropped += dropped_here
+                n_touched += 1
+
+    return n_dropped, n_touched
+
+
+def combine_zvalues(zvals, rho=0.0, mode=DEFAULT_AGGREGATION_MODE):
+    """Dispatch function that selects the z-value combination strategy.
 
     Args:
         zvals: Array or list of z-values to combine
+        rho: Correlation design-effect parameter for Stouffer aggregation.
+        mode: One of AGGREGATION_MODES
+
+    Returns:
+        float: Combined z-value on a standard normal scale
+    """
+    if mode not in AGGREGATION_MODES and mode not in _LEGACY_AGGREGATION_MODES:
+        raise ValueError(f"Unknown aggregation mode: {mode!r}. Choose from {AGGREGATION_MODES}")
+
+    if len(zvals) == 1:
+        return zvals[0]
+
+    if mode in ("stouffer_decorrelation", "stouffer_icc"):
+        return sum_and_re_scale_zvalues(zvals, rho=rho)
+    elif mode == "mean_z":
+        return _combine_mean_z(zvals)
+    elif mode == "median_z":
+        return _combine_median_z(zvals)
+    elif mode == "min_median_max_z":
+        return _combine_min_median_max_z(zvals)
+    elif mode == "min_max_z":
+        return _combine_min_max_z(zvals)
+    elif mode == "summed_z":
+        return _combine_summed_z(zvals)
+
+
+def _combine_mean_z(zvals):
+    """Arithmetic mean of z-values — treats children as a single effective measurement."""
+    return float(np.mean(zvals))
+
+
+def _combine_median_z(zvals):
+    """Median z-value — robust to outlier children."""
+    return float(np.median(zvals))
+
+
+def _combine_min_median_max_z(zvals):
+    """Pick min, median, max z-values and combine via Stouffer assuming independence.
+
+    Provides a 3-point summary that captures the full spread of evidence.
+    For n <= 3, falls back to Stouffer on all values (the summary would be
+    the full set anyway).
+    """
+    if len(zvals) <= 3:
+        return sum_and_re_scale_zvalues(zvals, rho=0.0)
+    z_min = float(np.min(zvals))
+    z_med = float(np.median(zvals))
+    z_max = float(np.max(zvals))
+    return sum_and_re_scale_zvalues(np.array([z_min, z_med, z_max]), rho=0.0)
+
+
+def _combine_min_max_z(zvals):
+    """Pick min and max z-values and combine via Stouffer assuming independence.
+
+    A 2-point summary that captures the extreme spread of evidence.
+    For n <= 2, falls back to Stouffer on all values.
+    """
+    if len(zvals) <= 2:
+        return sum_and_re_scale_zvalues(zvals, rho=0.0)
+    z_min = float(np.min(zvals))
+    z_max = float(np.max(zvals))
+    return sum_and_re_scale_zvalues(np.array([z_min, z_max]), rho=0.0)
+
+
+def _combine_summed_z(zvals):
+    """Classic Stouffer combination assuming full independence (rho=0).
+
+    Unlike the Stouffer modes, this ignores any estimated ICC correction
+    and always treats child z-values as independent.
+    """
+    return sum_and_re_scale_zvalues(zvals, rho=0.0)
+
+
+def sum_and_re_scale_zvalues(zvals, rho=0.0):
+    """Combines multiple z-values into a single aggregated z-value using Stouffer's method.
+
+    This implements Stouffer's Z-score method for meta-analysis: z-values are summed
+    and divided by sqrt(n * DEFF) to account for both the number of tests and their
+    correlation. The design effect DEFF = 1 + (n-1) * rho corrects for the fact that
+    correlated z-values carry less independent information than n truly independent ones.
+    The result is then rescaled back to a standard normal distribution.
+
+    Args:
+        zvals: Array or list of z-values to combine
+        rho: Intraclass correlation (ICC) among the z-values. 0.0 assumes independence
+             (classic Stouffer), higher values produce more conservative (less significant)
+             combined z-values.
 
     Returns:
         float: Combined z-value following a standard normal distribution under the null
@@ -280,8 +453,10 @@ def sum_and_re_scale_zvalues(zvals):
     if len(zvals) == 1:
         return zvals[0]  # No aggregation needed for single values - avoids floating-point precision errors
 
+    n = len(zvals)
+    deff = 1.0 + (n - 1) * rho  # design effect: inflated variance due to intra-group correlation
     z_sum = sum(zvals)
-    p_z = NormalDist(mu = 0, sigma = np.sqrt(len(zvals))).cdf(z_sum)
+    p_z = NormalDist(mu = 0, sigma = np.sqrt(n * deff)).cdf(z_sum)
     p_z = set_bounds_for_p_if_too_extreme(p_z)
     z_normed = NormalDist(mu = 0, sigma=1).inv_cdf(p_z) #this is just a re-scaling of the z-value to a standard normal distribution
     return z_normed
@@ -306,64 +481,6 @@ def set_bounds_for_p_if_too_extreme(p_val):
     else:
         return p_val
 
-def calc_fold_change_from_included_leaves_fcs(node):
-    included_leaves = obtain_all_included_leaves(node)
-    list_of_fcs = [x.fcs for x in included_leaves]
-    merged_fcs = np.concatenate(list_of_fcs)
-    return np.median(merged_fcs)
-
-def calc_weighted_fold_change_from_included_leaves_fcs(node):
-    included_leaves = obtain_all_included_leaves(node)
-    list_of_fcs = [x.fcs for x in included_leaves]
-    weights = [get_weight_of_leaf(x) for x in included_leaves]
-    weighted_median = calculate_weighted_median(weights, list_of_fcs)
-    return weighted_median
-
-def get_weight_of_leaf(leaf):
-    if hasattr(leaf, "ml_score_fragion"):
-        return 2**-leaf.ml_score_fragion
-    else:
-        return 1
-
-def calculate_weighted_median(weights, fcs):
-    weighted_fcs = [(fc, weight) for weight, fc_list in zip(weights, fcs) for fc in fc_list]
-    sorted_weighted_fcs = sorted(weighted_fcs, key=lambda x: x[0])
-    sorted_fcs, sorted_weights = zip(*sorted_weighted_fcs)
-    cumulative_weights = np.cumsum(sorted_weights)
-    total_weight = cumulative_weights[-1]
-    median_cutoff = total_weight / 2
-    median_idx = np.where(cumulative_weights >= median_cutoff)[0][0]
-    weighted_median = sorted_fcs[median_idx]
-    return weighted_median
-
-def obtain_all_included_leaves(node):
-    list_of_included_leaves = []
-    traverse_and_add_included_leaves(node, list_of_included_leaves)
-    return list_of_included_leaves
-
-def traverse_and_add_included_leaves(node, list_of_included_leaves, is_root=True):
-    """
-    Recursively searches for leaves from the given node, where each node in the
-    path to the leaf has the 'is_included' attribute set to True, except for the initial node.
-    Fills up the list_of_included_leaves with the included leaves.
-
-    Parameters:
-    node (anytree.Node): The node to start the search from.
-    list_of_included_leaves (list): The list to store the included leaves in.
-    is_root (bool): Indicates if the current node is the root node of the traversal.
-    """
-
-    if len(node.children) == 0:  # if the node is a leaf
-        if is_root or (node.is_included and node.cluster == 0):
-            list_of_included_leaves.append(node)
-        return
-
-    # If it's the root node or if the current node is included, then proceed to its children
-    if is_root or (node.is_included and node.cluster == 0):
-        for child in node.children:
-            # Recursive call with is_root set to False, as we are now dealing with child nodes
-            traverse_and_add_included_leaves(child, list_of_included_leaves, is_root=False)
-
 def sum_ml_scores(ml_scores):
     abs_ml_scores = [abs(x) for x in ml_scores]
     return sum(abs_ml_scores)
@@ -381,15 +498,6 @@ def get_grouped_mainclust_leafs(child_nodes):
         if len(child_leaves_mainclust)>0:
             grouped_leafs.append(child_leaves_mainclust)
     return grouped_leafs
-
-def select_highid_lowcv_leafs(grouped_leafs):
-    grouped_leafs_lowcv = []
-    for leafs in grouped_leafs:
-        top_quantile_idx = math.ceil(len(leafs) * 0.2)
-        leafs_repsorted = sorted(leafs, key = lambda x : x.min_reps)[:top_quantile_idx]
-        leafs_repsorted_cvsorted = sorted(leafs_repsorted, key = lambda x : x.cv)
-        grouped_leafs_lowcv.append([leafs_repsorted_cvsorted[0]])
-    return grouped_leafs_lowcv
 
 def select_median_fc_leafs(grouped_leafs):
     grouped_leafs_medianfc = []
@@ -566,22 +674,6 @@ def remove_unnecessary_attributes(node, attributes_to_remove):
 
 import os
 
-def get_nodes_of_type(cond1, cond2, results_folder, node_type = 'mod_seq_charge'):
-
-    tree_sn = aqutils.read_condpair_tree(cond1, cond2, results_folder=results_folder)
-    tree_sn.type = "asd"
-    return anytree.findall(tree_sn, filter_= lambda x : (x.type == node_type))
-
-
-
-def get_levelnodes_from_nodeslist(nodeslist, level):
-    levelnodes = []
-    for node in nodeslist:
-        precursors = anytree.findall(node, filter_= lambda x : (x.type == level))
-        levelnodes.extend(precursors)
-    return levelnodes
-
-
 def find_node_parent_at_level(node, level):
     if node.type == level:
         return node
@@ -608,13 +700,6 @@ def shorten_root_to_level(root, parent_level):
     return root
 
 
-
-def get_parent2children_dict(tree, parent_level):
-    parent2children = {}
-    parent_nodes = anytree.search.findall(tree, filter_=lambda node:  node.level == parent_level)
-    for parent_node in parent_nodes:
-        parent2children[parent_node.name] = [child.name for child in parent_node.children]
-    return parent2children
 
 def get_parent2leaves_dict(protein):
     """Returns a dict that maps the parent node name to the names of the leaves of the parent node

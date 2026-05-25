@@ -3,7 +3,7 @@ import numpy as np
 import anytree
 
 
-def update_nodes_w_ml_score(protnodes : list[anytree.Node]):
+def update_nodes_w_ml_score(protnodes : list[anytree.Node], aggregation_mode="stouffer_decorrelation"):
     """
     Update and re-order clusters within protein nodes based on ML scores.
 
@@ -13,16 +13,17 @@ def update_nodes_w_ml_score(protnodes : list[anytree.Node]):
 
     Args:
         protnodes (list[anytree.Node]): A list of protein nodes to be processed.
+        aggregation_mode: Strategy for combining child z-values during re-aggregation.
 
     Returns:
         None
     """
 
     for prot in protnodes:
-        _re_order_depending_on_ml_score(prot)
+        _re_order_depending_on_ml_score(prot, aggregation_mode=aggregation_mode)
 
 
-def _re_order_depending_on_ml_score(protnode : anytree.Node):
+def _re_order_depending_on_ml_score(protnode : anytree.Node, aggregation_mode="stouffer_decorrelation"):
     """
     Reorder clusters in a protein node tree based on machine learning scores.
 
@@ -38,6 +39,7 @@ def _re_order_depending_on_ml_score(protnode : anytree.Node):
 
     Args:
         protnode (anytree.Node): The protein node to be processed.
+        aggregation_mode: Strategy for combining child z-values during re-aggregation.
 
     Returns:
         None
@@ -51,13 +53,18 @@ def _re_order_depending_on_ml_score(protnode : anytree.Node):
             if len(type_nodes)==0:
                 continue
             for type_node in type_nodes: #go through the nodes, re-order the children. Propagate the values from the newly ordered children to the type node
-                child_nodes = type_node.children
-                had_ml_score = hasattr(child_nodes[0], 'ml_score')
+                child_nodes = [
+                    x for x in type_node.children
+                    if x.is_included and not aqcluster_utils.node_is_excluded_from_aggregation(x)
+                ]
+                if len(child_nodes) == 0:
+                    continue
+                had_ml_score = all(hasattr(child, 'ml_score') for child in child_nodes)
                 if had_ml_score:
                     clust2newclust = _get_clust2newclust(child_nodes)
                     _re_assign_proteoform_stats(child_nodes, clust2newclust)
                     _re_order_clusters_by_ml_score(child_nodes, clust2newclust)
-                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False)
+                    aqcluster_utils.aggregate_node_properties(type_node,only_use_mainclust=True, peptide_outlier_filtering=False, aggregation_mode=aggregation_mode)
 
 
 def _get_clust2newclust(nodes: list[anytree.Node]) -> dict[int, int]:
@@ -162,6 +169,3 @@ def _re_order_clusters_by_ml_score(nodes : list[anytree.Node], clust2newclust : 
     """
     for node in nodes:
         node.cluster =clust2newclust.get(node.cluster)
-
-
-
