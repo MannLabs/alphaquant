@@ -2,7 +2,6 @@ import param
 import panel as pn
 import pandas as pd
 import os
-import itertools
 import glob
 import re
 
@@ -292,27 +291,6 @@ class ProteoformPlottingTab(param.Parameterized):
             # Clear existing plots
             self.proteoform_plot_pane.clear()
             self.proteoform_plot_pane.append(pn.pane.Markdown("### Click 'Plot Protein' to visualize the data"))
-
-    def _update_condition_pairs_from_df(self, df):
-        """Update condition pairs based on the samplemap DataFrame."""
-        if 'condition' in df.columns:
-            unique_conditions = df['condition'].dropna().unique()
-            pairs = [(c1, c2) for c1, c2 in itertools.permutations(unique_conditions, 2)]
-            pairs_str = [f"{c1}{aq_variables.CONDITION_PAIR_SEPARATOR}{c2}" for c1, c2 in pairs]
-            self.condpairname_select.options = ["No conditions"] + pairs_str
-
-    def _load_protein_identifiers(self, results_file):
-        """Load protein identifiers from results file and update the protein input widget."""
-        try:
-            proteoforms_df = pd.read_csv(results_file, sep='\t')
-            protein_ids = sorted(proteoforms_df['gene_symbol'].unique().tolist())
-            self.protein_input.options = protein_ids
-            self.protein_input.disabled = False
-            return protein_ids
-        except Exception as e:
-            self.protein_input.disabled = True
-            self.protein_input.options = []
-            raise Exception(f"Failed to load protein identifiers: {str(e)}")
 
     def _on_proteoform_selected(self, event):
         """Handle proteoform selection from table."""
