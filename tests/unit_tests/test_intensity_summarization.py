@@ -257,14 +257,14 @@ class TestApplySummarization:
         assert len(r1) == 3
 
     def test_asymmetric_conditions(self):
-        """Ion present in c1 but not c2 — group is skipped in c2."""
+        """Ion present in c1 but not c2 — only ions in both conditions are summed."""
         df_c1 = _make_df([FRGION_Y3, FRGION_Y4], {"s1": np.log2([100.0, 50.0])})
         df_c2 = _make_df([FRGION_Y3], {"s2": np.log2([90.0])})
         pep2prot = {FRGION_Y3: PROT, FRGION_Y4: PROT}
 
         r1, r2, rp = aq_summ.apply_summarization(df_c1, df_c2, pep2prot, ["frgion"])
-        # c1: y3+y4 summed; c2: only y3 present -> partial sum
+        # Y4 is absent from c2, so only Y3 (present in both) is used for the sum
         assert len(r1) == 1
         assert len(r2) == 1
-        assert np.isclose(r1.iloc[0, 0], np.log2(150.0))
+        assert np.isclose(r1.iloc[0, 0], np.log2(100.0))
         assert np.isclose(r2.iloc[0, 0], np.log2(90.0))
