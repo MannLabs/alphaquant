@@ -229,3 +229,4 @@ paper_analyses
 
 alphaquant/resources/reference_databases
 alphaquant/resources/phosphopred_databases
+.claude/settings.local.json

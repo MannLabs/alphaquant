@@ -9,6 +9,8 @@ import logging
 aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 import alphaquant.config.variables as aq_variables
+import io
+import zipfile
 #helper classes
 
 headers_dicts = {'Spectronaut' : {"label_column" : "R.Label", "fg_id_column" : "FG.Id", 'sequence' : "PEP.StrippedSequence", 'proteins' : "PG.UniProtIds", 'precursor_mz' : "FG.PrecMz", "precursor_charge" : "FG.Charge",
@@ -564,26 +566,6 @@ def get_site_prob_overview(modpeps, refprot, refgene):
     return series_collected
 
 # Cell
-def add_ptmsite_infos_spectronaut(input_df, ptm_ids_df):
-    intersect_columns = input_df.columns.intersection(ptm_ids_df.columns)
-    if(len(intersect_columns)==2):
-        LOGGER.info(f"assigning ptms based on columns {intersect_columns}")
-        input_df = input_df.merge(ptm_ids_df, on=list(intersect_columns), how= 'left')
-    else:
-        raise Exception(f"Number of intersecting columns {intersect_columns} not as expected")
-    input_df = add_ptm_precursor_names_spectronaut(input_df)
-    input_df = input_df[~input_df["conditions"].isna()]
-    return input_df
-
-# Cell
-def add_ptm_precursor_names_spectronaut(ptm_annotated_input):
-    delimiter = pd.Series(["_" for x in range(len(ptm_annotated_input.index))])
-    ptm_annotated_input[QUANT_ID] = ptm_annotated_input["PEP.StrippedSequence"] + delimiter + ptm_annotated_input["FG.PrecMz"].astype('str') + delimiter + ptm_annotated_input["FG.Charge"].astype('str') + delimiter + ptm_annotated_input["REFPROT"] + delimiter +ptm_annotated_input["site"].astype('str')
-    ptm_annotated_input.gene.fillna('', inplace=True)
-    ptm_annotated_input["site_id"] = ptm_annotated_input["gene"].astype('str')+delimiter+ptm_annotated_input["REFPROT"].astype('str') + delimiter +ptm_annotated_input["site"].astype('str')
-    return ptm_annotated_input
-
-# Cell
 def filter_input_table(input_type, modification_type,input_df):
     if input_type == "Spectronaut":
         return input_df[~input_df[f"EG.PTMProbabilities {modification_type}"].isna()]
@@ -699,7 +681,7 @@ def merge_ptmsite_mappings_write_table(spectronaut_file, mapped_df, modification
 
         # Write deduplicated result
         LOGGER.info(f"Writing deduplicated PTM table with {len(deduplicated_df)} rows to {ptmmapped_table_filename}")
-        deduplicated_df.to_csv(ptmmapped_table_filename, sep='\t', index=False)
+        write_dataframe_to_single_file_zip(deduplicated_df, ptmmapped_table_filename)
 
     else:
         # Write chunks directly for non-Spectronaut data (DIANN, etc.)
@@ -767,7 +749,17 @@ def get_ptmmapped_filename(spectronaut_file):
     foldername = os.path.dirname(spectronaut_file_abspath)
     filename = os.path.basename(spectronaut_file_abspath)
     filename_reduced = filename.replace(".tsv", "")
-    return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv" #this file is not written to the progress folder
+    return f"{foldername}/{filename_reduced}.ptmsite_mapped.tsv.zip" #this file is not written to the progress folder
+
+
+def write_dataframe_to_single_file_zip(df, zip_filename, sep="\t", index=False):
+    archive_name = os.path.basename(zip_filename)
+    if archive_name.endswith(".zip"):
+        archive_name = archive_name[:-4]
+    with zipfile.ZipFile(zip_filename, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        with zf.open(archive_name, mode="w", force_zip64=True) as buffer:
+            with io.TextIOWrapper(buffer, encoding="utf-8", newline="") as text:
+                df.to_csv(text, sep=sep, index=index)
 
 
 
@@ -777,9 +769,15 @@ def add_ptmsite_info_to_subtable(spectronaut_df, labelid2ptmid, labelid2site, mo
     spectronaut_df = spectronaut_df[[x in labelid2ptmid.keys() for x in spectronaut_df["labelid"]]].copy() #drop peptides that have no ptm
 
     spectronaut_df["ptm_id"] = np.array([labelid2ptmid.get(x) for x in spectronaut_df["labelid"]]) #add the ptm_id row to the spectronaut table
-    modseq_typereplaced = np.array([str(x.replace(modification_type, "")) for x in spectronaut_df["EG.ModifiedSequence"]]) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
-    sites = np.array([str(labelid2site.get(x)) for x in spectronaut_df["labelid"]])
-    spectronaut_df["ptm_mapped_modseq"] = np.char.add(modseq_typereplaced, sites)
+    modseq_typereplaced = pd.Series(
+        [str(x).replace(modification_type, "") for x in spectronaut_df["EG.ModifiedSequence"]],
+        index=spectronaut_df.index,
+    ) #EG.ModifiedSequence already determines a localization of the modification type. Replace all localizations and add the new localizations below
+    sites = pd.Series(
+        [str(labelid2site.get(x)) for x in spectronaut_df["labelid"]],
+        index=spectronaut_df.index,
+    )
+    spectronaut_df["ptm_mapped_modseq"] = modseq_typereplaced + sites
 
     return spectronaut_df
 
@@ -791,86 +789,3 @@ def get_ptmid_mappings(mapped_df):
     labelid2ptmid = dict(zip(labelid, ptm_ids))
     labelid2site = dict(zip(labelid, site))
     return labelid2ptmid, labelid2site
-
-
-
-
-# Detect Changes in site occupancy
-
-import pandas as pd
-import numpy as np
-
-
-def initialize_ptmsite_df(ptmsite_file, samplemap_file):
-    """returns ptmsite_df, samplemap_df from files"""
-    samplemap_df, _ = initialize_sample2cond(samplemap_file)
-    ptmsite_df = pd.read_csv(ptmsite_file, sep = "\t")
-    return ptmsite_df, samplemap_df
-
-def detect_site_occupancy_change(cond1, cond2, ptmsite_df ,samplemap_df, min_valid_values = 2, threshold_prob = 0.05):
-    """
-    uses a PTMsite df with headers "REFPROT", "gene","site", and headers for sample1, sample2, etc and determines
-    whether a site appears/dissappears between conditions based on some probability threshold
-    """
-
-    ptmsite_df["site_id"] = ptmsite_df["REFPROT"] + ptmsite_df["site"].astype("str")
-    ptmsite_df = ptmsite_df.set_index("site_id")
-    cond1_samples = list(set(samplemap_df[(samplemap_df["condition"]==cond1)]["sample"]).intersection(set(ptmsite_df.columns)))
-    cond2_samples = list(set(samplemap_df[(samplemap_df["condition"]==cond2)]["sample"]).intersection(set(ptmsite_df.columns)))
-
-    ptmsite_df = ptmsite_df[cond1_samples + cond2_samples + ["REFPROT", "gene", "site"]]
-    filtvec = [(sum(~np.isnan(x))>0) for _, x in ptmsite_df[cond1_samples + cond2_samples].iterrows()]
-    ptmsite_df = ptmsite_df[filtvec]
-    ptmsite_df = ptmsite_df.sort_index()
-
-    regulated_sites = []
-    count = 0
-    for ptmsite in ptmsite_df.index.unique():
-
-        site_df = ptmsite_df.loc[[ptmsite]]
-        if count%1000 ==0:
-            num_checks = len(ptmsite_df.index.unique())
-            LOGGER.info(f"{count} of {num_checks} {count/num_checks :.2f}")
-        count+=1
-
-        cond1_vals = site_df[cond1_samples].to_numpy()
-        cond2_vals = site_df[cond2_samples].to_numpy()
-
-        cond1_vals = cond1_vals[~np.isnan(cond1_vals)]
-        cond2_vals = cond2_vals[~np.isnan(cond2_vals)]
-
-        numrep_c1 = len(cond1_vals)
-        numrep_c2 = len(cond2_vals)
-
-        if(numrep_c1<min_valid_values) | (numrep_c2 < min_valid_values):
-            continue
-
-        cond1_prob = np.mean(cond1_vals)
-        cond2_prob = np.mean(cond2_vals)
-
-        unlikely_c1 = cond1_prob<threshold_prob
-        unlikely_c2 = cond2_prob<threshold_prob
-        likely_c1 = cond1_prob>1-threshold_prob
-        likely_c2 = cond2_prob>1-threshold_prob
-        direction = 0
-
-        if(unlikely_c1&likely_c2):
-            direction = -1
-        if(unlikely_c2&likely_c1):
-            direction = 1
-
-        if direction!=0:
-            LOGGER.info("occpancy change detected")
-            refprot = site_df["REFPROT"].values[0]
-            gene = site_df["gene"].values[0]
-            site = site_df["site"].values[0]
-            regulated_sites.append([refprot, gene, site, direction, cond1_prob, cond2_prob, numrep_c1, numrep_c2])
-
-
-    df_occupancy_change = pd.DataFrame(regulated_sites, columns=["REFPROT", "gene", "site", "direction", "c1_meanprob", "c2_meanprob", "c1_nrep", "c2_nrep"])
-    return df_occupancy_change
-
-
-
-
-

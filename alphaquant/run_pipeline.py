@@ -46,22 +46,27 @@ def run_pipeline(input_file: str,
                 condpairs_list: Optional[List[Tuple[str, str]]] = None,
                 file_has_alphaquant_format: bool = False,
                 min_valid_values: int = 2,
-                valid_values_filter_mode: str = "either", #options: "either", "and", "per_condition"
+                valid_values_filter_mode: str = "either", #options: "either", "both", "per_condition"
                 min_valid_values_c1: int = 0,
                 min_valid_values_c2: int = 0,
                 min_num_ions: int = 1,
                 minpep: int = 1,
                 organism: Optional[str] = None,
                 cluster_threshold_pval: float = 0.001,
+                cluster_threshold_ion_type: float = 0.01,
                 cluster_threshold_fcfc: float = 0,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
+                residual_decorrelation_tolerance: float = 0.10,
+                residual_decorrelation_min_keep: int = 1,
+                aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
                  perform_phospho_inference: bool = False,
                  enable_experimental_ptm_counting_statistics: bool = False,
                  ptm_fragment_selection: bool = False,
                 outlier_correction: bool = True,
+                outlier_correction_factor: float = 1.0,
                 normalize: bool = True,
                 use_iontree_if_possible: bool = True,
                 write_out_results_tree: bool = True,
@@ -76,8 +81,14 @@ def run_pipeline(input_file: str,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
                 peptide_outlier_filtering: bool = True,
-                fragment_outlier_filtering: bool = True,
+                max_n_fragments: Optional[int] = None,
+                ion_outlier_mad_threshold: Optional[float] = None,
+                classic_fragment_outlier_filtering: bool = False,
+                split_ion_backgrounds: bool = True,
+                use_variance_predictor: bool = False,
+                num_bg_contexts: int = 10,
                 ion_test_method: str = 'diffdist',
+                summarization_nodes: Optional[List[str]] = None,
                 minrep_both: Optional[int] = None, #deprecated
                 minrep_either: Optional[int] = None, #deprecated
                 minrep_c1: Optional[int] = None, #deprecated
@@ -107,16 +118,32 @@ def run_pipeline(input_file: str,
     min_num_ions (int): Minimum number of ions required per peptide. Defaults to 1.
     minpep (int): Minimum number of peptides required per protein. Defaults to 1.
     organism (str): Organism name for PTM mapping (e.g., 'human', 'mouse'). Required if perform_ptm_mapping is True.
-    cluster_threshold_pval (float): P-value threshold for statistical clustering. Defaults to 0.001.
+    cluster_threshold_pval (float): P-value threshold for statistical clustering at the protein/gene level. Defaults to 0.001.
+    cluster_threshold_ion_type (float): P-value threshold for clustering at the fragment/MS1 isotope (ion_type) level. Defaults to 0.01.
     cluster_threshold_fcfc (float): Fold change threshold for clustering. Defaults to 0.
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
+    residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
+    residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
+    aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
+        (where ions show intra-group dependencies). Higher levels always use Stouffer.
+        Can be a single string (applied to all dependent levels) or a dict mapping node types
+        to modes (e.g. ``{"frgion": "min_median_max_z", "ms1_isotopes": "median_z"}``).
+        - "stouffer_decorrelation" (default): Stouffer's method after residual-decorrelation pruning.
+        - "mean_z": Arithmetic mean of z-values (conservative, treats children as one measurement).
+        - "median_z": Median z-value (robust to outlier children).
+        - "min_median_max_z": Combine min, median, max z-values assuming independence (3-point summary).
+        - "min_max_z": Combine min, max z-values assuming independence (2-point summary).
+        - "summed_z": Classic Stouffer assuming independence (rho=0, ignores ICC correction).
     take_median_ion (bool): Use median-centered fragment ions for peptide comparisons. Defaults to True.
     perform_ptm_mapping (bool): Enable PTM site mapping analysis. Defaults to False.
     perform_phospho_inference (bool): Enable phosphorylation-prone region annotation. Defaults to False.
     enable_experimental_ptm_counting_statistics (bool): Allow experimental PTM counting statistics with "either" mode or zero min_valid_values. Defaults to False.
     ptm_fragment_selection (bool): If True, enable PTM-oriented fragment selection in clustering.
     outlier_correction (bool): Enable outlier correction in differential testing. Defaults to True.
+    outlier_correction_factor (float): Multiplicative factor for the outlier correction scaling.
+        Values > 1.0 make the correction more aggressive (more conservative p-values),
+        values < 1.0 make it less aggressive. Only effective when outlier_correction is True. Defaults to 1.0.
     normalize (bool): Enable sample and condition normalization. Defaults to True.
     use_iontree_if_possible (bool): Use ion tree structure when available. Defaults to True.
     write_out_results_tree (bool): Write results in hierarchical tree format. Defaults to True.
@@ -131,12 +158,41 @@ def run_pipeline(input_file: str,
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
         peptide_outlier_filtering (bool): Enable few peptides per protein filtering for statistical outlier correction. When True, filters outlier peptides based on significance distribution within the protein/gene. Defaults to True.
-        fragment_outlier_filtering (bool): Enable fragment outlier filtering when aggregating fragments to peptides. When True, removes extreme fragments before statistical aggregation. Defaults to True.
+    max_n_fragments (int or None): Maximum number of fragment ions to keep per peptide when aggregating.
+        When set, only the fragments with z-values closest to the median are retained; the rest are
+        discarded. None (default) means no limit.
+    ion_outlier_mad_threshold (float or None): MAD-based outlier threshold for base ion z-values.
+        When set, ions whose z-value deviates more than ``threshold * MAD`` from the sibling median
+        are removed before aggregation (requires >= 4 siblings; always keeps >= 2). None (default)
+        disables this filter. Typical values: 2.5 – 3.0.
+    classic_fragment_outlier_filtering (bool): Use the legacy fragment outlier filter that keeps only
+        the 4 most central fragment ions (by z-value) when a peptide has more than 4 fragments.
+        Applied after MAD / max_n_fragments filtering. Defaults to False.
+    split_ion_backgrounds (bool): Build separate empirical background distributions for fragment ions
+        and MS1 isotopes instead of pooling them together. Defaults to True.
+    use_variance_predictor (bool): Use a linear regression model to predict
+        ion variance from quality metrics (e.g. Cscore, ShapeQualityScore) for
+        sorting ions before background partitioning. When False, ions are sorted
+        by median intensity instead. Defaults to False.
+    num_bg_contexts (int): Number of overlapping windows used to partition
+        ions into empirical background distributions. Higher values create
+        more fine-grained intensity-dependent backgrounds. Defaults to 10.
     ion_test_method (str): Ion-level test to compute ion statistics. Options:
         - "diffdist" (default): Use empirical background distributions (DifferentialIon).
         - "ttest": Use Welch two-sample t-test (DifferentialIonTTest), p→z via cached fast inversion.
+    summarization_nodes (list[str]): Node types at which to sum child intensities
+        before differential analysis. For each specified node type the base-ion
+        leaves are collected and their linear intensities summed per replicate.
+        Ion types (frgion, ms1_isotopes, precursor) are never mixed.
+        Examples: ``["frgion"]`` sums fragments per precursor;
+        ``["frgion", "ms1_isotopes"]`` sums both; ``["mod_seq_charge"]`` sums
+        everything per precursor (split by ion type). Defaults to None (no
+        summarization).
     """
     LOGGER.info("Starting AlphaQuant")
+
+    if summarization_nodes is None:
+        summarization_nodes = []
 
     #########################################################
     # TODO: this backwards compatibility can be removed beginning of 2026
@@ -168,16 +224,17 @@ def run_pipeline(input_file: str,
     if file_has_alphaquant_format:
         LOGGER.info("Input file is already in AlphaQuant format. Skipping reformatting.")
         input_file_reformat = input_file_original
-        # For pre-formatted files, use a generic input type that doesn't require specific columns
         input_type = input_type_to_use if input_type_to_use is not None else "generic_preformatted"
         annotation_file = None
-        use_ml = False  # Disable ML for pre-formatted files
-        # Skip to the main analysis
+        use_ml = False
+        variance_predictor_cols = None
     else:
         create_progress_folder_if_applicable(input_file_original, reset_progress_folder)
         input_type, config_dict, _ = config_dict_loader.get_input_type_and_config_dict(input_file_original, input_type_to_use)
         annotation_file = load_annotation_file(input_file_original, input_type, annotation_columns)
         use_ml = check_if_table_supports_ml(config_dict) & use_ml
+        variance_predictor_cols = config_dict.get("variance_predictor_cols", None)
+        aqvariables.set_input_config(input_type, config_dict)
 
     if perform_ptm_mapping and not file_has_alphaquant_format:
         if modification_type is None:
@@ -218,8 +275,13 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_outlier_correction_factor(outlier_correction_factor)
+    aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set
     aqvariables.set_ptm_fragment_selection(perform_ptm_mapping or ptm_fragment_selection)
+    aqvariables.set_max_n_fragments(max_n_fragments)
+    aqvariables.set_ion_outlier_mad_threshold(ion_outlier_mad_threshold)
+    aqvariables.set_classic_fragment_outlier_filtering(classic_fragment_outlier_filtering)
 
     #use runconfig object to store the parameters
     runconfig = ConfigOfRunPipeline(locals()) #all the parameters given into the function are transfered to the runconfig object! The runconfig is then used as the input for the run_analysis functions
@@ -309,10 +371,14 @@ def check_if_table_supports_ml(config_dict):
     return is_longtable and ml_level_charge
 
 def load_ml_info_file(input_file, input_type, modification_type = None):
-    ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
+    ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv.zip")
+    old_ml_info_filename = aq_utils.get_progress_folder_filename(input_file, f".ml_info_table.tsv")
     if os.path.exists(ml_info_filename):#in case there already is a reformatted file, we don't need to reformat it again
         LOGGER.info(f"ML info file already exists. Using ML info file of type {input_type}")
         return ml_info_filename
+    elif os.path.exists(old_ml_info_filename):
+        LOGGER.info(f"Uncompressed ML info file already exists. Using ML info file of type {input_type}")
+        return old_ml_info_filename
     else:
         return aq_ml_info_table.MLInfoTableCreator(input_file, input_type, modification_type).ml_info_filename
 
@@ -353,4 +419,3 @@ def run_analysis_multiprocess(condpair_combinations, runconfig, num_cores):
         aqcondpair.analyze_condpair(runconfig= runconfig, condpair = condpair)
 
         ,condpair_combinations)
-
