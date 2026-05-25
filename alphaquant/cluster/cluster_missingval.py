@@ -8,6 +8,60 @@ import statistics
 
 PVALUE_THRESHOLD_FOR_INTENSITY_BASED_COUNTING = 0.1
 
+# Determines at which level missing value testing is performed.
+# Set once based on tree structure, then reused.
+MISSINGVAL_TEST_LEVEL = None
+
+
+def determine_missingval_test_level(root_node):
+    """Determine the appropriate level for missing value statistical testing.
+
+    Inspects the tree structure rooted at *root_node* and sets the module-level
+    global ``MISSINGVAL_TEST_LEVEL`` to one of:
+
+    * ``"mod_seq_charge"`` -- fragment-level data where mod_seq_charge nodes exist.
+    * ``"base"`` -- all other hierarchies (precursor-only, peptide-only, gene-only).
+
+    Scenarios:
+      1) ``mod_seq_charge`` nodes exist in the tree -> test at ``mod_seq_charge`` level.
+      2) Leaf parent type is ``mod_seq`` -> test at ``base`` ion level.
+      3) Leaf parent type is ``seq`` -> test at ``base`` ion level.
+      4) Leaf parent type is ``gene`` -> test at ``base`` ion level.
+
+    Args:
+        root_node (anytree.Node): Root of a protein tree.  Must have at least
+            one leaf with a parent.
+
+    Raises:
+        ValueError: If the leaf parent type does not match any expected pattern.
+
+    Side effects:
+        Sets the module-level global ``MISSINGVAL_TEST_LEVEL``.
+    """
+    global MISSINGVAL_TEST_LEVEL
+
+    # Check if mod_seq_charge nodes exist (fragment-level data)
+    mod_seq_charge_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
+    if len(mod_seq_charge_nodes) > 0:
+        MISSINGVAL_TEST_LEVEL = "mod_seq_charge"
+        return
+
+    # For all other cases, check what's one level above leaves
+    leaf_parent_type = root_node.leaves[0].parent.type
+
+    if leaf_parent_type == "mod_seq":
+        # Scenario 2: charged peptides without fragments
+        MISSINGVAL_TEST_LEVEL = "base"
+    elif leaf_parent_type == "seq":
+        # Scenario 3: peptides without charge info
+        MISSINGVAL_TEST_LEVEL = "base"
+    elif leaf_parent_type == "gene":
+        # Scenario 4: simplest hierarchy, leaves directly under gene
+        MISSINGVAL_TEST_LEVEL = "base"
+    else:
+        raise ValueError(f"Unexpected tree structure: leaf parent type is '{leaf_parent_type}'. "
+                        f"Expected one of: 'mod_seq', 'seq', 'gene', or tree with 'mod_seq_charge' nodes.")
+
 def create_protnode_from_missingval_ions(gene_name,diffions, normed_c1, normed_c2):
     return MissingValProtNodeCreator(gene_name, diffions, normed_c1, normed_c2).prot_node
 
@@ -76,11 +130,21 @@ class MissingValProtNodeCreator:
 
 
     @staticmethod
-    def _get_nodes_to_test(root_node): #get the nodes in the lowest level that is relevant for the binomial test
-        if root_node.leaves[0].parent.type == "mod_seq": #when AlphaQuant works with precursors only (not fragments), the precursors themselves are the "base ions" and the "mod_seq_charge" node does not exist
-            return root_node.children
-        else:
+    def _get_nodes_to_test(root_node):
+        """Get the nodes at which to perform the missing value statistical test.
+
+        Uses MISSINGVAL_TEST_LEVEL which is set once based on tree structure.
+        """
+        global MISSINGVAL_TEST_LEVEL
+
+        # Set the test level if not already determined
+        if MISSINGVAL_TEST_LEVEL is None:
+            determine_missingval_test_level(root_node)
+
+        if MISSINGVAL_TEST_LEVEL == "mod_seq_charge":
             return anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
+        else:  # "base"
+            return root_node.leaves
 
 
     def _propagate_properties_to_nodes_to_test(self,nodes_to_test): #goes through each node to test and merges the properties from it's base to the node itself
@@ -134,7 +198,9 @@ class MissingValProtNodeCreator:
         node.c1_has_values = any(child.c1_has_values for child in childs)
         node.c2_has_values = any(child.c2_has_values for child in childs)
         if hasattr(childs[0], "z_val"):
-            node.z_val = aq_cluster_utils.sum_and_re_scale_zvalues([child.z_val for child in childs])
+            node.z_val = aq_cluster_utils.sum_and_re_scale_zvalues(
+                [child.z_val for child in childs]
+            )
             node.p_val = aq_cluster_utils.transform_znormed_to_pval(node.z_val)
 
 
