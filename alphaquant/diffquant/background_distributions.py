@@ -138,8 +138,9 @@ class _BackgroundCalculation():
                 _sort_score=sort_scores
             ).sort_values(by='_sort_score').drop('_sort_score', axis=1)
         else:
-            normed_condition_df['median'] = normed_condition_df.median(numeric_only=True, axis=1)
-            normed_condition_df = normed_condition_df.sort_values(by='median').drop('median', axis=1)
+            normed_condition_df = normed_condition_df.assign(
+                median=normed_condition_df.median(numeric_only=True, axis=1)
+            ).sort_values(by='median').drop('median', axis=1)
         self._normed_condition_df = normed_condition_df
         self.ion2nonNanvals = aqutils.get_non_nas_from_pd_df(normed_condition_df)
         self.ion2allvals = aqutils.get_ionints_from_pd_df(normed_condition_df)
