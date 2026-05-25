@@ -137,11 +137,6 @@ def determine_anchor_and_shift_sample(sample2counts, i_min, j_min, min_distance)
     return anchor_idx, shift_idx, flip*min_distance
 
 # Cell
-def shift_samples(samples, sampleidx2anchoridx, sample2shift):
-    for sample_idx in range(samples.shape[0]):
-        samples[sample_idx] = samples[sample_idx]+get_total_shift(sampleidx2anchoridx, sample2shift, sample_idx)
-
-# Cell
 def get_total_shift(sampleidx2anchoridx, sample2shift,sample_idx):
 
     total_shift = 0.0

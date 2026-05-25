@@ -326,13 +326,6 @@ class PlottingTab(param.Parameterized):
             except Exception as e:
                 self.fc_visualizer = None
 
-    def _on_tree_level_changed(self, event):
-        """Handle tree level changes.
-        !the method name has to follow the naming pattern on_<param>_changed in order to be recognized by the state manager"""
-        self._update_fc_visualizer()
-        if self.protein_input.value:
-            self._update_protein_plot(self.protein_input.value)
-
     def _on_show_plots_clicked(self, event):
         """Handle show plots button click."""
         if self.cond1 and self.cond2:

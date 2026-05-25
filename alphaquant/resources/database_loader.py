@@ -28,15 +28,6 @@ def get_genename2sequence_dict( organism = "human"):
 
     return gene2sequence_dict
 
-def get_swissprot2sequence_dict( organism = "human"):
-    swissprot_file = get_swissprot_path(organism)
-    swissprot_df = pd.read_csv(swissprot_file, sep = '\t', usecols=['Entry', 'Sequence'])
-    swissprot_ids = swissprot_df['Entry'].astype(str).tolist()
-    sequences = swissprot_df['Sequence'].astype(str).tolist()
-
-    swissprot2sequence_dict = dict(zip(swissprot_ids, sequences))
-    return swissprot2sequence_dict
-
 def get_uniprot2sequence_dict( organism = "human"):
     swissprot_file = get_swissprot_path(organism)
     swissprot_df = pd.read_csv(swissprot_file, sep = '\t', usecols=['Entry', 'Sequence'])

@@ -11,18 +11,6 @@ aqconfig.setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 
-def plot_normalization_overview(normed_df, samplemap_df):
-    normed_df, sample2cond = aq_diff_utils.prepare_loaded_tables(normed_df, samplemap_df)
-    sample2cond = dict(zip(samplemap_df["sample"], samplemap_df["condition"]))
-    conditions = list(set([sample2cond.get(x) for x in normed_df.columns]))
-    conditions = [x for x in conditions if x is not None]
-    df_c1 = normed_df[[x for x in normed_df.columns if sample2cond.get(x) == conditions[0]]]
-    df_c2 = normed_df[[x for x in normed_df.columns if sample2cond.get(x) == conditions[1]]]
-
-    plot_betweencond_fcs(df_c1, df_c2, merge_samples=True)
-    plot_sample_vs_median_fcs(df_c1, df_c2)
-
-
 def plot_withincond_normalization(df_c1, df_c2):
     LOGGER.info("without missingvals (if applicable)")
     plot_betweencond_fcs(aqnorm.drop_nas_if_possible(df_c1), aqnorm.drop_nas_if_possible(df_c2), True)
@@ -55,32 +43,6 @@ def plot_betweencond_fcs(df_c1_normed, df_c2_normed, merge_samples=True, cumulat
     axes.set_xlabel("log2(fc)")
 
     return fig, axes
-
-
-def plot_sample_vs_median_fcs(df_c1_normed, df_c2_normed):
-    """Plots the distribution of fold changes between each sample and the median across all samples."""
-
-    # Calculate the median across all samples from both conditions
-    combined_median = pd.concat([df_c1_normed, df_c2_normed], axis=1).median(axis=1, skipna=True)
-
-    fig, axes = plt.subplots()  # Create a new figure and axes
-
-    # Compare each sample against the combined median and plot
-    for df in [df_c1_normed, df_c2_normed]:
-        for col in df.columns:
-            diff_fcs = df[col].subtract(combined_median)
-
-            axes.axvline(0, color='red', linestyle="dashed")  # helper line at 0
-            cutoff = max(abs(np.nanquantile(diff_fcs, 0.025)), abs(np.nanquantile(diff_fcs, 0.975)))  # determine 2.5% - 97.5% interval
-
-            axes.hist(diff_fcs, 80, density=True, histtype='step', range=(-cutoff, cutoff), label=col)  # set the cutoffs to focus the visualization
-
-    axes.set_xlabel("log2(fc)")
-    axes.legend()
-    #place legend outside of plot
-    axes.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
-    return fig, axes
-
 
 
 def volcano_plot(results_df, fc_header="log2fc", fdr_header="fdr", fdr_cutoff=0.05,
