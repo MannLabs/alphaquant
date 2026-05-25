@@ -26,6 +26,15 @@ curl_github() {
     curl "${args[@]}" "$@"
 }
 
+extract_alphamap_data_urls() {
+    python -c 'import json, sys
+for item in json.load(sys.stdin):
+    name = item.get("name", "")
+    url = item.get("download_url")
+    if url and name.endswith((".fasta", ".csv")):
+        print(url)'
+}
+
 # If needed, include additional source such as e.g.:
 # cp ../../alphaquant/data/*.fasta dist/alphaquant/data
 
@@ -60,8 +69,7 @@ if ! DOWNLOAD_LIST=$(curl_github https://api.github.com/repos/MannLabs/alphamap/
 fi
 
 echo "$DOWNLOAD_LIST" | \
-  grep "\"download_url\".*\.\(fasta\|csv\)\"" | \
-  cut -d '"' -f 4 | \
+  extract_alphamap_data_urls | \
   while read url; do
     if [ -z "$url" ]; then
         echo "Warning: Empty URL detected, skipping..."
