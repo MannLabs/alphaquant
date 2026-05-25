@@ -863,6 +863,9 @@ spectronaut_fragion_ms1_gene:
       value: "True"
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
 
 
 spectronaut_fragion_ms1_gene:
@@ -912,6 +915,9 @@ spectronaut_fragion_ms1_gene:
       value: 5.0
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
 
 spectronaut_precursor_fragion_ms1:
   format: longtable
@@ -971,6 +977,9 @@ spectronaut_precursor_fragion_ms1:
       value: "True"
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
 
 
 spectronaut_precursor_fragion_ms1:
@@ -1027,6 +1036,9 @@ spectronaut_precursor_fragion_ms1:
       value: 5.0
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
 
 
 spectronaut_precursor_fragion_ms1_protein:
@@ -1083,6 +1095,9 @@ spectronaut_precursor_fragion_ms1_protein:
       value: 5.0
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
 
 
 spectronaut_fragion_ms1_protein:
@@ -1132,6 +1147,9 @@ spectronaut_fragion_ms1_protein:
       value: 5.0
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
   annotation_columns:
     - PG.Genes
 
@@ -1170,6 +1188,9 @@ spectronaut_fragion_protein:
       value: 5.0
   use_iontree: True
   ml_level: CHARGE
+  variance_predictor_cols:
+    - EG.Cscore
+    - FG.ShapeQualityScore
   annotation_columns:
     - PG.Genes
 
@@ -1342,8 +1363,25 @@ diaumpire_precursor_ms1:
   ion_cols:
    - Peptide Key
 
+fragpipe_precursor:
+  format: widetable
+  quant_pre_or_suffix: " Intensity"
+  protein_cols:
+   - Protein
+  ion_hierarchy:
+    sequence_int:
+      order: [SEQ, MOD, CHARGE]
+      mapping:
+        SEQ:
+          - Peptide Sequence
+        MOD:
+          - Modified Sequence
+        CHARGE:
+          - Charge
+  use_iontree: False
+  ml_level: SEQ
 
-fragpipe_precursors:
+fragpipe_modseq:
   format: widetable
   quant_pre_or_suffix: " Intensity"
   protein_cols:
@@ -1358,3 +1396,6 @@ fragpipe_precursors:
           - Modified Sequence
   use_iontree: False
   ml_level: SEQ
+
+
+

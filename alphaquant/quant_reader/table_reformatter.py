@@ -72,12 +72,11 @@ def merge_protein_cols_and_config_dict(
 
 def join_columns(df, columns, separator="_"):
     if len(columns) == 1:
-        return df[columns[0]].fillna("nan").infer_objects(copy=False).astype(str)
+        return df[columns[0]].fillna("nan").astype(str)
     else:
         return (
             df[columns]
             .fillna("nan")
-            .infer_objects(copy=False)
             .astype(str)
             .agg(separator.join, axis=1)
         )
