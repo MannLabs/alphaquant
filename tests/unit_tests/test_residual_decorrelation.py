@@ -4,6 +4,8 @@ import importlib.util
 from pathlib import Path
 import sys
 
+import pytest
+
 import anytree
 import numpy as np
 import pandas as pd
@@ -13,6 +15,8 @@ import alphaquant.cluster.residual_decorrelation as aq_resid
 
 def _load_reference_module():
     path = Path("sandbox/analyses_revision_v3/paper_nbs_revision/10_alphaquant_mouse_aq/residual_correlation/auto_decorrelation.py")
+    if not path.exists():
+        pytest.skip("Reference sandbox file not available in this environment")
     spec = importlib.util.spec_from_file_location("auto_decorrelation_ref", path)
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None

@@ -39,8 +39,9 @@ def test_noreg_pepdist(condbg):
     assert ks_stat > 0.01
 
 def perform_peptide_difftest(condbg, noNanvals_from, bg_idx1, noNanvals_to, bg_idx2):
-    bgdist_from = condbg.backgrounds[bg_idx1]
-    bgdist_to = condbg.backgrounds[bg_idx2]
+    ions = list(condbg.ion2background.keys())
+    bgdist_from = condbg.ion2background[ions[bg_idx1]]
+    bgdist_to = condbg.ion2background[ions[bg_idx2]]
     p2z = {}
     diffbg = aq_diff_bg.SubtractedBackgrounds(bgdist_from, bgdist_to, p2z)
     diffion = aq_diff_diff.DifferentialIon(noNanvals_from, noNanvals_to, diffbg, "", outlier_correction=False)

@@ -62,29 +62,25 @@ class TestDetermineMissingvalTestLevel:
 
     def test_mod_seq_charge_tree(self):
         root = _tree_with_mod_seq_charge()
-        aq_missingval.determine_missingval_test_level(root)
-        assert aq_missingval.MISSINGVAL_TEST_LEVEL == "mod_seq_charge"
+        assert aq_missingval._determine_missingval_test_level(root) == "mod_seq_charge"
 
     def test_mod_seq_above_leaves(self):
         root = _tree_mod_seq_above_leaves()
-        aq_missingval.determine_missingval_test_level(root)
-        assert aq_missingval.MISSINGVAL_TEST_LEVEL == "base"
+        assert aq_missingval._determine_missingval_test_level(root) == "base"
 
     def test_seq_above_leaves(self):
         root = _tree_seq_above_leaves()
-        aq_missingval.determine_missingval_test_level(root)
-        assert aq_missingval.MISSINGVAL_TEST_LEVEL == "base"
+        assert aq_missingval._determine_missingval_test_level(root) == "base"
 
     def test_gene_above_leaves(self):
         root = _tree_gene_above_leaves()
-        aq_missingval.determine_missingval_test_level(root)
-        assert aq_missingval.MISSINGVAL_TEST_LEVEL == "base"
+        assert aq_missingval._determine_missingval_test_level(root) == "base"
 
     def test_unexpected_structure_raises(self):
         root = anytree.Node("root", type="unknown_top")
         anytree.Node("leaf", parent=root, type="base")
         with pytest.raises(ValueError, match="Unexpected tree structure"):
-            aq_missingval.determine_missingval_test_level(root)
+            aq_missingval._determine_missingval_test_level(root)
 
 
 class TestGetNodesToTest:
