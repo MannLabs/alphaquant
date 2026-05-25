@@ -8,6 +8,42 @@ import statistics
 
 PVALUE_THRESHOLD_FOR_INTENSITY_BASED_COUNTING = 0.1
 
+# Determines at which level missing value testing is performed.
+# Set once based on tree structure, then reused.
+MISSINGVAL_TEST_LEVEL = None
+
+
+def _determine_missingval_test_level(root_node):
+    """Determine the appropriate level for missing value statistical testing.
+
+    Scenarios:
+    1) "mod_seq_charge" exists in tree -> test at mod_seq_charge level
+    2) "mod_seq" is one level above leaves -> test at base ion level
+    3) "seq" is one level above leaves -> test at base ion level
+    4) "gene" is one level above leaves -> test at base ion level
+    """
+    # Check if mod_seq_charge nodes exist (fragment-level data)
+    mod_seq_charge_nodes = anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
+    if len(mod_seq_charge_nodes) > 0:
+        # Scenario 1: fragment-level data — everything below mod_seq_charge is collapsed to mod_seq_charge as the lowest identification level
+        return "mod_seq_charge"
+
+    # For all other cases, check what's one level above leaves
+    leaf_parent_type = root_node.leaves[0].parent.type
+
+    if leaf_parent_type == "mod_seq":
+        # Scenario 2: charged peptides without fragments
+        return "base"
+    elif leaf_parent_type == "seq":
+        # Scenario 3: peptides without charge info
+        return "base"
+    elif leaf_parent_type == "gene":
+        # Scenario 4: simplest hierarchy, leaves directly under gene
+        return "base"
+    else:
+        raise ValueError(f"Unexpected tree structure: leaf parent type is '{leaf_parent_type}'. "
+                        f"Expected one of: 'mod_seq', 'seq', 'gene', or tree with 'mod_seq_charge' nodes.")
+
 def create_protnode_from_missingval_ions(gene_name,diffions, normed_c1, normed_c2):
     return MissingValProtNodeCreator(gene_name, diffions, normed_c1, normed_c2).prot_node
 
@@ -76,11 +112,22 @@ class MissingValProtNodeCreator:
 
 
     @staticmethod
-    def _get_nodes_to_test(root_node): #get the nodes in the lowest level that is relevant for the binomial test
-        if root_node.leaves[0].parent.type == "mod_seq": #when AlphaQuant works with precursors only (not fragments), the precursors themselves are the "base ions" and the "mod_seq_charge" node does not exist
-            return root_node.children
-        else:
+    def _get_nodes_to_test(root_node):
+        """Get the nodes at which to perform the missing value statistical test.
+
+        Uses MISSINGVAL_TEST_LEVEL which is set once based on tree structure.
+        """
+        global MISSINGVAL_TEST_LEVEL
+
+        # Set the test level if not already determined
+        if MISSINGVAL_TEST_LEVEL is None:
+            MISSINGVAL_TEST_LEVEL = _determine_missingval_test_level(root_node)
+
+        if MISSINGVAL_TEST_LEVEL == "mod_seq_charge":
             return anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
+        else:  # "base"
+            # In short trees (no fragments), leaves are the precursors themselves — the right level to test
+            return root_node.leaves
 
 
     def _propagate_properties_to_nodes_to_test(self,nodes_to_test): #goes through each node to test and merges the properties from it's base to the node itself
