@@ -1,7 +1,7 @@
 numpy
 numba
 statsmodels
-pandas<3
+pandas<3  # test:tolerate_version
 scipy
 matplotlib
 seaborn
