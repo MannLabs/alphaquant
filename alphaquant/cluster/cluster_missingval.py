@@ -126,6 +126,7 @@ class MissingValProtNodeCreator:
         if MISSINGVAL_TEST_LEVEL == "mod_seq_charge":
             return anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
         else:  # "base"
+            # In short trees (no fragments), leaves are the precursors themselves — the right level to test
             return root_node.leaves
 
 
