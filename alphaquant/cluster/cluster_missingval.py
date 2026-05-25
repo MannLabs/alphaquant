@@ -13,7 +13,7 @@ PVALUE_THRESHOLD_FOR_INTENSITY_BASED_COUNTING = 0.1
 MISSINGVAL_TEST_LEVEL = None
 
 
-def determine_missingval_test_level(root_node):
+def _determine_missingval_test_level(root_node):
     """Determine the appropriate level for missing value statistical testing.
     
     Scenarios:
@@ -123,7 +123,7 @@ class MissingValProtNodeCreator:
         
         # Set the test level if not already determined
         if MISSINGVAL_TEST_LEVEL is None:
-            determine_missingval_test_level(root_node)
+            _determine_missingval_test_level(root_node)
         
         if MISSINGVAL_TEST_LEVEL == "mod_seq_charge":
             return anytree.search.findall(root_node, filter_=lambda node: node.type == "mod_seq_charge")
