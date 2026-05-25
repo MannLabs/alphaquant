@@ -94,14 +94,6 @@ class FoldChangeVisualizerMedianref():
                 LOGGER.error(f"Failed to plot protein {protein_of_interest} for condition pair {condpair}: {e}")
         return fig, axes
 
-    def _get_available_proteins(self):
-        """Get list of all available proteins across all condition pairs."""
-        all_proteins = set()
-        for protein_dict in self.protein2nodes:
-            all_proteins.update(protein_dict.keys())
-        return all_proteins
-
-
 class MedianRefConditionPairGetter():
     def __init__(self, results_directory):
         self.condition_pairs = self._get_condition_pairs(results_directory)

@@ -56,32 +56,6 @@ def get_samples_used_from_samplemap_df(samplemap_df, cond1, cond2):
     samples_c2 = samplemap_df[[cond2 == x for x in samplemap_df["condition"]]]["sample"]
     return list(samples_c1), list(samples_c2)
 
-def get_all_samples_from_samplemap_df(samplemap_df):
-    return list(samplemap_df["sample"])
-
-# Cell
-import pandas as pd
-
-def get_samplenames_from_input_df(data):
-    """extracts the names of the samples of the AQ input dataframe"""
-    names = list(data.columns)
-    names.remove('protein')
-    names.remove(QUANT_ID)
-    return names
-
-# Cell
-import numpy as np
-def filter_df_to_min_valid_values(quant_df_wideformat, samples_c1, samples_c2, min_valid_values):
-    """filters dataframe in alphaquant format such that each column has a minimum number of replicates
-    """
-    quant_df_wideformat = quant_df_wideformat.replace(0, np.nan)
-    df_c1_min_valid_values = quant_df_wideformat[samples_c1].dropna(thresh = min_valid_values, axis = 0)
-    df_c2_min_valid_values = quant_df_wideformat[samples_c2].dropna(thresh = min_valid_values, axis = 0)
-    idxs_both = df_c1_min_valid_values.index.intersection(df_c2_min_valid_values.index)
-    quant_df_reduced = quant_df_wideformat.iloc[idxs_both].reset_index()
-    return quant_df_reduced
-
-
 # Cell
 def get_condpairname(condpair):
     return f"{condpair[0]}_VS_{condpair[1]}"
@@ -103,39 +77,6 @@ def make_dir_w_existcheck(dir):
         os.makedirs(dir)
 
 # Cell
-import os
-def get_results_plot_dir_condpair(results_dir, condpair):
-    results_dir_plots = f"{results_dir}/{condpair}_plots"
-    make_dir_w_existcheck(results_dir_plots)
-    return results_dir_plots
-
-# Cell
-def get_middle_elem(sorted_list):
-    nvals = len(sorted_list)
-    if nvals==1:
-        return sorted_list[0]
-    middle_idx = nvals//2
-    if nvals%2==1:
-        return sorted_list[middle_idx]
-    return 0.5* (sorted_list[middle_idx] + sorted_list[middle_idx-1])
-
-# Cell
-import numpy as np
-def get_nonna_array(array_w_nas):
-    res = []
-    isnan_arr = np.isnan(array_w_nas)
-
-    for idx in range(len(array_w_nas)):
-        sub_res = []
-        sub_array = array_w_nas[idx]
-        na_array = isnan_arr[idx]
-        for idx2 in range(len(sub_array)):
-            if not na_array[idx2]:
-               sub_res.append(sub_array[idx2])
-        res.append(np.array(sub_res))
-    return np.array(res)
-
-# Cell
 import numpy as np
 def get_non_nas_from_pd_df(df):
     return {
@@ -152,12 +93,6 @@ def get_ionints_from_pd_df(df):
     }
 
 # Cell
-def invert_dictionary(my_map):
-    inv_map = {}
-    for k, v in my_map.items():
-        inv_map[v] = inv_map.get(v, []) + [k]
-    return inv_map
-
 from collections import defaultdict
 def invert_tuple_list_w_nonunique_values(tuple_list):
     inverted_dict = defaultdict(list)
@@ -372,20 +307,6 @@ def get_path_to_unformatted_file(input_file_name):
 
 
 
-
-# Cell
-
-# Cell
-import os
-def check_for_processed_runs_in_results_folder(results_folder):
-    contained_condpairs = []
-    folder_files = os.listdir(results_folder)
-    result_files = list(filter(lambda x: "results.tsv" in x ,folder_files))
-    for result_file in result_files:
-        res_name = result_file.replace(".results.tsv", "")
-        if ((f"{res_name}.normed.tsv" in folder_files) and (f"{res_name}.results.ions.tsv" in folder_files)):
-            contained_condpairs.append(res_name)
-    return contained_condpairs
 
 # Cell
 import pandas as pd
