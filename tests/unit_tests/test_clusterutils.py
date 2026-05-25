@@ -66,43 +66,6 @@ def test_remove_unnecessary_attributes():
 
 
 
-def test_traverse_and_add_included_leaves_anytree():
-    # Constructing the tree
-    root = anytree.Node("root",  is_included=True, cluster=0)
-    node1 = anytree.Node("node1", parent=root, is_included=True, cluster=0)
-    node2 = anytree.Node("node2", parent=root, is_included=True, cluster=0)
-    leaf1 = anytree.Node("leaf1", parent=node1, is_included=True, cluster=0)
-    leaf2 = anytree.Node("leaf2", parent=node1, is_included=False, cluster=1)
-    leaf3 = anytree.Node("leaf3", parent=node2, is_included=True, cluster=0)
-
-    list_of_included_leaves = []
-    aq_clust_clusterutils.traverse_and_add_included_leaves(root, list_of_included_leaves)
-    print(list_of_included_leaves)
-    # Assert conditions
-    assert leaf1 in list_of_included_leaves, "leaf1 is missing from the result."
-    assert leaf3 in list_of_included_leaves, "leaf3 is missing from the result."
-    assert len(list_of_included_leaves) == 2, "The number of included leaves is incorrect."
-
-
-    root = anytree.Node("root",  is_included=True, cluster=0)
-    node1 = anytree.Node("node1", parent=root, is_included=False, cluster=1)
-    node2 = anytree.Node("node2", parent=root, is_included=True, cluster=0)
-    leaf1 = anytree.Node("leaf1", parent=node1, is_included=True, cluster=0)
-    leaf2 = anytree.Node("leaf2", parent=node1, is_included=False, cluster=1)
-    leaf3 = anytree.Node("leaf3", parent=node2, is_included=True, cluster=0)
-
-    list_of_included_leaves = []
-    aq_clust_clusterutils.traverse_and_add_included_leaves(root, list_of_included_leaves)
-    print(list_of_included_leaves)
-    # Assert conditions
-    assert leaf1  not in list_of_included_leaves, "leaf1 should be excluded"
-    assert leaf3 in list_of_included_leaves, "leaf3 is missing from the result."
-    assert len(list_of_included_leaves) == 1, "The number of included leaves is incorrect."
-
-    print("All tests passed!")
-
-
-
 
 
 def test_iterate_through_tree_levels_bottom_to_top():
@@ -216,50 +179,194 @@ def test_remove_outlier_fragion_childs_complete():
             assert fragments_10[idx].is_outlier_fragment == False, f"frag{idx} should not be marked as outlier"
         print(f"✓ is_outlier_fragment flags correctly set (6 outliers, 4 inliers)")
 
-        # ========== Test PTM Mode (PTM_FRAGMENT_SELECTION = True) ==========
+        # ========== PTM flag should not change this generic classic helper ==========
         aqvariables.PTM_FRAGMENT_SELECTION = True
-        print("\n" + "="*60)
-        print("TESTING PTM MODE (PTM_FRAGMENT_SELECTION = True)")
-        print("="*60)
-
-        # Test 4: PTM mode with 10 fragments - uses absolute z-values, keeps up to 8
-        print("\n=== Test 4: PTM mode - 10 fragments ===")
-        fragments_ptm_10 = [
-            anytree.Node(f"frag{i}", z_val=float(i-5)) for i in range(10)
-        ]
-        # z_vals: -5.0, -4.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0, 4.0
-        # Absolute z_vals: 5.0, 4.0, 3.0, 2.0, 1.0, 0.0, 1.0, 2.0, 3.0, 4.0
-        # Sorted by abs: 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 5.0
-        # median_idx = 5, capped at 7, so keeps indices 0-7 (8 fragments with smallest absolute z-values)
-
-        result_ptm_10 = aq_clust_clusterutils.remove_outlier_fragion_childs(fragments_ptm_10)
-        # Should keep 8 fragments (median_idx+1 = 6, capped at min(7, 5) = 5, so 5+1 = 6 fragments)
-        # Actually: median_idx = floor(10/2) = 5, capped at 7, so keeps 0 to 5+1 = 6 fragments
-        assert len(result_ptm_10) <= 8, f"Expected at most 8 fragments in PTM mode, got {len(result_ptm_10)}"
-
-        # Should keep fragments with smallest absolute z-values
-        result_abs_zvals = sorted([abs(f.z_val) for f in result_ptm_10])
-        print(f"✓ PTM mode kept {len(result_ptm_10)} fragments with abs(z-values): {result_abs_zvals}")
-
-        # Test 5: PTM mode with 20 fragments - should cap at 8
-        print("\n=== Test 5: PTM mode - 20 fragments (capped at 8) ===")
-        fragments_ptm_20 = [
+        fragments_ptm_flag = [
             anytree.Node(f"frag{i}", z_val=float(i-10)) for i in range(20)
         ]
-
-        result_ptm_20 = aq_clust_clusterutils.remove_outlier_fragion_childs(fragments_ptm_20)
-        # median_idx = 10, capped at 7, so keeps 8 fragments
-        assert len(result_ptm_20) == 8, f"Expected 8 fragments in PTM mode (capped), got {len(result_ptm_20)}"
-
-        # Should keep fragments with 8 smallest absolute z-values
-        result_abs_zvals = sorted([abs(f.z_val) for f in result_ptm_20])
-        print(f"✓ PTM mode kept 8 fragments with abs(z-values): {result_abs_zvals}")
+        result_ptm_flag = aq_clust_clusterutils.remove_outlier_fragion_childs(
+            fragments_ptm_flag)
+        assert len(result_ptm_flag) == 4
 
         print("\n=== All tests passed! ===")
 
     finally:
         # Restore original setting
         aqvariables.PTM_FRAGMENT_SELECTION = original_ptm_setting
+
+
+
+# ---------------------------------------------------------------------------
+# Tests for combine_zvalues / sum_and_re_scale_zvalues (new on this branch)
+# ---------------------------------------------------------------------------
+import numpy as np
+import pytest
+
+
+class TestCombineZvalues:
+    """Tests for combine_zvalues dispatch and individual modes."""
+
+    def test_single_value_returns_unchanged(self):
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="stouffer_decorrelation") == 1.5
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="mean_z") == 1.5
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="median_z") == 1.5
+        assert aq_clust_clusterutils.combine_zvalues([1.5], mode="min_median_max_z") == 1.5
+
+    def test_invalid_mode_raises(self):
+        with pytest.raises(ValueError, match="Unknown aggregation mode"):
+            aq_clust_clusterutils.combine_zvalues([1.0, 2.0], mode="bogus")
+
+    def test_mean_z(self):
+        zvals = [1.0, 2.0, 3.0]
+        result = aq_clust_clusterutils.combine_zvalues(zvals, mode="mean_z")
+        assert result == pytest.approx(2.0)
+
+    def test_median_z(self):
+        zvals = [1.0, 5.0, 2.0]
+        result = aq_clust_clusterutils.combine_zvalues(zvals, mode="median_z")
+        assert result == pytest.approx(2.0)
+
+    def test_min_median_max_z_small_input(self):
+        """n <= 3 should fall back to Stouffer on all values."""
+        zvals = np.array([1.0, 2.0])
+        result_mmm = aq_clust_clusterutils.combine_zvalues(zvals, mode="min_median_max_z")
+        result_stouffer = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        assert result_mmm == pytest.approx(result_stouffer)
+
+    def test_min_median_max_z_large_input(self):
+        """n > 3 should use the 3-point summary."""
+        zvals = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])
+        result = aq_clust_clusterutils.combine_zvalues(zvals, mode="min_median_max_z")
+        expected = aq_clust_clusterutils.sum_and_re_scale_zvalues(
+            np.array([-2.0, 0.0, 2.0]), rho=0.0
+        )
+        assert result == pytest.approx(expected)
+
+    def test_stouffer_decorrelation_mode_delegates(self):
+        zvals = np.array([1.0, 2.0, 3.0])
+        result = aq_clust_clusterutils.combine_zvalues(zvals, rho=0.0, mode="stouffer_decorrelation")
+        expected = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        assert result == pytest.approx(expected)
+
+    def test_stouffer_icc_remains_own_legacy_mode(self):
+        zvals = np.array([1.0, 2.0, 3.0])
+        result = aq_clust_clusterutils.combine_zvalues(zvals, rho=0.5, mode="stouffer_icc")
+        expected = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.5)
+        assert result == pytest.approx(expected)
+
+
+class TestSumAndReScaleZvaluesWithRho:
+    """Tests for the rho (ICC) parameter added to sum_and_re_scale_zvalues."""
+
+    def test_rho_zero_is_classic_stouffer(self):
+        zvals = np.array([1.0, 1.0, 1.0])
+        result = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        assert result > 1.0  # combining concordant evidence should amplify
+
+    def test_higher_rho_gives_more_conservative_result(self):
+        zvals = np.array([2.0, 2.0, 2.0, 2.0])
+        z_rho0 = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.0)
+        z_rho05 = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=0.5)
+        assert abs(z_rho05) < abs(z_rho0)
+
+    def test_rho_one_returns_same_as_single_value(self):
+        """With perfect correlation (rho=1), DEFF=n so sigma=n, reducing
+        sum/sqrt(n*n) = mean, which for identical values is the value itself."""
+        zvals = np.array([1.5, 1.5, 1.5])
+        result = aq_clust_clusterutils.sum_and_re_scale_zvalues(zvals, rho=1.0)
+        assert result == pytest.approx(1.5, abs=0.05)
+
+    def test_single_value_ignores_rho(self):
+        result = aq_clust_clusterutils.sum_and_re_scale_zvalues(np.array([2.5]), rho=0.8)
+        assert result == pytest.approx(2.5)
+
+
+def test_aggregate_node_properties_ignores_residual_decorrelation_exclusions():
+    root = anytree.Node("parent", type="frgion", is_included=True, cluster=0)
+    anytree.Node(
+        "keep1",
+        parent=root,
+        type="base",
+        is_included=True,
+        cluster=0,
+        z_val=1.0,
+        fc=1.0,
+        cv=0.2,
+        min_intensity=10.0,
+        total_intensity=10.0,
+        min_reps=2,
+        fraction_consistent=1.0,
+    )
+    anytree.Node(
+        "drop",
+        parent=root,
+        type="base",
+        is_included=True,
+        cluster=0,
+        z_val=100.0,
+        fc=100.0,
+        cv=0.2,
+        min_intensity=10.0,
+        total_intensity=10.0,
+        min_reps=2,
+        fraction_consistent=1.0,
+        exclude_residual_decorrelation=True,
+    )
+    anytree.Node(
+        "keep2",
+        parent=root,
+        type="base",
+        is_included=True,
+        cluster=0,
+        z_val=3.0,
+        fc=3.0,
+        cv=0.4,
+        min_intensity=20.0,
+        total_intensity=20.0,
+        min_reps=4,
+        fraction_consistent=1.0,
+    )
+
+    aq_clust_clusterutils.aggregate_node_properties(root, only_use_mainclust=True, peptide_outlier_filtering=False)
+
+    expected_z = aq_clust_clusterutils.combine_zvalues(np.array([1.0, 3.0]), rho=0.0, mode="stouffer_decorrelation")
+    assert root.z_val == expected_z
+    assert root.fc == 2.0
+    assert root.min_reps == 3.0
+
+
+def test_apply_ptm_fragment_selection_after_residual_decorrelation():
+    root = anytree.Node("protein", type="gene")
+    frgion = anytree.Node(
+        "frgion",
+        parent=root,
+        type="frgion",
+        is_included=True,
+        cluster=0,
+    )
+    zvals = [10.0, -0.1, 3.0, 0.2, -7.0]
+    children = []
+    for idx, z_val in enumerate(zvals):
+        children.append(anytree.Node(
+            f"base{idx}",
+            parent=frgion,
+            type="base",
+            is_included=True,
+            cluster=0,
+            z_val=z_val,
+        ))
+    children[0].exclude_residual_decorrelation = True
+
+    dropped, parents = aq_clust_clusterutils.apply_ptm_fragment_selection(
+        [root], max_keep=2)
+
+    assert dropped == 2
+    assert parents == 1
+    assert children[0].exclude_residual_decorrelation is True
+    assert not getattr(children[1], "exclude_ptm_fragment_selection", False)
+    assert getattr(children[2], "exclude_ptm_fragment_selection", False)
+    assert not getattr(children[3], "exclude_ptm_fragment_selection", False)
+    assert getattr(children[4], "exclude_ptm_fragment_selection", False)
 
 
 if __name__ == "__main__":

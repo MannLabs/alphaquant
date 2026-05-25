@@ -27,8 +27,16 @@ def fixed_input(sample2cond_df):
 def background_distributions(fixed_input):
     """Create background distributions for testing caching"""
     condbg = aq_diff_bg.ConditionBackgrounds(fixed_input, {})
-    # Get a few different background distributions for testing
-    bg_list = list(condbg.backgrounds[:5])  # Get first 5 backgrounds
+    # Collect unique BackGroundDistribution objects from ion2background
+    seen = set()
+    bg_list = []
+    for bg in condbg.ion2background.values():
+        bg_id = id(bg)
+        if bg_id not in seen:
+            seen.add(bg_id)
+            bg_list.append(bg)
+        if len(bg_list) >= 5:
+            break
     return bg_list
 
 def test_condition_backgrounds(fixed_input):
@@ -195,12 +203,10 @@ class TestBackgroundDistributionCaching:
         condbg1 = aq_diff_bg.ConditionBackgrounds(fixed_input, {})
         condbg2 = aq_diff_bg.ConditionBackgrounds(fixed_input, {})  # Different instance with same data
 
-        # Get some backgrounds from each
-        bg1_from_condbg1 = condbg1.backgrounds[0]
-        bg1_from_condbg2 = condbg2.backgrounds[0]
+        # Get one background from each
+        bg1_from_condbg1 = next(iter(condbg1.ion2background.values()))
+        bg1_from_condbg2 = next(iter(condbg2.ion2background.values()))
 
-        # Even though they're created from the same data, they should have different keys
-        # (since they represent different object instances)
         key1 = bg1_from_condbg1.get_cache_key()
         key2 = bg1_from_condbg2.get_cache_key()
 
@@ -231,3 +237,97 @@ class TestBackgroundDistributionCaching:
         for bg_key in cache_key:
             assert isinstance(bg_key, tuple), "Each background key should be a tuple"
             assert len(bg_key) == 6, "Each background key should have 6 elements"
+
+
+# ---------------------------------------------------------------------------
+# Tests for _split_by_ion_type, _has_multiple_ion_types, and split background building
+# (new on add_summarization_approach branch)
+# ---------------------------------------------------------------------------
+import alphaquant.config.variables as aqvariables
+
+
+class TestSplitByIonType:
+    def test_correct_masks(self):
+        index = pd.Index([
+            "PEP1_FRGION_y3",
+            "PEP1_FRGION_y4",
+            "PEP2_MS1ISOTOPES_0",
+            "PEP2_MS1ISOTOPES_1",
+        ])
+        result = aq_diff_bg.ConditionBackgrounds._split_by_ion_type(index)
+        assert list(result["FRGION"]) == [True, True, False, False]
+        assert list(result["MS1ISOTOPES"]) == [False, False, True, True]
+
+    def test_all_frgion(self):
+        index = pd.Index(["A_FRGION_y1", "B_FRGION_b2"])
+        result = aq_diff_bg.ConditionBackgrounds._split_by_ion_type(index)
+        assert result["FRGION"].all()
+        assert not result["MS1ISOTOPES"].any()
+
+    def test_empty_index(self):
+        index = pd.Index([])
+        result = aq_diff_bg.ConditionBackgrounds._split_by_ion_type(index)
+        assert len(result["FRGION"]) == 0
+        assert len(result["MS1ISOTOPES"]) == 0
+
+
+class TestHasMultipleIonTypes:
+    def setup_method(self):
+        self._original_config = aqvariables.CONFIG_DICT
+
+    def teardown_method(self):
+        aqvariables.CONFIG_DICT = self._original_config
+
+    def test_true_when_both_present(self):
+        aqvariables.CONFIG_DICT = {
+            "ion_hierarchy": {"fragion": {}, "ms1iso": {}}
+        }
+        assert aq_diff_bg.ConditionBackgrounds._has_multiple_ion_types() is True
+
+    def test_false_when_only_fragion(self):
+        aqvariables.CONFIG_DICT = {
+            "ion_hierarchy": {"fragion": {}}
+        }
+        assert aq_diff_bg.ConditionBackgrounds._has_multiple_ion_types() is False
+
+    def test_false_when_config_is_none(self):
+        aqvariables.CONFIG_DICT = None
+        assert aq_diff_bg.ConditionBackgrounds._has_multiple_ion_types() is False
+
+
+class TestConditionBackgroundsSplit:
+    """Integration-level tests: verify split vs. single-pool mode."""
+
+    def _make_mixed_df(self, n_frg=50, n_ms1=50, n_samples=4):
+        rng = np.random.RandomState(42)
+        frg_names = [f"PEP{i}_FRGION_y{j}" for i in range(n_frg) for j in [1]]
+        ms1_names = [f"PEP{i}_MS1ISOTOPES_{j}" for i in range(n_ms1) for j in [0]]
+        all_names = frg_names + ms1_names
+        data = 10 + rng.randn(len(all_names), n_samples)
+        cols = [f"S{i}" for i in range(n_samples)]
+        return pd.DataFrame(data, index=all_names, columns=cols)
+
+    def setup_method(self):
+        self._original_config = aqvariables.CONFIG_DICT
+
+    def teardown_method(self):
+        aqvariables.CONFIG_DICT = self._original_config
+
+    def test_split_mode_assigns_all_ions(self):
+        aqvariables.CONFIG_DICT = {
+            "ion_hierarchy": {"fragion": {}, "ms1iso": {}}
+        }
+        df = self._make_mixed_df()
+        cb = aq_diff_bg.ConditionBackgrounds(df, {}, split_by_ion_type=True)
+        assert set(cb.ion2background.keys()) == set(df.index)
+
+    def test_single_pool_mode_assigns_all_ions(self):
+        df = self._make_mixed_df()
+        cb = aq_diff_bg.ConditionBackgrounds(df, {}, split_by_ion_type=False)
+        assert set(cb.ion2background.keys()) == set(df.index)
+
+    def test_split_false_when_config_missing(self):
+        aqvariables.CONFIG_DICT = None
+        df = self._make_mixed_df()
+        cb = aq_diff_bg.ConditionBackgrounds(df, {}, split_by_ion_type=True)
+        assert set(cb.ion2background.keys()) == set(df.index)

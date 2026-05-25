@@ -64,10 +64,12 @@ class MLInfoTableCreator():
 
 
     def _define_ml_info_filename(self):
-        self.ml_info_filename = aq_utils.get_progress_folder_filename(self._input_file, ".ml_info_table.tsv")
+        self.ml_info_filename = aq_utils.get_progress_folder_filename(self._input_file, ".ml_info_table.tsv.zip")
 
     def _write_ml_info_table(self):
-        self._ml_info_df.to_csv(self.ml_info_filename, sep="\t", index=False)
+        archive_name = self.ml_info_filename.split("/")[-1].removesuffix(".zip")
+        compression = {"method": "zip", "archive_name": archive_name}
+        self._ml_info_df.to_csv(self.ml_info_filename, sep="\t", index=False, compression=compression)
 
 
 class MLInfoTableLoader():
@@ -81,4 +83,3 @@ class MLInfoTableLoader():
     def _subset_df_to_relevant_samples(self):
         self.ml_info_df = self.ml_info_df[self.ml_info_df["sample_ID"].isin(self._samples_used)]
         self.ml_info_df = self.ml_info_df.drop(columns=["sample_ID"])
-

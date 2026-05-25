@@ -118,7 +118,10 @@ class PlotConfig():
                  shortened_xticklabels = False,
                  remove_leaf_labels_in_tree = False,
                  hide_root_in_tree = False,
-                 exclude_outlier_fragments = True):
+                 exclude_outlier_fragments = True,
+                 highlight_excluded_nodes = True,
+                 show_excluded_node_counts = True,
+                 show_exclusion_legend = True):
         """
         Configuration class for plotting.
 
@@ -139,6 +142,10 @@ class PlotConfig():
             exclude_outlier_fragments (bool): Whether to exclude fragment ions marked as outliers from plots.
                 When True (default), only fragments used in statistical aggregation are displayed.
                 Mirrors the fragment_outlier_filtering behavior from the analysis pipeline.
+            highlight_excluded_nodes (bool): Whether tree plots should highlight nodes excluded from aggregation.
+            show_excluded_node_counts (bool): Whether visible parents should annotate how many hidden descendants
+                were excluded from aggregation.
+            show_exclusion_legend (bool): Whether tree plots should include a legend for exclusion highlighting.
         """
         self.label_rotation = label_rotation
         self.add_stripplot = add_stripplot
@@ -158,6 +165,9 @@ class PlotConfig():
         self.remove_leaf_labels_in_tree = remove_leaf_labels_in_tree
         self.hide_root_in_tree = hide_root_in_tree
         self.exclude_outlier_fragments = exclude_outlier_fragments
+        self.highlight_excluded_nodes = highlight_excluded_nodes
+        self.show_excluded_node_counts = show_excluded_node_counts
+        self.show_exclusion_legend = show_exclusion_legend
 
         # Node annotation configuration
         self.show_node_annotations = show_node_annotations
@@ -180,6 +190,9 @@ class PlotConfig():
                 'min_reps': 'reps={}',
                 'fraction_consistent': 'cons={:.2f}',
                 'is_included': 'incl={}',
+                'exclude_residual_decorrelation': 'decorr excl={}',
+                'is_outlier_fragment': 'frag excl={}',
+                'is_outlier_peptide': 'pep excl={}',
                 'missingval': 'miss={}'
             }
         else:

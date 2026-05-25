@@ -15,8 +15,6 @@ matplotlib.use('agg')
 import alphaquant.run_pipeline as diffmgr
 import alphaquant.config.variables as aq_variables
 import alphaquant.ui.dashboad_parts_plots_basic as dashboad_parts_plots_basic
-import alphaquant.ui.dashboard_parts_plots_proteoforms as dashboad_parts_plots_proteoforms
-import alphaquant.ui.gui as gui
 import alphaquant.ui.gui_textfields as gui_textfields
 import alphaquant.utils.reader_utils as aq_reader_utils
 
@@ -374,6 +372,14 @@ class RunPipeline(BaseWidget):
 			description='Fold change threshold for highlighting significant changes in the volcano plot'
 		)
 
+		self.aggregation_mode = pn.widgets.Select(
+			name='Z-value aggregation mode:',
+			options=['stouffer_decorrelation', 'mean_z', 'median_z', 'min_median_max_z'],
+			value='stouffer_decorrelation',
+			width=300,
+			description='Strategy for combining child z-values during tree propagation'
+		)
+
 		self.condition_comparison_header = pn.pane.Markdown(
 		"### Available Condition Comparisons",
 		visible=True
@@ -402,7 +408,7 @@ class RunPipeline(BaseWidget):
 				name='Enable machine learning',
 				value=True,
 				width=300
-			),
+				),
 			'take_median_ion': pn.widgets.Checkbox(
 				name='Use median-centered ions',
 				value=True,
@@ -448,6 +454,11 @@ class RunPipeline(BaseWidget):
 				value=True,
 				width=300
 			),
+			'split_ion_backgrounds': pn.widgets.Checkbox(
+				name='Separate backgrounds by ion type',
+				value=True,
+				width=300
+			),
 			            'peptide_outlier_filtering': pn.widgets.Checkbox(
 				name='Use few peptides per protein',
 				value=True,
@@ -466,6 +477,7 @@ class RunPipeline(BaseWidget):
 			'write_out_results_tree': pn.pane.Markdown('Save detailed results in a tree structure'),
 			'use_multiprocessing': pn.pane.Markdown('Use multiple CPU cores to speed up processing (may use more memory)'),
 			'runtime_plots': pn.pane.Markdown('Create plots during analysis to visualize the process'),
+			'split_ion_backgrounds': pn.pane.Markdown('Build separate empirical backgrounds for fragment ions and MS1 isotopes to reduce conservative bias'),
 			            'peptide_outlier_filtering': pn.pane.Markdown('Filter outlier peptides based on significance for proteins with gene-level nodes'),
 		}
 
@@ -585,6 +597,9 @@ class RunPipeline(BaseWidget):
 				self.min_num_ions,
 				self.minpep,
 				self.cluster_threshold_pval,
+				pn.layout.Divider(),
+				"### Aggregation",
+				self.aggregation_mode,
 				pn.layout.Divider(),
 				"### Analysis Options",
 				*checkbox_items,
@@ -806,6 +821,7 @@ class RunPipeline(BaseWidget):
 				"min_valid_values_c2": self.min_valid_values_c2.value if self.valid_values_filter_mode.value == 'set min. valid values per condition' else None,
 				# Add the switch values to the pipeline parameters
 				'use_ml': self.switches['use_ml'].value,
+				'aggregation_mode': self.aggregation_mode.value,
 				'take_median_ion': self.switches['take_median_ion'].value,
 				'perform_ptm_mapping': self.switches['perform_ptm_mapping'].value,
 				'perform_phospho_inference': self.switches['perform_phospho_inference'].value,
@@ -815,6 +831,7 @@ class RunPipeline(BaseWidget):
 				'write_out_results_tree': self.switches['write_out_results_tree'].value,
 				'use_multiprocessing': self.switches['use_multiprocessing'].value,
 				'runtime_plots': self.switches['runtime_plots'].value,
+				'split_ion_backgrounds': self.switches['split_ion_backgrounds'].value,
 				            'peptide_outlier_filtering': self.switches['peptide_outlier_filtering'].value,
 			}
 
@@ -1470,63 +1487,3 @@ class Tabs(param.Parameterized):
 			self.main_tabs[1] = ('Plotting', pn.pane.Markdown(
 				f"### Visualization Error\n\n{error_msg}"
 			))
-
-
-def build_dashboard():
-	"""Build the overall dashboard layout."""
-	# Create state manager first
-	state_manager = gui.DashboardState()
-
-	header = HeaderWidget(
-		title="AlphaQuant Dashboard",
-		img_folder_path="./assets",
-		github_url="https://github.com/<my_repo>"
-	)
-	main_text = MainWidget(
-		description=(
-			"Welcome to our analysis dashboard. "
-			"Please load your data and run the pipeline."
-		),
-		manual_path="path/to/manual.pdf"
-	)
-
-	# Create pipeline instance with state manager
-	pipeline = RunPipeline(state=state_manager)
-	pipeline_layout = pipeline.create()
-
-	# Create plotting tabs with state manager
-	plotting_tab = dashboad_parts_plots_basic.PlottingTab(state=state_manager)
-	proteoform_tab = dashboad_parts_plots_proteoforms.ProteoformPlottingTab(state=state_manager)
-
-	# Register subscribers
-	state_manager.register_subscriber(plotting_tab)
-	state_manager.register_subscriber(proteoform_tab)
-
-	# Create tabs
-	all_tabs = pn.Tabs(
-		('Pipeline', pipeline_layout),
-		('Single Comparison', plotting_tab.panel()),
-		('Plotting', proteoform_tab.panel()),
-		dynamic=True,
-		tabs_location='above',
-		sizing_mode='stretch_width'
-	)
-
-	# Main layout
-	main_layout = pn.Column(
-		header.create(),
-		pn.layout.Divider(),
-		main_text.create(),
-		all_tabs,
-		sizing_mode='stretch_width'
-	)
-
-	template = pn.template.FastListTemplate(
-		title="AlphaQuant Analysis",
-		sidebar=[],
-		main=[main_layout],
-		theme='dark',
-		main_max_width="1200px",
-		main_layout="width"
-	)
-	return template
