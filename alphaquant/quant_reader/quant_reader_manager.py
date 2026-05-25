@@ -72,5 +72,3 @@ def reformat_and_save_input_file(
     return outfile_name
 
 
-def set_quanttable_config_location(quanttable_config_file):
-    config_dict_loader.INTABLE_CONFIG = quanttable_config_file
