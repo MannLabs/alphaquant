@@ -8,6 +8,24 @@ PACKAGE_NAME=alphaquant
 # BUILD_NAME is taken from environment variables, e.g. alphaquant-1.2.3-macos-darwin-arm64 or alphaquant-1.2.3-macos-darwin-x64
 rm -rf ${BUILD_NAME}.pkg
 
+curl_github() {
+    local args=(
+        -L
+        -f
+        --retry 3
+        --retry-delay 2
+        -H "Accept: application/vnd.github+json"
+        -H "User-Agent: alphaquant-release-build"
+    )
+
+    local github_token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+    if [ -n "$github_token" ]; then
+        args+=(-H "Authorization: Bearer ${github_token}")
+    fi
+
+    curl "${args[@]}" "$@"
+}
+
 # If needed, include additional source such as e.g.:
 # cp ../../alphaquant/data/*.fasta dist/alphaquant/data
 
@@ -36,8 +54,7 @@ mkdir -p ${CONTENTS_FOLDER}/Frameworks/alphamap/data/
 ####
 ####Download all AlphaMap FASTA and CSV files from GitHub, which are needed for the further analyses. There is a lot of error checking to ensure that the files get actually added during the build
 echo "Starting downloads of FASTA and CSV files..."
-DOWNLOAD_LIST=$(curl -L -f https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main)
-if [ $? -ne 0 ]; then
+if ! DOWNLOAD_LIST=$(curl_github https://api.github.com/repos/MannLabs/alphamap/contents/alphamap/data?ref=main); then
     echo "Error: Failed to fetch file list from GitHub API"
     exit 1
 fi
@@ -52,7 +69,7 @@ echo "$DOWNLOAD_LIST" | \
     fi
     filename=$(basename $url)
     echo "Downloading $filename..."
-    if ! curl -L -f "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"; then
+    if ! curl_github "$url" -o "${CONTENTS_FOLDER}/Frameworks/alphamap/data/$filename"; then
         echo "Error: Failed to download $filename"
         exit 1
     fi
