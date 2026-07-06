@@ -13,6 +13,11 @@ ION_OUTLIER_MAD_THRESHOLD = None
 CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
+# When residual-decorrelation pruning collapses a parent to a single surviving
+# child, aggregate that parent via the MEDIAN of ALL its children's z-values
+# (shared-signal estimate for near-duplicate siblings) instead of using the lone
+# survivor. Applied at every tree level. Default off. See set_median_on_collapse.
+MEDIAN_ON_COLLAPSE = False
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -50,6 +55,10 @@ def _determine_prefer_precursors_for_clustering(input_type):
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+def set_median_on_collapse(median_on_collapse):
+    global MEDIAN_ON_COLLAPSE
+    MEDIAN_ON_COLLAPSE = bool(median_on_collapse)
 
 def set_outlier_correction_factor(outlier_correction_factor):
     global OUTLIER_CORRECTION_FACTOR

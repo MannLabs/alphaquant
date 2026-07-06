@@ -158,7 +158,12 @@ def analyze_condpair(*,runconfig, condpair):
             df_c2_normed,
             tolerance=getattr(runconfig, "residual_decorrelation_tolerance", 0.10),
             min_keep=getattr(runconfig, "residual_decorrelation_min_keep", 1),
+            cutoff_grid=(getattr(runconfig, "residual_decorrelation_cutoff_grid", None)
+                         or aq_clust_resid.DEFAULT_CUTOFF_GRID),
             aggregation_mode=runconfig.aggregation_mode,
+            plot_dir=(os.path.join(runconfig.results_dir,
+                                   f"{aqutils.get_condpairname(condpair)}_residual_decorrelation_plots")
+                      if getattr(runconfig, "runtime_plots", False) else None),
         )
     if len(prot2missingval_diffions.keys())>0:
         LOGGER.info(f"start analysis of proteins w. completely missing values")

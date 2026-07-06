@@ -59,6 +59,8 @@ def run_pipeline(input_file: str,
                 use_ml: bool = True,
                 residual_decorrelation_tolerance: float = 0.10,
                 residual_decorrelation_min_keep: int = 1,
+                residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
+                median_on_collapse: bool = False,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
@@ -125,6 +127,17 @@ def run_pipeline(input_file: str,
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
     residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
+    residual_decorrelation_cutoff_grid (list[float] | None): Correlation cutoffs
+        scanned (loose->tight) during residual-decorrelation pruning. The default
+        grid stops at 0.1, so surviving siblings can remain correlated up to ~0.1;
+        pass a grid extending below 0.1 (e.g. [1.0, 0.9, ..., 0.1, 0.05, 0.0]) to
+        prune more aggressively. None (default) uses the built-in grid (1.0->0.1).
+    median_on_collapse (bool): When residual-decorrelation pruning collapses a
+        parent to a single surviving child, aggregate that parent via the MEDIAN
+        of ALL its eligible children's z-values (a shared-signal estimate for
+        near-duplicate siblings) instead of reporting the lone survivor. Applied
+        at every tree level. Recovers within-group evidence lost when highly
+        correlated siblings are pruned to one. Defaults to False.
     aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
         (where ions show intra-group dependencies). Higher levels always use Stouffer.
         Can be a single string (applied to all dependent levels) or a dict mapping node types
@@ -275,6 +288,7 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_median_on_collapse(median_on_collapse)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set
