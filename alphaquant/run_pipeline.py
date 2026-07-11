@@ -61,6 +61,7 @@ def run_pipeline(input_file: str,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
                 median_on_collapse: bool = False,
+                max_peptides_per_protein: Optional[int] = 31,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
@@ -289,6 +290,7 @@ def run_pipeline(input_file: str,
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
     aqvariables.set_median_on_collapse(median_on_collapse)
+    aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set

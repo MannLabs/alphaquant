@@ -18,6 +18,9 @@ NUM_BG_CONTEXTS = 10
 # (shared-signal estimate for near-duplicate siblings) instead of using the lone
 # survivor. Applied at every tree level. Default off. See set_median_on_collapse.
 MEDIAN_ON_COLLAPSE = False
+# Maximum number of peptides combined per protein (closest to median z are kept).
+# Bounds significance for very peptide-rich proteins. Set to None to disable the cap.
+MAX_PEPTIDES_PER_PROTEIN = 31
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -59,6 +62,11 @@ def set_peptide_outlier_filtering(peptide_outlier_filtering):
 def set_median_on_collapse(median_on_collapse):
     global MEDIAN_ON_COLLAPSE
     MEDIAN_ON_COLLAPSE = bool(median_on_collapse)
+
+def set_max_peptides_per_protein(max_peptides_per_protein):
+    global MAX_PEPTIDES_PER_PROTEIN
+    MAX_PEPTIDES_PER_PROTEIN = (int(max_peptides_per_protein)
+                                if max_peptides_per_protein is not None else None)
 
 def set_outlier_correction_factor(outlier_correction_factor):
     global OUTLIER_CORRECTION_FACTOR
