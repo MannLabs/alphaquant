@@ -61,6 +61,7 @@ def run_pipeline(input_file: str,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
                 median_on_collapse: bool = False,
+                residual_deff_correction: bool = False,
                 max_peptides_per_protein: Optional[int] = 31,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
@@ -139,6 +140,12 @@ def run_pipeline(input_file: str,
         near-duplicate siblings) instead of reporting the lone survivor. Applied
         at every tree level. Recovers within-group evidence lost when highly
         correlated siblings are pruned to one. Defaults to False.
+    residual_deff_correction (bool): When True, residual decorrelation records the
+        mean pairwise correlation among each parent's SURVIVING children and applies
+        it as a Stouffer design effect (deff=1+(n-1)*rho) during aggregation. This
+        corrects the homogeneous between-child correlation that pruning cannot remove
+        (no droppable subset); where pruning already decorrelated the children the
+        residual rho ~ 0 and the correction is a no-op. Defaults to False.
     aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
         (where ions show intra-group dependencies). Higher levels always use Stouffer.
         Can be a single string (applied to all dependent levels) or a dict mapping node types
@@ -290,6 +297,7 @@ def run_pipeline(input_file: str,
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
     aqvariables.set_median_on_collapse(median_on_collapse)
+    aqvariables.set_residual_deff_correction(residual_deff_correction)
     aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts

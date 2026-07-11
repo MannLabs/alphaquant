@@ -18,6 +18,13 @@ NUM_BG_CONTEXTS = 10
 # (shared-signal estimate for near-duplicate siblings) instead of using the lone
 # survivor. Applied at every tree level. Default off. See set_median_on_collapse.
 MEDIAN_ON_COLLAPSE = False
+# When True, residual-decorrelation records the mean pairwise correlation among the
+# SURVIVING children of each parent (the residual, post-pruning correlation) into
+# node.icc_correction, so the Stouffer aggregation applies a design-effect
+# deff=1+(n-1)*rho. This corrects the between-peptide correlation that pruning cannot
+# remove (homogeneous, no droppable subset). Where pruning already decorrelated the
+# children the residual rho ~ 0, so the correction is a no-op. Default off.
+RESIDUAL_DEFF_CORRECTION = False
 # Maximum number of peptides combined per protein (closest to median z are kept).
 # Bounds significance for very peptide-rich proteins. Set to None to disable the cap.
 MAX_PEPTIDES_PER_PROTEIN = 31
@@ -62,6 +69,10 @@ def set_peptide_outlier_filtering(peptide_outlier_filtering):
 def set_median_on_collapse(median_on_collapse):
     global MEDIAN_ON_COLLAPSE
     MEDIAN_ON_COLLAPSE = bool(median_on_collapse)
+
+def set_residual_deff_correction(residual_deff_correction):
+    global RESIDUAL_DEFF_CORRECTION
+    RESIDUAL_DEFF_CORRECTION = bool(residual_deff_correction)
 
 def set_max_peptides_per_protein(max_peptides_per_protein):
     global MAX_PEPTIDES_PER_PROTEIN
