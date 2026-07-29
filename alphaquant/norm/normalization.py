@@ -257,7 +257,7 @@ def mode_normalization(x):
 import numpy as np
 from scipy import stats
 
-def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
+def get_betweencond_shift(df_c1_normed, df_c2_normed, median_normalization = False):
 
     both_idx = df_c1_normed.index.intersection(df_c2_normed.index)
     df1 = df_c1_normed.loc[both_idx]
@@ -269,7 +269,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 
     diff_fcs = df1[col1].to_numpy() - df2[col2].to_numpy()
     median = np.nanmedian(diff_fcs)
-    if enfore_median:
+    if median_normalization:
         return -median
 
     if len(diff_fcs)<100:
@@ -288,7 +288,7 @@ def get_betweencond_shift(df_c1_normed, df_c2_normed, enfore_median = False):
 # Cell
 import pandas as pd
 
-def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None):
+def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_within_conds = True, normalize_between_conds = True, runtime_plots = True, protein_subset_for_normalization_file = None, pep2prot =None, median_normalization = False):
 
     if normalize_within_conds:
         df_c1 = normalize_within_cond(df_c=df_c1, samples_c= c1_samples)
@@ -299,15 +299,15 @@ def normalize_if_specified(df_c1, df_c2, c1_samples, c2_samples, normalize_withi
         aq_plot_pairwise.plot_withincond_normalization(df_c1, df_c2)
 
     if normalize_between_conds:
-        df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots = runtime_plots)
+        df_c1, df_c2 = get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots = runtime_plots, median_normalization = median_normalization)
         LOGGER.info("normalized between conditions")
 
     return df_c1, df_c2
 
 
 
-def get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots):
-    shift_between_cond = prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot)
+def get_normalized_dfs_between_conditions(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot,runtime_plots, median_normalization = False):
+    shift_between_cond = prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot, median_normalization = median_normalization)
 
     LOGGER.info(f"shift comparison by {shift_between_cond}")
     df_c2 = df_c2-shift_between_cond
@@ -322,12 +322,12 @@ def normalize_within_cond(df_c, samples_c):
     df_c_normed = pd.DataFrame(apply_sampleshifts(df_c.to_numpy().T, sample2shift).T, index = df_c.index, columns = samples_c)
     return df_c_normed
 
-def prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot):
+def prepare_tables_and_get_betweencond_shift(df_c1, df_c2, protein_subset_for_normalization_file, pep2prot, median_normalization = False):
     specified_protein_subset = read_specified_protein_subset_if_given(protein_subset_for_normalization_file)
     prepared1 = prepare_table_for_betweencond_shift(df_c1, specified_protein_subset, pep2prot)
     prepared2 = prepare_table_for_betweencond_shift(df_c2, specified_protein_subset, pep2prot)
-    enforce_median = protein_subset_for_normalization_file is not None
-    return get_betweencond_shift(prepared1, prepared2, enforce_median)
+    median_normalization = median_normalization or (protein_subset_for_normalization_file is not None)
+    return get_betweencond_shift(prepared1, prepared2, median_normalization)
 
 def read_specified_protein_subset_if_given(specified_protein_subset_file):
     if specified_protein_subset_file is not None:

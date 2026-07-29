@@ -13,21 +13,18 @@ ION_OUTLIER_MAD_THRESHOLD = None
 CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
-# When residual-decorrelation pruning collapses a parent to a single surviving
-# child, aggregate that parent via the MEDIAN of ALL its children's z-values
-# (shared-signal estimate for near-duplicate siblings) instead of using the lone
-# survivor. Applied at every tree level. Default off. See set_median_on_collapse.
+
 MEDIAN_ON_COLLAPSE = False
-# When True, residual-decorrelation records the mean pairwise correlation among the
-# SURVIVING children of each parent (the residual, post-pruning correlation) into
-# node.icc_correction, so the Stouffer aggregation applies a design-effect
-# deff=1+(n-1)*rho. This corrects the between-peptide correlation that pruning cannot
-# remove (homogeneous, no droppable subset). Where pruning already decorrelated the
-# children the residual rho ~ 0, so the correction is a no-op. Default off.
-RESIDUAL_DEFF_CORRECTION = False
-# Maximum number of peptides combined per protein (closest to median z are kept).
-# Bounds significance for very peptide-rich proteins. Set to None to disable the cap.
-MAX_PEPTIDES_PER_PROTEIN = 31
+
+
+RESIDUAL_DEFF_CORRECTION = True
+
+RESIDUAL_DEFF_SMALLN_TOTAL = 7
+
+RESIDUAL_DECORR_CORR_MODE = "cap"
+RESIDUAL_DECORR_CORR_CAP = 10
+
+MAX_PEPTIDES_PER_PROTEIN = None
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -73,6 +70,21 @@ def set_median_on_collapse(median_on_collapse):
 def set_residual_deff_correction(residual_deff_correction):
     global RESIDUAL_DEFF_CORRECTION
     RESIDUAL_DEFF_CORRECTION = bool(residual_deff_correction)
+
+
+def set_residual_deff_smalln_total(residual_deff_smalln_total):
+    global RESIDUAL_DEFF_SMALLN_TOTAL
+    RESIDUAL_DEFF_SMALLN_TOTAL = int(residual_deff_smalln_total) if residual_deff_smalln_total else 0
+
+
+def set_residual_decorr_corr_mode(residual_decorr_corr_mode):
+    global RESIDUAL_DECORR_CORR_MODE
+    RESIDUAL_DECORR_CORR_MODE = str(residual_decorr_corr_mode) if residual_decorr_corr_mode else "cap"
+
+
+def set_residual_decorr_corr_cap(residual_decorr_corr_cap):
+    global RESIDUAL_DECORR_CORR_CAP
+    RESIDUAL_DECORR_CORR_CAP = int(residual_decorr_corr_cap) if residual_decorr_corr_cap else 10
 
 def set_max_peptides_per_protein(max_peptides_per_protein):
     global MAX_PEPTIDES_PER_PROTEIN

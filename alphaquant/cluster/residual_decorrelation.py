@@ -427,6 +427,25 @@ def run_level_sweep(
     )
 
 
+def _corr_budget_cols(c1_cols, c2_cols):
+    """Columns to keep for the sibling-correlation estimate, per RESIDUAL_DECORR_CORR_MODE.
+    Returns None (use all) for mode 'off'. For mode 'cap', picks up to RESIDUAL_DECORR_CORR_CAP
+    columns from EACH condition, deterministically evenly spaced, keeping both conditions
+    represented -- so the correlation is never estimated more precisely than ~2*CAP samples."""
+    mode = aqvariables.RESIDUAL_DECORR_CORR_MODE
+    na, nb = len(c1_cols), len(c2_cols)
+    if mode == "cap":
+        cap = aqvariables.RESIDUAL_DECORR_CORR_CAP
+        ka, kb = min(na, cap), min(nb, cap)
+    else:
+        return None
+    def pick(cols, k):
+        k = max(1, min(int(k), len(cols)))
+        idx = sorted(set(np.linspace(0, len(cols) - 1, k).round().astype(int).tolist()))
+        return [cols[i] for i in idx]
+    return pick(list(c1_cols), ka) + pick(list(c2_cols), kb)
+
+
 def attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed, min_n_per_cond=2):
     """Attach per-ion residuals from ``log2(intensity) ~ condition``.
 
@@ -454,6 +473,12 @@ def attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed, min_n_per_cond=2)
     n1_ok = X[c1_cols].notna().sum(axis=1) >= int(min_n_per_cond)
     n2_ok = X[c2_cols].notna().sum(axis=1) >= int(min_n_per_cond)
     res.loc[~(n1_ok & n2_ok), :] = np.nan
+
+    # optional correlation-estimation budget: cap the columns used for the sibling-correlation
+    # so its precision (hence pruning aggressiveness) does not blow up at high sample count.
+    keep = _corr_budget_cols(c1_cols, c2_cols)
+    if keep is not None:
+        res = res[keep]
 
     for protnode in protnodes:
         # initialise residuals to None on every node before filling
@@ -585,6 +610,7 @@ def apply_residual_decorrelation(
             for pp in parents
         ]
         null_sorted = np.sort(_cross_parent_shuffle_null(mats, rng))
+        n_total = next((m.shape[1] for m in mats if getattr(m, "size", 0)), 0)
         sweep = run_level_sweep(
             parents,
             null_sorted,
@@ -640,26 +666,44 @@ def apply_residual_decorrelation(
         # pruning does nothing and there is no ICC to correct -- so deff must be a no-op,
         # otherwise it needlessly costs sensitivity on well-calibrated datasets.
         gate_open = sweep.d_before > tolerance
+        # Small-sample source switch: with <= RESIDUAL_DEFF_SMALLN_TOTAL total samples the
+        # per-dataset correlation is un-measurable, so pruning cannot reliably remove it and
+        # the survivor rho falsely reads ~0 while the true between-peptide correlation still
+        # leaks into the Stouffer sum (balanced 3v3 -> anti-conservative). Fall back to the
+        # RAW (pre-pruning, cutoff=1.0) peptide correlations pooled across the whole dataset,
+        # which is stable at any replicate count and captures the correlation pruning missed.
+        smalln = aqvariables.RESIDUAL_DEFF_SMALLN_TOTAL
+        use_raw = bool(smalln) and n_total <= smalln
         if aqvariables.RESIDUAL_DEFF_CORRECTION and parent_level == "gene":
-            LOGGER.info("deff gate gene->seq: d_before=%.4f tolerance=%.4f -> %s",
-                        sweep.d_before, tolerance, "OPEN" if gate_open else "CLOSED (deff off)")
+            LOGGER.info("deff gate gene->seq: d_before=%.4f tolerance=%.4f n_total=%d -> %s%s",
+                        sweep.d_before, tolerance, n_total,
+                        "OPEN" if gate_open else "CLOSED (deff off)",
+                        " [raw small-n ICC]" if use_raw else "")
         if aqvariables.RESIDUAL_DEFF_CORRECTION and parent_level == "gene" and gate_open:
+            if use_raw:
+                # raw pooled ICC: mean pairwise correlation among ALL children (no pruning)
+                source_means = []
+                for pp in parents:
+                    raw_rs = _pair_rs_from_C(pp.C, pp.survivors_at(1.0, min_keep))
+                    if raw_rs.size:
+                        source_means.append(float(np.mean(raw_rs)))
+            else:
+                source_means = survivor_means
             # Apply a single robust per-LEVEL excess correlation to every parent at this
             # level: clip ONCE on the well-estimated level mean rather than per parent.
-            # Per-parent survivor means are noisy (few children/replicates); clipping each
-            # at zero rectifies that noise into a large positive bias, which over-corrects
-            # clean/few-replicate data. The level mean averages the noise out; subtracting
-            # the shuffle-null mean removes the finite-sample floor.
-            level_excess = (max(0.0, float(np.mean(survivor_means)) - null_mean)
-                            if survivor_means else 0.0)
+            # Per-parent means are noisy (few children/replicates); clipping each at zero
+            # rectifies that noise into a large positive bias. The level mean averages the
+            # noise out; subtracting the shuffle-null mean removes the finite-sample floor.
+            level_excess = (max(0.0, float(np.mean(source_means)) - null_mean)
+                            if source_means else 0.0)
             for pp in parents_with_pairs:
                 pp.parent_node.icc_correction = level_excess
             LOGGER.info(
-                "deff %s->%s: mean survivor rho=%.4f  null mean=%.4f  "
+                "deff %s->%s: mean %s rho=%.4f  null mean=%.4f  "
                 "LEVEL excess rho=%.4f (parents=%d)",
-                parent_level, child_level,
-                float(np.mean(survivor_means)) if survivor_means else 0.0,
-                null_mean, level_excess, len(survivor_means),
+                parent_level, child_level, "RAW" if use_raw else "survivor",
+                float(np.mean(source_means)) if source_means else 0.0,
+                null_mean, level_excess, len(source_means),
             )
 
     # optional: save the per-level distribution diagnostics (before/after/null CDFs

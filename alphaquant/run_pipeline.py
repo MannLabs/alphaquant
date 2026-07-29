@@ -61,8 +61,11 @@ def run_pipeline(input_file: str,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
                 median_on_collapse: bool = False,
-                residual_deff_correction: bool = False,
-                max_peptides_per_protein: Optional[int] = 31,
+                residual_deff_correction: bool = True,
+                residual_deff_smalln_total: int = 7,
+                residual_decorr_corr_mode: str = "cap",
+                residual_decorr_corr_cap: int = 10,
+                max_peptides_per_protein: Optional[int] = None,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
@@ -81,6 +84,7 @@ def run_pipeline(input_file: str,
                 volcano_fcthresh: float = 0.5,
                 annotation_columns: Optional[List[str]] = None,
                 protein_subset_for_normalization_file: Optional[str] = None,
+                median_normalization: bool = False,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
@@ -175,6 +179,7 @@ def run_pipeline(input_file: str,
     volcano_fcthresh (float): Fold change threshold for volcano plot significance. Defaults to 0.5.
     annotation_columns (list): Additional columns to include in output tables.
     protein_subset_for_normalization_file (str): File specifying proteins to use for normalization.
+    median_normalization (bool): Take the median of the between-condition fold-change distribution as the shift, instead of choosing between its median and its mode. Passing protein_subset_for_normalization_file also implies this. Defaults to False.
     protnorm_peptides (bool): Enable protein-level peptide normalization. Defaults to True.
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
@@ -298,6 +303,9 @@ def run_pipeline(input_file: str,
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
     aqvariables.set_median_on_collapse(median_on_collapse)
     aqvariables.set_residual_deff_correction(residual_deff_correction)
+    aqvariables.set_residual_deff_smalln_total(residual_deff_smalln_total)
+    aqvariables.set_residual_decorr_corr_mode(residual_decorr_corr_mode)
+    aqvariables.set_residual_decorr_corr_cap(residual_decorr_corr_cap)
     aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts

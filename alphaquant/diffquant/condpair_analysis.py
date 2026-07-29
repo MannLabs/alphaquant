@@ -67,7 +67,8 @@ def analyze_condpair(*,runconfig, condpair):
         return
 
     df_c1_normed, df_c2_normed = aqnorm.normalize_if_specified(df_c1 = df_c1, df_c2 = df_c2, c1_samples = c1_samples, c2_samples = c2_samples, normalize_within_conds = runconfig.normalize, normalize_between_conds = runconfig.normalize,
-    runtime_plots = runconfig.runtime_plots, protein_subset_for_normalization_file=runconfig.protein_subset_for_normalization_file, pep2prot = pep2prot)#, "./test_data/normed_intensities.tsv")
+    runtime_plots = runconfig.runtime_plots, protein_subset_for_normalization_file=runconfig.protein_subset_for_normalization_file, pep2prot = pep2prot,
+    median_normalization = getattr(runconfig, 'median_normalization', False))#, "./test_data/normed_intensities.tsv")
 
     summarization_nodes = getattr(runconfig, 'summarization_nodes', [])
     if summarization_nodes:
