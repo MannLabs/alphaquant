@@ -96,7 +96,10 @@ LEVEL_PAIRS = (
     ("ms1_isotopes", "base"),
 )
 
-DEFAULT_CUTOFF_GRID = tuple(round(1.0 - 0.1 * k, 2) for k in range(10))
+# 1.0 down to -1.0 in steps of 0.1. The negative part is only reached when no
+# cutoff meets the tolerance; the tightest value is then used, which prunes a
+# parent down to residual_decorrelation_min_keep children.
+DEFAULT_CUTOFF_GRID = tuple(round(1.0 - 0.1 * k, 2) for k in range(21))
 DEFAULT_TOLERANCE = 0.10
 DEFAULT_MIN_KEEP = 1
 
