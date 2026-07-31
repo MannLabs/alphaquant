@@ -77,6 +77,7 @@ def run_pipeline(input_file: str,
                 volcano_fcthresh: float = 0.5,
                 annotation_columns: Optional[List[str]] = None,
                 protein_subset_for_normalization_file: Optional[str] = None,
+                median_normalization: bool = False,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
@@ -154,6 +155,7 @@ def run_pipeline(input_file: str,
     volcano_fcthresh (float): Fold change threshold for volcano plot significance. Defaults to 0.5.
     annotation_columns (list): Additional columns to include in output tables.
     protein_subset_for_normalization_file (str): File specifying proteins to use for normalization.
+    median_normalization (bool): Take the median of the between-condition fold-change distribution as the shift, instead of choosing between its median and its mode. Passing protein_subset_for_normalization_file also implies this. Defaults to False.
     protnorm_peptides (bool): Enable protein-level peptide normalization. Defaults to True.
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
