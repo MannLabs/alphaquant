@@ -60,6 +60,8 @@ def run_pipeline(input_file: str,
                 residual_decorrelation_tolerance: float = 0.10,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
+                residual_decorr_corr_mode: str = "cap",
+                residual_decorr_corr_cap: int = 10,
                 max_peptides_per_protein: Optional[int] = None,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
@@ -136,6 +138,15 @@ def run_pipeline(input_file: str,
         residual_decorrelation_min_keep children. Pass a shorter grid (e.g.
         [1.0, 0.9, ..., 0.1]) to bound how aggressively siblings can be dropped,
         at the cost of leaving survivors correlated up to the last cutoff.
+    residual_decorr_corr_mode (str): Budget for how many samples the sibling-correlation
+        estimate may use. "cap" (default) keeps at most residual_decorr_corr_cap
+        columns from EACH condition, chosen deterministically and evenly spaced so
+        both conditions stay represented; the correlation is then never estimated
+        from more than ~2*cap samples, which keeps pruning aggressiveness from
+        growing with sample count. Any other value (e.g. "off") uses all samples.
+    residual_decorr_corr_cap (int): Maximum number of columns per condition used for
+        the sibling-correlation estimate when residual_decorr_corr_mode is "cap".
+        Defaults to 10.
     max_peptides_per_protein (int | None): Cap on the number of peptides used per
         protein during peptide outlier filtering; when exceeded, only the peptides
         with z-values closest to the median are kept. Only effective when
@@ -291,6 +302,8 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_residual_decorr_corr_mode(residual_decorr_corr_mode)
+    aqvariables.set_residual_decorr_corr_cap(residual_decorr_corr_cap)
     aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts

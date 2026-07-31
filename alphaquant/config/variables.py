@@ -14,6 +14,9 @@ CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
 
+RESIDUAL_DECORR_CORR_MODE = "cap"
+RESIDUAL_DECORR_CORR_CAP = 10
+
 MAX_PEPTIDES_PER_PROTEIN = None
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
@@ -52,6 +55,16 @@ def _determine_prefer_precursors_for_clustering(input_type):
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+
+def set_residual_decorr_corr_mode(residual_decorr_corr_mode):
+    global RESIDUAL_DECORR_CORR_MODE
+    RESIDUAL_DECORR_CORR_MODE = str(residual_decorr_corr_mode) if residual_decorr_corr_mode else "cap"
+
+
+def set_residual_decorr_corr_cap(residual_decorr_corr_cap):
+    global RESIDUAL_DECORR_CORR_CAP
+    RESIDUAL_DECORR_CORR_CAP = int(residual_decorr_corr_cap) if residual_decorr_corr_cap else 10
 
 def set_max_peptides_per_protein(max_peptides_per_protein):
     global MAX_PEPTIDES_PER_PROTEIN

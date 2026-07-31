@@ -429,6 +429,25 @@ def run_level_sweep(
     )
 
 
+def _corr_budget_cols(c1_cols, c2_cols):
+    """Columns to keep for the sibling-correlation estimate, per RESIDUAL_DECORR_CORR_MODE.
+    Returns None (use all) for mode 'off'. For mode 'cap', picks up to RESIDUAL_DECORR_CORR_CAP
+    columns from EACH condition, deterministically evenly spaced, keeping both conditions
+    represented -- so the correlation is never estimated more precisely than ~2*CAP samples."""
+    mode = aqvariables.RESIDUAL_DECORR_CORR_MODE
+    na, nb = len(c1_cols), len(c2_cols)
+    if mode == "cap":
+        cap = aqvariables.RESIDUAL_DECORR_CORR_CAP
+        ka, kb = min(na, cap), min(nb, cap)
+    else:
+        return None
+    def pick(cols, k):
+        k = max(1, min(int(k), len(cols)))
+        idx = sorted(set(np.linspace(0, len(cols) - 1, k).round().astype(int).tolist()))
+        return [cols[i] for i in idx]
+    return pick(list(c1_cols), ka) + pick(list(c2_cols), kb)
+
+
 def attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed, min_n_per_cond=2):
     """Attach per-ion residuals from ``log2(intensity) ~ condition``.
 
@@ -456,6 +475,12 @@ def attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed, min_n_per_cond=2)
     n1_ok = X[c1_cols].notna().sum(axis=1) >= int(min_n_per_cond)
     n2_ok = X[c2_cols].notna().sum(axis=1) >= int(min_n_per_cond)
     res.loc[~(n1_ok & n2_ok), :] = np.nan
+
+    # optional correlation-estimation budget: cap the columns used for the sibling-correlation
+    # so its precision (hence pruning aggressiveness) does not blow up at high sample count.
+    keep = _corr_budget_cols(c1_cols, c2_cols)
+    if keep is not None:
+        res = res[keep]
 
     for protnode in protnodes:
         # initialise residuals to None on every node before filling
