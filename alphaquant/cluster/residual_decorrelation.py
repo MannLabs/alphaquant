@@ -560,6 +560,7 @@ def apply_residual_decorrelation(
     cutoff_grid=DEFAULT_CUTOFF_GRID,
     aggregation_mode="stouffer_decorrelation",
     null_seed=42,
+    plot_dir=None,
 ):
     """Main entry point: run full residual decorrelation on a list of protein nodes.
 
@@ -686,6 +687,20 @@ def apply_residual_decorrelation(
                 float(np.mean(source_means)) if source_means else 0.0,
                 null_mean, level_excess, len(source_means),
             )
+
+    # optional: save the per-level distribution diagnostics (before/after/null CDFs
+    # + cutoff sweep trace) using AlphaQuant's own plotting.
+    if plot_dir is not None:
+        import os
+        os.makedirs(plot_dir, exist_ok=True)
+        for sweep in level_results:
+            try:
+                fig = plot_level_sweep_diagnostics(sweep)
+                fig.savefig(os.path.join(plot_dir, f"decorr_{sweep.level[0]}__{sweep.level[1]}.png"),
+                            dpi=120)
+                plt.close(fig)
+            except Exception as exc:
+                LOGGER.warning("could not save decorrelation plot for %s: %s", sweep.level, exc)
 
     # step 3 (optional): apply PTM fragment selection on top of decorrelation exclusions
     if aqvariables.PTM_FRAGMENT_SELECTION:
