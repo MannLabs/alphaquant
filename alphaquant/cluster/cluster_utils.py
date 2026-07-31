@@ -134,6 +134,22 @@ def aggregate_node_properties(node, only_use_mainclust, peptide_outlier_filterin
         effective_mode = aggregation_mode.get(node.type, DEFAULT_AGGREGATION_MODE)
     else:
         effective_mode = aggregation_mode
+
+    # median-on-collapse: pruning left one survivor where the parent had several, so the
+    # children were near-duplicates. Take the median of all eligible children's z instead of
+    # the survivor's, recovering within-group evidence without over-counting correlation.
+    if getattr(aqvariables, "MEDIAN_ON_COLLAPSE", False) and len(childs_zfiltered) == 1:
+        all_eligible = [
+            x for x in node.children
+            if x.is_included and (not only_use_mainclust or x.cluster == 0)
+        ]
+        if len(all_eligible) > 1:
+            all_z = get_feature_numpy_array_from_nodes(nodes=all_eligible, feature_name="z_val")
+            all_z = all_z[np.isfinite(all_z)]
+            if len(all_z) > 1:
+                zvals = all_z
+                effective_mode = "median_z"
+
     z_normed = combine_zvalues(zvals, rho=rho, mode=effective_mode)
 
     p_val = transform_znormed_to_pval(z_normed)

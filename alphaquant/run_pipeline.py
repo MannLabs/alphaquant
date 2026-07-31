@@ -60,6 +60,7 @@ def run_pipeline(input_file: str,
                 residual_decorrelation_tolerance: float = 0.10,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
+                median_on_collapse: bool = True,
                 residual_decorr_corr_mode: str = "cap",
                 residual_decorr_corr_cap: int = 10,
                 max_peptides_per_protein: Optional[int] = None,
@@ -138,6 +139,15 @@ def run_pipeline(input_file: str,
         residual_decorrelation_min_keep children. Pass a shorter grid (e.g.
         [1.0, 0.9, ..., 0.1]) to bound how aggressively siblings can be dropped,
         at the cost of leaving survivors correlated up to the last cutoff.
+    median_on_collapse (bool): When residual-decorrelation pruning collapses a
+        parent to a single surviving child, aggregate that parent via the MEDIAN
+        of ALL its eligible children's z-values (a shared-signal estimate for
+        near-duplicate siblings) instead of reporting the lone survivor. Applied
+        at every tree level, but only to parents that pruning actually collapsed:
+        it requires exactly one surviving child and more than one eligible child,
+        so on data where pruning drops nothing it affects no nodes. Recovers
+        within-group evidence lost when highly correlated siblings are pruned to
+        one. Defaults to True.
     residual_decorr_corr_mode (str): Budget for how many samples the sibling-correlation
         estimate may use. "cap" (default) keeps at most residual_decorr_corr_cap
         columns from EACH condition, chosen deterministically and evenly spaced so
@@ -302,6 +312,7 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_median_on_collapse(median_on_collapse)
     aqvariables.set_residual_decorr_corr_mode(residual_decorr_corr_mode)
     aqvariables.set_residual_decorr_corr_cap(residual_decorr_corr_cap)
     aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)

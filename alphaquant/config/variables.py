@@ -14,6 +14,8 @@ CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
 
+MEDIAN_ON_COLLAPSE = True
+
 RESIDUAL_DECORR_CORR_MODE = "cap"
 RESIDUAL_DECORR_CORR_CAP = 10
 
@@ -55,6 +57,10 @@ def _determine_prefer_precursors_for_clustering(input_type):
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+def set_median_on_collapse(median_on_collapse):
+    global MEDIAN_ON_COLLAPSE
+    MEDIAN_ON_COLLAPSE = bool(median_on_collapse)
 
 
 def set_residual_decorr_corr_mode(residual_decorr_corr_mode):
