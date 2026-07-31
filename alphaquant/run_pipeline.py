@@ -59,6 +59,7 @@ def run_pipeline(input_file: str,
                 use_ml: bool = True,
                 residual_decorrelation_tolerance: float = 0.10,
                 residual_decorrelation_min_keep: int = 1,
+                max_peptides_per_protein: Optional[int] = None,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
@@ -126,6 +127,10 @@ def run_pipeline(input_file: str,
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
     residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
+    max_peptides_per_protein (int | None): Cap on the number of peptides used per
+        protein during peptide outlier filtering; when exceeded, only the peptides
+        with z-values closest to the median are kept. Only effective when
+        peptide_outlier_filtering is True. None (default) means no cap.
     aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
         (where ions show intra-group dependencies). Higher levels always use Stouffer.
         Can be a single string (applied to all dependent levels) or a dict mapping node types
@@ -277,6 +282,7 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set

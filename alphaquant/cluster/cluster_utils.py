@@ -196,9 +196,11 @@ def _select_peptides_around_median_z(peptide_nodes, max_peptides=31):
 def get_selected_nodes_for_zvalcalc(childs, peptide_outlier_filtering, node):
     if peptide_outlier_filtering and node.type == "gene":
         filtered_childs = [x for x in childs if not x.is_outlier_peptide]
-        # Additional restriction: if more than 31 peptides, keep only 31 closest to median z-value
-        if len(filtered_childs) > 31:
-            filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=31)
+        # Additional restriction: cap the number of peptides (closest to median z-value).
+        # Cap is configurable via MAX_PEPTIDES_PER_PROTEIN (disabled by default); None disables it.
+        cap = aqvariables.MAX_PEPTIDES_PER_PROTEIN
+        if cap is not None and len(filtered_childs) > cap:
+            filtered_childs = _select_peptides_around_median_z(filtered_childs, max_peptides=cap)
         return filtered_childs
 
     if node.type == "frgion":

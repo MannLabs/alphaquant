@@ -13,6 +13,8 @@ ION_OUTLIER_MAD_THRESHOLD = None
 CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
+
+MAX_PEPTIDES_PER_PROTEIN = None
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -50,6 +52,11 @@ def _determine_prefer_precursors_for_clustering(input_type):
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+def set_max_peptides_per_protein(max_peptides_per_protein):
+    global MAX_PEPTIDES_PER_PROTEIN
+    MAX_PEPTIDES_PER_PROTEIN = (int(max_peptides_per_protein)
+                                if max_peptides_per_protein is not None else None)
 
 def set_outlier_correction_factor(outlier_correction_factor):
     global OUTLIER_CORRECTION_FACTOR
