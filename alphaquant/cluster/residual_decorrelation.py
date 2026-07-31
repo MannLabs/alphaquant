@@ -96,7 +96,9 @@ LEVEL_PAIRS = (
     ("ms1_isotopes", "base"),
 )
 
-DEFAULT_CUTOFF_GRID = tuple(round(1.0 - 0.1 * k, 2) for k in range(10))
+# 1.0 down to -1.0 in steps of 0.1. The negative part is only reached when no cutoff
+# meets the tolerance, in which case the tightest one prunes down to min_keep.
+DEFAULT_CUTOFF_GRID = tuple(round(1.0 - 0.1 * k, 2) for k in range(21))
 DEFAULT_TOLERANCE = 0.10
 DEFAULT_MIN_KEEP = 1
 
@@ -427,6 +429,25 @@ def run_level_sweep(
     )
 
 
+def _corr_budget_cols(c1_cols, c2_cols):
+    """Columns to keep for the sibling-correlation estimate, per RESIDUAL_DECORR_CORR_MODE.
+    Returns None (use all) for mode 'off'. For mode 'cap', picks up to RESIDUAL_DECORR_CORR_CAP
+    columns from EACH condition, deterministically evenly spaced, keeping both conditions
+    represented -- so the correlation is never estimated more precisely than ~2*CAP samples."""
+    mode = aqvariables.RESIDUAL_DECORR_CORR_MODE
+    na, nb = len(c1_cols), len(c2_cols)
+    if mode == "cap":
+        cap = aqvariables.RESIDUAL_DECORR_CORR_CAP
+        ka, kb = min(na, cap), min(nb, cap)
+    else:
+        return None
+    def pick(cols, k):
+        k = max(1, min(int(k), len(cols)))
+        idx = sorted(set(np.linspace(0, len(cols) - 1, k).round().astype(int).tolist()))
+        return [cols[i] for i in idx]
+    return pick(list(c1_cols), ka) + pick(list(c2_cols), kb)
+
+
 def attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed, min_n_per_cond=2):
     """Attach per-ion residuals from ``log2(intensity) ~ condition``.
 
@@ -454,6 +475,12 @@ def attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed, min_n_per_cond=2)
     n1_ok = X[c1_cols].notna().sum(axis=1) >= int(min_n_per_cond)
     n2_ok = X[c2_cols].notna().sum(axis=1) >= int(min_n_per_cond)
     res.loc[~(n1_ok & n2_ok), :] = np.nan
+
+    # optional correlation-estimation budget: cap the columns used for the sibling-correlation
+    # so its precision (hence pruning aggressiveness) does not blow up at high sample count.
+    keep = _corr_budget_cols(c1_cols, c2_cols)
+    if keep is not None:
+        res = res[keep]
 
     for protnode in protnodes:
         # initialise residuals to None on every node before filling
@@ -533,6 +560,7 @@ def apply_residual_decorrelation(
     cutoff_grid=DEFAULT_CUTOFF_GRID,
     aggregation_mode="stouffer_decorrelation",
     null_seed=42,
+    plot_dir=None,
 ):
     """Main entry point: run full residual decorrelation on a list of protein nodes.
 
@@ -566,6 +594,8 @@ def apply_residual_decorrelation(
         for node in PreOrderIter(protnode):
             node.exclude_residual_decorrelation = False
             node.exclude_ptm_fragment_selection = False
+            if aqvariables.RESIDUAL_DEFF_CORRECTION:
+                node.icc_correction = 0.0
 
     # step 1: compute within-condition residuals and attach them to every node
     attach_lm_residuals(protnodes, df_c1_normed, df_c2_normed)
@@ -582,6 +612,7 @@ def apply_residual_decorrelation(
             for pp in parents
         ]
         null_sorted = np.sort(_cross_parent_shuffle_null(mats, rng))
+        n_total = next((m.shape[1] for m in mats if getattr(m, "size", 0)), 0)
         sweep = run_level_sweep(
             parents,
             null_sorted,
@@ -601,12 +632,75 @@ def apply_residual_decorrelation(
         LOGGER.info(msg)
         print(msg, flush=True)
 
+        # design effect on the residual correlation, recorded on the parent so that
+        # aggregation applies deff=1+(n-1)*rho. Excess over the null mean rather than raw
+        # rho: the null absorbs the finite-sample floor of short residual vectors.
+        null_mean = float(np.mean(null_sorted)) if null_sorted.size else 0.0
+        survivor_means = []
+        parents_with_pairs = []
         # mark children that did not survive the chosen cutoff
         for pp in parents:
             survivors = pp.survivors_at(sweep.cutoff, min_keep)
             for keep, child in zip(survivors, pp.child_nodes):
                 if not keep:
                     child.exclude_residual_decorrelation = True
+            if aqvariables.RESIDUAL_DEFF_CORRECTION:
+                resid_rs = _pair_rs_from_C(pp.C, survivors)
+                if resid_rs.size:
+                    survivor_means.append(float(np.mean(resid_rs)))
+                    parents_with_pairs.append(pp)
+                else:
+                    pp.parent_node.icc_correction = 0.0
+        # gene->seq only: that level carries the protein-level random effect shared across a
+        # protein's peptides, which the ion-variance model does not capture. Gated on d_before
+        # so that peptides no more correlated than the null stay a no-op.
+        gate_open = sweep.d_before > tolerance
+        # below this sample count the per-dataset correlation is unmeasurable, so survivor rho
+        # reads ~0 while the correlation still leaks into the Stouffer sum: use raw rho instead.
+        smalln = aqvariables.RESIDUAL_DEFF_SMALLN_TOTAL
+        use_raw = bool(smalln) and n_total <= smalln
+        if aqvariables.RESIDUAL_DEFF_CORRECTION and parent_level == "gene":
+            LOGGER.info("deff gate gene->seq: d_before=%.4f tolerance=%.4f n_total=%d -> %s%s",
+                        sweep.d_before, tolerance, n_total,
+                        "OPEN" if gate_open else "CLOSED (deff off)",
+                        " [raw small-n ICC]" if use_raw else "")
+        if aqvariables.RESIDUAL_DEFF_CORRECTION and parent_level == "gene" and gate_open:
+            if use_raw:
+                # raw pooled ICC: mean pairwise correlation among ALL children (no pruning)
+                source_means = []
+                for pp in parents:
+                    raw_rs = _pair_rs_from_C(pp.C, pp.survivors_at(1.0, min_keep))
+                    if raw_rs.size:
+                        source_means.append(float(np.mean(raw_rs)))
+            else:
+                source_means = survivor_means
+            # clip once on the level mean, not per parent: per-parent means are noisy and
+            # clipping each at zero would rectify that noise into a positive bias.
+            level_excess = (max(0.0, float(np.mean(source_means)) - null_mean)
+                            if source_means else 0.0)
+            for pp in parents_with_pairs:
+                pp.parent_node.icc_correction = level_excess
+            LOGGER.info(
+                "deff %s->%s: mean %s rho=%.4f  null mean=%.4f  "
+                "LEVEL excess rho=%.4f (parents=%d)",
+                parent_level, child_level, "RAW" if use_raw else "survivor",
+                float(np.mean(source_means)) if source_means else 0.0,
+                null_mean, level_excess, len(source_means),
+            )
+
+    # optional: save the per-level distribution diagnostics (before/after/null CDFs
+    # + cutoff sweep trace) using AlphaQuant's own plotting.
+    if plot_dir is not None:
+        import os
+        os.makedirs(plot_dir, exist_ok=True)
+        for sweep in level_results:
+            try:
+                fig = plot_level_sweep_diagnostics(sweep)
+                fig.savefig(os.path.join(plot_dir, f"decorr_{sweep.level[0]}__{sweep.level[1]}.png"),
+                            dpi=120)
+                plt.close(fig)
+            except Exception as exc:
+                LOGGER.warning("could not save decorrelation plot for %s: %s", sweep.level, exc)
 
     # step 3 (optional): apply PTM fragment selection on top of decorrelation exclusions
     if aqvariables.PTM_FRAGMENT_SELECTION:

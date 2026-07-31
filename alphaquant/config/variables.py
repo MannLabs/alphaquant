@@ -13,6 +13,18 @@ ION_OUTLIER_MAD_THRESHOLD = None
 CLASSIC_FRAGMENT_OUTLIER_FILTERING = False
 ICC_NULL_PVAL_THRESHOLD = 0.1
 NUM_BG_CONTEXTS = 10
+
+MEDIAN_ON_COLLAPSE = True
+
+
+RESIDUAL_DEFF_CORRECTION = True
+
+RESIDUAL_DEFF_SMALLN_TOTAL = 7
+
+RESIDUAL_DECORR_CORR_MODE = "cap"
+RESIDUAL_DECORR_CORR_CAP = 10
+
+MAX_PEPTIDES_PER_PROTEIN = None
 CONDITION_PAIR_SEPARATOR = "_VS_"
 
 #prefixes for the different ion types
@@ -50,6 +62,34 @@ def _determine_prefer_precursors_for_clustering(input_type):
 def set_peptide_outlier_filtering(peptide_outlier_filtering):
     global PEPTIDE_OUTLIER_FILTERING
     PEPTIDE_OUTLIER_FILTERING = peptide_outlier_filtering
+
+def set_median_on_collapse(median_on_collapse):
+    global MEDIAN_ON_COLLAPSE
+    MEDIAN_ON_COLLAPSE = bool(median_on_collapse)
+
+def set_residual_deff_correction(residual_deff_correction):
+    global RESIDUAL_DEFF_CORRECTION
+    RESIDUAL_DEFF_CORRECTION = bool(residual_deff_correction)
+
+
+def set_residual_deff_smalln_total(residual_deff_smalln_total):
+    global RESIDUAL_DEFF_SMALLN_TOTAL
+    RESIDUAL_DEFF_SMALLN_TOTAL = int(residual_deff_smalln_total) if residual_deff_smalln_total else 0
+
+
+def set_residual_decorr_corr_mode(residual_decorr_corr_mode):
+    global RESIDUAL_DECORR_CORR_MODE
+    RESIDUAL_DECORR_CORR_MODE = str(residual_decorr_corr_mode) if residual_decorr_corr_mode else "cap"
+
+
+def set_residual_decorr_corr_cap(residual_decorr_corr_cap):
+    global RESIDUAL_DECORR_CORR_CAP
+    RESIDUAL_DECORR_CORR_CAP = int(residual_decorr_corr_cap) if residual_decorr_corr_cap else 10
+
+def set_max_peptides_per_protein(max_peptides_per_protein):
+    global MAX_PEPTIDES_PER_PROTEIN
+    MAX_PEPTIDES_PER_PROTEIN = (int(max_peptides_per_protein)
+                                if max_peptides_per_protein is not None else None)
 
 def set_outlier_correction_factor(outlier_correction_factor):
     global OUTLIER_CORRECTION_FACTOR

@@ -59,6 +59,13 @@ def run_pipeline(input_file: str,
                 use_ml: bool = True,
                 residual_decorrelation_tolerance: float = 0.10,
                 residual_decorrelation_min_keep: int = 1,
+                residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
+                median_on_collapse: bool = True,
+                residual_deff_correction: bool = True,
+                residual_deff_smalln_total: int = 7,
+                residual_decorr_corr_mode: str = "cap",
+                residual_decorr_corr_cap: int = 10,
+                max_peptides_per_protein: Optional[int] = None,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
                 perform_ptm_mapping: bool = False,
@@ -77,6 +84,7 @@ def run_pipeline(input_file: str,
                 volcano_fcthresh: float = 0.5,
                 annotation_columns: Optional[List[str]] = None,
                 protein_subset_for_normalization_file: Optional[str] = None,
+                median_normalization: bool = False,
                 protnorm_peptides: bool = True,
                 peptides_to_exclude_file: Optional[str] = None,
                 reset_progress_folder: bool = False,
@@ -125,6 +133,59 @@ def run_pipeline(input_file: str,
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
     residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
+    residual_decorrelation_cutoff_grid (list[float] | None): Correlation cutoffs
+        scanned (loose->tight) during residual-decorrelation pruning. None (default)
+        uses the built-in grid, which runs from 1.0 down to -1.0 in steps of 0.1.
+        The negative part is only reached when no cutoff meets the tolerance; the
+        tightest value is then used, which prunes a parent all the way down to
+        residual_decorrelation_min_keep children. Pass a shorter grid (e.g.
+        [1.0, 0.9, ..., 0.1]) to bound how aggressively siblings can be dropped,
+        at the cost of leaving survivors correlated up to the last cutoff.
+    median_on_collapse (bool): When residual-decorrelation pruning collapses a
+        parent to a single surviving child, aggregate that parent via the MEDIAN
+        of ALL its eligible children's z-values (a shared-signal estimate for
+        near-duplicate siblings) instead of reporting the lone survivor. Applied
+        at every tree level, but only to parents that pruning actually collapsed:
+        it requires exactly one surviving child and more than one eligible child,
+        so on data where pruning drops nothing it affects no nodes. Recovers
+        within-group evidence lost when highly correlated siblings are pruned to
+        one. Defaults to True.
+    residual_deff_correction (bool): When True, residual decorrelation measures the
+        mean pairwise correlation among each parent's SURVIVING children and applies
+        it as a Stouffer design effect (deff=1+(n-1)*rho) during aggregation. This
+        corrects the homogeneous between-child correlation that pruning cannot remove
+        (no droppable subset). Two restrictions make it a no-op on well-calibrated
+        data: it is applied ONLY at the between-peptide (gene->seq) level, which is
+        where the shared protein-level random effect lives, and only when that
+        level's pre-pruning distance exceeded residual_decorrelation_tolerance. If
+        peptides are no more correlated than the shuffle null to begin with, the
+        gate stays closed, rho remains 0.0 and aggregation is unchanged. When the
+        gate opens, a single level-wide excess rho (mean survivor correlation minus
+        the shuffle-null mean, clipped at zero once on the level mean rather than
+        per parent, to avoid rectifying per-parent noise into a positive bias) is
+        applied to every parent at that level. Defaults to True.
+    residual_deff_smalln_total (int): Total-sample threshold below which
+        residual_deff_correction sources its rho from the RAW, pre-pruning peptide
+        correlations (cutoff 1.0) pooled across the dataset instead of from the
+        surviving children. At very low replicate counts the per-dataset correlation
+        is not measurable, so pruning cannot reliably remove it and the survivor rho
+        falsely reads ~0 while the true between-peptide correlation still leaks into
+        the Stouffer sum (a balanced 3v3 design then runs anti-conservative). The raw
+        pooled estimate is stable at any replicate count. Set to 0 to disable the
+        fallback and always use survivor correlations. Defaults to 7.
+    residual_decorr_corr_mode (str): Budget for how many samples the sibling-correlation
+        estimate may use. "cap" (default) keeps at most residual_decorr_corr_cap
+        columns from EACH condition, chosen deterministically and evenly spaced so
+        both conditions stay represented; the correlation is then never estimated
+        from more than ~2*cap samples, which keeps pruning aggressiveness from
+        growing with sample count. Any other value (e.g. "off") uses all samples.
+    residual_decorr_corr_cap (int): Maximum number of columns per condition used for
+        the sibling-correlation estimate when residual_decorr_corr_mode is "cap".
+        Defaults to 10.
+    max_peptides_per_protein (int | None): Cap on the number of peptides used per
+        protein during peptide outlier filtering; when exceeded, only the peptides
+        with z-values closest to the median are kept. Only effective when
+        peptide_outlier_filtering is True. None (default) means no cap.
     aggregation_mode (str | dict): Strategy for combining child z-values at the fragment/MS1 level
         (where ions show intra-group dependencies). Higher levels always use Stouffer.
         Can be a single string (applied to all dependent levels) or a dict mapping node types
@@ -154,6 +215,7 @@ def run_pipeline(input_file: str,
     volcano_fcthresh (float): Fold change threshold for volcano plot significance. Defaults to 0.5.
     annotation_columns (list): Additional columns to include in output tables.
     protein_subset_for_normalization_file (str): File specifying proteins to use for normalization.
+    median_normalization (bool): Take the median of the between-condition fold-change distribution as the shift, instead of choosing between its median and its mode. Passing protein_subset_for_normalization_file also implies this. Defaults to False.
     protnorm_peptides (bool): Enable protein-level peptide normalization. Defaults to True.
     peptides_to_exclude_file (str): File listing peptides to exclude (e.g., shared between species).
     reset_progress_folder (bool): Clear and recreate the progress folder. Defaults to False.
@@ -275,6 +337,12 @@ def run_pipeline(input_file: str,
 
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
+    aqvariables.set_median_on_collapse(median_on_collapse)
+    aqvariables.set_residual_deff_correction(residual_deff_correction)
+    aqvariables.set_residual_deff_smalln_total(residual_deff_smalln_total)
+    aqvariables.set_residual_decorr_corr_mode(residual_decorr_corr_mode)
+    aqvariables.set_residual_decorr_corr_cap(residual_decorr_corr_cap)
+    aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
     aqvariables.set_outlier_correction_factor(outlier_correction_factor)
     aqvariables.NUM_BG_CONTEXTS = num_bg_contexts
     # Configure PTM-specific fragment selection: enabled if either PTM mapping is performed or explicit flag is set
