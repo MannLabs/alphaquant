@@ -16,6 +16,11 @@ NUM_BG_CONTEXTS = 10
 
 MEDIAN_ON_COLLAPSE = True
 
+
+RESIDUAL_DEFF_CORRECTION = True
+
+RESIDUAL_DEFF_SMALLN_TOTAL = 7
+
 RESIDUAL_DECORR_CORR_MODE = "cap"
 RESIDUAL_DECORR_CORR_CAP = 10
 
@@ -61,6 +66,15 @@ def set_peptide_outlier_filtering(peptide_outlier_filtering):
 def set_median_on_collapse(median_on_collapse):
     global MEDIAN_ON_COLLAPSE
     MEDIAN_ON_COLLAPSE = bool(median_on_collapse)
+
+def set_residual_deff_correction(residual_deff_correction):
+    global RESIDUAL_DEFF_CORRECTION
+    RESIDUAL_DEFF_CORRECTION = bool(residual_deff_correction)
+
+
+def set_residual_deff_smalln_total(residual_deff_smalln_total):
+    global RESIDUAL_DEFF_SMALLN_TOTAL
+    RESIDUAL_DEFF_SMALLN_TOTAL = int(residual_deff_smalln_total) if residual_deff_smalln_total else 0
 
 
 def set_residual_decorr_corr_mode(residual_decorr_corr_mode):

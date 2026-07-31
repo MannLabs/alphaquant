@@ -61,6 +61,8 @@ def run_pipeline(input_file: str,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
                 median_on_collapse: bool = True,
+                residual_deff_correction: bool = True,
+                residual_deff_smalln_total: int = 7,
                 residual_decorr_corr_mode: str = "cap",
                 residual_decorr_corr_cap: int = 10,
                 max_peptides_per_protein: Optional[int] = None,
@@ -148,6 +150,29 @@ def run_pipeline(input_file: str,
         so on data where pruning drops nothing it affects no nodes. Recovers
         within-group evidence lost when highly correlated siblings are pruned to
         one. Defaults to True.
+    residual_deff_correction (bool): When True, residual decorrelation measures the
+        mean pairwise correlation among each parent's SURVIVING children and applies
+        it as a Stouffer design effect (deff=1+(n-1)*rho) during aggregation. This
+        corrects the homogeneous between-child correlation that pruning cannot remove
+        (no droppable subset). Two restrictions make it a no-op on well-calibrated
+        data: it is applied ONLY at the between-peptide (gene->seq) level, which is
+        where the shared protein-level random effect lives, and only when that
+        level's pre-pruning distance exceeded residual_decorrelation_tolerance. If
+        peptides are no more correlated than the shuffle null to begin with, the
+        gate stays closed, rho remains 0.0 and aggregation is unchanged. When the
+        gate opens, a single level-wide excess rho (mean survivor correlation minus
+        the shuffle-null mean, clipped at zero once on the level mean rather than
+        per parent, to avoid rectifying per-parent noise into a positive bias) is
+        applied to every parent at that level. Defaults to True.
+    residual_deff_smalln_total (int): Total-sample threshold below which
+        residual_deff_correction sources its rho from the RAW, pre-pruning peptide
+        correlations (cutoff 1.0) pooled across the dataset instead of from the
+        surviving children. At very low replicate counts the per-dataset correlation
+        is not measurable, so pruning cannot reliably remove it and the survivor rho
+        falsely reads ~0 while the true between-peptide correlation still leaks into
+        the Stouffer sum (a balanced 3v3 design then runs anti-conservative). The raw
+        pooled estimate is stable at any replicate count. Set to 0 to disable the
+        fallback and always use survivor correlations. Defaults to 7.
     residual_decorr_corr_mode (str): Budget for how many samples the sibling-correlation
         estimate may use. "cap" (default) keeps at most residual_decorr_corr_cap
         columns from EACH condition, chosen deterministically and evenly spaced so
@@ -313,6 +338,8 @@ def run_pipeline(input_file: str,
     aqvariables.determine_variables(input_file_reformat, input_type)
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
     aqvariables.set_median_on_collapse(median_on_collapse)
+    aqvariables.set_residual_deff_correction(residual_deff_correction)
+    aqvariables.set_residual_deff_smalln_total(residual_deff_smalln_total)
     aqvariables.set_residual_decorr_corr_mode(residual_decorr_corr_mode)
     aqvariables.set_residual_decorr_corr_cap(residual_decorr_corr_cap)
     aqvariables.set_max_peptides_per_protein(max_peptides_per_protein)
