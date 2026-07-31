@@ -59,6 +59,7 @@ def run_pipeline(input_file: str,
                 use_ml: bool = True,
                 residual_decorrelation_tolerance: float = 0.10,
                 residual_decorrelation_min_keep: int = 1,
+                residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
                 max_peptides_per_protein: Optional[int] = None,
                 aggregation_mode: Union[str, dict] = "stouffer_decorrelation",
                 take_median_ion: bool = True,
@@ -127,6 +128,14 @@ def run_pipeline(input_file: str,
     use_ml (bool): Enable machine learning analysis. Defaults to True.
     residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
     residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
+    residual_decorrelation_cutoff_grid (list[float] | None): Correlation cutoffs
+        scanned (loose->tight) during residual-decorrelation pruning. None (default)
+        uses the built-in grid, which runs from 1.0 down to -1.0 in steps of 0.1.
+        The negative part is only reached when no cutoff meets the tolerance; the
+        tightest value is then used, which prunes a parent all the way down to
+        residual_decorrelation_min_keep children. Pass a shorter grid (e.g.
+        [1.0, 0.9, ..., 0.1]) to bound how aggressively siblings can be dropped,
+        at the cost of leaving survivors correlated up to the last cutoff.
     max_peptides_per_protein (int | None): Cap on the number of peptides used per
         protein during peptide outlier filtering; when exceeded, only the peptides
         with z-values closest to the median are kept. Only effective when
