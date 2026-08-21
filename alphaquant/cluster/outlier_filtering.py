@@ -6,8 +6,34 @@ import numpy as np
 def apply_peptide_outlier_filtering(protnodes: list[anytree.Node], aggregation_mode="stouffer_decorrelation"):
     regulation_score = calculate_regulation_score(protnodes)
     for protnode in protnodes:
-        _determine_and_annotate_outlier_status_of_peptides(protnode, regulation_score)
+        _filter_and_aggregate_protein(protnode, regulation_score, aggregation_mode)
 
+
+def _filter_and_aggregate_protein(protnode, regulation_score, aggregation_mode):
+    """Flags the outlier peptides of one protein and re-aggregates it.
+
+    Peptides are flagged on their two-sided p-value, which carries no direction, while the
+    protein-level aggregation (``cluster_utils.sum_and_re_scale_zvalues``) sums *signed*
+    z-values. Discarding a peptide that opposes the protein's direction therefore raises
+    ``|sum(z)|`` and lowers ``n``, which would make the protein *more* significant - the
+    opposite of what this filter is for. Whenever that happens the flags are dropped and
+    the unfiltered aggregate is restored, so removing peptides can only ever lower a
+    protein's significance.
+
+    Args:
+        protnode: Protein node with peptide children. On entry its ``z_val``/``p_val``
+            hold the aggregate over all peptides, i.e. the unfiltered state.
+        regulation_score: Float between 0 and 1 representing overall regulation context
+        aggregation_mode: Strategy for combining child z-values, see
+            ``cluster_utils.aggregate_node_properties``
+    """
+    z_val_unfiltered = protnode.z_val
+
+    _determine_and_annotate_outlier_status_of_peptides(protnode, regulation_score)
+    aqcluster_utils.aggregate_node_properties(protnode, only_use_mainclust=True, peptide_outlier_filtering=True, aggregation_mode=aggregation_mode)
+
+    if abs(protnode.z_val) > abs(z_val_unfiltered):
+        _annotate_peptides(protnode.children, is_outlier=False)
         aqcluster_utils.aggregate_node_properties(protnode, only_use_mainclust=True, peptide_outlier_filtering=True, aggregation_mode=aggregation_mode)
 
 
@@ -39,6 +65,7 @@ def _determine_and_annotate_outlier_status_of_peptides(protnode, regulation_scor
     """
     We look at the distribution of p-values of the peptides of a protein and focus on a particular class of proteins that are potentially dominated by outliers. For these protein 1) the majority of peptides is not significant 2) there are a few peptides are more strongly significant than the majority.
     Depending on the the overall context of the experiment which is quantified by the regulation score (low regulation score means few weakly regulated proteins, high regulation score means many strongly regulated proteins), we are more or less tolerant to the outliers.
+    Flagging is based on the two-sided p-value only and is thus blind to the direction of the effect; _filter_and_aggregate_protein discards the result for proteins where that would have increased significance.
 
     Args:
         protnode: Protein node with peptide children
