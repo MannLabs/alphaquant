@@ -20,6 +20,8 @@ MEDIAN_ON_COLLAPSE = True
 RESIDUAL_DEFF_CORRECTION = True
 
 RESIDUAL_DEFF_SMALLN_TOTAL = 7
+# deff gate threshold, deliberately independent of the pruning tolerance
+RESIDUAL_DEFF_GATE_TOLERANCE = 0.05
 
 RESIDUAL_DECORR_CORR_MODE = "cap"
 RESIDUAL_DECORR_CORR_CAP = 10
@@ -70,6 +72,13 @@ def set_median_on_collapse(median_on_collapse):
 def set_residual_deff_correction(residual_deff_correction):
     global RESIDUAL_DEFF_CORRECTION
     RESIDUAL_DEFF_CORRECTION = bool(residual_deff_correction)
+
+
+def set_residual_deff_gate_tolerance(residual_deff_gate_tolerance):
+    """None means: fall back to the pruning tolerance (the pre-decoupling behaviour)."""
+    global RESIDUAL_DEFF_GATE_TOLERANCE
+    RESIDUAL_DEFF_GATE_TOLERANCE = (None if residual_deff_gate_tolerance is None
+                                    else float(residual_deff_gate_tolerance))
 
 
 def set_residual_deff_smalln_total(residual_deff_smalln_total):
