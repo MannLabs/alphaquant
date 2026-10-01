@@ -99,7 +99,7 @@ LEVEL_PAIRS = (
 # 1.0 down to -1.0 in steps of 0.1. The negative part is only reached when no cutoff
 # meets the tolerance, in which case the tightest one prunes down to min_keep.
 DEFAULT_CUTOFF_GRID = tuple(round(1.0 - 0.1 * k, 2) for k in range(21))
-DEFAULT_TOLERANCE = 0.10
+DEFAULT_TOLERANCE = 0.08
 DEFAULT_MIN_KEEP = 1
 
 
@@ -654,14 +654,19 @@ def apply_residual_decorrelation(
         # gene->seq only: that level carries the protein-level random effect shared across a
         # protein's peptides, which the ion-variance model does not capture. Gated on d_before
         # so that peptides no more correlated than the null stay a no-op.
-        gate_open = sweep.d_before > tolerance
+        # independent of the pruning tolerance: sharing one value meant a loose tolerance
+        # switched the correction off where it was still needed. None = old coupled behaviour.
+        gate_tol = aqvariables.RESIDUAL_DEFF_GATE_TOLERANCE
+        if gate_tol is None:
+            gate_tol = tolerance
+        gate_open = sweep.d_before > gate_tol
         # below this sample count the per-dataset correlation is unmeasurable, so survivor rho
         # reads ~0 while the correlation still leaks into the Stouffer sum: use raw rho instead.
         smalln = aqvariables.RESIDUAL_DEFF_SMALLN_TOTAL
         use_raw = bool(smalln) and n_total <= smalln
         if aqvariables.RESIDUAL_DEFF_CORRECTION and parent_level == "gene":
-            LOGGER.info("deff gate gene->seq: d_before=%.4f tolerance=%.4f n_total=%d -> %s%s",
-                        sweep.d_before, tolerance, n_total,
+            LOGGER.info("deff gate gene->seq: d_before=%.4f gate_tol=%.4f n_total=%d -> %s%s",
+                        sweep.d_before, gate_tol, n_total,
                         "OPEN" if gate_open else "CLOSED (deff off)",
                         " [raw small-n ICC]" if use_raw else "")
         if aqvariables.RESIDUAL_DEFF_CORRECTION and parent_level == "gene" and gate_open:

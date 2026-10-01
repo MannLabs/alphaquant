@@ -57,11 +57,12 @@ def run_pipeline(input_file: str,
                 cluster_threshold_fcfc: float = 0,
                 fcdiff_cutoff_clustermerge = 0.5,
                 use_ml: bool = True,
-                residual_decorrelation_tolerance: float = 0.10,
+                residual_decorrelation_tolerance: float = 0.08,
                 residual_decorrelation_min_keep: int = 1,
                 residual_decorrelation_cutoff_grid: Optional[List[float]] = None,
                 median_on_collapse: bool = True,
                 residual_deff_correction: bool = True,
+                residual_deff_gate_tolerance: Optional[float] = 0.05,
                 residual_deff_smalln_total: int = 7,
                 residual_decorr_corr_mode: str = "cap",
                 residual_decorr_corr_cap: int = 10,
@@ -131,7 +132,7 @@ def run_pipeline(input_file: str,
     cluster_threshold_fcfc (float): Fold change threshold for clustering. Defaults to 0.
     fcdiff_cutoff_clustermerge (float): Fold change difference cutoff for merging peptide clusters. Defaults to 0.5.
     use_ml (bool): Enable machine learning analysis. Defaults to True.
-    residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.10.
+    residual_decorrelation_tolerance (float): Maximum allowed one-sided excess-CDF distance between corrected and null sibling-correlation distributions. Defaults to 0.08.
     residual_decorrelation_min_keep (int): Minimum number of children to retain per parent during residual decorrelation pruning. Defaults to 1.
     residual_decorrelation_cutoff_grid (list[float] | None): Correlation cutoffs
         scanned (loose->tight) during residual-decorrelation pruning. None (default)
@@ -157,13 +158,16 @@ def run_pipeline(input_file: str,
         (no droppable subset). Two restrictions make it a no-op on well-calibrated
         data: it is applied ONLY at the between-peptide (gene->seq) level, which is
         where the shared protein-level random effect lives, and only when that
-        level's pre-pruning distance exceeded residual_decorrelation_tolerance. If
+        level's pre-pruning distance exceeded residual_deff_gate_tolerance. If
         peptides are no more correlated than the shuffle null to begin with, the
         gate stays closed, rho remains 0.0 and aggregation is unchanged. When the
         gate opens, a single level-wide excess rho (mean survivor correlation minus
         the shuffle-null mean, clipped at zero once on the level mean rather than
         per parent, to avoid rectifying per-parent noise into a positive bias) is
         applied to every parent at that level. Defaults to True.
+    residual_deff_gate_tolerance (float | None): Excess-CDF distance above which the deff
+        correction switches on, independent of residual_decorrelation_tolerance. None ties
+        it back to that tolerance (the old coupled behaviour). Defaults to 0.05.
     residual_deff_smalln_total (int): Total-sample threshold below which
         residual_deff_correction sources its rho from the RAW, pre-pruning peptide
         correlations (cutoff 1.0) pooled across the dataset instead of from the
@@ -339,6 +343,7 @@ def run_pipeline(input_file: str,
     aqvariables.set_peptide_outlier_filtering(peptide_outlier_filtering)
     aqvariables.set_median_on_collapse(median_on_collapse)
     aqvariables.set_residual_deff_correction(residual_deff_correction)
+    aqvariables.set_residual_deff_gate_tolerance(residual_deff_gate_tolerance)
     aqvariables.set_residual_deff_smalln_total(residual_deff_smalln_total)
     aqvariables.set_residual_decorr_corr_mode(residual_decorr_corr_mode)
     aqvariables.set_residual_decorr_corr_cap(residual_decorr_corr_cap)
